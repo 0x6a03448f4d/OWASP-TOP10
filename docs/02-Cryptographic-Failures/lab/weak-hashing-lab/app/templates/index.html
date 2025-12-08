@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cryptographic Failures Lab - Weak Hashing</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            font-size: 18px;
+        }
+        
+        .warning-banner {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="text"]:focus, input[type="password"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        .btn-warning {
+            background: #ffc107;
+            color: #333;
+        }
+        
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        .btn-primary {
+            background: #007bff;
+            color: white;
+            grid-column: 1 / -1;
+        }
+        
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+        
+        .result-box {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+        }
+        
+        .result-box.danger {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .result-box.warning {
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+        }
+        
+        .result-box.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .result-detail {
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        
+        .comparison-table {
+            width: 100%;
+            margin-top: 20px;
+            border-collapse: collapse;
+        }
+        
+        .comparison-table th,
+        .comparison-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .comparison-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .badge-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .badge-warning {
+            background: #ffc107;
+            color: #333;
+        }
+        
+        .badge-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #007bff;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        
+        .info-box h3 {
+            color: #007bff;
+            margin-bottom: 10px;
+        }
+        
+        footer {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin-top: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔐 Cryptographic Failures Lab: Weak Hashing</h1>
+            <p class="subtitle">Understanding Password Hashing Security</p>
+            <div class="warning-banner">
+                <strong>⚠️ Educational Purpose Only</strong> - This lab demonstrates why certain hashing algorithms are insecure for password storage. Never use MD5 or SHA-256 for passwords in production!
+            </div>
+        </header>
+
+        <div class="main-content">
+            <div class="card">
+                <h2>Hash Comparison Tool</h2>
+                <div class="input-group">
+                    <label for="password">Enter a test password:</label>
+                    <input type="text" id="password" placeholder="e.g., password123" value="SecurePass2023!">
+                </div>
+                
+                <div class="btn-group">
+                    <button class="btn-danger" onclick="hashPassword('md5')">MD5 (Weak)</button>
+                    <button class="btn-warning" onclick="hashPassword('sha256')">SHA-256 (Weak)</button>
+                    <button class="btn-success" onclick="hashPassword('bcrypt')">bcrypt (Secure)</button>
+                </div>
+                
+                <button class="btn-primary" onclick="compareAll()">Compare All Algorithms</button>
+                
+                <div id="result"></div>
+            </div>
+
+            <div class="card">
+                <h2>Understanding the Differences</h2>
+                
+                <div class="info-box">
+                    <h3>❌ MD5 - INSECURE</h3>
+                    <ul>
+                        <li>Extremely fast (millions of hashes per second)</li>
+                        <li>No built-in salt</li>
+                        <li>Vulnerable to rainbow table attacks</li>
+                        <li>Can be cracked in seconds</li>
+                    </ul>
+                </div>
+                
+                <div class="info-box">
+                    <h3>⚠️ SHA-256 - WEAK FOR PASSWORDS</h3>
+                    <ul>
+                        <li>Designed for data integrity, not passwords</li>
+                        <li>Too fast for password hashing</li>
+                        <li>No built-in salt</li>
+                        <li>Can be brute-forced with GPUs</li>
+                    </ul>
+                </div>
+                
+                <div class="info-box">
+                    <h3>✅ bcrypt - SECURE</h3>
+                    <ul>
+                        <li>Intentionally slow (adjustable work factor)</li>
+                        <li>Built-in salt (unique per password)</li>
+                        <li>Resistant to brute force attacks</li>
+                        <li>Industry standard for password storage</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Key Learning Points</h2>
+            <div class="comparison-table">
+                <table style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Aspect</th>
+                            <th>MD5/SHA-256</th>
+                            <th>bcrypt/Argon2</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Speed</strong></td>
+                            <td>Very fast (bad for passwords)</td>
+                            <td>Intentionally slow (good for passwords)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Salt</strong></td>
+                            <td>Not included (must add manually)</td>
+                            <td>Built-in automatic salting</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Purpose</strong></td>
+                            <td>Data integrity, checksums</td>
+                            <td>Password storage</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Rainbow Tables</strong></td>
+                            <td>Vulnerable without salt</td>
+                            <td>Resistant (unique salt per password)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Brute Force Resistance</strong></td>
+                            <td>Weak (billions/second with GPU)</td>
+                            <td>Strong (adjustable work factor)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <footer>
+            <p><strong>Part of the OWASP Top 10 Educational Repository</strong></p>
+            <p>Remember: Always use bcrypt, Argon2, or scrypt for password hashing!</p>
+        </footer>
+    </div>
+
+    <script>
+        async function hashPassword(algorithm) {
+            const password = document.getElementById('password').value;
+            if (!password) {
+                alert('Please enter a password');
+                return;
+            }
+
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<p>Computing hash...</p>';
+
+            try {
+                const response = await fetch(`/hash/${algorithm}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ password: password })
+                });
+
+                const data = await response.json();
+                
+                let colorClass = 'success';
+                if (data.security_level === 'INSECURE') colorClass = 'danger';
+                if (data.security_level === 'WEAK FOR PASSWORDS') colorClass = 'warning';
+
+                resultDiv.innerHTML = `
+                    <div class="result-box ${colorClass}">
+                        <strong>${data.algorithm}</strong><br>
+                        <span class="badge badge-${colorClass}">${data.security_level}</span><br><br>
+                        <strong>Hash:</strong><br>${data.hash}<br><br>
+                        <strong>Time:</strong> ${data.time_ms.toFixed(4)} ms<br>
+                        ${data.warning ? `<br><strong>⚠️ Warning:</strong> ${data.warning}` : ''}
+                        ${data.recommendation ? `<br><strong>✅ Recommendation:</strong> ${data.recommendation}` : ''}
+                        <div class="result-detail">
+                            ${Object.entries(data.details || {}).map(([key, value]) => 
+                                `<strong>${key.replace(/_/g, ' ')}:</strong> ${value}`
+                            ).join('<br>')}
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result-box danger">Error: ${error.message}</div>`;
+            }
+        }
+
+        async function compareAll() {
+            const password = document.getElementById('password').value;
+            if (!password) {
+                alert('Please enter a password');
+                return;
+            }
+
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<p>Comparing all algorithms...</p>';
+
+            try {
+                const response = await fetch('/compare', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ password: password })
+                });
+
+                const data = await response.json();
+                
+                let html = '<h3>Comparison Results</h3>';
+                data.results.forEach(result => {
+                    html += `
+                        <div class="result-box ${result.color}" style="margin-top: 10px;">
+                            <strong>${result.algorithm}</strong> 
+                            <span class="badge badge-${result.color}">${result.security}</span><br>
+                            <small>Time: ${result.time_ms.toFixed(4)} ms</small><br>
+                            <small style="word-break: break-all;">Hash: ${result.hash}</small>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                    <div class="result-detail" style="margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 5px;">
+                        <strong>Conclusion:</strong><br>
+                        ${Object.entries(data.conclusion).map(([key, value]) => 
+                            `• ${key}: ${value}`
+                        ).join('<br>')}
+                    </div>
+                `;
+                
+                resultDiv.innerHTML = html;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result-box danger">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Automatically compare on page load with default password
+        window.addEventListener('load', () => {
+            compareAll();
+        });
+    </script>
+</body>
+</html>
