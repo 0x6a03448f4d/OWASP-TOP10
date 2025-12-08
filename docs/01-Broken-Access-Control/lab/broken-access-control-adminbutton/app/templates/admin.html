@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - VULNERABLE</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+        
+        .header {
+            border-bottom: 2px solid #dc3545;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #dc3545;
+            margin-bottom: 10px;
+        }
+        
+        .warning-banner {
+            background: #dc3545;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        
+        .vulnerability-notice {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+        }
+        
+        .vulnerability-notice h2 {
+            color: #856404;
+            margin-bottom: 15px;
+        }
+        
+        .vulnerability-notice ul {
+            margin-left: 20px;
+            color: #856404;
+        }
+        
+        .vulnerability-notice li {
+            margin-bottom: 10px;
+        }
+        
+        .secrets-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .secrets-section h2 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .secret-item {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #dc3545;
+        }
+        
+        .secret-item strong {
+            color: #dc3545;
+        }
+        
+        button {
+            padding: 12px 24px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #5a6268;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #666;
+            padding: 20px;
+        }
+        
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .fix-hint {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            padding: 20px;
+            border-radius: 5px;
+            margin-top: 30px;
+        }
+        
+        .fix-hint h3 {
+            color: #0c5460;
+            margin-bottom: 15px;
+        }
+        
+        .fix-hint pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔑 Admin Panel</h1>
+            {% if username %}
+            <p>Logged in as: <strong>{{ username }}</strong></p>
+            {% else %}
+            <p>Not logged in</p>
+            {% endif %}
+        </div>
+        
+        <div class="warning-banner">
+            ⚠️ VULNERABILITY DETECTED: This page is accessible without proper authorization!
+        </div>
+        
+        <div class="vulnerability-notice">
+            <h2>🐛 What's Wrong Here?</h2>
+            <ul>
+                <li><strong>Client-side only protection:</strong> The "Admin Panel" button was hidden in the UI, but the <code>/admin</code> URL is accessible to anyone.</li>
+                <li><strong>No server-side check:</strong> The Flask route doesn't verify if the user has admin privileges.</li>
+                <li><strong>No session validation:</strong> The server doesn't even check if you're logged in!</li>
+                <li><strong>API also vulnerable:</strong> Try checking the browser console - the <code>/api/admin/secrets</code> endpoint is also unprotected.</li>
+            </ul>
+        </div>
+        
+        <div class="secrets-section">
+            <h2>💎 Sensitive Data (Should be protected!)</h2>
+            <p style="margin-bottom: 15px; color: #666;">Loading secrets from API...</p>
+            <div id="secrets-container" class="loading">
+                Loading...
+            </div>
+        </div>
+        
+        <div class="fix-hint">
+            <h3>🔧 How to Fix This:</h3>
+            <p>Add server-side authorization checks:</p>
+            <pre><code>@app.route('/admin')
+def admin_panel():
+    # Check if user is logged in
+    if 'username' not in session:
+        abort(401)  # Unauthorized
+    
+    # Check if user has admin role
+    if session.get('role') != 'admin':
+        abort(403)  # Forbidden
+    
+    return render_template('admin.html')
+</code></pre>
+        </div>
+        
+        <button onclick="location.href='/'">← Back to Home</button>
+    </div>
+    
+    <script>
+        // Load secrets from the vulnerable API endpoint
+        async function loadSecrets() {
+            try {
+                const response = await fetch('/api/admin/secrets');
+                const data = await response.json();
+                
+                const container = document.getElementById('secrets-container');
+                container.innerHTML = '';
+                
+                if (data.secrets && data.secrets.length > 0) {
+                    data.secrets.forEach(secret => {
+                        const div = document.createElement('div');
+                        div.className = 'secret-item';
+                        div.innerHTML = `<strong>Secret #${secret.id}:</strong> ${secret.secret}`;
+                        container.appendChild(div);
+                    });
+                } else {
+                    container.innerHTML = '<p>No secrets found.</p>';
+                }
+            } catch (error) {
+                const container = document.getElementById('secrets-container');
+                container.innerHTML = `<p style="color: #dc3545;">Error loading secrets: ${error.message}</p>`;
+            }
+        }
+        
+        // Load secrets when page loads
+        loadSecrets();
+        
+        // Log to console for educational purposes
+        console.log('%c🔓 VULNERABILITY DEMONSTRATION', 'color: red; font-size: 16px; font-weight: bold;');
+        console.log('%cThis admin panel is accessible without authorization!', 'color: orange; font-size: 14px;');
+        console.log('%cIn a real application, this would be a CRITICAL security issue.', 'color: orange; font-size: 14px;');
+        console.log('%c\nHow you accessed this:', 'color: blue; font-size: 14px; font-weight: bold;');
+        console.log('%c1. Logged in as a regular user (or not logged in at all)', 'color: blue;');
+        console.log('%c2. Manually navigated to /admin URL', 'color: blue;');
+        console.log('%c3. Server did not check your permissions!', 'color: blue;');
+    </script>
+</body>
+</html>
