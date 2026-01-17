@@ -36,7 +36,8 @@ def is_safe_url(url):
         if not hostname:
             return False, "No hostname"
         
-        # Resolve to IP
+        # IMPORTANT: DNS resolution has TOCTOU risks
+        # Best practice: Use a DNS cache or re-verify IP before actual request
         import socket
         ip = socket.gethostbyname(hostname)
         ip_obj = ipaddress.ip_address(ip)

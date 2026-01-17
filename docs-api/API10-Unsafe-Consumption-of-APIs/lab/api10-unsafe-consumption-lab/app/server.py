@@ -17,7 +17,9 @@ def get_weather():
     # For demo, simulate response
     weather_data = {
         'city': city,
-        'description': '<script>alert("XSS")</script> Sunny'  # Malicious data from "third-party"
+        # VULNERABLE: Malicious HTML from simulated "third-party" API
+        # In reality, this would come from external source
+        'description': '&lt;script&gt;alert("XSS")&lt;/script&gt; Sunny'  # Malicious data
     }
     
     # VULNERABLE: Return without sanitization!

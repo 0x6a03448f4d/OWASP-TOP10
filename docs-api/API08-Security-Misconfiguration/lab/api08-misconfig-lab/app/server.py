@@ -7,10 +7,11 @@ app = Flask(__name__)
 # VULNERABLE: Overly permissive CORS
 CORS(app, origins='*', supports_credentials=True)
 
-# VULNERABLE: Debug mode
+# VULNERABLE: Debug mode (FOR EDUCATIONAL PURPOSES ONLY)
+# WARNING: Never use these values in production!
 app.config['DEBUG'] = True
-app.config['SECRET_KEY'] = 'super-secret-key-123'
-app.config['DATABASE_PASSWORD'] = 'db_pass_prod_2024'
+app.config['SECRET_KEY'] = 'DEMO-NOT-SECURE-CHANGE-THIS'
+app.config['DATABASE_PASSWORD'] = 'DEMO-PASSWORD-DO-NOT-USE'
 
 @app.route('/')
 def index():

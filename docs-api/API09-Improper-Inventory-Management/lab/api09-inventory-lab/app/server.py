@@ -21,11 +21,12 @@ def get_users_v2():
         return jsonify({'error': 'Unauthorized'}), 401
     return jsonify(users_db)
 
-# v3 - Full security
+# v3 - Full security (FOR EDUCATIONAL DEMO - use proper OAuth in production)
 @app.route('/api/v3/users', methods=['GET'])
 def get_users_v3():
     auth = request.headers.get('Authorization')
-    if not auth or auth != 'Bearer secret-token':
+    # NOTE: In production, use proper OAuth/JWT validation
+    if not auth or auth != 'Bearer DEMO-TOKEN':
         return jsonify({'error': 'Unauthorized'}), 401
     return jsonify(users_db)
 
