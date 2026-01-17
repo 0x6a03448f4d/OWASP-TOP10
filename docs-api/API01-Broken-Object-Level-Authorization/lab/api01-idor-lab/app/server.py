@@ -265,7 +265,10 @@ def get_stats():
         'total_users': len(users),
         'total_orders': len(orders),
         'your_orders': user_order_count.get(current_user_id, 0),
-        'order_ids': list(orders.keys())  # Reveals all order IDs - another issue!
+        # SECURITY ISSUE: Exposing all order IDs enables enumeration attacks!
+        # This makes the BOLA vulnerability easier to exploit by revealing valid IDs.
+        # In production, never expose a list of all valid object identifiers.
+        'order_ids': list(orders.keys())
     })
 
 
