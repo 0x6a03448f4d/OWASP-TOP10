@@ -865,6 +865,9 @@ if __name__ == '__main__':
     print("PRODUCTION: Set debug=False and use a production WSGI server")
     print("=" * 60)
     
-    # NOTE: debug=True is used for educational purposes in this lab
-    # PRODUCTION: Use debug=False and deploy with gunicorn, uWSGI, or similar
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # SECURITY WARNING: debug=True is INTENTIONALLY used for educational lab purposes
+    # This enables the interactive debugger which is a security risk in production
+    # PRODUCTION DEPLOYMENT: Use debug=False and deploy with:
+    # - gunicorn: gunicorn -w 4 -b 0.0.0.0:5000 server_secure:app
+    # - uWSGI: uwsgi --http :5000 --wsgi-file server_secure.py --callable app
+    app.run(host='0.0.0.0', port=5000, debug=True)  # noqa: S201 - intentional for lab
