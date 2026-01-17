@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>E-Commerce Store - API06 Lab</title>
+    <style>
+        body { font-family: Arial; max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .product { border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .limited { background: #ffe6e6; border-color: #ff6666; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .cart { position: fixed; right: 20px; top: 20px; background: #f8f9fa; padding: 15px; border: 1px solid #ddd; }
+        input { padding: 5px; margin: 5px; }
+        .orders { margin-top: 30px; }
+        .order { background: #f0f0f0; padding: 10px; margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <h1>🛍️ E-Commerce Store</h1>
+    <p>API06 Lab - Business Logic Abuse Demonstration</p>
+    
+    <div class="cart">
+        <h3>Cart</h3>
+        <div id="cart-items"></div>
+        <hr>
+        <div>
+            <input type="text" id="coupon-input" placeholder="Coupon code">
+            <button onclick="addCoupon()">Add Coupon</button>
+        </div>
+        <div id="coupons-applied"></div>
+        <button onclick="checkout()">Checkout</button>
+    </div>
+    
+    <div id="products"></div>
+    
+    <div class="orders">
+        <h2>Recent Orders</h2>
+        <button onclick="loadOrders()">Refresh Orders</button>
+        <button onclick="resetDB()">Reset Database</button>
+        <div id="orders-list"></div>
+    </div>
+    
+    <script>
+        let cart = [];
+        let coupons = [];
+        
+        async function loadProducts() {
+            const res = await fetch('/api/products');
+            const products = await res.json();
+            const html = products.map(p => `
+                <div class="product ${p.limited_edition ? 'limited' : ''}">
+                    <h3>${p.name} ${p.limited_edition ? '⭐ LIMITED' : ''}</h3>
+                    <p>Price: $${p.price} | Stock: ${p.stock}</p>
+                    <input type="number" id="qty-${p.id}" value="1" min="1" max="${p.stock}">
+                    <button onclick="addToCart(${p.id}, '${p.name}', ${p.price})">Add to Cart</button>
+                    <button onclick="reserveItem(${p.id})">Reserve</button>
+                </div>
+            `).join('');
+            document.getElementById('products').innerHTML = html;
+        }
+        
+        function addToCart(id, name, price) {
+            const qty = parseInt(document.getElementById(`qty-${id}`).value);
+            cart.push({id, name, price, qty});
+            updateCart();
+        }
+        
+        function addCoupon() {
+            const code = document.getElementById('coupon-input').value;
+            if (code) {
+                coupons.push(code);
+                document.getElementById('coupons-applied').innerHTML = 
+                    'Coupons: ' + coupons.join(', ');
+                document.getElementById('coupon-input').value = '';
+            }
+        }
+        
+        function updateCart() {
+            document.getElementById('cart-items').innerHTML = cart.map((item, i) => 
+                `<div>${item.name} x${item.qty} ($${item.price * item.qty})</div>`
+            ).join('');
+        }
+        
+        async function checkout() {
+            if (cart.length === 0) {
+                alert('Cart is empty');
+                return;
+            }
+            
+            for (const item of cart) {
+                const res = await fetch('/api/purchase', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        user_id: 1,
+                        product_id: item.id,
+                        quantity: item.qty,
+                        coupons: coupons
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(`Order ${data.order_id} placed! Total: $${data.total}`);
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            }
+            
+            cart = [];
+            coupons = [];
+            updateCart();
+            document.getElementById('coupons-applied').innerHTML = '';
+            loadProducts();
+        }
+        
+        async function reserveItem(productId) {
+            const qty = parseInt(document.getElementById(`qty-${productId}`).value);
+            const res = await fetch('/api/cart/reserve', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({user_id: 1, product_id: productId, quantity: qty})
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert(`Reserved ${qty} items (expires: ${data.expires_at})`);
+                loadProducts();
+            }
+        }
+        
+        async function loadOrders() {
+            const res = await fetch('/api/orders');
+            const orders = await res.json();
+            document.getElementById('orders-list').innerHTML = orders.map(o => 
+                `<div class="order">Order #${o.id}: ${o.product_name} x${o.quantity} = $${o.total_price} (${o.created_at})</div>`
+            ).join('');
+        }
+        
+        async function resetDB() {
+            if (confirm('Reset database?')) {
+                await fetch('/api/reset', {method: 'POST'});
+                loadProducts();
+                loadOrders();
+                cart = [];
+                coupons = [];
+                updateCart();
+            }
+        }
+        
+        loadProducts();
+        loadOrders();
+    </script>
+</body>
+</html>
