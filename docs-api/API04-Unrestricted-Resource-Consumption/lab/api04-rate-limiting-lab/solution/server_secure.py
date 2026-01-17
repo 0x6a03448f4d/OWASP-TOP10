@@ -38,7 +38,10 @@ app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10 MB
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
-    storage_uri="memory://",  # Use Redis in production for distributed rate limiting
+    storage_uri="memory://",  # PRODUCTION NOTE: Use Redis (redis://host:port) for:
+                               # - Persistence across restarts
+                               # - Distributed rate limiting across multiple servers
+                               # - Better performance at scale
     default_limits=["100 per hour"],  # Global default limit
     headers_enabled=True  # Send rate limit headers to clients
 )
@@ -70,6 +73,13 @@ def timeout(seconds):
     
     SECURITY CONTROL 7: Implements timeout protection to prevent
     long-running operations from exhausting server resources.
+    
+    NOTE: This signal-based implementation works for single-threaded
+    demo purposes but is NOT thread-safe. For production use with
+    multi-threaded WSGI servers, use:
+    - threading.Timer for synchronous operations
+    - asyncio timeouts for async operations
+    - Celery task timeouts for background jobs
     """
     def timeout_handler(signum, frame):
         raise TimeoutError(f"Operation timed out after {seconds} seconds")
@@ -341,7 +351,10 @@ def login():
     try:
         # SECURITY: Timeout protection for expensive hashing operation
         with timeout(5):
-            # Simulate expensive password hashing
+            # NOTE: This uses SHA-256 for demo purposes only to match the vulnerable version's data
+            # PRODUCTION: Use bcrypt, scrypt, or argon2 for password hashing:
+            # import bcrypt
+            # password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
             time.sleep(0.1)  # Simulate bcrypt delay
             password_hash = hashlib.sha256(password.encode()).hexdigest()
     except TimeoutError:
@@ -847,5 +860,11 @@ if __name__ == '__main__':
     print("API running at: http://localhost:5000")
     print("Web interface: http://localhost:5000/")
     print("=" * 60)
+    print("")
+    print("WARNING: Running in DEBUG mode for lab purposes only!")
+    print("PRODUCTION: Set debug=False and use a production WSGI server")
+    print("=" * 60)
     
+    # NOTE: debug=True is used for educational purposes in this lab
+    # PRODUCTION: Use debug=False and deploy with gunicorn, uWSGI, or similar
     app.run(host='0.0.0.0', port=5000, debug=True)
