@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API08: Security Misconfiguration Lab</title>
+    <style>
+        body { font-family: Arial; max-width: 1000px; margin: 0 auto; padding: 20px; }
+        .test { background: #f0f0f0; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; margin: 5px; }
+        pre { background: #333; color: #0f0; padding: 10px; overflow-x: auto; }
+        .issue { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>⚠️ Security Misconfiguration Lab</h1>
+    
+    <div class="test">
+        <h2>1. CORS Misconfiguration</h2>
+        <p>Open browser console to see CORS headers</p>
+        <button onclick="testCORS()">Test CORS</button>
+        <pre id="cors-result"></pre>
+    </div>
+    
+    <div class="test">
+        <h2>2. Verbose Error Messages</h2>
+        <button onclick="triggerError()">Trigger Error (Get Stack Trace)</button>
+        <pre id="error-result"></pre>
+    </div>
+    
+    <div class="test">
+        <h2>3. Debug Endpoint Exposed</h2>
+        <button onclick="accessDebug()">Access /_debug</button>
+        <pre id="debug-result"></pre>
+    </div>
+    
+    <div class="test">
+        <h2>4. Missing Security Headers</h2>
+        <button onclick="checkHeaders()">Check Security Headers</button>
+        <pre id="headers-result"></pre>
+    </div>
+    
+    <h2>Issues Found:</h2>
+    <ul>
+        <li class="issue">CORS: Access-Control-Allow-Origin: * (with credentials)</li>
+        <li class="issue">Error Messages: Full stack traces exposed</li>
+        <li class="issue">Debug Endpoint: /_debug accessible</li>
+        <li class="issue">Security Headers: Missing HSTS, CSP, X-Frame-Options</li>
+        <li class="issue">Secrets: Exposed in debug endpoint</li>
+    </ul>
+    
+    <script>
+        async function testCORS() {
+            const res = await fetch('/api/data');
+            const headers = {};
+            res.headers.forEach((value, key) => {
+                if (key.includes('access-control')) {
+                    headers[key] = value;
+                }
+            });
+            document.getElementById('cors-result').innerText = JSON.stringify(headers, null, 2);
+        }
+        
+        async function triggerError() {
+            const res = await fetch('/api/users/error');
+            const data = await res.json();
+            document.getElementById('error-result').innerText = JSON.stringify(data, null, 2);
+        }
+        
+        async function accessDebug() {
+            const res = await fetch('/_debug');
+            const data = await res.json();
+            document.getElementById('debug-result').innerText = JSON.stringify(data, null, 2);
+        }
+        
+        async function checkHeaders() {
+            const res = await fetch('/api/data');
+            const securityHeaders = {
+                'strict-transport-security': res.headers.get('strict-transport-security') || '❌ MISSING',
+                'x-content-type-options': res.headers.get('x-content-type-options') || '❌ MISSING',
+                'x-frame-options': res.headers.get('x-frame-options') || '❌ MISSING',
+                'content-security-policy': res.headers.get('content-security-policy') || '❌ MISSING'
+            };
+            document.getElementById('headers-result').innerText = JSON.stringify(securityHeaders, null, 2);
+        }
+    </script>
+</body>
+</html>
