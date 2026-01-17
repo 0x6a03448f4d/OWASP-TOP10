@@ -111,10 +111,13 @@ def register():
     data = request.json
     
     # VULNERABILITY 1: Mass assignment - accepts role from user input
+    # SECURITY FLAW: Client controls their own privilege level!
+    # An attacker can register as admin by adding {"role": "admin"} to the request
+    # NEVER trust client-provided data for security-critical fields like roles/permissions
     username = data.get('username')
     password = data.get('password')
     email = data.get('email')
-    role = data.get('role', 'user')  # User can specify role!
+    role = data.get('role', 'user')  # VULNERABLE: User can specify role!
     
     if not username or not password or not email:
         return jsonify({'error': 'Missing required fields'}), 400
@@ -457,4 +460,6 @@ if __name__ == '__main__':
     print("\nVisit http://localhost:5000 for the web interface")
     print("=" * 60)
     
+    # NOTE: debug=True is intentional for this lab environment only
+    # NEVER use debug=True in production - it allows arbitrary code execution!
     app.run(host='0.0.0.0', port=5000, debug=True)
