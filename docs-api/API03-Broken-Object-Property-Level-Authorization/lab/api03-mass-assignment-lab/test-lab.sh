@@ -30,7 +30,13 @@ LOGIN_RESPONSE=$(curl -s -X POST "$BASE_URL/api/login" \
     -H "Content-Type: application/json" \
     -d '{"username":"alice","password":"password123"}')
 
-TOKEN=$(echo "$LOGIN_RESPONSE" | grep -o '"token":"[^"]*' | cut -d'"' -f4)
+# Use jq for proper JSON parsing
+if command -v jq &> /dev/null; then
+    TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.token')
+else
+    # Fallback to grep/cut if jq not available
+    TOKEN=$(echo "$LOGIN_RESPONSE" | grep -o '"token":"[^"]*' | cut -d'"' -f4)
+fi
 
 if [ -n "$TOKEN" ]; then
     echo -e "${GREEN}✓${NC} Login successful"

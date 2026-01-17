@@ -61,31 +61,38 @@ class User(db.Model):
     created_at = db.Column(db.DateTime)
     updated_at = db.Column(db.DateTime)
 
-# Output DTO (What API returns)
-class UserPublicDTO:
+# Output DTO (What API returns) - using Pydantic for validation
+from pydantic import BaseModel, EmailStr
+from datetime import datetime
+
+class UserPublicDTO(BaseModel):
+    """Public user profile - enforced at runtime"""
     id: int
     username: str
-    email: str
+    email: EmailStr
     created_at: datetime
     # password_hash: NOT included
     # api_key: NOT included
     # is_admin: NOT included
     # salary: NOT included
     # ssn: NOT included
+    
+    class Config:
+        from_attributes = True  # Allow ORM models
 
 # Input DTO (What API accepts for updates)
-class UserUpdateDTO:
+class UserUpdateDTO(BaseModel):
     username: str
-    email: str
+    email: EmailStr
     # is_admin: NOT allowed
     # salary: NOT allowed
     # created_at: NOT allowed (read-only)
 
 # Admin Output DTO (What admins see)
-class UserAdminDTO:
+class UserAdminDTO(BaseModel):
     id: int
     username: str
-    email: str
+    email: EmailStr
     is_admin: bool
     created_at: datetime
     updated_at: datetime
@@ -93,6 +100,9 @@ class UserAdminDTO:
     # password_hash: STILL not included
     # api_key: STILL not included
     # ssn: STILL not included (separate endpoint)
+    
+    class Config:
+        from_attributes = True
 ```
 
 ## Preventing Excessive Data Exposure
