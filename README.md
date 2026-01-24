@@ -69,7 +69,7 @@ OWASP-TOP10/
 ├── CONTRIBUTING.md                    # Contribution guidelines
 ├── .gitignore                         # Git ignore rules
 │
-├── docs/                              # Documentation for all 10 categories
+├── OWASP-Web/                         # OWASP Top 10 Web Application Security Risks
 │   ├── 01-Broken-Access-Control/
 │   │   ├── overview.md               # What it is and why it matters
 │   │   ├── attack-vectors.md         # How attacks happen (conceptual)
@@ -87,6 +87,40 @@ OWASP-TOP10/
 │   ├── 08-Software-Data-Integrity-Failures/
 │   ├── 09-Security-Logging-Monitoring-Failures/
 │   └── 10-Server-Side-Request-Forgery/
+│
+├── OWASP-API/                         # OWASP API Security Top 10
+│   ├── API01-Broken-Object-Level-Authorization/
+│   ├── API02-Broken-Authentication/
+│   ├── API03-Broken-Object-Property-Level-Authorization/
+│   ├── API04-Unrestricted-Resource-Consumption/
+│   ├── API05-Broken-Function-Level-Authorization/
+│   ├── API06-Unrestricted-Access-to-Sensitive-Business-Flows/
+│   ├── API07-Server-Side-Request-Forgery/
+│   ├── API08-Security-Misconfiguration/
+│   ├── API09-Improper-Inventory-Management/
+│   └── API10-Unsafe-Consumption-of-APIs/
+│
+├── OWASP-LLM/                         # OWASP LLM Top 10
+│   ├── LLM01-Prompt-Injection/
+│   ├── LLM02-Insecure-Output-Handling/
+│   ├── LLM03-Training-Data-Poisoning/
+│   ├── LLM04-Model-Denial-of-Service/
+│   ├── LLM05-Supply-Chain-Vulnerabilities/
+│   ├── LLM06-Sensitive-Information-Disclosure/
+│   ├── LLM07-Insecure-Plugin-Design/
+│   └── LLM08-Excessive-Agency/
+│
+├── OWASP-Mobile/                      # OWASP Mobile Top 10
+│   ├── M01-Improper-Credential-Usage/
+│   ├── M02-Inadequate-Supply-Chain-Security/
+│   ├── M03-Insecure-Authentication-Authorization/
+│   ├── M04-Insufficient-Input-Output-Validation/
+│   ├── M05-Insecure-Communication/
+│   ├── M06-Inadequate-Privacy-Controls/
+│   ├── M07-Insufficient-Binary-Protections/
+│   ├── M08-Security-Misconfiguration/
+│   ├── M09-Insecure-Data-Storage/
+│   └── M10-Insufficient-Cryptography/
 │
 ├── images/                            # Diagrams and screenshots
 │   ├── diagrams/
@@ -119,14 +153,14 @@ To run the hands-on labs, you'll need:
    ```
 
 2. **Choose a topic:**
-   Navigate to any of the 10 categories in `docs/`
+   Navigate to any category in `OWASP-Web/`, `OWASP-API/`, `OWASP-LLM/`, or `OWASP-Mobile/`
 
 3. **Read the documentation:**
    Start with `overview.md`, then explore `attack-vectors.md`, `prevention.md`, and `examples.md`
 
 4. **Run a lab:**
    ```bash
-   cd docs/01-Broken-Access-Control/lab/broken-access-control-adminbutton
+   cd OWASP-Web/01-Broken-Access-Control/lab/broken-access-control-adminbutton
    docker-compose up
    ```
 
@@ -140,52 +174,52 @@ To run the hands-on labs, you'll need:
 
 ## 🎓 The OWASP Top 10 Categories
 
-### [01 - Broken Access Control](./docs/01-Broken-Access-Control/)
+### [01 - Broken Access Control](./OWASP-Web/01-Broken-Access-Control/)
 **Impact:** Unauthorized access to data and functionality  
 **Lab:** Admin button accessible to regular users  
 **Key Lesson:** Never rely on client-side access control
 
-### [02 - Cryptographic Failures](./docs/02-Cryptographic-Failures/)
+### [02 - Cryptographic Failures](./OWASP-Web/02-Cryptographic-Failures/)
 **Impact:** Exposure of sensitive data  
 **Lab:** Weak MD5 hashing vs secure bcrypt  
 **Key Lesson:** Use strong, modern cryptographic algorithms
 
-### [03 - Injection](./docs/03-Injection/)
+### [03 - Injection](./OWASP-Web/03-Injection/)
 **Impact:** Data breach, data loss, system compromise  
 **Lab:** Unsafe SQL query construction  
 **Key Lesson:** Always use parameterized queries and input validation
 
-### [04 - Insecure Design](./docs/04-Insecure-Design/)
+### [04 - Insecure Design](./OWASP-Web/04-Insecure-Design/)
 **Impact:** Business logic exploitation  
 **Lab:** Login form without rate limiting  
 **Key Lesson:** Security must be designed in from the start
 
-### [05 - Security Misconfiguration](./docs/05-Security-Misconfiguration/)
+### [05 - Security Misconfiguration](./OWASP-Web/05-Security-Misconfiguration/)
 **Impact:** Information disclosure, system compromise  
 **Lab:** Debug mode enabled in production  
 **Key Lesson:** Secure defaults and configuration management
 
-### [06 - Vulnerable and Outdated Components](./docs/06-Vulnerable-Outdated-Components/)
+### [06 - Vulnerable and Outdated Components](./OWASP-Web/06-Vulnerable-Outdated-Components/)
 **Impact:** System compromise through known vulnerabilities  
 **Lab:** Application using outdated dependencies  
 **Key Lesson:** Keep dependencies updated and monitored
 
-### [07 - Identification and Authentication Failures](./docs/07-Identification-Authentication-Failures/)
+### [07 - Identification and Authentication Failures](./OWASP-Web/07-Identification-Authentication-Failures/)
 **Impact:** Account takeover, identity theft  
 **Lab:** Predictable session tokens  
 **Key Lesson:** Use strong session management and authentication
 
-### [08 - Software and Data Integrity Failures](./docs/08-Software-Data-Integrity-Failures/)
+### [08 - Software and Data Integrity Failures](./OWASP-Web/08-Software-Data-Integrity-Failures/)
 **Impact:** Malicious code execution, supply chain attacks  
 **Lab:** Unsigned software updates  
 **Key Lesson:** Verify integrity of software and data
 
-### [09 - Security Logging and Monitoring Failures](./docs/09-Security-Logging-Monitoring-Failures/)
+### [09 - Security Logging and Monitoring Failures](./OWASP-Web/09-Security-Logging-Monitoring-Failures/)
 **Impact:** Undetected breaches, slow incident response  
 **Lab:** Application with no logging  
 **Key Lesson:** Comprehensive logging and monitoring is essential
 
-### [10 - Server-Side Request Forgery (SSRF)](./docs/10-Server-Side-Request-Forgery/)
+### [10 - Server-Side Request Forgery (SSRF)](./OWASP-Web/10-Server-Side-Request-Forgery/)
 **Impact:** Internal system access, data exfiltration  
 **Lab:** URL fetcher with simulated internal services  
 **Key Lesson:** Validate and sanitize all URLs and network requests
@@ -232,7 +266,7 @@ Each lab is completely self-contained and runs in Docker for safety and isolatio
 
 ```bash
 # 1. Navigate to a lab
-cd docs/XX-Category/lab/lab-name/
+cd OWASP-Web/XX-Category/lab/lab-name/
 
 # 2. Start the lab
 docker-compose up

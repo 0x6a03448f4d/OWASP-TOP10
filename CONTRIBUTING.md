@@ -183,7 +183,7 @@ For Python labs:
 3. **Test Your Changes**
    ```bash
    # For labs, test with Docker
-   cd docs/XX-Category/lab/lab-name
+   cd OWASP-Web/XX-Category/lab/lab-name
    docker-compose up
    # Verify the lab works as intended
    docker-compose down
