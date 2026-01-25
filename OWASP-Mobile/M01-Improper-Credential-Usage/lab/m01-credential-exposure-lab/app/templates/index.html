@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M01: Improper Credential Usage Lab</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .warning {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .danger {
+            background: #f8d7da;
+            border: 2px solid #dc3545;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        
+        button:hover {
+            background: #5568d3;
+        }
+        
+        .vulnerability {
+            background: #ffe6e6;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        
+        .result {
+            background: #e7f3ff;
+            border: 1px solid #0066cc;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .credential-item {
+            background: #fff;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+        
+        .high-risk {
+            border-left: 4px solid #dc3545;
+        }
+        
+        .critical-risk {
+            border-left: 4px solid #8b0000;
+            background: #fff5f5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔓 M01: Improper Credential Usage Lab</h1>
+            <p>Educational demonstration of mobile credential exposure vulnerabilities</p>
+        </div>
+        
+        <div class="danger">
+            <strong>⚠️ WARNING:</strong> This application contains intentional security vulnerabilities for educational purposes only. Never use these patterns in production code!
+        </div>
+        
+        <div class="card">
+            <h2>1. Hardcoded Credentials Discovery</h2>
+            <p>Click below to simulate what an attacker would find when decompiling your mobile app:</p>
+            <button onclick="simulateDecompile()">Decompile App (Simulation)</button>
+            <div id="decompile-result" class="result"></div>
+        </div>
+        
+        <div class="card">
+            <h2>2. Configuration Endpoint Exposure</h2>
+            <p>Many apps fetch configuration from a backend. This demonstrates what happens when credentials are included:</p>
+            <button onclick="fetchConfig()">Fetch App Configuration</button>
+            <div id="config-result" class="result"></div>
+        </div>
+        
+        <div class="card">
+            <h2>3. Credential Storage Methods</h2>
+            <p>Test different storage methods to see their security implications:</p>
+            
+            <div>
+                <input type="email" id="storage-email" placeholder="Email" style="padding: 10px; margin: 5px; border-radius: 5px; border: 1px solid #ddd;">
+                <input type="password" id="storage-password" placeholder="Password" style="padding: 10px; margin: 5px; border-radius: 5px; border: 1px solid #ddd;">
+            </div>
+            
+            <button onclick="storeCredentials('plain')">Store as Plain Text (INSECURE)</button>
+            <button onclick="storeCredentials('base64')">Store as Base64 (STILL INSECURE)</button>
+            <button onclick="storeCredentials('secure')">Store Securely (RECOMMENDED)</button>
+            
+            <div id="storage-result" class="result"></div>
+        </div>
+        
+        <div class="card">
+            <h2>4. Application Logs</h2>
+            <p>View what sensitive information might be leaked through application logs:</p>
+            <button onclick="fetchLogs()">View Application Logs</button>
+            <div id="logs-result" class="result"></div>
+        </div>
+        
+        <div class="card">
+            <h2>5. Admin Credentials Exposure</h2>
+            <p>Demonstrates hardcoded admin credentials accessible through API:</p>
+            <button onclick="fetchAdminCreds()">Access Admin Credentials</button>
+            <div id="admin-result" class="result"></div>
+        </div>
+    </div>
+    
+    <script>
+        async function simulateDecompile() {
+            const resultDiv = document.getElementById('decompile-result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<p>Analyzing application binary...</p>';
+            
+            const response = await fetch('/api/decompile-simulation');
+            const data = await response.json();
+            
+            let html = '<h3>🔍 Decompilation Results:</h3>';
+            html += '<h4>Hardcoded Strings Found:</h4>';
+            
+            data.hardcoded_strings.forEach(item => {
+                const riskClass = item.risk === 'CRITICAL' ? 'critical-risk' : 'high-risk';
+                html += `<div class="credential-item ${riskClass}">
+                    <strong>${item.type}</strong> (Risk: ${item.risk})<br>
+                    <code>${item.value}</code>
+                </div>`;
+            });
+            
+            html += '<h4>Vulnerable Endpoints:</h4><ul>';
+            data.endpoints.forEach(endpoint => {
+                html += `<li>${endpoint}</li>`;
+            });
+            html += '</ul>';
+            
+            resultDiv.innerHTML = html;
+        }
+        
+        async function fetchConfig() {
+            const resultDiv = document.getElementById('config-result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<p>Fetching configuration...</p>';
+            
+            const response = await fetch('/api/config');
+            const data = await response.json();
+            
+            let html = '<h3>⚠️ Configuration Response:</h3>';
+            html += '<div class="vulnerability">';
+            html += '<strong>VULNERABILITY:</strong> API credentials exposed in configuration!<br>';
+            html += '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            html += '<p><strong>Impact:</strong> Anyone who intercepts this request gets your API keys!</p>';
+            html += '</div>';
+            
+            resultDiv.innerHTML = html;
+        }
+        
+        async function storeCredentials(method) {
+            const email = document.getElementById('storage-email').value;
+            const password = document.getElementById('storage-password').value;
+            
+            if (!email || !password) {
+                alert('Please enter email and password');
+                return;
+            }
+            
+            const resultDiv = document.getElementById('storage-result');
+            resultDiv.style.display = 'block';
+            
+            const response = await fetch('/api/user/credentials', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({email, password, method})
+            });
+            
+            const data = await response.json();
+            
+            let html = '<h3>Storage Result:</h3>';
+            html += `<p><strong>Method:</strong> ${data.method}</p>`;
+            html += `<p><strong>Warning:</strong> ${data.warning}</p>`;
+            
+            if (method === 'secure') {
+                html += '<div style="background: #d4edda; padding: 10px; border-radius: 5px;">';
+                html += '<strong>✅ Secure Method:</strong> In a real app, this would use:<br>';
+                html += '• Android: KeyStore with EncryptedSharedPreferences<br>';
+                html += '• iOS: Keychain with appropriate access controls';
+                html += '</div>';
+            } else {
+                html += '<div class="vulnerability">';
+                html += '<strong>❌ INSECURE:</strong> This method is vulnerable to:';
+                html += '<ul>';
+                html += '<li>Access on rooted/jailbroken devices</li>';
+                html += '<li>Extraction from device backups</li>';
+                html += '<li>Malware reading app storage</li>';
+                html += '</ul>';
+                html += '</div>';
+            }
+            
+            resultDiv.innerHTML = html;
+        }
+        
+        async function fetchLogs() {
+            const resultDiv = document.getElementById('logs-result');
+            resultDiv.style.display = 'block';
+            
+            const response = await fetch('/api/logs');
+            const data = await response.json();
+            
+            let html = '<h3>⚠️ Application Logs:</h3>';
+            html += '<div class="vulnerability">';
+            html += '<strong>VULNERABILITY:</strong> Sensitive data in logs!<br><br>';
+            html += '<pre>';
+            data.logs.forEach(log => {
+                html += log + '\n';
+            });
+            html += '</pre>';
+            html += '<p><strong>Impact:</strong> Credentials visible in Logcat (Android) or Console (iOS), included in crash reports!</p>';
+            html += '</div>';
+            
+            resultDiv.innerHTML = html;
+        }
+        
+        async function fetchAdminCreds() {
+            const resultDiv = document.getElementById('admin-result');
+            resultDiv.style.display = 'block';
+            
+            const response = await fetch('/api/admin/credentials');
+            const data = await response.json();
+            
+            let html = '<h3>🚨 Admin Credentials:</h3>';
+            html += '<div class="vulnerability">';
+            html += '<strong>CRITICAL:</strong> Admin credentials hardcoded and accessible!<br>';
+            html += '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            html += '<p><strong>Impact:</strong> Full system compromise possible!</p>';
+            html += '</div>';
+            
+            resultDiv.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
