@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M05: Insecure Communication Lab</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+        
+        .warning-banner {
+            background: #ff4444;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .info-banner {
+            background: #4CAF50;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            font-size: 1.1em;
+        }
+        
+        .content-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 500;
+        }
+        
+        input[type="email"],
+        input[type="password"],
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1em;
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #5568d3;
+        }
+        
+        .response {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+        
+        .response.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        
+        .response.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        
+        .vulnerability-list {
+            list-style: none;
+        }
+        
+        .vulnerability-list li {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: #fff3cd;
+            border-left: 4px solid #ff9800;
+            border-radius: 3px;
+        }
+        
+        .protocol-indicator {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        
+        .http {
+            background: #ff4444;
+            color: white;
+        }
+        
+        .https {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 0.9em;
+        }
+        
+        code {
+            font-family: 'Courier New', Courier, monospace;
+        }
+        
+        .endpoint-list {
+            list-style: none;
+        }
+        
+        .endpoint-list li {
+            padding: 8px;
+            margin-bottom: 5px;
+            background: #f9f9f9;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="warning-banner">
+                ⚠️ EDUCATIONAL LAB - INTENTIONALLY VULNERABLE APPLICATION ⚠️
+            </div>
+            <h1>M05: Insecure Communication</h1>
+            <p class="subtitle">OWASP Mobile Top 10 - Lab Environment</p>
+            <p style="margin-top: 10px;">
+                <span class="protocol-indicator http">HTTP (INSECURE)</span>
+            </p>
+        </div>
+        
+        <div class="info-banner">
+            📚 This lab demonstrates how mobile apps expose sensitive data when using unencrypted HTTP instead of HTTPS. All traffic is visible to attackers on the network!
+        </div>
+        
+        <div class="content-grid">
+            <div class="card">
+                <h2>🔓 Vulnerable Login</h2>
+                <p style="margin-bottom: 15px; color: #666;">
+                    This form sends credentials over HTTP (unencrypted). Try: alice@example.com / Alice2024!
+                </p>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="email">Email:</label>
+                        <input type="email" id="email" name="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password:</label>
+                        <input type="password" id="password" name="password" required>
+                    </div>
+                    <button type="submit">Login (over HTTP)</button>
+                </form>
+                <div id="loginResponse" class="response"></div>
+            </div>
+            
+            <div class="card">
+                <h2>🔑 API Configuration</h2>
+                <p style="margin-bottom: 15px; color: #666;">
+                    Fetch app configuration that contains API keys and secrets over HTTP.
+                </p>
+                <button onclick="fetchConfig()">Get Config (over HTTP)</button>
+                <div id="configResponse" class="response"></div>
+            </div>
+            
+            <div class="card">
+                <h2>👤 User Profile</h2>
+                <p style="margin-bottom: 15px; color: #666;">
+                    Retrieve user profile with sensitive data over HTTP. Token: tok_insecure_alice_12345
+                </p>
+                <div class="form-group">
+                    <label for="token">Session Token:</label>
+                    <input type="text" id="token" name="token" value="tok_insecure_alice_12345">
+                </div>
+                <button onclick="fetchProfile()">Get Profile (over HTTP)</button>
+                <div id="profileResponse" class="response"></div>
+            </div>
+            
+            <div class="card">
+                <h2>💳 Payment Processing</h2>
+                <p style="margin-bottom: 15px; color: #666;">
+                    Submit payment information over HTTP (extremely dangerous!).
+                </p>
+                <form id="paymentForm">
+                    <div class="form-group">
+                        <label for="cardNumber">Card Number:</label>
+                        <input type="text" id="cardNumber" value="4532111122223333">
+                    </div>
+                    <div class="form-group">
+                        <label for="cvv">CVV:</label>
+                        <input type="text" id="cvv" value="123">
+                    </div>
+                    <button type="submit">Pay $100 (over HTTP)</button>
+                </form>
+                <div id="paymentResponse" class="response"></div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>🚨 Identified Vulnerabilities</h2>
+            <ul class="vulnerability-list">
+                <li>✗ <strong>Cleartext HTTP:</strong> All traffic is unencrypted and visible to network attackers</li>
+                <li>✗ <strong>Credential Exposure:</strong> Usernames and passwords transmitted in plain text</li>
+                <li>✗ <strong>API Key Leakage:</strong> Secret keys and tokens exposed over HTTP</li>
+                <li>✗ <strong>Payment Data Risk:</strong> Credit card information sent without encryption</li>
+                <li>✗ <strong>Session Hijacking:</strong> Session tokens can be intercepted and reused</li>
+                <li>✗ <strong>Man-in-the-Middle:</strong> Attackers can intercept and modify traffic</li>
+            </ul>
+        </div>
+        
+        <div class="card">
+            <h2>📡 Available Endpoints</h2>
+            <ul class="endpoint-list">
+                <li>POST /api/login - User authentication</li>
+                <li>GET /api/config - Application configuration</li>
+                <li>GET /api/user/profile - User profile data</li>
+                <li>POST /api/payment - Payment processing</li>
+                <li>GET /api/debug/traffic - View captured traffic</li>
+                <li>GET /api/status - Server status</li>
+            </ul>
+        </div>
+        
+        <div class="card">
+            <h2>🔍 How to Intercept</h2>
+            <p style="margin-bottom: 15px;">To see what an attacker would capture:</p>
+            <ol style="margin-left: 20px; line-height: 1.8;">
+                <li>Open browser DevTools (F12) → Network tab</li>
+                <li>Or use Wireshark / tcpdump to capture traffic</li>
+                <li>Or set up mitmproxy: <code>mitmproxy -p 8080</code></li>
+                <li>Submit forms above and observe cleartext data</li>
+                <li>Visit <code>/api/debug/traffic</code> to see simulated captured traffic</li>
+            </ol>
+        </div>
+    </div>
+    
+    <script>
+        // Login form handler
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                const responseDiv = document.getElementById('loginResponse');
+                responseDiv.style.display = 'block';
+                
+                if (data.success) {
+                    responseDiv.className = 'response success';
+                    responseDiv.innerHTML = `
+                        <strong>Login Successful (Over HTTP - INSECURE!)</strong><br>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                        <p style="margin-top:10px; color: #d32f2f;">
+                            ⚠️ This data was transmitted in CLEARTEXT over HTTP!<br>
+                            Anyone on the network can see your password, credit card, and SSN!
+                        </p>
+                    `;
+                } else {
+                    responseDiv.className = 'response error';
+                    responseDiv.textContent = data.message;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        });
+        
+        // Fetch config
+        async function fetchConfig() {
+            try {
+                const response = await fetch('/api/config');
+                const data = await response.json();
+                const responseDiv = document.getElementById('configResponse');
+                responseDiv.style.display = 'block';
+                responseDiv.className = 'response success';
+                responseDiv.innerHTML = `
+                    <strong>Configuration Retrieved (Over HTTP - INSECURE!)</strong><br>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                    <p style="margin-top:10px; color: #d32f2f;">
+                        ⚠️ API keys and database passwords exposed!
+                    </p>
+                `;
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+        
+        // Fetch profile
+        async function fetchProfile() {
+            const token = document.getElementById('token').value;
+            try {
+                const response = await fetch(`/api/user/profile?token=${token}`);
+                const data = await response.json();
+                const responseDiv = document.getElementById('profileResponse');
+                responseDiv.style.display = 'block';
+                
+                if (response.ok) {
+                    responseDiv.className = 'response success';
+                    responseDiv.innerHTML = `
+                        <strong>Profile Retrieved (Over HTTP - INSECURE!)</strong><br>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                        <p style="margin-top:10px; color: #d32f2f;">
+                            ⚠️ Token sent in URL (visible in logs, history, referrers)!<br>
+                            Personal data transmitted in cleartext!
+                        </p>
+                    `;
+                } else {
+                    responseDiv.className = 'response error';
+                    responseDiv.textContent = data.error;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+        
+        // Payment form handler
+        document.getElementById('paymentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const cardNumber = document.getElementById('cardNumber').value;
+            const cvv = document.getElementById('cvv').value;
+            
+            try {
+                const response = await fetch('/api/payment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        card_number: cardNumber,
+                        cvv: cvv,
+                        expiry: '12/25',
+                        amount: 100
+                    })
+                });
+                
+                const data = await response.json();
+                const responseDiv = document.getElementById('paymentResponse');
+                responseDiv.style.display = 'block';
+                responseDiv.className = 'response success';
+                responseDiv.innerHTML = `
+                    <strong>Payment Processed (Over HTTP - INSECURE!)</strong><br>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                    <p style="margin-top:10px; color: #d32f2f;">
+                        ⚠️ CRITICAL: Credit card details sent over HTTP!<br>
+                        This violates PCI-DSS and exposes payment information!
+                    </p>
+                `;
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        });
+    </script>
+</body>
+</html>
