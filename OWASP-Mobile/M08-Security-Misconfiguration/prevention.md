@@ -206,9 +206,13 @@ public class SecureFileHandler {
 }
 
 # Protect against reflection attacks
+# Keep annotations for reflection-based frameworks (Retrofit, Gson, Room, Dagger)
 -keepattributes *Annotation*
+# Keep generic signatures for proper type inference
 -keepattributes Signature
+# Preserve inner classes for proper serialization
 -keepattributes InnerClasses
+# Keep enclosing method info for debugging anonymous classes
 -keepattributes EnclosingMethod
 ```
 

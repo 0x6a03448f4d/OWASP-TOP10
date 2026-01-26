@@ -512,10 +512,20 @@ android {
     signingConfigs {
         release {
             // ✅ GOOD: Use secure signing (keys from environment)
-            storeFile file(System.getenv("KEYSTORE_FILE") ?: "release.keystore")
-            storePassword System.getenv("KEYSTORE_PASSWORD")
-            keyAlias System.getenv("KEY_ALIAS")
-            keyPassword System.getenv("KEY_PASSWORD")
+            // Validate signing configuration before using
+            def keystoreFile = System.getenv("KEYSTORE_FILE")
+            def keystorePass = System.getenv("KEYSTORE_PASSWORD")
+            def keyAlias = System.getenv("KEY_ALIAS")
+            def keyPass = System.getenv("KEY_PASSWORD")
+            
+            if (keystoreFile && keystorePass && keyAlias && keyPass) {
+                storeFile file(keystoreFile)
+                storePassword keystorePass
+                keyAlias keyAlias
+                keyPassword keyPass
+            } else {
+                logger.warn("Release signing configuration not complete. Using debug signing.")
+            }
         }
     }
     
