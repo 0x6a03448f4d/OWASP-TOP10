@@ -981,6 +981,9 @@ class PrivacyAwareLogger(private val clazz: Class<*>) {
     private fun sanitize(message: String): String {
         var sanitized = message
         
+        // NOTE: Regex patterns are inline for educational clarity.
+        // In production, consider extracting to constants for reusability.
+        
         // Redact email addresses
         sanitized = sanitized.replace(
             Regex("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"),

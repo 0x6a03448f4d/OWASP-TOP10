@@ -23,7 +23,7 @@ from flask import Flask, render_template, request, jsonify
 import logging
 import json
 import random
-from datetime import datetime, timedelta
+from datetime import datetime
 import hashlib
 
 # Configure logging (INTENTIONALLY verbose for demonstration)
@@ -599,4 +599,6 @@ def index():
 # ============================================================================
 
 if __name__ == '__main__':
+    # Debug mode enabled for educational lab - allows live reload and detailed error messages
+    # NOTE: NEVER use debug=True in production applications!
     app.run(host='0.0.0.0', port=5000, debug=True)
