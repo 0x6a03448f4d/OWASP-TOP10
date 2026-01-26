@@ -562,6 +562,7 @@ CoreDataManager.shared.saveContext()
 import androidx.security.crypto.EncryptedFile
 import androidx.security.crypto.MasterKey
 import java.io.File
+import java.nio.charset.Charset
 
 class SecureFileManager(private val context: Context) {
     

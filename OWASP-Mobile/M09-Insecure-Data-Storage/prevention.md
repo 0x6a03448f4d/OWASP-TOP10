@@ -271,11 +271,13 @@ dependencies {
 
 **Database Setup**:
 ```kotlin
+import android.util.Base64
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import net.sqlcipher.database.SQLiteDatabase
 import net.sqlcipher.database.SupportFactory
+import java.security.SecureRandom
 
 @Database(entities = [User::class, Transaction::class], version = 1)
 abstract class AppDatabase : RoomDatabase() {
@@ -1054,6 +1056,9 @@ class SecurityChecker {
 
 **iOS Jailbreak Detection**:
 ```swift
+import Foundation
+import UIKit
+
 class SecurityChecker {
     
     static func isJailbroken() -> Bool {
@@ -1094,10 +1099,16 @@ class SecurityChecker {
     }
     
     private static func checkFork() -> Bool {
+        // Note: fork() requires importing Darwin
+        // On iOS, fork() will fail on non-jailbroken devices
+        // This is a simplified check - production code should handle carefully
+        #if canImport(Darwin)
+        import Darwin
         let result = fork()
         if result >= 0 {
             return true  // fork() should fail on non-jailbroken devices
         }
+        #endif
         return false
     }
 }
