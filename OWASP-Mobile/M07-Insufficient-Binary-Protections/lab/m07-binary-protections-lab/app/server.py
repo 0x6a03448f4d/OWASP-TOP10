@@ -839,4 +839,6 @@ def internal_error(error):
 
 if __name__ == '__main__':
     logger.info("Starting M07 Binary Protections Lab...")
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # NOTE: debug=True is INTENTIONAL for this educational lab
+    # This is a vulnerability demonstration - DO NOT use in production!
+    app.run(host='0.0.0.0', port=5000, debug=True)  # nosec - Educational lab only
