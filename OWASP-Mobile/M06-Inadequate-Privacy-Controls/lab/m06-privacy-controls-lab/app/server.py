@@ -599,6 +599,14 @@ def index():
 # ============================================================================
 
 if __name__ == '__main__':
-    # Debug mode enabled for educational lab - allows live reload and detailed error messages
-    # NOTE: NEVER use debug=True in production applications!
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # SECURITY NOTE: Debug mode enabled for EDUCATIONAL LAB ONLY
+    # This is an intentionally vulnerable application for learning purposes.
+    # 
+    # In production applications:
+    # - NEVER use debug=True (exposes arbitrary code execution risk)
+    # - Set FLASK_ENV=production
+    # - Use proper WSGI server (gunicorn, uWSGI)
+    # - Implement proper error handling
+    # 
+    # This lab demonstrates privacy violations, not production deployment.
+    app.run(host='0.0.0.0', port=5000, debug=True)  # nosec B201 - Educational lab only
