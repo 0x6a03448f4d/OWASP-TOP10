@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M06: Inadequate Privacy Controls - Lab</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .warning-banner {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .warning-banner strong {
+            color: #856404;
+        }
+
+        .critical-banner {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .critical-banner strong {
+            color: #721c24;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .card p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+
+        .results {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            display: none;
+        }
+
+        .results.show {
+            display: block;
+        }
+
+        .results h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .violation-item {
+            background: #ffe6e6;
+            padding: 10px;
+            margin: 5px 0;
+            border-left: 3px solid #dc3545;
+            border-radius: 3px;
+        }
+
+        .violation-item.critical {
+            background: #fff5f5;
+            border-left-color: #dc3545;
+            border-left-width: 5px;
+        }
+
+        .stats {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 5px;
+        }
+
+        .stat-item .number {
+            font-size: 2em;
+            font-weight: bold;
+        }
+
+        .stat-item .label {
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+
+        .input-group {
+            margin: 10px 0;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1em;
+        }
+
+        .permission-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .permission-list li {
+            padding: 8px;
+            margin: 5px 0;
+            background: #f8f9fa;
+            border-left: 3px solid #667eea;
+            border-radius: 3px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-left: 5px;
+        }
+
+        .badge-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .badge-warning {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .badge-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .footer {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            margin-top: 30px;
+            text-align: center;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔓 M06: Inadequate Privacy Controls</h1>
+            <p><strong>OWASP Mobile Top 10 - Interactive Lab</strong></p>
+            
+            <div class="critical-banner">
+                <strong>⚠️ EDUCATIONAL ONLY:</strong> This application contains intentional privacy violations for learning purposes. NEVER implement these patterns in production!
+            </div>
+        </div>
+
+        <!-- Privacy Violations Summary -->
+        <div class="stats">
+            <h2 style="color: #667eea; margin-bottom: 15px;">Privacy Violations Active</h2>
+            <div class="stat-grid">
+                <div class="stat-item">
+                    <div class="number">8</div>
+                    <div class="label">Critical Violations</div>
+                </div>
+                <div class="stat-item">
+                    <div class="number">0</div>
+                    <div class="label">User Controls</div>
+                </div>
+                <div class="stat-item">
+                    <div class="number">∞</div>
+                    <div class="label">Data Retention</div>
+                </div>
+                <div class="stat-item">
+                    <div class="number">🚫</div>
+                    <div class="label">Consent UI</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Demo Scenarios -->
+        <div class="grid">
+            <!-- Scenario 1: Permission Requests -->
+            <div class="card">
+                <h2>1️⃣ Permission Request Simulator</h2>
+                <p>Demonstrates excessive permission requests - a common dark pattern in mobile apps.</p>
+                
+                <div class="warning-banner">
+                    <strong>Violation:</strong> Requesting 8+ permissions simultaneously without justification
+                </div>
+
+                <ul class="permission-list">
+                    <li>📍 Location <span class="badge badge-warning">Coarse OK</span></li>
+                    <li>📷 Camera <span class="badge badge-info">Contextual</span></li>
+                    <li>📱 Contacts <span class="badge badge-danger">Excessive</span></li>
+                    <li>🎤 Microphone <span class="badge badge-danger">Excessive</span></li>
+                    <li>💾 Storage <span class="badge badge-warning">Partial</span></li>
+                    <li>📞 Phone State <span class="badge badge-danger">Excessive</span></li>
+                    <li>📅 Calendar <span class="badge badge-danger">Excessive</span></li>
+                    <li>💬 SMS <span class="badge badge-danger">Excessive</span></li>
+                </ul>
+
+                <button class="btn btn-danger" onclick="requestAllPermissions()">Request All Permissions</button>
+                
+                <div id="permission-results" class="results">
+                    <h3>Results</h3>
+                    <div id="permission-output"></div>
+                </div>
+            </div>
+
+            <!-- Scenario 2: Background Tracking -->
+            <div class="card">
+                <h2>2️⃣ Background Location Tracking</h2>
+                <p>Simulates continuous location tracking even when app is in background.</p>
+                
+                <div class="critical-banner">
+                    <strong>🚨 Critical:</strong> Tracks user 24/7 without awareness or consent
+                </div>
+
+                <p><strong>Tracking Frequency:</strong> Every 30 seconds</p>
+                <p><strong>Precision:</strong> GPS-level (10m accuracy)</p>
+                <p><strong>Storage:</strong> Permanent</p>
+
+                <button class="btn btn-danger" onclick="startBackgroundTracking()">Start Background Tracking</button>
+                <button class="btn" onclick="viewLocationHistory()">View Location History</button>
+                
+                <div id="tracking-results" class="results">
+                    <h3>Tracking Active</h3>
+                    <div id="tracking-output"></div>
+                </div>
+            </div>
+
+            <!-- Scenario 3: PII Leakage -->
+            <div class="card">
+                <h2>3️⃣ PII Leakage Demonstration</h2>
+                <p>Shows how personally identifiable information leaks through logs and analytics.</p>
+                
+                <div class="critical-banner">
+                    <strong>🚨 Critical:</strong> Email, name, phone, passwords logged in plaintext
+                </div>
+
+                <div class="input-group">
+                    <label for="user-email">Email</label>
+                    <input type="email" id="user-email" placeholder="john.doe@example.com">
+                </div>
+
+                <div class="input-group">
+                    <label for="user-name">Full Name</label>
+                    <input type="text" id="user-name" placeholder="John Doe">
+                </div>
+
+                <div class="input-group">
+                    <label for="user-phone">Phone Number</label>
+                    <input type="tel" id="user-phone" placeholder="555-123-4567">
+                </div>
+
+                <button class="btn btn-danger" onclick="updateProfile()">Update Profile (Logs PII)</button>
+                
+                <div id="pii-results" class="results">
+                    <h3>PII Logged</h3>
+                    <div id="pii-output"></div>
+                </div>
+            </div>
+
+            <!-- Scenario 4: Contact Harvesting -->
+            <div class="card">
+                <h2>4️⃣ Contact Harvesting</h2>
+                <p>Demonstrates how apps upload entire contact lists without proper consent.</p>
+                
+                <div class="critical-banner">
+                    <strong>🚨 Critical:</strong> Mass contact collection, non-users exposed
+                </div>
+
+                <p><strong>Violation:</strong></p>
+                <ul style="margin-left: 20px; color: #666;">
+                    <li>Uploads ALL contacts (not just selected)</li>
+                    <li>Non-users exposed without consent</li>
+                    <li>Shared with data brokers</li>
+                    <li>Creates shadow profiles</li>
+                </ul>
+
+                <button class="btn btn-danger" onclick="harvestContacts()">Upload Sample Contacts</button>
+                <button class="btn" onclick="viewContactDatabase()">View Database</button>
+                
+                <div id="contact-results" class="results">
+                    <h3>Contacts Harvested</h3>
+                    <div id="contact-output"></div>
+                </div>
+            </div>
+
+            <!-- Scenario 5: Analytics PII -->
+            <div class="card">
+                <h2>5️⃣ Analytics with PII</h2>
+                <p>Shows how user data is sent to third-party analytics services.</p>
+                
+                <div class="warning-banner">
+                    <strong>Violation:</strong> PII sent to third-party analytics without anonymization
+                </div>
+
+                <p><strong>Data Shared:</strong></p>
+                <ul style="margin-left: 20px; color: #666;">
+                    <li>Email addresses</li>
+                    <li>Full names</li>
+                    <li>Phone numbers</li>
+                    <li>Behavioral data</li>
+                    <li>IP addresses</li>
+                </ul>
+
+                <button class="btn btn-danger" onclick="trackAnalyticsEvent()">Send Analytics Event</button>
+                
+                <div id="analytics-results" class="results">
+                    <h3>Analytics Sent</h3>
+                    <div id="analytics-output"></div>
+                </div>
+            </div>
+
+            <!-- Scenario 6: Privacy Summary -->
+            <div class="card">
+                <h2>6️⃣ Privacy Violation Summary</h2>
+                <p>View comprehensive analysis of all privacy violations in this app.</p>
+                
+                <div class="warning-banner">
+                    <strong>Regulatory Risk:</strong> CRITICAL
+                </div>
+
+                <p><strong>Potential Fines:</strong></p>
+                <ul style="margin-left: 20px; color: #666;">
+                    <li><strong>GDPR:</strong> Up to €20M or 4% revenue</li>
+                    <li><strong>CCPA:</strong> $2,500-$7,500 per violation</li>
+                    <li><strong>App Store:</strong> Removal from store</li>
+                </ul>
+
+                <button class="btn btn-warning" onclick="getPrivacySummary()">View Full Report</button>
+                
+                <div id="summary-results" class="results">
+                    <h3>Privacy Violations Report</h3>
+                    <div id="summary-output"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Mobile Top 10 - M06: Inadequate Privacy Controls</strong></p>
+            <p>Educational Lab | Version 1.0.0</p>
+            <p style="margin-top: 10px;">
+                <strong>Remember:</strong> Privacy is a fundamental user right. Build privacy into your apps from day one.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Scenario 1: Permission Requests
+        async function requestAllPermissions() {
+            const permissions = [
+                'location', 'camera', 'contacts', 'microphone',
+                'storage', 'phone_state', 'calendar', 'sms'
+            ];
+
+            try {
+                const response = await fetch('/api/permissions/request', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: 'demo_user',
+                        permissions: permissions
+                    })
+                });
+
+                const data = await response.json();
+                
+                let output = `<div class="violation-item critical">
+                    <strong>🚨 ${data.granted_permissions.length} permissions granted simultaneously!</strong>
+                </div>`;
+
+                if (data.privacy_violations.unnecessary_permissions.length > 0) {
+                    output += '<h4 style="margin-top: 15px;">Unnecessary Permissions:</h4>';
+                    data.privacy_violations.unnecessary_permissions.forEach(violation => {
+                        output += `<div class="violation-item">❌ ${violation}</div>`;
+                    });
+                }
+
+                output += `<pre style="margin-top: 15px;">${JSON.stringify(data, null, 2)}</pre>`;
+
+                document.getElementById('permission-output').innerHTML = output;
+                document.getElementById('permission-results').classList.add('show');
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        // Scenario 2: Background Tracking
+        let trackingInterval = null;
+        let trackingCount = 0;
+
+        async function startBackgroundTracking() {
+            trackingCount = 0;
+            
+            if (trackingInterval) {
+                clearInterval(trackingInterval);
+            }
+
+            trackingInterval = setInterval(async () => {
+                trackingCount++;
+                
+                const location = {
+                    user_id: 'demo_user',
+                    latitude: (37.7749 + (Math.random() - 0.5) * 0.01).toFixed(6),
+                    longitude: (-122.4194 + (Math.random() - 0.5) * 0.01).toFixed(6),
+                    timestamp: new Date().toISOString(),
+                    app_state: 'background',
+                    accuracy: 10.0,
+                    battery_level: Math.floor(Math.random() * 40) + 60
+                };
+
+                try {
+                    const response = await fetch('/api/track-location', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(location)
+                    });
+
+                    const data = await response.json();
+                    
+                    let output = `<div class="violation-item critical">
+                        <strong>📍 Tracking Session #${trackingCount}</strong><br>
+                        Location: ${location.latitude}, ${location.longitude}<br>
+                        App State: ${location.app_state}<br>
+                        Total Locations Collected: ${data.tracking_session}
+                    </div>`;
+
+                    document.getElementById('tracking-output').innerHTML = output;
+                    document.getElementById('tracking-results').classList.add('show');
+                } catch (error) {
+                    console.error('Error:', error);
+                }
+            }, 2000);
+
+            alert('Background tracking started! Location sent every 2 seconds.\nOpen browser console to see network requests.');
+        }
+
+        async function viewLocationHistory() {
+            try {
+                const response = await fetch('/api/location-history?user_id=demo_user');
+                const data = await response.json();
+                
+                let output = `<div class="violation-item critical">
+                    <strong>🚨 Privacy Risk: ${data.privacy_risk}</strong><br>
+                    Total Locations Stored: ${data.total_locations}
+                </div>`;
+
+                if (data.total_locations > 0) {
+                    output += '<h4 style="margin-top: 15px;">Recent Locations:</h4>';
+                    output += `<pre>${JSON.stringify(data.locations.slice(-5), null, 2)}</pre>`;
+                }
+
+                document.getElementById('tracking-output').innerHTML = output;
+                document.getElementById('tracking-results').classList.add('show');
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        // Scenario 3: PII Leakage
+        async function updateProfile() {
+            const email = document.getElementById('user-email').value || 'john.doe@example.com';
+            const name = document.getElementById('user-name').value || 'John Doe';
+            const phone = document.getElementById('user-phone').value || '555-123-4567';
+
+            try {
+                const response = await fetch('/api/user/profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: 'demo_user',
+                        email: email,
+                        name: name,
+                        phone: phone,
+                        address: '123 Main St, Anytown, CA 90210',
+                        date_of_birth: '1990-01-15'
+                    })
+                });
+
+                const data = await response.json();
+                
+                let output = `<div class="violation-item critical">
+                    <strong>🚨 PII Logged in Plaintext!</strong>
+                </div>`;
+
+                output += '<h4 style="margin-top: 15px;">Data Exposed in Logs:</h4>';
+                output += `<div class="violation-item">✉️ Email: ${email}</div>`;
+                output += `<div class="violation-item">👤 Name: ${name}</div>`;
+                output += `<div class="violation-item">📱 Phone: ${phone}</div>`;
+                output += `<div class="violation-item">🏠 Address: 123 Main St...</div>`;
+                output += `<div class="violation-item">🎂 Date of Birth: 1990-01-15</div>`;
+
+                output += `<p style="margin-top: 15px;"><strong>Check Docker logs for complete PII exposure:</strong></p>`;
+                output += `<pre>docker-compose logs | grep "Profile update"</pre>`;
+
+                document.getElementById('pii-output').innerHTML = output;
+                document.getElementById('pii-results').classList.add('show');
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        // Scenario 4: Contact Harvesting
+        async function harvestContacts() {
+            const sampleContacts = [
+                {
+                    name: 'Alice Johnson',
+                    phones: ['+1-555-0101'],
+                    emails: ['alice@example.com'],
+                    company: 'Tech Corp',
+                    birthday: '1988-05-20'
+                },
+                {
+                    name: 'Bob Smith',
+                    phones: ['+1-555-0102', '+1-555-0103'],
+                    emails: ['bob@example.com', 'bob.smith@company.com'],
+                    company: 'Finance Inc',
+                    addresses: ['456 Oak Ave, Springfield']
+                },
+                {
+                    name: 'Carol Davis',
+                    phones: ['+1-555-0104'],
+                    emails: ['carol@example.com'],
+                    notes: 'College friend',
+                    social_profiles: ['@caroldavis']
+                }
+            ];
+
+            try {
+                const response = await fetch('/api/contacts/upload', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: 'demo_user',
+                        contacts: sampleContacts
+                    })
+                });
+
+                const data = await response.json();
+                
+                let output = `<div class="violation-item critical">
+                    <strong>🚨 ${sampleContacts.length} contacts uploaded!</strong><br>
+                    Total in database: ${data.total_contacts_in_db}<br>
+                    Severity: ${data.privacy_violations.severity}
+                </div>`;
+
+                output += '<h4 style="margin-top: 15px;">Privacy Violations:</h4>';
+                output += `<div class="violation-item">❌ Non-users exposed without consent</div>`;
+                output += `<div class="violation-item">❌ Excessive data per contact</div>`;
+                output += `<div class="violation-item">❌ Third-party data sharing enabled</div>`;
+                output += `<div class="violation-item">❌ Shadow profiles created</div>`;
+
+                document.getElementById('contact-output').innerHTML = output;
+                document.getElementById('contact-results').classList.add('show');
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        async function viewContactDatabase() {
+            try {
+                const response = await fetch('/api/contacts/database');
+                const data = await response.json();
+                
+                let output = `<div class="violation-item critical">
+                    <strong>Total Contacts in Database: ${data.total_contacts}</strong>
+                </div>`;
+
+                output += `<p style="margin-top: 15px;"><strong>⚠️ ${data.privacy_concern}</strong></p>`;
+                output += `<pre>${JSON.stringify(data.contacts, null, 2)}</pre>`;
+
+                document.getElementById('contact-output').innerHTML = output;
+                document.getElementById('contact-results').classList.add('show');
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        // Scenario 5: Analytics
+        async function trackAnalyticsEvent() {
+            try {
+                const response = await fetch('/api/analytics/track', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        event: 'profile_view',
+                        user_email: 'john.doe@example.com',
+                        user_name: 'John Doe',
+                        user_phone: '555-123-4567',
+                        properties: {
+                            screen: 'profile',
+                            action: 'view',
+                            timestamp: new Date().toISOString()
+                        }
+                    })
+                });
+
+                const data = await response.json();
+                
+                let output = `<div class="violation-item critical">
+                    <strong>🚨 PII sent to third-party analytics!</strong>
+                </div>`;
+
+                output += '<h4 style="margin-top: 15px;">Data Shared:</h4>';
+                output += `<div class="violation-item">✉️ Email address</div>`;
+                output += `<div class="violation-item">👤 Full name</div>`;
+                output += `<div class="violation-item">📱 Phone number</div>`;
+                output += `<div class="violation-item">🌐 IP address</div>`;
+                output += `<div class="violation-item">🔍 Behavioral data</div>`;
+
+                output += `<pre style="margin-top: 15px;">${JSON.stringify(data, null, 2)}</pre>`;
+
+                document.getElementById('analytics-output').innerHTML = output;
+                document.getElementById('analytics-results').classList.add('show');
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        // Scenario 6: Privacy Summary
+        async function getPrivacySummary() {
+            try {
+                const response = await fetch('/api/privacy/violations');
+                const data = await response.json();
+                
+                let output = `<div class="violation-item critical">
+                    <strong>🚨 Regulatory Risk: ${data.regulatory_risk}</strong><br>
+                    Total Violations: ${data.statistics.total_violations}<br>
+                    Critical: ${data.statistics.critical_violations} | High: ${data.statistics.high_violations}
+                </div>`;
+
+                output += '<h4 style="margin-top: 15px;">Financial Risk:</h4>';
+                output += `<div class="violation-item">💰 GDPR: ${data.estimated_gdpr_fine}</div>`;
+                output += `<div class="violation-item">💰 CCPA: ${data.estimated_ccpa_fine}</div>`;
+
+                output += '<h4 style="margin-top: 15px;">Top Violations:</h4>';
+                for (const [key, violation] of Object.entries(data.violations)) {
+                    if (violation.severity === 'CRITICAL') {
+                        output += `<div class="violation-item critical">
+                            <strong>${violation.description}</strong><br>
+                            Impact: ${violation.impact}<br>
+                            Compliance: ${violation.compliance}
+                        </div>`;
+                    }
+                }
+
+                output += `<pre style="margin-top: 15px;">${JSON.stringify(data.statistics, null, 2)}</pre>`;
+
+                document.getElementById('summary-output').innerHTML = output;
+                document.getElementById('summary-results').classList.add('show');
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        // Initial load message
+        console.log('🔓 M06: Inadequate Privacy Controls Lab');
+        console.log('⚠️  Privacy violations are intentional for educational purposes');
+        console.log('🌐 Interact with the UI to explore privacy anti-patterns');
+    </script>
+</body>
+</html>
