@@ -40,14 +40,16 @@ app = Flask(__name__)
 # VULNERABILITY 1: Hardcoded Secrets and API Keys
 # ============================================================================
 
+# ⚠️⚠️⚠️ EDUCATIONAL ONLY - FAKE API KEYS FOR DEMONSTRATION ⚠️⚠️⚠️
 # VULNERABILITY: Hardcoded API keys (easily extractable from binary)
+# These are FAKE keys in realistic formats - DO NOT use real keys here!
 API_KEYS = {
-    "stripe_api_key": "sk_live_4eC39HqLyjWDarjtT1zdp7dc",
-    "aws_access_key": "AKIAIOSFODNN7EXAMPLE",
-    "aws_secret_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-    "google_api_key": "AIzaSyDxVW2E9vZpQN7h8dK2eZvN9vZpQN7h8dK",
-    "firebase_key": "BDYlk3D0X8F9zR2nQ7wP5vT8hM6jK4sN3bG9cV2mL",
-    "encryption_key": "SuperSecretKey12"
+    "stripe_api_key": "sk_live_4eC39HqLyjWDarjtT1zdp7dc",  # FAKE - Educational example
+    "aws_access_key": "AKIAIOSFODNN7EXAMPLE",  # FAKE - Official AWS example key
+    "aws_secret_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",  # FAKE - Official AWS example
+    "google_api_key": "AIzaSyDxVW2E9vZpQN7h8dK2eZvN9vZpQN7h8dK",  # FAKE - Educational example
+    "firebase_key": "BDYlk3D0X8F9zR2nQ7wP5vT8hM6jK4sN3bG9cV2mL",  # FAKE - Educational example
+    "encryption_key": "SuperSecretKey12"  # FAKE - Educational example
 }
 
 # VULNERABILITY: Hardcoded credentials

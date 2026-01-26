@@ -255,11 +255,14 @@ ProGuard is Android's standard obfuscation tool, now replaced by R8 (which inclu
 -optimizations !code/simplification/arithmetic,!field/*,!class/merging/*
 
 # ============================================================================
-# STRING ENCRYPTION (R8 only)
+# DEAD CODE ELIMINATION (helps with optimization)
 # ============================================================================
 -assumevalues class android.os.Build {
     int SDK_INT return 21..31;
 }
+
+# Note: R8 doesn't have built-in string encryption
+# For string encryption, use DexGuard or implement custom encryption
 
 # ============================================================================
 # KEEP RULES (Don't obfuscate these)
@@ -326,7 +329,7 @@ ProGuard is Android's standard obfuscation tool, now replaced by R8 (which inclu
 # Flatten package hierarchy (harder to navigate)
 -flattenpackagehierarchy 'com.obfuscated'
 
-# Overload aggresively (same name for different methods)
+# Overload aggressively (same name for different methods)
 -overloadaggressively
 
 # Use unique class member names (a, b, c, d...)
