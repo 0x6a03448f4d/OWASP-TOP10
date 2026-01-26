@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M07: Insufficient Binary Protections - Lab</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+            margin-bottom: 10px;
+        }
+
+        .warning-banner {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .warning-banner strong {
+            color: #856404;
+        }
+
+        .critical-banner {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .critical-banner strong {
+            color: #721c24;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .card p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #ffd89b 0%, #ff6b6b 100%);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #a8edea 0%, #6dd5ed 100%);
+        }
+
+        .result-box {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 5px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            display: none;
+        }
+
+        .result-box.show {
+            display: block;
+        }
+
+        .vulnerability-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin: 2px;
+        }
+
+        .badge-critical {
+            background: #dc3545;
+            color: white;
+        }
+
+        .badge-high {
+            background: #fd7e14;
+            color: white;
+        }
+
+        .badge-medium {
+            background: #ffc107;
+            color: #000;
+        }
+
+        .badge-low {
+            background: #28a745;
+            color: white;
+        }
+
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .secret {
+            background: #ffeb3b;
+            color: #000;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+
+        .loading {
+            text-align: center;
+            color: #667eea;
+            font-style: italic;
+        }
+
+        .section-title {
+            font-weight: bold;
+            color: #667eea;
+            margin-top: 10px;
+            margin-bottom: 5px;
+        }
+
+        .list-item {
+            margin-left: 20px;
+            margin-bottom: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔓 M07: Insufficient Binary Protections</h1>
+            <p>Interactive Security Laboratory</p>
+            
+            <div class="critical-banner">
+                <strong>⚠️ WARNING:</strong> This application contains intentional security vulnerabilities for educational purposes only. 
+                DO NOT use these patterns in production applications!
+            </div>
+
+            <div class="warning-banner">
+                <strong>📚 Educational Lab:</strong> Explore how insufficient binary protections expose mobile applications to 
+                reverse engineering, tampering, debugging attacks, and data extraction. Each demonstration shows real vulnerabilities 
+                and their potential impact.
+            </div>
+        </div>
+
+        <div class="grid">
+            <!-- Card 1: Decompilation Simulator -->
+            <div class="card">
+                <h2>💻 1. Decompilation Simulator</h2>
+                <p>Demonstrates how applications without code obfuscation can be easily reverse engineered to readable source code, exposing business logic and hardcoded secrets.</p>
+                <span class="vulnerability-badge badge-critical">CRITICAL</span>
+                <span class="vulnerability-badge badge-high">No Obfuscation</span>
+                <br><br>
+                <button class="btn" onclick="analyzeDecompilation()">Analyze Binary</button>
+                <div id="decompile-result" class="result-box"></div>
+            </div>
+
+            <!-- Card 2: Tampering Detector -->
+            <div class="card">
+                <h2>🔧 2. Tampering Detector</h2>
+                <p>Tests application integrity verification mechanisms. Without proper signature and checksum validation, malicious modifications go undetected.</p>
+                <span class="vulnerability-badge badge-critical">CRITICAL</span>
+                <span class="vulnerability-badge badge-high">No Integrity Checks</span>
+                <br><br>
+                <button class="btn" onclick="checkTampering(false)">Check Integrity</button>
+                <button class="btn btn-danger" onclick="checkTampering(true)">Simulate Tampering</button>
+                <div id="tamper-result" class="result-box"></div>
+            </div>
+
+            <!-- Card 3: Debug Mode Checker -->
+            <div class="card">
+                <h2>🐛 3. Debug Mode Checker</h2>
+                <p>Identifies debug flags and verbose logging that expose sensitive information. Production apps should never have debugging enabled.</p>
+                <span class="vulnerability-badge badge-critical">CRITICAL</span>
+                <span class="vulnerability-badge badge-high">Debug Enabled</span>
+                <br><br>
+                <button class="btn" onclick="checkDebugMode()">Check Debug Status</button>
+                <div id="debug-result" class="result-box"></div>
+            </div>
+
+            <!-- Card 4: Root Detection Demo -->
+            <div class="card">
+                <h2>📱 4. Root Detection Demo</h2>
+                <p>Evaluates the app's ability to detect compromised device environments. On rooted/jailbroken devices, all app-level protections can be bypassed.</p>
+                <span class="vulnerability-badge badge-high">HIGH</span>
+                <span class="vulnerability-badge badge-medium">Weak Detection</span>
+                <br><br>
+                <button class="btn" onclick="detectRoot(false)">Detect Root</button>
+                <button class="btn btn-warning" onclick="detectRoot(true)">Simulate Root Bypass</button>
+                <div id="root-result" class="result-box"></div>
+            </div>
+
+            <!-- Card 5: Memory Viewer -->
+            <div class="card">
+                <h2>🧠 5. Memory Viewer</h2>
+                <p>Shows sensitive data stored in application memory. Without proper protection, API keys, passwords, and tokens can be extracted via memory dumps.</p>
+                <span class="vulnerability-badge badge-critical">CRITICAL</span>
+                <span class="vulnerability-badge badge-high">Plaintext Secrets</span>
+                <br><br>
+                <button class="btn" onclick="dumpMemory()">Dump Memory</button>
+                <div id="memory-result" class="result-box"></div>
+            </div>
+
+            <!-- Card 6: Protection Analyzer -->
+            <div class="card">
+                <h2>🛡️ 6. Protection Analyzer</h2>
+                <p>Comprehensive security assessment identifying all binary protection failures. Provides an overall security score and prioritized recommendations.</p>
+                <span class="vulnerability-badge badge-critical">CRITICAL</span>
+                <span class="vulnerability-badge badge-high">Multiple Issues</span>
+                <br><br>
+                <button class="btn btn-success" onclick="analyzeProtections()">Run Full Analysis</button>
+                <div id="analysis-result" class="result-box"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Utility function to display results
+        function displayResult(elementId, content) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = content;
+            element.classList.add('show');
+        }
+
+        // 1. Decompilation Analysis
+        async function analyzeDecompilation() {
+            const resultDiv = document.getElementById('decompile-result');
+            resultDiv.innerHTML = '<p class="loading">⏳ Analyzing binary and decompiling code...</p>';
+            resultDiv.classList.add('show');
+
+            try {
+                const response = await fetch('/api/decompile/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+
+                let html = `
+                    <div class="section-title">📊 Decompilation Analysis Results</div>
+                    <p><strong>Risk Level:</strong> <span class="vulnerability-badge badge-${data.risk_level.toLowerCase()}">${data.risk_level}</span></p>
+                    <p>${data.message}</p>
+                    
+                    <div class="section-title">🔍 Decompiled Classes Found:</div>
+                    ${data.decompiled_code.classes.map(cls => `
+                        <div style="margin-bottom: 15px;">
+                            <strong>Class:</strong> ${cls.name}<br>
+                            ${cls.methods.map(method => `
+                                <div class="code-block">${escapeHtml(method.code)}</div>
+                                <p style="color: #dc3545;"><strong>⚠️ Vulnerability:</strong> ${method.vulnerability}</p>
+                            `).join('')}
+                        </div>
+                    `).join('')}
+                    
+                    <div class="section-title">🔑 Hardcoded Secrets Extracted:</div>
+                    ${data.decompiled_code.strings_extracted.map(secret => 
+                        `<div class="list-item">🚨 <span class="secret">${secret}</span></div>`
+                    ).join('')}
+                    
+                    <div class="section-title">❌ Critical Vulnerabilities:</div>
+                    ${data.decompiled_code.vulnerabilities.critical.map(vuln => 
+                        `<div class="list-item">• ${vuln}</div>`
+                    ).join('')}
+                    
+                    <div class="section-title">📈 Analysis Summary:</div>
+                    <div class="list-item">Obfuscation Level: <strong>${data.decompiled_code.analysis.obfuscation_level}</strong></div>
+                    <div class="list-item">Decompilation Quality: <strong>${data.decompiled_code.analysis.decompilation_quality}</strong></div>
+                    <div class="list-item">Time to Decompile: <strong>${data.decompiled_code.analysis.time_to_decompile}</strong></div>
+                    <div class="list-item">Skill Required: <strong>${data.decompiled_code.analysis.skill_required}</strong></div>
+                `;
+
+                displayResult('decompile-result', html);
+            } catch (error) {
+                displayResult('decompile-result', `<p style="color: red;">Error: ${error.message}</p>`);
+            }
+        }
+
+        // 2. Tampering Detection
+        async function checkTampering(simulate) {
+            const resultDiv = document.getElementById('tamper-result');
+            resultDiv.innerHTML = '<p class="loading">⏳ Checking application integrity...</p>';
+            resultDiv.classList.add('show');
+
+            try {
+                const response = await fetch('/api/tamper/check', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ simulate_tamper: simulate })
+                });
+                const data = await response.json();
+
+                let html = `
+                    <div class="section-title">🔍 Integrity Check Results</div>
+                    <p><strong>Risk Level:</strong> <span class="vulnerability-badge badge-${data.risk_level.toLowerCase()}">${data.risk_level}</span></p>
+                    <p>${data.message}</p>
+                    
+                    ${simulate ? `<p style="color: #dc3545; font-weight: bold;">⚠️ TAMPERING SIMULATED - But NOT DETECTED!</p>` : ''}
+                    
+                    <div class="section-title">📋 Signature Verification:</div>
+                    <div class="list-item">Verified: <strong>${data.tampering_check.signature_verified ? '✅ Yes' : '❌ No'}</strong></div>
+                    <div class="list-item">Match: <strong>${data.tampering_check.signature_match ? '✅ Yes' : '❌ No'}</strong></div>
+                    <div class="list-item">Status: <strong>${data.tampering_check.protection_status.signature_verification}</strong></div>
+                    
+                    <div class="section-title">🔐 Integrity Checks:</div>
+                    <div class="list-item">Checksum Verified: <strong>${data.tampering_check.checksum_verified ? '✅ Yes' : '❌ No'}</strong></div>
+                    <div class="list-item">DEX Integrity: <strong>${data.tampering_check.dex_integrity.classes_dex_verified ? '✅ Yes' : '❌ No'}</strong></div>
+                    <div class="list-item">Tampering Detected: <strong>${data.tampering_check.tampering_detected ? '⚠️ Yes' : '❌ No (VULNERABLE!)'}</strong></div>
+                    
+                    <div class="section-title">❌ Vulnerabilities Found:</div>
+                    ${data.vulnerabilities.map(vuln => 
+                        `<div class="list-item">• ${vuln}</div>`
+                    ).join('')}
+                `;
+
+                displayResult('tamper-result', html);
+            } catch (error) {
+                displayResult('tamper-result', `<p style="color: red;">Error: ${error.message}</p>`);
+            }
+        }
+
+        // 3. Debug Mode Check
+        async function checkDebugMode() {
+            const resultDiv = document.getElementById('debug-result');
+            resultDiv.innerHTML = '<p class="loading">⏳ Checking debug configuration...</p>';
+            resultDiv.classList.add('show');
+
+            try {
+                const response = await fetch('/api/debug/info', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+
+                let html = `
+                    <div class="section-title">🐛 Debug Mode Analysis</div>
+                    <p><strong>Risk Level:</strong> <span class="vulnerability-badge badge-${data.risk_level.toLowerCase()}">${data.risk_level}</span></p>
+                    <p>${data.message}</p>
+                    
+                    <div class="section-title">⚙️ Application Flags:</div>
+                    ${Object.entries(data.debug_info.application_flags).map(([key, value]) => 
+                        `<div class="list-item">${key}: <strong style="color: ${value ? '#dc3545' : '#28a745'}">${value}</strong></div>`
+                    ).join('')}
+                    
+                    <div class="section-title">🔑 Secrets Exposed in Logs:</div>
+                    ${data.debug_logs.slice(0, 5).map(log => 
+                        `<div class="list-item" style="color: #dc3545;">🚨 ${escapeHtml(log)}</div>`
+                    ).join('')}
+                    
+                    <div class="section-title">💥 Stack Trace with Secrets:</div>
+                    <div class="code-block">
+                        ${escapeHtml(data.stack_trace.stack.join('\n'))}<br><br>
+                        <strong>Local Variables Exposed:</strong><br>
+                        ${Object.entries(data.stack_trace.local_variables).map(([key, value]) => 
+                            `${key} = <span class="secret">${value}</span>`
+                        ).join('<br>')}
+                    </div>
+                    
+                    <div class="section-title">❌ Vulnerabilities:</div>
+                    ${data.vulnerabilities.map(vuln => 
+                        `<div class="list-item">• ${vuln}</div>`
+                    ).join('')}
+                `;
+
+                displayResult('debug-result', html);
+            } catch (error) {
+                displayResult('debug-result', `<p style="color: red;">Error: ${error.message}</p>`);
+            }
+        }
+
+        // 4. Root Detection
+        async function detectRoot(bypass) {
+            const resultDiv = document.getElementById('root-result');
+            resultDiv.innerHTML = '<p class="loading">⏳ Scanning device environment...</p>';
+            resultDiv.classList.add('show');
+
+            try {
+                const response = await fetch('/api/root/detect', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ simulate_bypass: bypass })
+                });
+                const data = await response.json();
+
+                let html = `
+                    <div class="section-title">📱 Root Detection Results</div>
+                    <p><strong>Risk Level:</strong> <span class="vulnerability-badge badge-${data.risk_level.toLowerCase()}">${data.risk_level}</span></p>
+                    <p>${data.message}</p>
+                    
+                    ${bypass ? `<p style="color: #dc3545; font-weight: bold;">⚠️ ROOT BYPASS SIMULATED - Detection easily defeated!</p>` : ''}
+                    
+                    <div class="section-title">🔍 Detection Methods Status:</div>
+                    ${Object.entries(data.root_detection.detection_methods).map(([method, info]) => 
+                        `<div class="list-item">${method}: <strong>${info.implemented ? '✅ Implemented' : '❌ NOT IMPLEMENTED'}</strong> (${info.result})</div>`
+                    ).join('')}
+                    
+                    <div class="section-title">📊 Device Status:</div>
+                    <div class="list-item">Appears Rooted: <strong>${data.root_detection.device_status.appears_rooted ? '⚠️ Yes' : '✅ No'}</strong></div>
+                    <div class="list-item">Confidence: <strong>${data.root_detection.device_status.confidence}</strong></div>
+                    <div class="list-item">Bypass Possible: <strong>${data.root_detection.device_status.bypass_possible ? '❌ Yes (VULNERABLE!)' : '✅ No'}</strong></div>
+                    
+                    <div class="section-title">🛡️ Frida Detection:</div>
+                    <div class="list-item">Port Check: <strong>${data.root_detection.frida_detection.port_check ? '✅ Yes' : '❌ No'}</strong></div>
+                    <div class="list-item">Library Check: <strong>${data.root_detection.frida_detection.library_check ? '✅ Yes' : '❌ No'}</strong></div>
+                    <div class="list-item">Process Check: <strong>${data.root_detection.frida_detection.process_check ? '✅ Yes' : '❌ No'}</strong></div>
+                    
+                    <div class="section-title">❌ Vulnerabilities:</div>
+                    ${data.vulnerabilities.map(vuln => 
+                        `<div class="list-item">• ${vuln}</div>`
+                    ).join('')}
+                `;
+
+                displayResult('root-result', html);
+            } catch (error) {
+                displayResult('root-result', `<p style="color: red;">Error: ${error.message}</p>`);
+            }
+        }
+
+        // 5. Memory Dump
+        async function dumpMemory() {
+            const resultDiv = document.getElementById('memory-result');
+            resultDiv.innerHTML = '<p class="loading">⏳ Dumping application memory...</p>';
+            resultDiv.classList.add('show');
+
+            try {
+                const response = await fetch('/api/memory/dump', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+
+                let html = `
+                    <div class="section-title">🧠 Memory Dump Results</div>
+                    <p><strong>Risk Level:</strong> <span class="vulnerability-badge badge-${data.risk_level.toLowerCase()}">${data.risk_level}</span></p>
+                    <p>${data.message}</p>
+                    
+                    <div class="section-title">🔑 API Keys in Memory:</div>
+                    ${Object.entries(data.memory_contents.api_keys).map(([key, value]) => 
+                        `<div class="list-item">🚨 ${key}: <span class="secret">${value}</span></div>`
+                    ).join('')}
+                    
+                    <div class="section-title">👤 User Session Data:</div>
+                    ${Object.entries(data.memory_contents.user_session).map(([key, value]) => 
+                        `<div class="list-item">${key}: <strong>${key.includes('password') ? '<span class="secret">' + value + '</span>' : value}</strong></div>`
+                    ).join('')}
+                    
+                    <div class="section-title">🔐 Encryption Keys Exposed:</div>
+                    ${Object.entries(data.memory_contents.encryption_keys).map(([key, value]) => 
+                        `<div class="list-item">🚨 ${key}: <span class="secret">${value.substring(0, 50)}...</span></div>`
+                    ).join('')}
+                    
+                    <div class="section-title">🔍 Memory Search Results:</div>
+                    ${Object.entries(data.memory_search).map(([term, results]) => 
+                        `<div class="list-item"><strong>${term}:</strong> Found ${results.occurrences} occurrences at ${results.locations.length} locations</div>`
+                    ).join('')}
+                    
+                    <div class="section-title">⚔️ Attack Scenario:</div>
+                    <div class="list-item">Method: <strong>${data.attack_scenario.method}</strong></div>
+                    <div class="list-item">Difficulty: <strong>${data.attack_scenario.difficulty}</strong></div>
+                    <div class="list-item">Time Required: <strong>${data.attack_scenario.time_required}</strong></div>
+                    <div class="list-item">Data Exposed: <strong>${data.attack_scenario.data_exposed}</strong></div>
+                    
+                    <div class="section-title">❌ Vulnerabilities:</div>
+                    ${data.vulnerabilities.map(vuln => 
+                        `<div class="list-item">• ${vuln}</div>`
+                    ).join('')}
+                `;
+
+                displayResult('memory-result', html);
+            } catch (error) {
+                displayResult('memory-result', `<p style="color: red;">Error: ${error.message}</p>`);
+            }
+        }
+
+        // 6. Full Protection Analysis
+        async function analyzeProtections() {
+            const resultDiv = document.getElementById('analysis-result');
+            resultDiv.innerHTML = '<p class="loading">⏳ Running comprehensive security analysis...</p>';
+            resultDiv.classList.add('show');
+
+            try {
+                const response = await fetch('/api/protection/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+
+                let html = `
+                    <div class="section-title">🛡️ Comprehensive Protection Analysis</div>
+                    <p><strong>Overall Score:</strong> <span style="font-size: 1.5em; color: #dc3545; font-weight: bold;">${data.analysis.overall_score}/100</span> (Grade: ${data.analysis.grade})</p>
+                    <p><strong>Risk Level:</strong> <span class="vulnerability-badge badge-${data.analysis.risk_level.toLowerCase()}">${data.analysis.risk_level}</span></p>
+                    
+                    <div class="section-title">📊 Protection Categories:</div>
+                    ${Object.entries(data.analysis.protection_categories).map(([category, details]) => `
+                        <div style="margin: 10px 0; padding: 10px; background: ${details.score < 30 ? '#f8d7da' : details.score < 70 ? '#fff3cd' : '#d4edda'}; border-radius: 5px;">
+                            <strong>${category.replace(/_/g, ' ').toUpperCase()}:</strong> ${details.score}/100
+                            <div class="list-item">Status: <strong>${details.status}</strong></div>
+                            ${details.issues.slice(0, 3).map(issue => `<div class="list-item">• ${issue}</div>`).join('')}
+                        </div>
+                    `).join('')}
+                    
+                    <div class="section-title">🚨 Critical Vulnerabilities:</div>
+                    ${data.analysis.critical_vulnerabilities.map(vuln => `
+                        <div style="margin: 10px 0; padding: 10px; background: #f8d7da; border-radius: 5px;">
+                            <strong>[${vuln.id}] ${vuln.title}</strong>
+                            <div class="list-item">Severity: <span class="vulnerability-badge badge-${vuln.severity.toLowerCase()}">${vuln.severity}</span></div>
+                            <div class="list-item">CVSS: <strong>${vuln.cvss}</strong></div>
+                            <div class="list-item">${vuln.description}</div>
+                            <div class="list-item" style="color: #28a745;"><strong>Fix:</strong> ${vuln.remediation}</div>
+                        </div>
+                    `).join('')}
+                    
+                    <div class="section-title">💰 Estimated Cost of Compromise:</div>
+                    ${Object.entries(data.analysis.estimated_cost_of_compromise).map(([type, cost]) => 
+                        `<div class="list-item">${type.replace(/_/g, ' ')}: <strong>${cost}</strong></div>`
+                    ).join('')}
+                    
+                    <div class="section-title">✅ Recommendations (Priority Order):</div>
+                    ${data.analysis.recommendations.map((rec, idx) => 
+                        `<div class="list-item">${idx + 1}. ${rec}</div>`
+                    ).join('')}
+                `;
+
+                displayResult('analysis-result', html);
+            } catch (error) {
+                displayResult('analysis-result', `<p style="color: red;">Error: ${error.message}</p>`);
+            }
+        }
+
+        // Utility function to escape HTML
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+    </script>
+</body>
+</html>
