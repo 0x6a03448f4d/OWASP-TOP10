@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M08: Security Misconfiguration Lab</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .warning {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .danger {
+            background: #f8d7da;
+            border: 2px solid #dc3545;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .card h2 {
+            color: #f5576c;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #f5576c;
+            padding-bottom: 10px;
+        }
+        
+        button {
+            background: #f5576c;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        
+        button:hover {
+            background: #e04456;
+        }
+        
+        .vulnerability {
+            background: #ffe6e6;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 10px 0;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .result {
+            background: #e7f3ff;
+            border: 1px solid #0066cc;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .info-box {
+            background: #d1ecf1;
+            border: 1px solid #0c5460;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        .critical-box {
+            background: #fff5f5;
+            border: 2px solid #8b0000;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        input[type="email"],
+        input[type="password"],
+        input[type="text"],
+        textarea {
+            padding: 10px;
+            margin: 5px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            width: calc(100% - 10px);
+        }
+        
+        textarea {
+            font-family: monospace;
+            min-height: 80px;
+        }
+        
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .config-item {
+            background: #f8f9fa;
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        
+        .error-trace {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚙️ M08: Security Misconfiguration Lab</h1>
+            <p>Educational demonstration of mobile application security misconfigurations</p>
+        </div>
+        
+        <div class="danger">
+            <strong>⚠️ WARNING:</strong> This application contains intentional security misconfigurations for educational purposes only. Never use these patterns in production code!
+        </div>
+        
+        <div class="grid-2">
+            <div class="card">
+                <h2>1. Debug Mode Detection</h2>
+                <p>Check if the application is running in debug mode:</p>
+                <button onclick="checkDebugMode()">Check Debug Status</button>
+                <div id="debug-result" class="result"></div>
+            </div>
+            
+            <div class="card">
+                <h2>2. Error Stack Traces</h2>
+                <p>Trigger an error to see if stack traces are exposed:</p>
+                <button onclick="triggerError()">Trigger Test Error</button>
+                <div id="error-result" class="result"></div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>3. Configuration Exposure</h2>
+            <p>Fetch application configuration to see what's exposed:</p>
+            <button onclick="fetchConfig()">Fetch Configuration</button>
+            <div id="config-result" class="result"></div>
+        </div>
+        
+        <div class="card">
+            <h2>4. Development Endpoints</h2>
+            <p>Test for development endpoints that should not exist in production:</p>
+            <button onclick="accessDebugEndpoint()">Access Debug Info</button>
+            <button onclick="testCodeExecution()">Test Code Execution</button>
+            <div id="dev-result" class="result"></div>
+        </div>
+        
+        <div class="card">
+            <h2>5. Verbose Error Messages</h2>
+            <p>Test login endpoint to see error message details:</p>
+            
+            <input type="email" id="login-email" placeholder="Email (try: admin@example.com)" value="wrong@example.com">
+            <input type="password" id="login-password" placeholder="Password (try: admin123)" value="wrongpass">
+            
+            <button onclick="testLogin()">Test Login</button>
+            <button onclick="testSQLInjection()">Test SQL Injection</button>
+            <div id="login-result" class="result"></div>
+        </div>
+        
+        <div class="card">
+            <h2>6. Information Leakage</h2>
+            <p>Check for information disclosure through various endpoints:</p>
+            <button onclick="fetchServerStatus()">Server Status</button>
+            <button onclick="fetchHealthCheck()">Health Check</button>
+            <button onclick="fetchLogs()">Application Logs</button>
+            <div id="info-result" class="result"></div>
+        </div>
+        
+        <div class="card">
+            <h2>7. Execute Arbitrary Code (Dev Endpoint)</h2>
+            <p>⚠️ This simulates a dangerous development endpoint left in production:</p>
+            <textarea id="code-input" placeholder="Enter Python code (e.g., 2+2, len(users), DATABASE_CONFIG)">2 + 2</textarea>
+            <button onclick="executeCode()">Execute Code</button>
+            <div id="exec-result" class="result"></div>
+        </div>
+    </div>
+    
+    <script>
+        async function checkDebugMode() {
+            const resultDiv = document.getElementById('debug-result');
+            resultDiv.style.display = 'block';
+            
+            try {
+                const response = await fetch('/api/config');
+                const data = await response.json();
+                
+                let html = '<h3>🔍 Debug Mode Analysis:</h3>';
+                
+                if (data.debug_enabled) {
+                    html += '<div class="vulnerability">';
+                    html += '<strong>⚠️ VULNERABILITY FOUND:</strong> Debug mode is ENABLED<br><br>';
+                    html += '<strong>Risks:</strong><ul>';
+                    html += '<li>Full stack traces exposed to users</li>';
+                    html += '<li>Interactive debugger accessible</li>';
+                    html += '<li>Code reloading may expose source</li>';
+                    html += '<li>Performance degradation</li>';
+                    html += '</ul>';
+                    html += '</div>';
+                } else {
+                    html += '<div class="info-box">';
+                    html += '✅ Debug mode is properly disabled';
+                    html += '</div>';
+                }
+                
+                resultDiv.innerHTML = html;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="vulnerability">Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function triggerError() {
+            const resultDiv = document.getElementById('error-result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<p>Triggering error...</p>';
+            
+            try {
+                const response = await fetch('/api/test-error');
+                const data = await response.text();
+                
+                let html = '<h3>🔍 Error Response:</h3>';
+                html += '<div class="vulnerability">';
+                html += '<strong>⚠️ CRITICAL:</strong> Full stack trace exposed!<br><br>';
+                html += '<div class="error-trace">';
+                html += data.substring(0, 1000) + (data.length > 1000 ? '...' : '');
+                html += '</div>';
+                html += '<br><strong>Information Leaked:</strong><ul>';
+                html += '<li>File paths and directory structure</li>';
+                html += '<li>Python version and libraries</li>';
+                html += '<li>Application code snippets</li>';
+                html += '<li>Internal logic and flow</li>';
+                html += '</ul>';
+                html += '</div>';
+                
+                resultDiv.innerHTML = html;
+            } catch (error) {
+                // Error is expected, capture it
+                resultDiv.innerHTML = '<div class="vulnerability">Stack trace exposed in browser console and response</div>';
+            }
+        }
+        
+        async function fetchConfig() {
+            const resultDiv = document.getElementById('config-result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<p>Fetching configuration...</p>';
+            
+            const response = await fetch('/api/config');
+            const data = await response.json();
+            
+            let html = '<h3>⚠️ Configuration Response:</h3>';
+            html += '<div class="vulnerability">';
+            html += '<strong>CRITICAL VULNERABILITIES:</strong><br><br>';
+            html += '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            html += '<br><strong>Exposed Sensitive Data:</strong><ul>';
+            html += '<li>Database credentials (host, username, password)</li>';
+            html += '<li>Internal API keys</li>';
+            html += '<li>Debug mode status</li>';
+            html += '<li>Internal infrastructure details</li>';
+            html += '</ul>';
+            html += '<br><strong>Impact:</strong> Attacker can access database, internal APIs, and understand the entire system architecture!';
+            html += '</div>';
+            
+            resultDiv.innerHTML = html;
+        }
+        
+        async function accessDebugEndpoint() {
+            const resultDiv = document.getElementById('dev-result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<p>Accessing development endpoint...</p>';
+            
+            const response = await fetch('/dev/debug-info');
+            const data = await response.json();
+            
+            let html = '<h3>🚨 Development Endpoint Exposed:</h3>';
+            html += '<div class="critical-box">';
+            html += '<strong>CRITICAL:</strong> Debug endpoint accessible in production!<br><br>';
+            html += '<pre>' + JSON.stringify(data, null, 2).substring(0, 2000) + '...</pre>';
+            html += '<br><strong>Exposed Information:</strong><ul>';
+            html += '<li>Environment variables (may contain secrets)</li>';
+            html += '<li>System paths and Python modules</li>';
+            html += '<li>Application configuration</li>';
+            html += '<li>Database credentials</li>';
+            html += '<li>Secret keys</li>';
+            html += '</ul>';
+            html += '</div>';
+            
+            resultDiv.innerHTML = html;
+        }
+        
+        async function testCodeExecution() {
+            const resultDiv = document.getElementById('dev-result');
+            resultDiv.style.display = 'block';
+            
+            let html = '<h3>🔥 Code Execution Endpoint:</h3>';
+            html += '<div class="critical-box">';
+            html += '<strong>CRITICAL:</strong> Arbitrary code execution endpoint exists!<br><br>';
+            html += 'This endpoint allows running ANY Python code on the server.<br>';
+            html += 'An attacker could:<ul>';
+            html += '<li>Read/write files on the server</li>';
+            html += '<li>Execute system commands</li>';
+            html += '<li>Access the database</li>';
+            html += '<li>Steal all application data</li>';
+            html += '<li>Install backdoors</li>';
+            html += '<li>Completely compromise the system</li>';
+            html += '</ul>';
+            html += '<p><strong>This is one of the most dangerous misconfigurations possible!</strong></p>';
+            html += '</div>';
+            
+            resultDiv.innerHTML = html;
+        }
+        
+        async function testLogin() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            const resultDiv = document.getElementById('login-result');
+            resultDiv.style.display = 'block';
+            
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({email, password})
+            });
+            
+            const data = await response.json();
+            
+            let html = '<h3>⚠️ Login Response Analysis:</h3>';
+            html += '<div class="vulnerability">';
+            html += '<strong>VULNERABILITY:</strong> Verbose error messages!<br><br>';
+            html += '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            html += '<br><strong>Issues:</strong><ul>';
+            html += '<li>Reveals if user exists in database</li>';
+            html += '<li>Provides debug information</li>';
+            html += '<li>Exposes timing information</li>';
+            html += '<li>Hints at valid usernames</li>';
+            html += '<li>Helps attackers enumerate accounts</li>';
+            html += '</ul>';
+            html += '<br><strong>Proper Response:</strong> Generic "Invalid credentials" without details';
+            html += '</div>';
+            
+            resultDiv.innerHTML = html;
+        }
+        
+        async function testSQLInjection() {
+            const resultDiv = document.getElementById('login-result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<p>Testing SQL injection...</p>';
+            
+            const response = await fetch("/api/user/1' OR '1'='1");
+            const data = await response.json();
+            
+            let html = '<h3>🔍 SQL Injection Test:</h3>';
+            html += '<div class="vulnerability">';
+            html += '<strong>VULNERABILITY:</strong> Verbose error exposes database structure!<br><br>';
+            html += '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            html += '<br><strong>Exposed Information:</strong><ul>';
+            html += '<li>Database name</li>';
+            html += '<li>Table name</li>';
+            html += '<li>Column names</li>';
+            html += '<li>Query structure</li>';
+            html += '</ul>';
+            html += '<br><strong>Impact:</strong> Helps attacker craft successful SQL injection attacks!';
+            html += '</div>';
+            
+            resultDiv.innerHTML = html;
+        }
+        
+        async function fetchServerStatus() {
+            const resultDiv = document.getElementById('info-result');
+            resultDiv.style.display = 'block';
+            
+            const response = await fetch('/api/server-status');
+            const data = await response.json();
+            
+            let html = '<h3>📊 Server Status:</h3>';
+            html += '<div class="vulnerability">';
+            html += '<strong>VULNERABILITY:</strong> Server information disclosure<br><br>';
+            html += '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            html += '<br><strong>Risks:</strong><ul>';
+            html += '<li>Version information aids exploit development</li>';
+            html += '<li>Internal IP addresses exposed</li>';
+            html += '<li>Infrastructure details revealed</li>';
+            html += '<li>Resource usage hints at attack timing</li>';
+            html += '</ul>';
+            html += '</div>';
+            
+            resultDiv.innerHTML = html;
+        }
+        
+        async function fetchHealthCheck() {
+            const resultDiv = document.getElementById('info-result');
+            resultDiv.style.display = 'block';
+            
+            const response = await fetch('/health');
+            const data = await response.json();
+            
+            let html = '<h3>🏥 Health Check:</h3>';
+            html += '<div class="vulnerability">';
+            html += '<strong>VULNERABILITY:</strong> Excessive information in health endpoint<br><br>';
+            html += '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            html += '<br><strong>Exposed:</strong><ul>';
+            html += '<li>Database host and credentials</li>';
+            html += '<li>Cache server locations</li>';
+            html += '<li>Cloud storage bucket names</li>';
+            html += '<li>Internal infrastructure topology</li>';
+            html += '</ul>';
+            html += '<br><strong>Proper Health Check:</strong> Simple "OK" or "ERROR" status only';
+            html += '</div>';
+            
+            resultDiv.innerHTML = html;
+        }
+        
+        async function fetchLogs() {
+            const resultDiv = document.getElementById('info-result');
+            resultDiv.style.display = 'block';
+            
+            const response = await fetch('/api/logs');
+            const data = await response.json();
+            
+            let html = '<h3>📝 Application Logs:</h3>';
+            html += '<div class="vulnerability">';
+            html += '<strong>VULNERABILITY:</strong> Logs exposed with sensitive data!<br><br>';
+            html += '<pre>';
+            data.logs.forEach(log => {
+                html += log + '\n';
+            });
+            html += '</pre>';
+            html += '<br><strong>Leaked Information:</strong><ul>';
+            html += '<li>Database passwords</li>';
+            html += '<li>User credentials</li>';
+            html += '<li>API keys</li>';
+            html += '<li>Internal operations</li>';
+            html += '</ul>';
+            html += '</div>';
+            
+            resultDiv.innerHTML = html;
+        }
+        
+        async function executeCode() {
+            const code = document.getElementById('code-input').value;
+            const resultDiv = document.getElementById('exec-result');
+            resultDiv.style.display = 'block';
+            
+            const response = await fetch('/dev/execute', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({code})
+            });
+            
+            const data = await response.json();
+            
+            let html = '<h3>🔥 Code Execution Result:</h3>';
+            html += '<div class="critical-box">';
+            html += '<strong>CRITICAL VULNERABILITY DEMONSTRATED!</strong><br><br>';
+            html += '<strong>Code executed:</strong><br>';
+            html += `<code>${code}</code><br><br>`;
+            html += '<strong>Result:</strong><br>';
+            html += '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            html += '<br><strong>This endpoint allows COMPLETE system compromise!</strong>';
+            html += '</div>';
+            
+            resultDiv.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
