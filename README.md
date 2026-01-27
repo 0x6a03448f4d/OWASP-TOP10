@@ -38,11 +38,13 @@ By using this repository, you commit to **responsible, ethical cybersecurity pra
 
 - [What is OWASP Top 10?](#what-is-owasp-top-10)
 - [Repository Structure](#repository-structure)
+- [Interactive Learning Tools](#interactive-learning-tools)
 - [Getting Started](#getting-started)
 - [The OWASP Top 10 Categories](#the-owasp-top-10-categories)
 - [How to Use This Repository](#how-to-use-this-repository)
 - [Running the Labs](#running-the-labs)
 - [Learning Paths](#learning-paths)
+- [Compliance & Standards](#compliance--standards)
 - [Contributing](#contributing)
 - [License](#license)
 - [Resources](#resources)
@@ -135,11 +137,95 @@ OWASP-TOP10/
 │   ├── diagrams/
 │   └── examples/
 │
-└── labs/                              # Shared lab resources
-    └── base/
-        ├── Dockerfile                 # Base Docker image for Python labs
-        └── common-assets/
+├── labs/                              # Shared lab resources
+│   └── base/
+│       ├── Dockerfile                 # Base Docker image for Python labs
+│       └── common-assets/
+│
+├── cheat-sheets/                      # 🆕 Interactive quick reference cards
+│   ├── web/                           # Web Top 10 cheat sheets
+│   ├── api/                           # API Top 10 cheat sheets
+│   ├── llm/                           # LLM Top 10 cheat sheets
+│   └── mobile/                        # Mobile Top 10 cheat sheets
+│
+├── ctf-hub/                           # 🆕 CTF-style challenges platform
+│   ├── index.html                     # Unified lab launcher
+│   ├── js/                            # Progress tracking & badges
+│   └── certificates/                  # Auto-generated certificates
+│
+├── diagrams/                          # 🆕 Interactive visualizations
+│   ├── attack-flows/                  # Attack flow diagrams
+│   ├── architecture/                  # Security architecture
+│   └── risk-matrices/                 # Risk assessment matrices
+│
+├── quiz-platform/                     # 🆕 Assessment & quizzes
+│   ├── pre-assessment.html
+│   ├── certification-exam.html
+│   └── quizzes/                       # Topic-specific quizzes
+│
+├── compliance-mappings/               # 🆕 Standards mapping
+│   ├── gdpr-mapping.md
+│   ├── pci-dss-mapping.md
+│   ├── iso-27001-mapping.md
+│   └── nist-csf-mapping.md
+│
+└── docs/                              # 🆕 GitHub Pages documentation
+    └── index.md
 ```
+
+## 🎓 Interactive Learning Tools
+
+This repository now includes comprehensive interactive tools to enhance your learning experience:
+
+### 📝 Cheat Sheets & Quick Reference Cards
+- **One-page visual summaries** for each vulnerability
+- **Common exploit patterns** at a glance
+- **Prevention checklists** for quick reference
+- **Code snippet examples** (vulnerable vs secure)
+- **Printable PDF format** (use browser print to PDF)
+
+👉 **[Browse All Cheat Sheets](cheat-sheets/)** | [Example: Broken Access Control](cheat-sheets/web/01-broken-access-control.html)
+
+### 🏆 CTF-Style Challenges Hub
+- **Unified lab launcher** - All labs in one interface
+- **Progress tracking dashboard** with charts
+- **Achievement badges** - Earn rewards as you learn
+- **Leaderboard functionality** for friendly competition
+- **Completion certificates** - Auto-generated PDFs
+- **Data export/import** - Backup your progress
+
+👉 **[Launch CTF Hub](ctf-hub/)** | [View Demo Screenshot](#)
+
+### 📊 Interactive Diagrams & Visualizations
+- **Attack flow diagrams** using Mermaid.js
+- **Security architecture** visualizations
+- **Vulnerability relationship maps**
+- **Risk assessment matrices**
+- **Interactive & exportable** (PNG/SVG/PDF)
+
+👉 **[Explore Diagrams](diagrams/)** | [Example: SQL Injection Flow](diagrams/attack-flows/sql-injection.html)
+
+### 📝 Quiz & Assessment Platform
+- **Pre/post assessments** - Measure your progress
+- **Topic-specific quizzes** for each vulnerability
+- **Certification exam simulator** - 40 questions, 60 minutes
+- **Knowledge retention tracker**
+- **Instant feedback** with detailed explanations
+- **Mobile-friendly** - Quiz anywhere
+
+👉 **[Take a Quiz](quiz-platform/)** | [Try Pre-Assessment](quiz-platform/pre-assessment.html)
+
+### 📋 Compliance Mapping Matrix
+Map OWASP Top 10 to industry standards:
+- **GDPR** - Data protection requirements
+- **PCI-DSS** - Payment card security
+- **SOC 2** - Service organization controls
+- **ISO 27001** - Information security management
+- **NIST CSF** - Cybersecurity framework
+
+👉 **[View Compliance Mappings](compliance-mappings/)** | [PCI-DSS Example](compliance-mappings/pci-dss-mapping.md)
+
+---
 
 ## 🚀 Getting Started
 
@@ -375,6 +461,37 @@ sudo docker-compose up
 3. Injection (03)
 4. Authentication Failures (07)
 5. SSRF (10)
+
+## 🏛️ Compliance & Standards
+
+### Regulatory Compliance Mappings
+
+Understand how OWASP Top 10 aligns with compliance requirements:
+
+- **[GDPR Mapping](compliance-mappings/gdpr-mapping.md)** - EU data protection
+- **[PCI-DSS Mapping](compliance-mappings/pci-dss-mapping.md)** - Payment card security
+- **[ISO 27001 Mapping](compliance-mappings/iso-27001-mapping.md)** - Information security
+- **[NIST Framework](compliance-mappings/nist-csf-mapping.md)** - Cybersecurity framework
+- **[SOC 2 Mapping](compliance-mappings/soc2-mapping.md)** - Service organization controls
+
+### Use Cases
+
+**For Compliance Officers:**
+- Demonstrate security coverage
+- Map to framework requirements
+- Generate compliance reports
+
+**For Auditors:**
+- Verify control implementation
+- Assess security posture
+- Review evidence
+
+**For Developers:**
+- Understand compliance impact
+- Implement compliant solutions
+- Document security decisions
+
+👉 **[Browse All Compliance Mappings](compliance-mappings/)**
 
 ## 🤝 Contributing
 
