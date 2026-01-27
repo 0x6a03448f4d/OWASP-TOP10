@@ -102,7 +102,7 @@ def list_labs():
 
 @app.route('/api/labs/<lab_id>/start', methods=['POST'])
 def start_lab(lab_id):
-    """Start a specific lab"""
+    """Start a specific lab - auto-build if needed"""
     if not docker_client:
         return jsonify({'error': 'Docker client not available'}), 500
     
@@ -132,13 +132,70 @@ def start_lab(lab_id):
                     'url': f"http://localhost:{lab_info['port']}"
                 })
         except docker.errors.NotFound:
-            # Container doesn't exist, need to build it
-            logger.info(f"Container {container_name} not found, needs to be built")
-            return jsonify({
-                'status': 'needs_build',
-                'message': f"Lab {lab_info['name']} needs to be built first. Please run: cd {lab_info['path']} && docker-compose up -d",
-                'build_command': f"cd {lab_info['path']} && docker-compose up -d"
-            }), 202
+            # Container doesn't exist, auto-build it
+            logger.info(f"Container {container_name} not found, attempting auto-build")
+            import subprocess
+            import os
+            
+            lab_path = os.path.abspath(lab_info['path'])
+            if not os.path.exists(lab_path):
+                return jsonify({
+                    'status': 'error',
+                    'message': f"Lab path not found: {lab_path}"
+                }), 404
+            
+            # Find docker-compose file
+            compose_file = None
+            for root, dirs, files in os.walk(lab_path):
+                if 'docker-compose.yml' in files or 'docker-compose.yaml' in files:
+                    compose_file = os.path.join(root, 'docker-compose.yml' if 'docker-compose.yml' in files else 'docker-compose.yaml')
+                    break
+            
+            if not compose_file:
+                return jsonify({
+                    'status': 'error',
+                    'message': f"No docker-compose file found in {lab_path}"
+                }), 404
+            
+            # Build and start using docker-compose
+            compose_dir = os.path.dirname(compose_file)
+            logger.info(f"Auto-building lab from: {compose_dir}")
+            
+            try:
+                # Run docker-compose up -d
+                result = subprocess.run(
+                    ['docker-compose', 'up', '-d'],
+                    cwd=compose_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=300  # 5 minutes timeout
+                )
+                
+                if result.returncode == 0:
+                    logger.info(f"Successfully built and started lab: {container_name}")
+                    return jsonify({
+                        'status': 'started',
+                        'message': f"Lab {lab_info['name']} built and started successfully",
+                        'url': f"http://localhost:{lab_info['port']}",
+                        'build_output': result.stdout
+                    })
+                else:
+                    logger.error(f"Failed to build lab: {result.stderr}")
+                    return jsonify({
+                        'status': 'error',
+                        'message': f"Failed to build lab: {result.stderr}"
+                    }), 500
+            except subprocess.TimeoutExpired:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Lab build timeout (>5 minutes)'
+                }), 500
+            except Exception as e:
+                logger.error(f"Error building lab: {e}")
+                return jsonify({
+                    'status': 'error',
+                    'message': f"Error building lab: {str(e)}"
+                }), 500
             
     except Exception as e:
         logger.error(f"Error starting lab {lab_id}: {e}")
