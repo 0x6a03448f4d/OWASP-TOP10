@@ -8,8 +8,10 @@ let score = 0;
 let startTime = null;
 let timerInterval = null;
 
-// LocalStorage key for progress tracking
+// Constants
 const STORAGE_KEY = 'owaspQuizProgress';
+const QUESTIONS_PER_CATEGORY_CUSTOM = 10;
+const QUESTIONS_PER_CATEGORY_COMPREHENSIVE = 10;
 
 // Initialize progress tracking
 function initProgress() {
@@ -24,7 +26,8 @@ function initProgress() {
 function getProgress() {
     try {
         return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
-    } catch {
+    } catch (error) {
+        console.error('Failed to load progress:', error);
         return {};
     }
 }
@@ -33,8 +36,8 @@ function saveProgress(data) {
     try {
         const current = getProgress();
         localStorage.setItem(STORAGE_KEY, JSON.stringify({...current, ...data}));
-    } catch (e) {
-        console.error('Failed to save progress:', e);
+    } catch (error) {
+        console.error('Failed to save progress:', error);
     }
 }
 
@@ -100,7 +103,7 @@ function startCustomQuiz() {
     selectedCategories.forEach(cat => {
         const questions = [...quizQuestions[cat]];
         shuffleArray(questions);
-        currentQuestions.push(...questions.slice(0, 10)); // 10 per category
+        currentQuestions.push(...questions.slice(0, QUESTIONS_PER_CATEGORY_CUSTOM));
     });
     
     shuffleArray(currentQuestions);
@@ -112,7 +115,7 @@ function startComprehensiveExam() {
     ['web', 'api', 'mobile', 'llm'].forEach(cat => {
         const questions = [...quizQuestions[cat]];
         shuffleArray(questions);
-        currentQuestions.push(...questions.slice(0, 10)); // 10 from each = 40 total
+        currentQuestions.push(...questions.slice(0, QUESTIONS_PER_CATEGORY_COMPREHENSIVE));
     });
     
     shuffleArray(currentQuestions);
