@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM02: Insecure Output Handling - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+</head>
+<body>
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔓 Insecure Output Handling</h1>
+            <p class="subtitle">OWASP LLM Top 10 - LLM02</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Insecure Output Handling</strong> occurs when an application accepts LLM-generated output without proper validation, sanitization, or encoding before using it in downstream systems or presenting it to users. This creates a critical vulnerability where the LLM output becomes a vector for injection attacks, privilege escalation, and other security issues.</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">LLM02</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">High</span>
+                        <span class="label">Risk Level</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Easy</span>
+                        <span class="label">Exploitability</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>SQL Injection:</strong> LLM generates malicious SQL queries</li>
+                    <li><strong>XSS Attacks:</strong> Injecting JavaScript via LLM output</li>
+                    <li><strong>Command Injection:</strong> OS command execution through LLM</li>
+                    <li><strong>Path Traversal:</strong> File system access via crafted paths</li>
+                    <li><strong>SSRF:</strong> Server-side request forgery through URLs</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. User provides prompt to LLM<br>
+   <span class="arrow">↓</span><br>
+2. LLM generates output with injected payload<br>
+   <span class="arrow">↓</span><br>
+3. Application uses output without validation<br>
+   <span class="arrow">↓</span><br>
+4. Payload executed in backend system<br>
+   <span class="arrow">↓</span><br>
+5. <strong>BREACH: SQL injection, XSS, or RCE!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: Direct execution of LLM-generated SQL</span>
+<span class="keyword">def</span> <span class="function">vulnerable_query</span>(user_request):
+    prompt = f<span class="string">"Generate SQL for: {user_request}"</span>
+    
+    <span class="comment"># Get SQL from LLM</span>
+    sql_query = llm.generate(prompt)
+    
+    <span class="comment"># VULNERABLE: Direct execution!</span>
+    results = database.execute(sql_query)
+    <span class="keyword">return</span> results
+
+<span class="comment"># Bad: Rendering LLM output as HTML without sanitization</span>
+<span class="keyword">def</span> <span class="function">render_response</span>(user_query):
+    response = llm.generate(user_query)
+    
+    <span class="comment"># VULNERABLE: XSS possible!</span>
+    <span class="keyword">return</span> f<span class="string">"&lt;div&gt;{response}&lt;/div&gt;"</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: Use structured output with validation</span>
+<span class="keyword">def</span> <span class="function">secure_query</span>(user_request):
+    <span class="comment"># Get structured intent from LLM</span>
+    intent = llm.generate_json(
+        f<span class="string">"Convert to query intent: {user_request}"</span>
+    )
+    
+    <span class="comment"># Validate structure</span>
+    <span class="keyword">if not</span> validate_query_intent(intent):
+        <span class="keyword">raise</span> ValueError(<span class="string">"Invalid query"</span>)
+    
+    <span class="comment"># Use parameterized query</span>
+    query = <span class="string">"SELECT * FROM products WHERE category = ?"</span>
+    results = database.execute(query, [intent[<span class="string">'category'</span>]])
+    <span class="keyword">return</span> results
+
+<span class="comment"># Good: Sanitize output before rendering</span>
+<span class="keyword">import</span> html
+<span class="keyword">from</span> bleach <span class="keyword">import</span> clean
+
+<span class="keyword">def</span> <span class="function">render_safe_response</span>(user_query):
+    response = llm.generate(user_query)
+    
+    <span class="comment"># Escape HTML entities</span>
+    safe_response = html.escape(response)
+    
+    <span class="comment"># Or use HTML sanitizer</span>
+    safe_response = clean(response, tags=[], strip=<span class="keyword">True</span>)
+    
+    <span class="keyword">return</span> f<span class="string">"&lt;div&gt;{safe_response}&lt;/div&gt;"</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Treat LLM output as untrusted user input</li>
+                    <li>Never execute LLM-generated code directly</li>
+                    <li>Use parameterized queries for databases</li>
+                    <li>Sanitize/escape output before rendering HTML</li>
+                    <li>Validate output against expected schema</li>
+                    <li>Use structured output formats (JSON)</li>
+                    <li>Implement output content security policies</li>
+                    <li>Apply principle of least privilege</li>
+                    <li>Use allowlists for permitted actions</li>
+                    <li>Log and monitor LLM outputs</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Testing Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">OWASP ZAP</span>
+                    <span class="tool-tag">Burp Suite</span>
+                    <span class="tool-tag">SQLMap</span>
+                    <span class="tool-tag">XSStrike</span>
+                    <span class="tool-tag">Commix</span>
+                    <span class="tool-tag">LLM Guard</span>
+                </div>
+                
+                <h3>Prevention Libraries:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Bleach (Python)</span>
+                    <span class="tool-tag">DOMPurify (JS)</span>
+                    <span class="tool-tag">OWASP Java Encoder</span>
+                    <span class="tool-tag">SQLAlchemy ORM</span>
+                    <span class="tool-tag">Pydantic</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Prompt LLM to generate SQL injection payloads</li>
+                    <li>Test XSS vectors in LLM responses</li>
+                    <li>Check for command injection in generated code</li>
+                    <li>Verify output sanitization in all contexts</li>
+                    <li>Test with malformed/unexpected output formats</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Scenarios</h2>
+                <ul>
+                    <li><strong>ChatGPT Code Execution:</strong> Users tricked ChatGPT to generate malicious code executed by integrated development environments</li>
+                    <li><strong>SQL Injection via NLP:</strong> LLM-powered query builders generated injectable SQL statements</li>
+                    <li><strong>XSS in Chatbots:</strong> LLM responses included JavaScript that executed in user browsers</li>
+                    <li><strong>Command Injection:</strong> LLM-generated system commands allowed unauthorized file access</li>
+                    <li><strong>SSRF via URL Generation:</strong> LLM produced internal URLs accessed by backend systems</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> execute LLM output directly</li>
+                    <li><span class="badge critical">DO NOT</span> trust LLM-generated SQL/code</li>
+                    <li><span class="badge critical">DO NOT</span> render LLM output as raw HTML</li>
+                    <li><span class="badge high">DO</span> use parameterized queries</li>
+                    <li><span class="badge high">DO</span> validate output structure</li>
+                    <li><span class="badge medium">DO</span> sanitize before rendering</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">OWASP ASVS</span> V5 Input/Output Validation</li>
+                    <li><span class="badge medium">CWE-74</span> Improper Neutralization</li>
+                    <li><span class="badge medium">CWE-79</span> XSS</li>
+                    <li><span class="badge medium">CWE-89</span> SQL Injection</li>
+                    <li><span class="badge medium">PCI-DSS</span> Requirement 6.5</li>
+                    <li><span class="badge medium">NIST 800-53</span> SI-10</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP LLM Top 10 Educational Repository</strong> | <a href="../../README.md">Main Repo</a> | <a href="../README.md">All Cheat Sheets</a></p>
+            <p>For hands-on practice: <a href="../../OWASP-LLM/LLM02-Insecure-Output-Handling/lab/">Try the Lab</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

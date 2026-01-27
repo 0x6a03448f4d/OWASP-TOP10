@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM04: Model Denial of Service - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+</head>
+<body>
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>⏰ Model Denial of Service</h1>
+            <p class="subtitle">OWASP LLM Top 10 - LLM04</p>
+            <span class="category">MEDIUM RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Model Denial of Service</strong> (DoS) occurs when attackers manipulate inputs or exploit the resource-intensive nature of Large Language Models to cause service degradation, excessive resource consumption, or complete system unavailability. Unlike traditional DoS attacks that flood network bandwidth, Model DoS exploits the computational characteristics of AI systems.</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">LLM04</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Medium</span>
+                        <span class="label">Risk Level</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Easy</span>
+                        <span class="label">Exploitability</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Resource Exhaustion:</strong> Queries that consume excessive compute/memory</li>
+                    <li><strong>Long Context Attacks:</strong> Maximum token length inputs</li>
+                    <li><strong>Repetitive Queries:</strong> High-frequency requests without rate limiting</li>
+                    <li><strong>Complex Prompt Chains:</strong> Recursive or deeply nested prompts</li>
+                    <li><strong>Model Flooding:</strong> Concurrent requests overwhelming infrastructure</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Attacker crafts resource-intensive prompt<br>
+   <span class="arrow">↓</span><br>
+2. Submits maximum length input (8K+ tokens)<br>
+   <span class="arrow">↓</span><br>
+3. LLM processes at high computational cost<br>
+   <span class="arrow">↓</span><br>
+4. Resources exhausted or response delayed<br>
+   <span class="arrow">↓</span><br>
+5. <strong>BREACH: Service degradation or unavailability!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: No rate limiting or resource controls</span>
+<span class="keyword">def</span> <span class="function">process_query</span>(user_input):
+    <span class="comment"># VULNERABLE: No input length limit</span>
+    response = llm.generate(
+        user_input,  <span class="comment"># Could be 100K tokens!</span>
+        max_tokens=<span class="number">4000</span>  <span class="comment"># Max response length</span>
+    )
+    <span class="keyword">return</span> response
+
+<span class="comment"># Bad: No rate limiting per user</span>
+@app.route(<span class="string">'/api/chat'</span>, methods=[<span class="string">'POST'</span>])
+<span class="keyword">def</span> <span class="function">chat</span>():
+    <span class="comment"># VULNERABLE: Unlimited requests allowed</span>
+    message = request.json[<span class="string">'message'</span>]
+    <span class="keyword">return</span> process_query(message)
+
+<span class="comment"># Bad: No timeout controls</span>
+<span class="keyword">while</span> <span class="keyword">True</span>:
+    response = llm.generate(user_query)  <span class="comment"># Could hang forever</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: Implement comprehensive resource controls</span>
+<span class="keyword">from</span> flask_limiter <span class="keyword">import</span> Limiter
+<span class="keyword">import</span> timeout_decorator
+
+<span class="comment"># Rate limiting</span>
+limiter = Limiter(app, key_func=get_user_id)
+
+@app.route(<span class="string">'/api/chat'</span>, methods=[<span class="string">'POST'</span>])
+@limiter.limit(<span class="string">"10 per minute"</span>)  <span class="comment"># Rate limit per user</span>
+<span class="keyword">def</span> <span class="function">secure_chat</span>():
+    message = request.json[<span class="string">'message'</span>]
+    
+    <span class="comment"># Input validation</span>
+    <span class="keyword">if</span> len(message) > <span class="number">500</span>:  <span class="comment"># Token limit</span>
+        <span class="keyword">return</span> {<span class="string">"error"</span>: <span class="string">"Input too long"</span>}, <span class="number">400</span>
+    
+    <span class="keyword">return</span> process_with_timeout(message)
+
+<span class="comment"># Good: Timeout protection</span>
+@timeout_decorator.timeout(<span class="number">30</span>)  <span class="comment"># 30 second timeout</span>
+<span class="keyword">def</span> <span class="function">process_with_timeout</span>(user_input):
+    response = llm.generate(
+        user_input,
+        max_tokens=<span class="number">500</span>,  <span class="comment"># Limit output</span>
+        timeout=<span class="number">25</span>  <span class="comment"># Model timeout</span>
+    )
+    <span class="keyword">return</span> response
+
+<span class="comment"># Good: Queue management</span>
+<span class="keyword">from</span> celery <span class="keyword">import</span> Celery
+
+@celery.task(time_limit=<span class="number">30</span>, soft_time_limit=<span class="number">25</span>)
+<span class="keyword">def</span> <span class="function">process_async</span>(user_input):
+    <span class="keyword">return</span> llm.generate(user_input)
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Implement rate limiting per user/IP</li>
+                    <li>Set input length limits (tokens/characters)</li>
+                    <li>Configure request timeouts</li>
+                    <li>Limit maximum output tokens</li>
+                    <li>Use request queuing mechanisms</li>
+                    <li>Implement circuit breakers</li>
+                    <li>Monitor resource usage metrics</li>
+                    <li>Set up auto-scaling policies</li>
+                    <li>Implement CAPTCHA for public endpoints</li>
+                    <li>Use cost-based throttling</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Rate Limiting Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Flask-Limiter</span>
+                    <span class="tool-tag">Express Rate Limit</span>
+                    <span class="tool-tag">Redis</span>
+                    <span class="tool-tag">Kong Gateway</span>
+                    <span class="tool-tag">AWS WAF</span>
+                    <span class="tool-tag">Cloudflare</span>
+                </div>
+                
+                <h3>Monitoring Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Prometheus</span>
+                    <span class="tool-tag">Grafana</span>
+                    <span class="tool-tag">Datadog</span>
+                    <span class="tool-tag">New Relic</span>
+                    <span class="tool-tag">AWS CloudWatch</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Send maximum length inputs repeatedly</li>
+                    <li>Test concurrent request limits</li>
+                    <li>Verify rate limiting enforcement</li>
+                    <li>Check timeout configurations</li>
+                    <li>Monitor resource consumption under load</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Examples</h2>
+                <ul>
+                    <li><strong>ChatGPT Outages (2023):</strong> Service degradation during peak usage due to resource exhaustion</li>
+                    <li><strong>API Abuse:</strong> Attackers scripted maximum-length prompts to overwhelm LLM services</li>
+                    <li><strong>Free Tier Exploitation:</strong> Automated scripts abused free tiers causing service degradation</li>
+                    <li><strong>Context Window Attacks:</strong> Users sending 32K+ token contexts crashed processing pipelines</li>
+                    <li><strong>Recursive Prompt DoS:</strong> Self-referential prompts caused infinite processing loops</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> allow unlimited input length</li>
+                    <li><span class="badge critical">DO NOT</span> skip rate limiting</li>
+                    <li><span class="badge critical">DO NOT</span> ignore timeout configuration</li>
+                    <li><span class="badge high">DO</span> enforce per-user limits</li>
+                    <li><span class="badge high">DO</span> monitor resource usage</li>
+                    <li><span class="badge medium">DO</span> use request queuing</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">NIST 800-53</span> SC-5 (DoS Protection)</li>
+                    <li><span class="badge medium">ISO 27001</span> A.13.1.1</li>
+                    <li><span class="badge medium">PCI-DSS</span> Requirement 6.5.9</li>
+                    <li><span class="badge medium">CWE-400</span> Uncontrolled Resource Consumption</li>
+                    <li><span class="badge medium">SOC 2</span> CC7.2</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP LLM Top 10 Educational Repository</strong> | <a href="../../README.md">Main Repo</a> | <a href="../README.md">All Cheat Sheets</a></p>
+            <p>For hands-on practice: <a href="../../OWASP-LLM/LLM04-Model-Denial-of-Service/lab/">Try the Lab</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

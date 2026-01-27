@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM10: Model Theft - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+</head>
+<body>
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔒 Model Theft</h1>
+            <p class="subtitle">OWASP LLM Top 10 - LLM10</p>
+            <span class="category">MEDIUM RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Model Theft</strong> (also known as Model Extraction or Model Stealing) occurs when attackers gain unauthorized access to proprietary LLM models, their weights, architectures, or training data through various extraction techniques. This vulnerability is critical because it can lead to intellectual property loss, competitive disadvantage, and exposure of sensitive training data embedded in the model.</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">LLM10</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">High</span>
+                        <span class="label">IP Impact</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Medium</span>
+                        <span class="label">Likelihood</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>API Extraction:</strong> Query-based model cloning through APIs</li>
+                    <li><strong>Model File Theft:</strong> Unauthorized access to model weights/checkpoints</li>
+                    <li><strong>Side-Channel Attacks:</strong> Extracting info via timing, memory patterns</li>
+                    <li><strong>Infrastructure Compromise:</strong> Breaching storage/training systems</li>
+                    <li><strong>Insider Threats:</strong> Employees stealing proprietary models</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Attacker identifies valuable LLM model<br>
+   <span class="arrow">↓</span><br>
+2. Sends thousands of API queries to extract behavior<br>
+   <span class="arrow">↓</span><br>
+3. Trains surrogate model on collected responses<br>
+   <span class="arrow">↓</span><br>
+4. Achieves similar performance to original model<br>
+   <span class="arrow">↓</span><br>
+5. <strong>BREACH: Proprietary model stolen/replicated!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: Unrestricted API access</span>
+@app.route(<span class="string">'/api/predict'</span>, methods=[<span class="string">'POST'</span>])
+<span class="keyword">def</span> <span class="function">predict</span>():
+    <span class="comment"># VULNERABLE: No rate limiting!</span>
+    input_data = request.json[<span class="string">'input'</span>]
+    
+    <span class="comment"># Returns full model output</span>
+    prediction = model.predict(input_data)
+    
+    <span class="comment"># VULNERABLE: Exposes confidence scores and probabilities</span>
+    <span class="keyword">return</span> {
+        <span class="string">'prediction'</span>: prediction,
+        <span class="string">'confidence'</span>: model.confidence,
+        <span class="string">'all_probabilities'</span>: model.all_class_probs  <span class="comment"># Too much info!</span>
+    }
+
+<span class="comment"># Bad: Model files accessible</span>
+<span class="comment"># Model stored in public S3 bucket</span>
+model_url = <span class="string">"https://s3.amazonaws.com/public-bucket/model.pkl"</span>  <span class="comment"># PUBLIC!</span>
+
+<span class="comment"># Bad: No authentication</span>
+@app.route(<span class="string">'/model/download'</span>)
+<span class="keyword">def</span> <span class="function">download_model</span>():
+    <span class="comment"># VULNERABLE: Anyone can download!</span>
+    <span class="keyword">return</span> send_file(<span class="string">'proprietary_model.h5'</span>)
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: Protected API with rate limiting and monitoring</span>
+<span class="keyword">from</span> flask_limiter <span class="keyword">import</span> Limiter
+<span class="keyword">from</span> flask_limiter.util <span class="keyword">import</span> get_remote_address
+
+limiter = Limiter(
+    app,
+    key_func=get_remote_address,
+    default_limits=[<span class="string">"100 per day"</span>, <span class="string">"10 per hour"</span>]
+)
+
+@app.route(<span class="string">'/api/predict'</span>, methods=[<span class="string">'POST'</span>])
+@limiter.limit(<span class="string">"5 per minute"</span>)
+@require_api_key
+<span class="keyword">def</span> <span class="function">secure_predict</span>():
+    <span class="comment"># Validate API key and user</span>
+    api_key = request.headers.get(<span class="string">'X-API-Key'</span>)
+    user = validate_api_key(api_key)
+    
+    <span class="keyword">if not</span> user:
+        <span class="keyword">return</span> {<span class="string">'error'</span>: <span class="string">'Invalid API key'</span>}, <span class="number">401</span>
+    
+    input_data = request.json[<span class="string">'input'</span>]
+    
+    <span class="comment"># Log query for anomaly detection</span>
+    log_query(user.id, input_data, timestamp=datetime.now())
+    
+    <span class="comment"># Detect extraction attempts</span>
+    <span class="keyword">if</span> detect_model_extraction(user.id, input_data):
+        alert_security_team(user.id, <span class="string">"Possible model theft attempt"</span>)
+        <span class="keyword">return</span> {<span class="string">'error'</span>: <span class="string">'Suspicious activity detected'</span>}, <span class="number">429</span>
+    
+    <span class="comment"># Get prediction</span>
+    prediction = model.predict(input_data)
+    
+    <span class="comment"># Return minimal information</span>
+    <span class="keyword">return</span> {
+        <span class="string">'prediction'</span>: prediction.top_class,  <span class="comment"># Only top result</span>
+        <span class="comment"># No confidence scores or probabilities</span>
+    }
+
+<span class="comment"># Good: Secure model storage</span>
+<span class="keyword">class</span> <span class="function">SecureModelStorage</span>:
+    <span class="keyword">def</span> <span class="function">__init__</span>(<span class="keyword">self</span>):
+        <span class="comment"># Encrypt model at rest</span>
+        <span class="keyword">self</span>.encryption_key = load_encryption_key()
+        <span class="keyword">self</span>.model_path = <span class="string">'/secure/encrypted/models/'</span>
+    
+    <span class="keyword">def</span> <span class="function">save_model</span>(<span class="keyword">self</span>, model):
+        <span class="comment"># Encrypt model before saving</span>
+        encrypted_model = encrypt(
+            serialize(model),
+            <span class="keyword">self</span>.encryption_key
+        )
+        
+        <span class="comment"># Save to secure location with restricted access</span>
+        secure_path = os.path.join(<span class="keyword">self</span>.model_path, <span class="string">'model.enc'</span>)
+        
+        <span class="keyword">with</span> open(secure_path, <span class="string">'wb'</span>) <span class="keyword">as</span> f:
+            f.write(encrypted_model)
+        
+        <span class="comment"># Set strict permissions (owner read-only)</span>
+        os.chmod(secure_path, <span class="number">0o400</span>)
+        
+        <span class="comment"># Log access</span>
+        audit_log(<span class="string">"Model saved"</span>, user=current_user)
+    
+    <span class="keyword">def</span> <span class="function">load_model</span>(<span class="keyword">self</span>):
+        <span class="comment"># Require authentication</span>
+        <span class="keyword">if not</span> check_authorized():
+            <span class="keyword">raise</span> PermissionError(<span class="string">"Unauthorized model access"</span>)
+        
+        <span class="comment"># Load and decrypt</span>
+        <span class="keyword">with</span> open(<span class="keyword">self</span>.model_path, <span class="string">'rb'</span>) <span class="keyword">as</span> f:
+            encrypted_model = f.read()
+        
+        model = deserialize(
+            decrypt(encrypted_model, <span class="keyword">self</span>.encryption_key)
+        )
+        
+        audit_log(<span class="string">"Model loaded"</span>, user=current_user)
+        <span class="keyword">return</span> model
+
+<span class="comment"># Good: Extraction detection</span>
+<span class="keyword">class</span> <span class="function">ExtractionDetector</span>:
+    <span class="keyword">def</span> <span class="function">__init__</span>(<span class="keyword">self</span>):
+        <span class="keyword">self</span>.user_queries = {}
+        <span class="keyword">self</span>.threshold = <span class="number">100</span>  <span class="comment"># queries per hour</span>
+    
+    <span class="keyword">def</span> <span class="function">detect_extraction_attempt</span>(<span class="keyword">self</span>, user_id, query):
+        <span class="comment"># Track query patterns</span>
+        now = datetime.now()
+        
+        <span class="keyword">if</span> user_id <span class="keyword">not in</span> <span class="keyword">self</span>.user_queries:
+            <span class="keyword">self</span>.user_queries[user_id] = []
+        
+        <span class="keyword">self</span>.user_queries[user_id].append({
+            <span class="string">'timestamp'</span>: now,
+            <span class="string">'query'</span>: hash(str(query))
+        })
+        
+        <span class="comment"># Check for suspicious patterns</span>
+        recent_queries = [
+            q <span class="keyword">for</span> q <span class="keyword">in</span> <span class="keyword">self</span>.user_queries[user_id]
+            <span class="keyword">if</span> (now - q[<span class="string">'timestamp'</span>]).seconds < <span class="number">3600</span>
+        ]
+        
+        <span class="comment"># Too many queries in short time</span>
+        <span class="keyword">if</span> len(recent_queries) > <span class="keyword">self</span>.threshold:
+            <span class="keyword">return</span> <span class="keyword">True</span>
+        
+        <span class="comment"># Check for systematic querying</span>
+        <span class="keyword">if</span> <span class="keyword">self</span>.is_systematic(recent_queries):
+            <span class="keyword">return</span> <span class="keyword">True</span>
+        
+        <span class="keyword">return</span> <span class="keyword">False</span>
+    
+    <span class="keyword">def</span> <span class="function">is_systematic</span>(<span class="keyword">self</span>, queries):
+        <span class="comment"># Detect automated/scripted access patterns</span>
+        <span class="keyword">if</span> len(queries) < <span class="number">10</span>:
+            <span class="keyword">return</span> <span class="keyword">False</span>
+        
+        <span class="comment"># Check for consistent timing (bot-like behavior)</span>
+        intervals = [
+            (queries[i+<span class="number">1</span>][<span class="string">'timestamp'</span>] - queries[i][<span class="string">'timestamp'</span>]).seconds
+            <span class="keyword">for</span> i <span class="keyword">in</span> range(len(queries) - <span class="number">1</span>)
+        ]
+        
+        <span class="comment"># Very consistent intervals = likely automated</span>
+        avg_interval = sum(intervals) / len(intervals)
+        variance = sum((i - avg_interval) ** <span class="number">2</span> <span class="keyword">for</span> i <span class="keyword">in</span> intervals) / len(intervals)
+        
+        <span class="keyword">return</span> variance < <span class="number">2.0</span>  <span class="comment"># Low variance = suspicious</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Implement strict rate limiting on APIs</li>
+                    <li>Require authentication for all model access</li>
+                    <li>Encrypt models at rest and in transit</li>
+                    <li>Monitor for extraction attempts</li>
+                    <li>Limit information in API responses</li>
+                    <li>Use watermarking for model outputs</li>
+                    <li>Implement access logging and auditing</li>
+                    <li>Restrict model file access with permissions</li>
+                    <li>Use secure infrastructure for training/deployment</li>
+                    <li>Have legal protections (NDAs, IP agreements)</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Protection Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">API Gateway Rate Limiters</span>
+                    <span class="tool-tag">Model Watermarking Tools</span>
+                    <span class="tool-tag">Encryption Libraries</span>
+                    <span class="tool-tag">Access Control (IAM)</span>
+                    <span class="tool-tag">SIEM Solutions</span>
+                </div>
+                
+                <h3>Monitoring Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Anomaly Detection</span>
+                    <span class="tool-tag">Usage Analytics</span>
+                    <span class="tool-tag">Cloud Access Security Brokers</span>
+                    <span class="tool-tag">DLP (Data Loss Prevention)</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Test rate limiting effectiveness</li>
+                    <li>Verify model file access controls</li>
+                    <li>Check API response information leakage</li>
+                    <li>Audit access logs regularly</li>
+                    <li>Test extraction detection mechanisms</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Examples</h2>
+                <ul>
+                    <li><strong>OpenAI Model Cloning (Research):</strong> Researchers cloned GPT models using API queries and distillation</li>
+                    <li><strong>Google vs Uber (2017):</strong> Engineer accused of stealing self-driving car AI trade secrets</li>
+                    <li><strong>Model Weight Leaks:</strong> Proprietary model checkpoints accidentally exposed on GitHub</li>
+                    <li><strong>API Scraping:</strong> Competitors reverse-engineered models through systematic API querying</li>
+                    <li><strong>Insider Theft:</strong> Employees leaked proprietary training datasets and model architectures</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> expose model files publicly</li>
+                    <li><span class="badge critical">DO NOT</span> skip rate limiting</li>
+                    <li><span class="badge critical">DO NOT</span> return excessive API information</li>
+                    <li><span class="badge high">DO</span> encrypt models at rest</li>
+                    <li><span class="badge high">DO</span> monitor for extraction</li>
+                    <li><span class="badge medium">DO</span> use watermarking</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">ISO 27001</span> A.8.2.3 (Information Asset Handling)</li>
+                    <li><span class="badge medium">Trade Secret Law</span> - DTSA, UTSA</li>
+                    <li><span class="badge medium">NIST 800-53</span> MP-2, SC-28</li>
+                    <li><span class="badge medium">CWE-522</span> Insufficiently Protected Credentials</li>
+                    <li><span class="badge medium">SOC 2</span> CC6.6, CC6.7</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP LLM Top 10 Educational Repository</strong> | <a href="../../README.md">Main Repo</a> | <a href="../README.md">All Cheat Sheets</a></p>
+            <p>For hands-on practice: <a href="../../OWASP-LLM/LLM10-Model-Theft/lab/">Try the Lab</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

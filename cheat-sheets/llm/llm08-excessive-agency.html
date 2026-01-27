@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM08: Excessive Agency - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+</head>
+<body>
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🤖 Excessive Agency</h1>
+            <p class="subtitle">OWASP LLM Top 10 - LLM08</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Excessive Agency</strong> occurs when LLM-based systems are granted excessive permissions, autonomy, or functionality without appropriate controls, allowing them to perform high-impact actions without human oversight. This vulnerability is critical because it enables AI agents to cause significant damage through unrestricted access to sensitive operations.</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">LLM08</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">High</span>
+                        <span class="label">Impact</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Severe</span>
+                        <span class="label">Potential Damage</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Unrestricted Function Calling:</strong> LLM can invoke any available function</li>
+                    <li><strong>Excessive Permissions:</strong> Access to admin-level operations</li>
+                    <li><strong>No Human-in-the-Loop:</strong> Critical actions without approval</li>
+                    <li><strong>Unbounded Autonomy:</strong> LLM makes decisions independently</li>
+                    <li><strong>Missing Guardrails:</strong> No constraints on action scope</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Attacker manipulates LLM via prompt injection<br>
+   <span class="arrow">↓</span><br>
+2. LLM decides to perform privileged action<br>
+   <span class="arrow">↓</span><br>
+3. No human approval required<br>
+   <span class="arrow">↓</span><br>
+4. LLM executes destructive operation<br>
+   <span class="arrow">↓</span><br>
+5. <strong>BREACH: Data deleted, money transferred, system compromised!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: LLM with unrestricted function access</span>
+<span class="keyword">class</span> <span class="function">VulnerableAgent</span>:
+    <span class="keyword">def</span> <span class="function">__init__</span>(<span class="keyword">self</span>):
+        <span class="comment"># VULNERABLE: All functions available to LLM!</span>
+        <span class="keyword">self</span>.available_functions = {
+            <span class="string">'delete_user'</span>: delete_user,
+            <span class="string">'transfer_money'</span>: transfer_money,
+            <span class="string">'grant_admin'</span>: grant_admin_access,
+            <span class="string">'delete_database'</span>: drop_all_tables,
+            <span class="string">'send_email_all'</span>: email_all_users
+        }
+    
+    <span class="keyword">def</span> <span class="function">execute</span>(<span class="keyword">self</span>, user_prompt):
+        <span class="comment"># LLM decides which function to call</span>
+        response = llm.function_call(
+            prompt=user_prompt,
+            functions=<span class="keyword">self</span>.available_functions
+        )
+        
+        <span class="comment"># VULNERABLE: Direct execution without approval!</span>
+        <span class="keyword">return</span> response.function_result
+
+<span class="comment"># Bad: No limits on LLM autonomy</span>
+<span class="keyword">def</span> <span class="function">autonomous_assistant</span>(goal):
+    <span class="keyword">while not</span> goal_achieved:
+        action = llm.decide_next_action()
+        execute_action(action)  <span class="comment"># Unconstrained!</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: Restricted function access with human-in-the-loop</span>
+<span class="keyword">class</span> <span class="function">SecureAgent</span>:
+    <span class="keyword">def</span> <span class="function">__init__</span>(<span class="keyword">self</span>):
+        <span class="comment"># Safe, read-only functions</span>
+        <span class="keyword">self</span>.allowed_functions = {
+            <span class="string">'search_products'</span>: search_products,
+            <span class="string">'get_order_status'</span>: get_order_status,
+            <span class="string">'check_inventory'</span>: check_inventory
+        }
+        
+        <span class="comment"># Sensitive functions require approval</span>
+        <span class="keyword">self</span>.restricted_functions = {
+            <span class="string">'place_order'</span>: place_order,
+            <span class="string">'update_profile'</span>: update_user_profile
+        }
+    
+    <span class="keyword">def</span> <span class="function">execute</span>(<span class="keyword">self</span>, user_prompt, user_id):
+        response = llm.function_call(
+            prompt=user_prompt,
+            functions=<span class="keyword">self</span>.allowed_functions
+        )
+        
+        <span class="comment"># Check if restricted function</span>
+        <span class="keyword">if</span> response.function <span class="keyword">in</span> <span class="keyword">self</span>.restricted_functions:
+            <span class="comment"># Require human approval</span>
+            approval = request_user_approval(
+                user_id, 
+                response.function,
+                response.args
+            )
+            
+            <span class="keyword">if not</span> approval:
+                <span class="keyword">return</span> <span class="string">"Action requires your approval. Please confirm."</span>
+        
+        <span class="comment"># Execute with validation</span>
+        <span class="keyword">return</span> <span class="keyword">self</span>.execute_with_limits(response)
+
+<span class="comment"># Good: Implement action constraints</span>
+<span class="keyword">class</span> <span class="function">ConstrainedAgent</span>:
+    <span class="keyword">def</span> <span class="function">__init__</span>(<span class="keyword">self</span>):
+        <span class="keyword">self</span>.max_actions_per_session = <span class="number">10</span>
+        <span class="keyword">self</span>.action_count = <span class="number">0</span>
+        <span class="keyword">self</span>.forbidden_actions = [
+            <span class="string">'delete'</span>, <span class="string">'drop'</span>, <span class="string">'grant_admin'</span>
+        ]
+    
+    <span class="keyword">def</span> <span class="function">execute_action</span>(<span class="keyword">self</span>, action):
+        <span class="comment"># Check action count limit</span>
+        <span class="keyword">if</span> <span class="keyword">self</span>.action_count >= <span class="keyword">self</span>.max_actions_per_session:
+            <span class="keyword">raise</span> Exception(<span class="string">"Action limit exceeded"</span>)
+        
+        <span class="comment"># Check if action is forbidden</span>
+        <span class="keyword">if</span> any(forbidden <span class="keyword">in</span> action.lower() 
+               <span class="keyword">for</span> forbidden <span class="keyword">in</span> <span class="keyword">self</span>.forbidden_actions):
+            <span class="keyword">raise</span> PermissionError(<span class="string">"Action not permitted"</span>)
+        
+        <span class="comment"># Log action</span>
+        log_action(action, user_id, timestamp)
+        
+        <span class="keyword">self</span>.action_count += <span class="number">1</span>
+        <span class="keyword">return</span> execute_safe(action)
+
+<span class="comment"># Good: Tiered permission model</span>
+<span class="keyword">class</span> <span class="function">TieredAgent</span>:
+    PERMISSION_TIERS = {
+        <span class="string">'read'</span>: [<span class="string">'search'</span>, <span class="string">'get'</span>, <span class="string">'view'</span>],
+        <span class="string">'write'</span>: [<span class="string">'update'</span>, <span class="string">'create'</span>],
+        <span class="string">'admin'</span>: [<span class="string">'delete'</span>, <span class="string">'grant'</span>]  <span class="comment"># Never allow</span>
+    }
+    
+    <span class="keyword">def</span> <span class="function">check_permission</span>(<span class="keyword">self</span>, action, user_role):
+        <span class="keyword">if</span> user_role == <span class="string">'basic'</span>:
+            allowed = <span class="keyword">self</span>.PERMISSION_TIERS[<span class="string">'read'</span>]
+        <span class="keyword">elif</span> user_role == <span class="string">'premium'</span>:
+            allowed = (<span class="keyword">self</span>.PERMISSION_TIERS[<span class="string">'read'</span>] + 
+                      <span class="keyword">self</span>.PERMISSION_TIERS[<span class="string">'write'</span>])
+        <span class="keyword">else</span>:
+            allowed = <span class="keyword">self</span>.PERMISSION_TIERS[<span class="string">'read'</span>]
+        
+        <span class="keyword">return</span> any(a <span class="keyword">in</span> action.lower() <span class="keyword">for</span> a <span class="keyword">in</span> allowed)
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Implement human-in-the-loop for sensitive actions</li>
+                    <li>Use principle of least privilege</li>
+                    <li>Restrict LLM to read-only operations when possible</li>
+                    <li>Require explicit user confirmation for state changes</li>
+                    <li>Implement action rate limiting</li>
+                    <li>Use tiered permission models</li>
+                    <li>Log all LLM-initiated actions</li>
+                    <li>Set maximum autonomy boundaries</li>
+                    <li>Implement circuit breakers for failures</li>
+                    <li>Regular audit of granted permissions</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Control Frameworks:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">LangChain Agent Tools</span>
+                    <span class="tool-tag">AutoGPT Constraints</span>
+                    <span class="tool-tag">BabyAGI Limiters</span>
+                    <span class="tool-tag">Semantic Kernel</span>
+                    <span class="tool-tag">Guardrails AI</span>
+                </div>
+                
+                <h3>Monitoring Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">LangSmith</span>
+                    <span class="tool-tag">Weights & Biases</span>
+                    <span class="tool-tag">MLflow</span>
+                    <span class="tool-tag">Arize AI</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Test LLM with privilege escalation prompts</li>
+                    <li>Verify human approval requirements</li>
+                    <li>Check permission boundaries enforcement</li>
+                    <li>Test action rate limiting</li>
+                    <li>Audit available function access</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Examples</h2>
+                <ul>
+                    <li><strong>AutoGPT Incidents (2023):</strong> Autonomous agents made unintended API calls costing thousands in credits</li>
+                    <li><strong>AI Email Assistant (2023):</strong> Sent emails to wrong recipients without user confirmation</li>
+                    <li><strong>Trading Bot Gone Wrong:</strong> LLM-based trading system executed unauthorized high-value trades</li>
+                    <li><strong>Database Agent:</strong> Autonomous SQL agent accidentally deleted production data</li>
+                    <li><strong>Social Media Bot:</strong> LLM agent posted inappropriate content without moderation</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> grant admin-level access</li>
+                    <li><span class="badge critical">DO NOT</span> allow unrestricted autonomy</li>
+                    <li><span class="badge critical">DO NOT</span> skip human approval</li>
+                    <li><span class="badge high">DO</span> implement least privilege</li>
+                    <li><span class="badge high">DO</span> require confirmation for changes</li>
+                    <li><span class="badge medium">DO</span> log all actions</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">NIST AI RMF</span> - Autonomy Controls</li>
+                    <li><span class="badge medium">ISO 27001</span> A.9.2 (Access Control)</li>
+                    <li><span class="badge medium">SOC 2</span> CC6.1, CC6.3</li>
+                    <li><span class="badge medium">GDPR</span> Art. 22 - Automated Decision-Making</li>
+                    <li><span class="badge medium">CWE-269</span> Improper Privilege Management</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP LLM Top 10 Educational Repository</strong> | <a href="../../README.md">Main Repo</a> | <a href="../README.md">All Cheat Sheets</a></p>
+            <p>For hands-on practice: <a href="../../OWASP-LLM/LLM08-Excessive-Agency/lab/">Try the Lab</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

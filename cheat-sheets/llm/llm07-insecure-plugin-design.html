@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM07: Insecure Plugin Design - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+</head>
+<body>
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔌 Insecure Plugin Design</h1>
+            <p class="subtitle">OWASP LLM Top 10 - LLM07</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Insecure Plugin Design</strong> occurs when LLM plugins, extensions, or integrations lack proper security controls, allowing attackers to exploit them for unauthorized access, data exfiltration, remote code execution, or other malicious activities. Plugins extend LLM capabilities by connecting to external APIs, databases, and systems, making them high-value attack targets.</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">LLM07</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">High</span>
+                        <span class="label">Risk Level</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Severe</span>
+                        <span class="label">Impact</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Insufficient Input Validation:</strong> Plugins accept malicious parameters</li>
+                    <li><strong>Missing Authentication:</strong> No verification of plugin callers</li>
+                    <li><strong>Excessive Permissions:</strong> Plugins have unnecessary access</li>
+                    <li><strong>Insecure API Calls:</strong> Plugins make unsafe external requests</li>
+                    <li><strong>Lack of Authorization:</strong> No permission checks on actions</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Attacker identifies vulnerable plugin<br>
+   <span class="arrow">↓</span><br>
+2. Crafts prompt to invoke plugin maliciously<br>
+   <span class="arrow">↓</span><br>
+3. Plugin executes without proper validation<br>
+   <span class="arrow">↓</span><br>
+4. Unauthorized action performed (API call, data access)<br>
+   <span class="arrow">↓</span><br>
+5. <strong>BREACH: Data exfiltration or system compromise!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: Plugin with no input validation</span>
+<span class="keyword">class</span> <span class="function">DatabasePlugin</span>:
+    <span class="keyword">def</span> <span class="function">execute_query</span>(<span class="keyword">self</span>, query):
+        <span class="comment"># VULNERABLE: No validation!</span>
+        result = database.execute(query)
+        <span class="keyword">return</span> result
+
+<span class="comment"># Bad: Plugin with excessive permissions</span>
+<span class="keyword">class</span> <span class="function">EmailPlugin</span>:
+    <span class="keyword">def</span> <span class="function">send_email</span>(<span class="keyword">self</span>, to, subject, body):
+        <span class="comment"># VULNERABLE: Can email anyone!</span>
+        smtp.send(to=to, subject=subject, body=body)
+
+<span class="comment"># Bad: No authentication check</span>
+<span class="keyword">class</span> <span class="function">FilePlugin</span>:
+    <span class="keyword">def</span> <span class="function">read_file</span>(<span class="keyword">self</span>, filepath):
+        <span class="comment"># VULNERABLE: Path traversal possible!</span>
+        <span class="keyword">with</span> open(filepath, <span class="string">'r'</span>) <span class="keyword">as</span> f:
+            <span class="keyword">return</span> f.read()
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: Plugin with comprehensive security controls</span>
+<span class="keyword">class</span> <span class="function">SecureDatabasePlugin</span>:
+    <span class="keyword">def</span> <span class="function">__init__</span>(<span class="keyword">self</span>, allowed_tables):
+        <span class="keyword">self</span>.allowed_tables = allowed_tables
+    
+    <span class="keyword">def</span> <span class="function">execute_query</span>(<span class="keyword">self</span>, query_intent):
+        <span class="comment"># Validate structure</span>
+        <span class="keyword">if not</span> <span class="keyword">self</span>.validate_intent(query_intent):
+            <span class="keyword">raise</span> ValueError(<span class="string">"Invalid query intent"</span>)
+        
+        <span class="comment"># Check table permissions</span>
+        <span class="keyword">if</span> query_intent[<span class="string">'table'</span>] <span class="keyword">not in</span> <span class="keyword">self</span>.allowed_tables:
+            <span class="keyword">raise</span> PermissionError(<span class="string">"Table not allowed"</span>)
+        
+        <span class="comment"># Use parameterized query</span>
+        query = <span class="string">"SELECT * FROM ? WHERE id = ?"</span>
+        result = database.execute(query, 
+                                 [query_intent[<span class="string">'table'</span>], 
+                                  query_intent[<span class="string">'id'</span>]])
+        <span class="keyword">return</span> result
+
+<span class="comment"># Good: Plugin with allowlist</span>
+<span class="keyword">class</span> <span class="function">SecureEmailPlugin</span>:
+    ALLOWED_DOMAINS = [<span class="string">'company.com'</span>, <span class="string">'partner.com'</span>]
+    
+    <span class="keyword">def</span> <span class="function">send_email</span>(<span class="keyword">self</span>, to, subject, body):
+        <span class="comment"># Validate recipient domain</span>
+        domain = to.split(<span class="string">'@'</span>)[<span class="number">1</span>]
+        <span class="keyword">if</span> domain <span class="keyword">not in</span> <span class="keyword">self</span>.ALLOWED_DOMAINS:
+            <span class="keyword">raise</span> ValueError(<span class="string">"Email domain not allowed"</span>)
+        
+        <span class="comment"># Sanitize content</span>
+        safe_body = html.escape(body)
+        
+        <span class="comment"># Rate limiting</span>
+        <span class="keyword">if not</span> <span class="keyword">self</span>.check_rate_limit():
+            <span class="keyword">raise</span> Exception(<span class="string">"Rate limit exceeded"</span>)
+        
+        smtp.send(to=to, subject=subject, body=safe_body)
+
+<span class="comment"># Good: Secure file access</span>
+<span class="keyword">class</span> <span class="function">SecureFilePlugin</span>:
+    ALLOWED_DIRS = [<span class="string">'/safe/documents'</span>]
+    
+    <span class="keyword">def</span> <span class="function">read_file</span>(<span class="keyword">self</span>, filepath):
+        <span class="comment"># Prevent path traversal</span>
+        safe_path = os.path.abspath(filepath)
+        
+        <span class="comment"># Check if in allowed directory</span>
+        <span class="keyword">if not</span> any(safe_path.startswith(d) <span class="keyword">for</span> d <span class="keyword">in</span> <span class="keyword">self</span>.ALLOWED_DIRS):
+            <span class="keyword">raise</span> PermissionError(<span class="string">"Access denied"</span>)
+        
+        <span class="keyword">with</span> open(safe_path, <span class="string">'r'</span>) <span class="keyword">as</span> f:
+            <span class="keyword">return</span> f.read()
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Validate all plugin inputs rigorously</li>
+                    <li>Implement proper authentication/authorization</li>
+                    <li>Use principle of least privilege for permissions</li>
+                    <li>Sanitize outputs before returning to LLM</li>
+                    <li>Use allowlists for permitted actions</li>
+                    <li>Implement rate limiting per plugin</li>
+                    <li>Log all plugin invocations</li>
+                    <li>Use structured data formats (JSON schemas)</li>
+                    <li>Require user confirmation for sensitive actions</li>
+                    <li>Regularly audit plugin code and permissions</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Testing Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">OWASP ZAP</span>
+                    <span class="tool-tag">Burp Suite</span>
+                    <span class="tool-tag">Postman</span>
+                    <span class="tool-tag">OpenAPI Validator</span>
+                    <span class="tool-tag">API Security Scanner</span>
+                </div>
+                
+                <h3>Security Libraries:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Pydantic (validation)</span>
+                    <span class="tool-tag">Cerberus</span>
+                    <span class="tool-tag">JSON Schema</span>
+                    <span class="tool-tag">LangChain Tools</span>
+                    <span class="tool-tag">OpenAI Function Calling</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Test plugins with malicious inputs</li>
+                    <li>Verify authentication/authorization controls</li>
+                    <li>Check for path traversal vulnerabilities</li>
+                    <li>Test rate limiting enforcement</li>
+                    <li>Validate input sanitization</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Examples</h2>
+                <ul>
+                    <li><strong>ChatGPT Plugin Exploits (2023):</strong> Researchers bypassed plugin security to access unauthorized data</li>
+                    <li><strong>Zapier Integration Abuse:</strong> Insecure automation plugins allowed data exfiltration</li>
+                    <li><strong>Browser Plugin RCE:</strong> Web-browsing plugins vulnerable to SSRF and injection attacks</li>
+                    <li><strong>Code Interpreter Escape:</strong> Python execution plugin breakouts to access filesystem</li>
+                    <li><strong>API Plugin Abuse:</strong> Third-party API plugins leaked credentials and made unauthorized calls</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> trust plugin inputs</li>
+                    <li><span class="badge critical">DO NOT</span> grant excessive permissions</li>
+                    <li><span class="badge critical">DO NOT</span> skip input validation</li>
+                    <li><span class="badge high">DO</span> use allowlists for actions</li>
+                    <li><span class="badge high">DO</span> implement authorization checks</li>
+                    <li><span class="badge medium">DO</span> log plugin usage</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">OWASP API Top 10</span> - API Security</li>
+                    <li><span class="badge medium">CWE-862</span> Missing Authorization</li>
+                    <li><span class="badge medium">CWE-20</span> Improper Input Validation</li>
+                    <li><span class="badge medium">ISO 27001</span> A.14.2</li>
+                    <li><span class="badge medium">NIST 800-53</span> AC-3, CM-7</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP LLM Top 10 Educational Repository</strong> | <a href="../../README.md">Main Repo</a> | <a href="../README.md">All Cheat Sheets</a></p>
+            <p>For hands-on practice: <a href="../../OWASP-LLM/LLM07-Insecure-Plugin-Design/lab/">Try the Lab</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>
