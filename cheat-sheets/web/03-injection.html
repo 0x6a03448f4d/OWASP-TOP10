@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OWASP #3: Injection - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+</head>
+<body>
+    <div class="cheat-sheet">
+        <div class="header">
+            <h1>💉 Injection</h1>
+            <p class="subtitle">OWASP Web Top 10 - #3</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <div class="content">
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Injection</strong> flaws occur when untrusted data is sent to an interpreter as part of a command or query. Attackers can trick the interpreter into executing unintended commands or accessing unauthorized data.</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">#3</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">274K</span>
+                        <span class="label">Occurrences</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">94%</span>
+                        <span class="label">Max Incidence</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>⚠️ Injection Types</h2>
+                <ul>
+                    <li><strong>SQL Injection:</strong> Manipulate database queries</li>
+                    <li><strong>NoSQL Injection:</strong> Attack NoSQL databases</li>
+                    <li><strong>OS Command Injection:</strong> Execute system commands</li>
+                    <li><strong>LDAP Injection:</strong> Exploit directory services</li>
+                    <li><strong>XPath Injection:</strong> Manipulate XML queries</li>
+                    <li><strong>Template Injection:</strong> Execute code in templates</li>
+                </ul>
+            </div>
+
+            <div class="section">
+                <h2>🔴 SQL Injection Attack</h2>
+                <div class="attack-flow">
+1. App accepts username input<br>
+   <span class="arrow">↓</span><br>
+2. Attacker enters: <code>admin' --</code><br>
+   <span class="arrow">↓</span><br>
+3. Query becomes:<br>
+   <code>SELECT * FROM users WHERE username='admin' --'</code><br>
+   <span class="arrow">↓</span><br>
+4. <strong>BREACH: Logged in as admin!</strong>
+                </div>
+            </div>
+
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># SQL Injection - BAD!</span>
+username = request.form[<span class="string">'username'</span>]
+password = request.form[<span class="string">'password'</span>]
+
+<span class="comment"># String concatenation - NEVER DO THIS!</span>
+query = <span class="string">"SELECT * FROM users WHERE username='"</span> + username + <span class="string">"' AND password='"</span> + password + <span class="string">"'"</span>
+cursor.execute(query)
+
+<span class="comment"># OS Command Injection - BAD!</span>
+filename = request.args.get(<span class="string">'file'</span>)
+os.system(<span class="string">"cat "</span> + filename)  <span class="comment"># Dangerous!</span>
+                </div>
+            </div>
+
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># SQL - GOOD: Parameterized query</span>
+username = request.form[<span class="string">'username'</span>]
+password = request.form[<span class="string">'password'</span>]
+
+<span class="comment"># Use parameterized queries (prepared statements)</span>
+query = <span class="string">"SELECT * FROM users WHERE username=? AND password=?"</span>
+cursor.execute(query, (username, password))
+
+<span class="comment"># Or use an ORM</span>
+user = User.query.filter_by(username=username).first()
+
+<span class="comment"># OS Commands - GOOD: Input validation + safe APIs</span>
+filename = request.args.get(<span class="string">'file'</span>)
+<span class="comment"># Whitelist allowed files</span>
+<span class="keyword">if</span> filename <span class="keyword">not in</span> ALLOWED_FILES:
+    abort(<span class="number">400</span>)
+<span class="comment"># Use safe file operations</span>
+<span class="keyword">with</span> open(os.path.join(SAFE_DIR, filename), <span class="string">'r'</span>) <span class="keyword">as</span> f:
+    content = f.read()
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Use parameterized queries / prepared statements</li>
+                    <li>Use ORMs (SQLAlchemy, Django ORM, Hibernate)</li>
+                    <li>Validate and sanitize all user input</li>
+                    <li>Use whitelist validation for input</li>
+                    <li>Escape special characters properly</li>
+                    <li>Implement least privilege for DB accounts</li>
+                    <li>Use stored procedures (with caution)</li>
+                    <li>Avoid dynamic query construction</li>
+                    <li>Use safe APIs (avoid shell commands)</li>
+                    <li>Enable WAF with injection rules</li>
+                </ul>
+            </div>
+
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Testing Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">SQLMap</span>
+                    <span class="tool-tag">Burp Suite</span>
+                    <span class="tool-tag">OWASP ZAP</span>
+                    <span class="tool-tag">Commix</span>
+                </div>
+                
+                <h3>Prevention Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">SQLAlchemy</span>
+                    <span class="tool-tag">Hibernate</span>
+                    <span class="tool-tag">Entity Framework</span>
+                    <span class="tool-tag">MyBatis</span>
+                </div>
+
+                <h3>Static Analysis:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Bandit</span>
+                    <span class="tool-tag">SonarQube</span>
+                    <span class="tool-tag">Semgrep</span>
+                </div>
+            </div>
+
+            <div class="section full-width">
+                <h2>🌍 Famous Breaches</h2>
+                <ul>
+                    <li><strong>Yahoo (2012):</strong> SQL injection exposed 450K accounts</li>
+                    <li><strong>TalkTalk (2015):</strong> SQL injection led to £400K fine</li>
+                    <li><strong>Heartland Payment (2008):</strong> 130M credit cards stolen via SQL injection</li>
+                    <li><strong>Sony Pictures (2011):</strong> SQL injection exposed 1M accounts</li>
+                </ul>
+            </div>
+
+            <div class="section">
+                <h2>💡 Common Payloads</h2>
+                <div class="code-block">
+<span class="comment"># SQL Injection</span>
+<span class="string">' OR '1'='1</span>
+<span class="string">admin' --</span>
+<span class="string">' UNION SELECT NULL--</span>
+<span class="string">'; DROP TABLE users--</span>
+
+<span class="comment"># NoSQL Injection</span>
+{<span class="string">"$ne"</span>: null}
+{<span class="string">"$gt"</span>: <span class="string">""</span>}
+
+<span class="comment"># Command Injection</span>
+<span class="string">; ls -la</span>
+<span class="string">| cat /etc/passwd</span>
+<span class="string">`whoami`</span>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <ul>
+                    <li><span class="badge medium">PCI-DSS</span> 6.5.1</li>
+                    <li><span class="badge medium">GDPR</span> Art. 32</li>
+                    <li><span class="badge medium">SOC 2</span> CC6.1</li>
+                    <li><span class="badge medium">ISO 27001</span> A.14.2</li>
+                    <li><span class="badge medium">NIST</span> 800-53 SI-10</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p><strong>OWASP Top 10 Educational Repository</strong> | <a href="../../README.md">Main Repo</a> | <a href="../README.md">All Cheat Sheets</a></p>
+            <p>For hands-on practice: <a href="../../OWASP-Web/03-Injection/lab/">Try the Lab</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

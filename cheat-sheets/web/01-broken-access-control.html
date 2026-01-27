@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OWASP #1: Broken Access Control - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+</head>
+<body>
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🛡️ Broken Access Control</h1>
+            <p class="subtitle">OWASP Web Top 10 - #1</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Broken Access Control</strong> occurs when users can access data or perform actions beyond their intended permissions. This is the #1 vulnerability in OWASP Top 10 2021.</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">#1</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">94%</span>
+                        <span class="label">Apps Tested</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">318K</span>
+                        <span class="label">Occurrences</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Direct Object Reference:</strong> Modify URL parameters to access other users' data</li>
+                    <li><strong>Forced Browsing:</strong> Access admin pages by guessing URLs</li>
+                    <li><strong>Missing Function Level Access Control:</strong> Call admin APIs as regular user</li>
+                    <li><strong>Parameter Tampering:</strong> Change user_id, role, or permissions in requests</li>
+                    <li><strong>Elevation of Privilege:</strong> Modify tokens/cookies to gain higher access</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Attacker logs in as regular user<br>
+   <span class="arrow">↓</span><br>
+2. Observes admin button in HTML source<br>
+   <span class="arrow">↓</span><br>
+3. Accesses /admin endpoint directly<br>
+   <span class="arrow">↓</span><br>
+4. Server doesn't verify authorization<br>
+   <span class="arrow">↓</span><br>
+5. <strong>BREACH: Admin access granted!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: No authorization check!</span>
+@app.route(<span class="string">'/user/&lt;user_id&gt;/profile'</span>)
+<span class="keyword">def</span> <span class="function">view_profile</span>(user_id):
+    <span class="comment"># Anyone can view any profile!</span>
+    user = User.query.get(user_id)
+    <span class="keyword">return</span> render_template(<span class="string">'profile.html'</span>, user=user)
+
+<span class="comment">// Bad: Client-side access control</span>
+&lt;button <span class="keyword">id</span>=<span class="string">"adminButton"</span> <span class="keyword">style</span>=<span class="string">"display: none;"</span>&gt;Admin Panel&lt;/button&gt;
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: Proper authorization check</span>
+@app.route(<span class="string">'/user/&lt;user_id&gt;/profile'</span>)
+@login_required
+<span class="keyword">def</span> <span class="function">view_profile</span>(user_id):
+    user = User.query.get(user_id)
+    
+    <span class="comment"># Verify user can access this profile</span>
+    <span class="keyword">if</span> current_user.id != user_id <span class="keyword">and not</span> current_user.is_admin:
+        abort(<span class="number">403</span>)  <span class="comment"># Forbidden</span>
+    
+    <span class="keyword">return</span> render_template(<span class="string">'profile.html'</span>, user=user)
+
+<span class="comment">// Good: Server-side authorization</span>
+@app.route(<span class="string">'/admin'</span>)
+@login_required
+@admin_required  <span class="comment"># Decorator checks admin role</span>
+<span class="keyword">def</span> <span class="function">admin_panel</span>():
+    <span class="keyword">return</span> render_template(<span class="string">'admin.html'</span>)
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Deny access by default (whitelist approach)</li>
+                    <li>Implement server-side authorization checks</li>
+                    <li>Use role-based access control (RBAC)</li>
+                    <li>Validate user ownership of resources</li>
+                    <li>Implement rate limiting for sensitive operations</li>
+                    <li>Log access control failures</li>
+                    <li>Disable directory listing</li>
+                    <li>Use indirect object references (UUIDs)</li>
+                    <li>Test with automated tools</li>
+                    <li>Review authorization logic in code reviews</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Testing Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Burp Suite</span>
+                    <span class="tool-tag">OWASP ZAP</span>
+                    <span class="tool-tag">Postman</span>
+                    <span class="tool-tag">curl</span>
+                </div>
+                
+                <h3>Prevention Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Spring Security</span>
+                    <span class="tool-tag">Django Auth</span>
+                    <span class="tool-tag">Passport.js</span>
+                    <span class="tool-tag">Casbin</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Try accessing URLs as different users</li>
+                    <li>Modify IDs in parameters</li>
+                    <li>Test with roles disabled</li>
+                    <li>Check for forced browsing</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Breaches</h2>
+                <ul>
+                    <li><strong>Equifax (2017):</strong> Exposed 147M records due to broken access controls</li>
+                    <li><strong>Facebook (2019):</strong> 540M records exposed on unprotected AWS bucket</li>
+                    <li><strong>Uber (2016):</strong> Driver access to rider data without proper controls</li>
+                    <li><strong>T-Mobile (2021):</strong> API vulnerability allowed access to customer data</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> rely on client-side checks</li>
+                    <li><span class="badge high">DO NOT</span> use sequential IDs for sensitive resources</li>
+                    <li><span class="badge critical">DO</span> implement authorization on every request</li>
+                    <li><span class="badge high">DO</span> use the principle of least privilege</li>
+                    <li><span class="badge medium">DO</span> log and monitor access attempts</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">PCI-DSS</span> Requirement 6.5.8</li>
+                    <li><span class="badge medium">GDPR</span> Art. 32 - Security</li>
+                    <li><span class="badge medium">SOC 2</span> CC6.1, CC6.3</li>
+                    <li><span class="badge medium">ISO 27001</span> A.9.4</li>
+                    <li><span class="badge medium">NIST</span> 800-53 AC-3</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Top 10 Educational Repository</strong> | <a href="../../README.md">Main Repo</a> | <a href="../README.md">All Cheat Sheets</a></p>
+            <p>For hands-on practice: <a href="../../OWASP-Web/01-Broken-Access-Control/lab/">Try the Lab</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>
