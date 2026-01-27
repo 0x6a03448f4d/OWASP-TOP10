@@ -138,6 +138,15 @@ def start_lab(lab_id):
             import os
             
             lab_path = os.path.abspath(lab_info['path'])
+            
+            # Security: Validate lab path is within expected directory
+            expected_base = os.path.abspath('.')
+            if not lab_path.startswith(expected_base):
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Invalid lab path - security violation'
+                }), 403
+            
             if not os.path.exists(lab_path):
                 return jsonify({
                     'status': 'error',
