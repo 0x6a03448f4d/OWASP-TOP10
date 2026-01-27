@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server-Side Request Forgery (SSRF) Attack Flow - OWASP Diagrams</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0d1117;
+            color: #00ff41;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #161b22;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,255,65,0.2);
+            border: 1px solid #30363d;
+        }
+        
+        h1 {
+            color: #00ff41;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px rgba(0,255,65,0.5);
+        }
+        
+        .subtitle {
+            color: #8b949e;
+            margin-bottom: 30px;
+        }
+        
+        .mermaid {
+            text-align: center;
+            padding: 20px;
+            background: #0d1117;
+            border-radius: 8px;
+        }
+        
+        .description {
+            margin-top: 30px;
+            padding: 20px;
+            background: #0d1117;
+            border-left: 4px solid #00ff41;
+            border-radius: 4px;
+        }
+        
+        .description h2 {
+            color: #00ff41;
+            margin-bottom: 15px;
+        }
+        
+        .steps {
+            margin-top: 20px;
+        }
+        
+        .step {
+            margin: 15px 0;
+            padding: 15px;
+            background: #161b22;
+            border-radius: 5px;
+            border: 1px solid #30363d;
+        }
+        
+        .step-number {
+            display: inline-block;
+            background: #00ff41;
+            color: #0d1117;
+            padding: 5px 10px;
+            border-radius: 50%;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        
+        code {
+            background: #0d1117;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #ff6b6b;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .navigation {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #30363d;
+            text-align: center;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #00ff41;
+            color: #0d1117;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 5px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            background: #00cc33;
+            box-shadow: 0 0 15px rgba(0,255,65,0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌐 Server-Side Request Forgery (SSRF) Attack Flow</h1>
+        <p class="subtitle">Abusing Server-Side HTTP Requests to Access Internal Resources</p>
+        
+        <div class="mermaid">
+            flowchart TD
+                A[👤 Attacker] -->|1. Craft malicious URL| B[🌐 Vulnerable Web App]
+                B -->|2. Server makes request| C[🔥 Firewall Bypass]
+                C -->|3. Access internal network| D[🏢 Internal Services]
+                D -->|4. AWS Metadata endpoint| E[☁️ Cloud Metadata]
+                D -->|5. Internal APIs/DBs| F[(💾 Internal Resources)]
+                D -->|6. Admin panels| G[⚙️ Management Interfaces]
+                E -->|7. Return credentials| B
+                F -->|8. Return sensitive data| B
+                G -->|9. Return admin info| B
+                B -->|10. Leak to attacker| A
+                
+                style A fill:#ff6b6b,stroke:#00ff41,stroke-width:2px,color:#fff
+                style B fill:#ffd43b,stroke:#00ff41,stroke-width:2px,color:#000
+                style C fill:#ff6b6b,stroke:#00ff41,stroke-width:2px,color:#fff
+                style D fill:#a855f7,stroke:#00ff41,stroke-width:2px,color:#fff
+                style E fill:#ff6b6b,stroke:#00ff41,stroke-width:2px,color:#fff
+                style F fill:#74c0fc,stroke:#00ff41,stroke-width:2px,color:#000
+                style G fill:#ff6b6b,stroke:#00ff41,stroke-width:2px,color:#fff
+                
+                H[🔒 Defense:<br/>URL Whitelist] -.->|Allow only trusted hosts| B
+                I[🛡️ Defense:<br/>Network Segmentation] -.->|Isolate internal| D
+                J[⚙️ Defense:<br/>Disable URL Schemas] -.->|Block file:// gopher://| B
+                
+                style H fill:#00ff41,stroke:#00cc33,stroke-width:2px,color:#000
+                style I fill:#00ff41,stroke:#00cc33,stroke-width:2px,color:#000
+                style J fill:#00ff41,stroke:#00cc33,stroke-width:2px,color:#000
+        </div>
+        
+        <div class="description">
+            <h2>📋 Attack Flow Breakdown</h2>
+            
+            <div class="steps">
+                <div class="step">
+                    <span class="step-number">1</span>
+                    <strong>Identify SSRF Vector:</strong> Find endpoints that fetch external resources.
+                    <br><code>POST /api/fetch-image?url=https://example.com/logo.png</code>
+                </div>
+                
+                <div class="step">
+                    <span class="step-number">2</span>
+                    <strong>Target Internal Services:</strong> Point to internal IP addresses.
+                    <br><code>url=http://192.168.1.1/admin</code>
+                    <br><code>url=http://localhost:6379/</code> (Redis)
+                </div>
+                
+                <div class="step">
+                    <span class="step-number">3</span>
+                    <strong>Cloud Metadata Exploitation:</strong> Access cloud provider metadata APIs.
+                    <br><code>url=http://169.254.169.254/latest/meta-data/iam/security-credentials/</code> (AWS)
+                    <br><code>url=http://metadata.google.internal/computeMetadata/v1/</code> (GCP)
+                </div>
+                
+                <div class="step">
+                    <span class="step-number">4</span>
+                    <strong>Protocol Smuggling:</strong> Use different URL schemes to interact with internal services.
+                    <br><code>url=file:///etc/passwd</code>
+                    <br><code>url=gopher://localhost:25/</code> (SMTP)
+                </div>
+                
+                <div class="step">
+                    <span class="step-number">5</span>
+                    <strong>Port Scanning:</strong> Enumerate open ports on internal network.
+                    <br><code>url=http://internal-host:8080/</code>
+                </div>
+                
+                <div class="step">
+                    <span class="step-number">6</span>
+                    <strong>Bypass Filters:</strong> Use DNS rebinding, URL encoding, or IP obfuscation.
+                    <br><code>url=http://127.0.0.1 → http://2130706433/ (decimal IP)</code>
+                </div>
+                
+                <div class="step">
+                    <span class="step-number">7</span>
+                    <strong>Data Exfiltration:</strong> Retrieve credentials, API keys, or sensitive configuration.
+                </div>
+            </div>
+            
+            <h2 style="margin-top: 30px;">🛡️ Defense Mechanisms</h2>
+            
+            <div class="steps">
+                <div class="step" style="border-left: 4px solid #00ff41;">
+                    <strong>✅ Input Validation with Whitelist:</strong>
+                    <br>Only allow requests to a predefined list of trusted domains.
+                    <br><code>allowed_hosts = ['api.trusted.com', 'cdn.safe.net']</code>
+                </div>
+                
+                <div class="step" style="border-left: 4px solid #00ff41;">
+                    <strong>✅ Block Private IP Ranges:</strong>
+                    <br>Prevent requests to internal networks and localhost.
+                    <br><code>Block: 127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16</code>
+                </div>
+                
+                <div class="step" style="border-left: 4px solid #00ff41;">
+                    <strong>✅ Disable Unnecessary Protocols:</strong>
+                    <br>Only allow HTTP/HTTPS, block file://, gopher://, ftp://, etc.
+                    <br><code>if (!url.startsWith('https://')) reject();</code>
+                </div>
+                
+                <div class="step" style="border-left: 4px solid #00ff41;">
+                    <strong>✅ Network Segmentation:</strong>
+                    <br>Isolate web servers from internal infrastructure.
+                    <br>Use firewalls to restrict outbound connections.
+                </div>
+                
+                <div class="step" style="border-left: 4px solid #00ff41;">
+                    <strong>✅ Disable Cloud Metadata Access:</strong>
+                    <br>Use IMDSv2 (AWS) which requires session tokens.
+                    <br><code>aws ec2 modify-instance-metadata-options --http-tokens required</code>
+                </div>
+                
+                <div class="step" style="border-left: 4px solid #00ff41;">
+                    <strong>✅ Use Safe HTTP Libraries:</strong>
+                    <br>Configure libraries to prevent redirects to private IPs.
+                    <br><code>requests.get(url, allow_redirects=False, timeout=5)</code>
+                </div>
+            </div>
+        </div>
+        
+        <div class="navigation">
+            <a href="../index.html" class="btn">← Back to Diagrams</a>
+            <a href="../../OWASP-Web/10-SSRF/overview.md" class="btn">Learn More About SSRF</a>
+        </div>
+    </div>
+    
+    <script>
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'dark',
+            flowchart: {
+                curve: 'basis',
+                padding: 20
+            }
+        });
+    </script>
+</body>
+</html>

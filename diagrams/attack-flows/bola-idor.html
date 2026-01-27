@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BOLA/IDOR Attack Flow - OWASP API Security</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0d1117;
+            color: #00ff41;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #161b22;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,255,65,0.2);
+            border: 1px solid #30363d;
+        }
+        
+        h1 {
+            color: #00ff41;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px rgba(0,255,65,0.5);
+        }
+        
+        .subtitle {
+            color: #8b949e;
+            margin-bottom: 30px;
+        }
+        
+        .mermaid {
+            text-align: center;
+            padding: 20px;
+            background: #0d1117;
+            border-radius: 8px;
+        }
+        
+        .description {
+            margin-top: 30px;
+            padding: 20px;
+            background: #0d1117;
+            border-left: 4px solid #00ff41;
+            border-radius: 4px;
+        }
+        
+        .description h2 {
+            color: #00ff41;
+            margin-bottom: 15px;
+        }
+        
+        .steps {
+            margin-top: 20px;
+        }
+        
+        .step {
+            margin: 15px 0;
+            padding: 15px;
+            background: #161b22;
+            border-radius: 5px;
+            border: 1px solid #30363d;
+        }
+        
+        .step-number {
+            display: inline-block;
+            background: #00ff41;
+            color: #0d1117;
+            padding: 5px 10px;
+            border-radius: 50%;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        
+        code {
+            background: #0d1117;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #ff6b6b;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .navigation {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #30363d;
+            text-align: center;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #00ff41;
+            color: #0d1117;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 5px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            background: #00cc33;
+            box-shadow: 0 0 15px rgba(0,255,65,0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔑 BOLA/IDOR Attack Flow</h1>
+        <p class="subtitle">Broken Object Level Authorization - OWASP API Security #1</p>
+        
+        <div class="mermaid">
+            flowchart TD
+                A[👤 Attacker - User ID: 456] -->|1. Authenticate normally| B[🔐 Login Success]
+                B -->|2. Receive valid token| C[🎫 JWT/Session Token]
+                C -->|3. Access own resource| D[📱 GET /api/users/456/profile]
+                D -->|4. Successful response| E[✅ Own Data Retrieved]
+                E -->|5. Modify resource ID| F[📱 GET /api/users/123/profile]
+                F -->|6. No authorization check| G[❌ Missing Access Control]
+                G -->|7. Database query| H[(💾 Database)]
+                H -->|8. Return victim's data| I[🎯 Victim ID: 123 Data]
+                I -->|9. Data leaked| A
+                
+                style A fill:#ff6b6b,stroke:#00ff41,stroke-width:2px,color:#fff
+                style B fill:#74c0fc,stroke:#00ff41,stroke-width:2px,color:#000
+                style C fill:#ffd43b,stroke:#00ff41,stroke-width:2px,color:#000
+                style D fill:#74c0fc,stroke:#00ff41,stroke-width:2px,color:#000
+                style E fill:#00ff41,stroke:#00cc33,stroke-width:2px,color:#000
+                style F fill:#ff6b6b,stroke:#00ff41,stroke-width:2px,color:#fff
+                style G fill:#ff6b6b,stroke:#00ff41,stroke-width:2px,color:#fff
+                style H fill:#a855f7,stroke:#00ff41,stroke-width:2px,color:#fff
+                style I fill:#ff6b6b,stroke:#00ff41,stroke-width:2px,color:#fff
+                
+                J[🔒 Defense:<br/>Object-Level Auth] -.->|Verify ownership| F
+                K[🛡️ Defense:<br/>Indirect References] -.->|Use UUIDs| D
+                L[⚙️ Defense:<br/>Policy Enforcement] -.->|Check every request| G
+                
+                style J fill:#00ff41,stroke:#00cc33,stroke-width:2px,color:#000
+                style K fill:#00ff41,stroke:#00cc33,stroke-width:2px,color:#000
+                style L fill:#00ff41,stroke:#00cc33,stroke-width:2px,color:#000
+        </div>
+        
+        <div class="description">
+            <h2>📋 Attack Flow Breakdown</h2>
+            
+            <div class="steps">
+                <div class="step">
+                    <span class="step-number">1</span>
+                    <strong>Normal Authentication:</strong> Attacker authenticates as a legitimate user.
+                    <br><code>POST /api/auth/login {username: "attacker", password: "pass123"}</code>
+                </div>
+                
+                <div class="step">
+                    <span class="step-number">2</span>
+                    <strong>Enumerate Resource IDs:</strong> Discover predictable object identifiers.
+                    <br><code>GET /api/orders/1001, /api/orders/1002, /api/orders/1003</code>
+                </div>
+                
+                <div class="step">
+                    <span class="step-number">3</span>
+                    <strong>Test Authorization:</strong> Attempt to access other users' resources.
+                    <br><code>GET /api/users/123/documents (Not attacker's ID)</code>
+                </div>
+                
+                <div class="step">
+                    <span class="step-number">4</span>
+                    <strong>Exploit Missing Checks:</strong> Access granted despite not owning the resource.
+                    <br><code>200 OK - Returns victim's sensitive data</code>
+                </div>
+                
+                <div class="step">
+                    <span class="step-number">5</span>
+                    <strong>Automated Enumeration:</strong> Script to harvest all user data.
+                    <br><code>for id in range(1, 10000): fetch(f"/api/users/{id}/data")</code>
+                </div>
+                
+                <div class="step">
+                    <span class="step-number">6</span>
+                    <strong>Data Exfiltration:</strong> Mass harvesting of personal information, financial data, documents.
+                </div>
+            </div>
+            
+            <h2 style="margin-top: 30px;">🛡️ Defense Mechanisms</h2>
+            
+            <div class="steps">
+                <div class="step" style="border-left: 4px solid #00ff41;">
+                    <strong>✅ Implement Object-Level Authorization:</strong>
+                    <br>Verify that the authenticated user owns or has permission to access the requested object.
+                    <br><code>if (order.userId !== authenticatedUser.id) return 403;</code>
+                </div>
+                
+                <div class="step" style="border-left: 4px solid #00ff41;">
+                    <strong>✅ Use Unpredictable Identifiers:</strong>
+                    <br>Replace sequential IDs with UUIDs or random tokens.
+                    <br><code>/api/orders/a3f7e9c2-4d8b-11ed-bdc3-0242ac120002</code>
+                </div>
+                
+                <div class="step" style="border-left: 4px solid #00ff41;">
+                    <strong>✅ Implement Access Control Lists (ACL):</strong>
+                    <br>Maintain explicit mappings of user permissions to resources.
+                    <br><code>ACL: {user: 456, resource: order_1001, permissions: ['read']}</code>
+                </div>
+                
+                <div class="step" style="border-left: 4px solid #00ff41;">
+                    <strong>✅ Enforce at Data Layer:</strong>
+                    <br>Include user context in database queries.
+                    <br><code>SELECT * FROM orders WHERE id=? AND user_id=?</code>
+                </div>
+                
+                <div class="step" style="border-left: 4px solid #00ff41;">
+                    <strong>✅ Rate Limiting:</strong>
+                    <br>Detect and prevent mass enumeration attempts.
+                    <br><code>Limit: 100 requests per user per minute</code>
+                </div>
+                
+                <div class="step" style="border-left: 4px solid #00ff41;">
+                    <strong>✅ Log & Monitor:</strong>
+                    <br>Alert on suspicious access patterns (sequential ID access, 403 errors).
+                </div>
+            </div>
+        </div>
+        
+        <div class="navigation">
+            <a href="../index.html" class="btn">← Back to Diagrams</a>
+            <a href="../../OWASP-API/01-BOLA/overview.md" class="btn">Learn More About BOLA</a>
+        </div>
+    </div>
+    
+    <script>
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'dark',
+            flowchart: {
+                curve: 'basis',
+                padding: 20
+            }
+        });
+    </script>
+</body>
+</html>

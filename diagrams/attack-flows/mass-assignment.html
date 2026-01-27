@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mass Assignment Attack Flow - OWASP API Security</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0d1117;
+            color: #00ff41;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #161b22;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,255,65,0.2);
+            border: 1px solid #30363d;
+        }
+        
+        h1 {
+            color: #00ff41;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px rgba(0,255,65,0.5);
+        }
+        
+        .subtitle {
+            color: #8b949e;
+            margin-bottom: 30px;
+        }
+        
+        .mermaid {
+            text-align: center;
+            padding: 20px;
+            background: #0d1117;
+            border-radius: 8px;
+        }
+        
+        .description {
+            margin-top: 30px;
+            padding: 20px;
+            background: #0d1117;
+            border-left: 4px solid #00ff41;
+            border-radius: 4px;
+        }
+        
+        .description h2 {
+            color: #00ff41;
+            margin-bottom: 15px;
+        }
+        
+        .steps {
+            margin-top: 20px;
+        }
+        
+        .step {
+            margin: 15px 0;
+            padding: 15px;
+            background: #161b22;
+            border-radius: 5px;
+            border: 1px solid #30363d;
+        }
+        
+        .step-number {
+            display: inline-block;
+            background: #00ff41;
+            color: #0d1117;
+            padding: 5px 10px;
+            border-radius: 50%;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        
+        code {
+            background: #0d1117;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #ff6b6b;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .navigation {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #30363d;
+            text-align: center;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #00ff41;
+            color: #0d1117;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 5px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            background: #00cc33;
+            box-shadow: 0 0 15px rgba(0,255,65,0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📝 Mass Assignment Attack Flow</h1>
+        <p class="subtitle">Injecting Unauthorized Parameters - OWASP API Security #6</p>
+        
+        <div class="mermaid">
+            flowchart TD
+                A[👤 Attacker] -->|1. Analyze API request| B[🔍 Discovery Phase]
+                B -->|2. Identify object fields| C[📋 User Model Schema]
+                C -->|3. Craft malicious request| D[📤 POST /api/users/register]
+                D -->|4. Include extra fields| E[🎯 {username, email, isAdmin: true}]
+                E -->|5. Auto-bind properties| F[⚙️ Object Mapper]
+                F -->|6. No field filtering| G[❌ Mass Assignment Vuln]
+                G -->|7. Save to database| H[(💾 Database)]
+                H -->|8. Privilege escalation| I[👑 Admin Account Created]
+                I -->|9. Full system access| A
+                
+                style A fill:#ff6b6b,stroke:#00ff41,stroke-width:2px,color:#fff
+                style B fill:#74c0fc,stroke:#00ff41,stroke-width:2px,color:#000
+                style C fill:#ffd43b,stroke:#00ff41,stroke-width:2px,color:#000
+                style D fill:#74c0fc,stroke:#00ff41,stroke-width:2px,color:#000
+                style E fill:#ff6b6b,stroke:#00ff41,stroke-width:2px,color:#fff
+                style F fill:#a855f7,stroke:#00ff41,stroke-width:2px,color:#fff
+                style G fill:#ff6b6b,stroke:#00ff41,stroke-width:2px,color:#fff
+                style H fill:#a855f7,stroke:#00ff41,stroke-width:2px,color:#fff
+                style I fill:#ff6b6b,stroke:#00ff41,stroke-width:2px,color:#fff
+                
+                J[🔒 Defense:<br/>Whitelist Properties] -.->|Only allow specific fields| F
+                K[🛡️ Defense:<br/>DTOs/ViewModels] -.->|Separate models| E
+                L[⚙️ Defense:<br/>Disable Auto-binding] -.->|Manual mapping| G
+                
+                style J fill:#00ff41,stroke:#00cc33,stroke-width:2px,color:#000
+                style K fill:#00ff41,stroke:#00cc33,stroke-width:2px,color:#000
+                style L fill:#00ff41,stroke:#00cc33,stroke-width:2px,color:#000
+        </div>
+        
+        <div class="description">
+            <h2>📋 Attack Flow Breakdown</h2>
+            
+            <div class="steps">
+                <div class="step">
+                    <span class="step-number">1</span>
+                    <strong>Schema Discovery:</strong> Analyze API responses or documentation to identify object properties.
+                    <br><code>GET /api/users/123 → {id, username, email, role, isVerified}</code>
+                </div>
+                
+                <div class="step">
+                    <span class="step-number">2</span>
+                    <strong>Test Sensitive Fields:</strong> Inject administrative or privileged fields.
+                    <br><code>POST /api/users {username: "hacker", isAdmin: true, role: "admin"}</code>
+                </div>
+                
+                <div class="step">
+                    <span class="step-number">3</span>
+                    <strong>Price Manipulation:</strong> Modify prices in e-commerce applications.
+                    <br><code>POST /api/orders {product_id: 5, quantity: 1, price: 0.01}</code>
+                </div>
+                
+                <div class="step">
+                    <span class="step-number">4</span>
+                    <strong>Account Hijacking:</strong> Change user IDs or ownership.
+                    <br><code>PUT /api/profile {userId: 999, verified: true}</code>
+                </div>
+                
+                <div class="step">
+                    <span class="step-number">5</span>
+                    <strong>Bypass Verification:</strong> Set email/phone verification flags.
+                    <br><code>PATCH /api/user {emailVerified: true, phoneVerified: true}</code>
+                </div>
+                
+                <div class="step">
+                    <span class="step-number">6</span>
+                    <strong>Privilege Escalation:</strong> Gain administrative or premium access.
+                </div>
+            </div>
+            
+            <h2 style="margin-top: 30px;">🛡️ Defense Mechanisms</h2>
+            
+            <div class="steps">
+                <div class="step" style="border-left: 4px solid #00ff41;">
+                    <strong>✅ Use DTOs (Data Transfer Objects):</strong>
+                    <br>Create separate models for API input that only include allowed fields.
+                    <br><code>class UserRegistrationDTO { username, email, password }</code>
+                </div>
+                
+                <div class="step" style="border-left: 4px solid #00ff41;">
+                    <strong>✅ Whitelist Allowed Properties:</strong>
+                    <br>Explicitly define which fields can be mass-assigned.
+                    <br><code>User.create(params.permit(:username, :email, :password))</code> (Rails)
+                </div>
+                
+                <div class="step" style="border-left: 4px solid #00ff41;">
+                    <strong>✅ Disable Auto-Binding:</strong>
+                    <br>Avoid automatic object mapping from request body.
+                    <br><code>Manual validation: user.name = req.body.name (NOT user = req.body)</code>
+                </div>
+                
+                <div class="step" style="border-left: 4px solid #00ff41;">
+                    <strong>✅ Mark Sensitive Fields as Read-Only:</strong>
+                    <br>Prevent modification of critical properties.
+                    <br><code>@ReadOnly or private setters for isAdmin, role, userId</code>
+                </div>
+                
+                <div class="step" style="border-left: 4px solid #00ff41;">
+                    <strong>✅ Schema Validation:</strong>
+                    <br>Validate input against strict schemas (JSON Schema, OpenAPI).
+                    <br><code>additionalProperties: false in JSON Schema</code>
+                </div>
+                
+                <div class="step" style="border-left: 4px solid #00ff41;">
+                    <strong>✅ Use ORM Protections:</strong>
+                    <br>Leverage built-in protections in ORMs.
+                    <br><code>Sequelize: paranoid mode, TypeORM: @Column options</code>
+                </div>
+            </div>
+        </div>
+        
+        <div class="navigation">
+            <a href="../index.html" class="btn">← Back to Diagrams</a>
+            <a href="../../OWASP-API/06-Mass-Assignment/overview.md" class="btn">Learn More</a>
+        </div>
+    </div>
+    
+    <script>
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'dark',
+            flowchart: {
+                curve: 'basis',
+                padding: 20
+            }
+        });
+    </script>
+</body>
+</html>
