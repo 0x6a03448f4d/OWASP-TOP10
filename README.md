@@ -3,6 +3,13 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Docker](https://img.shields.io/badge/Docker-Required-blue.svg)](https://www.docker.com/)
 [![Education](https://img.shields.io/badge/Purpose-Education-green.svg)](https://owasp.org/Top10/)
+[![GitHub Stars](https://img.shields.io/github/stars/0x6a03448f4d/OWASP-TOP10?style=social)](https://github.com/0x6a03448f4d/OWASP-TOP10)
+[![GitHub Forks](https://img.shields.io/github/forks/0x6a03448f4d/OWASP-TOP10?style=social)](https://github.com/0x6a03448f4d/OWASP-TOP10/fork)
+[![GitHub Issues](https://img.shields.io/github/issues/0x6a03448f4d/OWASP-TOP10)](https://github.com/0x6a03448f4d/OWASP-TOP10/issues)
+[![Last Commit](https://img.shields.io/github/last-commit/0x6a03448f4d/OWASP-TOP10)](https://github.com/0x6a03448f4d/OWASP-TOP10/commits)
+[![Contributors](https://img.shields.io/github/contributors/0x6a03448f4d/OWASP-TOP10)](https://github.com/0x6a03448f4d/OWASP-TOP10/graphs/contributors)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+[![Code of Conduct](https://img.shields.io/badge/Code%20of%20Conduct-Contributor%20Covenant-4baaaa.svg)](CODE_OF_CONDUCT.md)
 
 > **A comprehensive, hands-on educational resource for learning about the OWASP Top 10 vulnerabilities through safe, isolated, Docker-based labs and in-depth documentation.**
 
