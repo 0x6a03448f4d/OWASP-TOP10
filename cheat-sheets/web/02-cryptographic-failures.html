@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OWASP #2: Cryptographic Failures - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+</head>
+<body>
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔐 Cryptographic Failures</h1>
+            <p class="subtitle">OWASP Web Top 10 - #2</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Cryptographic Failures</strong> occur when applications fail to adequately protect sensitive data through proper encryption, hashing, or other cryptographic controls. This often leads to exposure of passwords, credit cards, health records, and personal data.</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">#2</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">4.49%</span>
+                        <span class="label">Incidence Rate</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">233K</span>
+                        <span class="label">Occurrences</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Weak Hashing:</strong> Using MD5/SHA-1 for password storage</li>
+                    <li><strong>Missing Encryption:</strong> Storing sensitive data in plaintext</li>
+                    <li><strong>No HTTPS:</strong> Transmitting data over unencrypted HTTP</li>
+                    <li><strong>Hard-coded Keys:</strong> Encryption keys embedded in source code</li>
+                    <li><strong>Weak Randomness:</strong> Predictable tokens for sessions/passwords</li>
+                    <li><strong>ECB Mode:</strong> Using insecure encryption modes</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Attacker obtains database dump<br>
+   <span class="arrow">↓</span><br>
+2. Finds password hashes using MD5<br>
+   <span class="arrow">↓</span><br>
+3. Runs hashes through rainbow table<br>
+   <span class="arrow">↓</span><br>
+4. Cracks passwords in seconds<br>
+   <span class="arrow">↓</span><br>
+5. <strong>BREACH: Access to user accounts!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: Weak password hashing with MD5</span>
+<span class="keyword">import</span> hashlib
+
+<span class="keyword">def</span> <span class="function">store_password</span>(username, password):
+    <span class="comment"># MD5 is too fast - crackable in seconds!</span>
+    password_hash = hashlib.md5(password.encode()).hexdigest()
+    database.save(username, password_hash)
+
+<span class="comment">// Bad: Storing sensitive data in plaintext</span>
+<span class="keyword">class</span> User:
+    <span class="keyword">def</span> __init__(self, ssn, credit_card):
+        self.ssn = ssn  <span class="comment"># Plaintext!</span>
+        self.credit_card = credit_card  <span class="comment"># Plaintext!</span>
+
+<span class="comment">// Bad: Hard-coded encryption key</span>
+SECRET_KEY = <span class="string">"my-secret-key-123"</span>  <span class="comment"># Exposed in code!</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: Strong password hashing with bcrypt</span>
+<span class="keyword">import</span> bcrypt
+
+<span class="keyword">def</span> <span class="function">store_password</span>(username, password):
+    <span class="comment"># Bcrypt is slow (good!) and includes salt</span>
+    salt = bcrypt.gensalt(rounds=<span class="number">12</span>)
+    password_hash = bcrypt.hashpw(password.encode(), salt)
+    database.save(username, password_hash)
+
+<span class="comment">// Good: Encrypt sensitive data</span>
+<span class="keyword">from</span> cryptography.fernet <span class="keyword">import</span> Fernet
+<span class="keyword">import</span> os
+
+<span class="keyword">class</span> User:
+    <span class="keyword">def</span> __init__(self, ssn, credit_card):
+        cipher = Fernet(os.environ.get(<span class="string">'ENCRYPTION_KEY'</span>).encode())
+        self.ssn_encrypted = cipher.encrypt(ssn.encode())
+        self.cc_encrypted = cipher.encrypt(credit_card.encode())
+
+<span class="comment">// Good: Load keys from environment</span>
+SECRET_KEY = os.environ.get(<span class="string">'SECRET_KEY'</span>)
+<span class="keyword">if not</span> SECRET_KEY:
+    <span class="keyword">raise</span> ValueError(<span class="string">"SECRET_KEY not set"</span>)
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Use bcrypt, Argon2, or scrypt for passwords</li>
+                    <li>Never use MD5, SHA-1, or plain SHA-256 for passwords</li>
+                    <li>Encrypt sensitive data at rest (AES-256-GCM)</li>
+                    <li>Always use HTTPS/TLS for data in transit</li>
+                    <li>Use TLS 1.2 or higher only</li>
+                    <li>Store keys in environment variables or key vaults</li>
+                    <li>Use cryptographically secure random (secrets module)</li>
+                    <li>Implement HSTS headers</li>
+                    <li>Never use ECB mode for encryption</li>
+                    <li>Keep cryptographic libraries updated</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Testing Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">SSL Labs</span>
+                    <span class="tool-tag">testssl.sh</span>
+                    <span class="tool-tag">Bandit</span>
+                    <span class="tool-tag">Semgrep</span>
+                </div>
+                
+                <h3>Secure Libraries:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">bcrypt</span>
+                    <span class="tool-tag">cryptography</span>
+                    <span class="tool-tag">Argon2</span>
+                    <span class="tool-tag">Fernet</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Check hash length (32=MD5, 40=SHA-1, 60=bcrypt)</li>
+                    <li>Verify HTTPS is enforced</li>
+                    <li>Test TLS configuration with SSL Labs</li>
+                    <li>Search code for hard-coded keys</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Breaches</h2>
+                <ul>
+                    <li><strong>LinkedIn (2012):</strong> 6.5M passwords hashed with unsalted SHA-1, quickly cracked</li>
+                    <li><strong>Adobe (2013):</strong> 153M accounts with passwords encrypted (not hashed!) with weak ECB mode</li>
+                    <li><strong>British Airways (2018):</strong> £20M GDPR fine for insufficient encryption of payment data</li>
+                    <li><strong>Equifax (2017):</strong> 147M records exposed, including unencrypted SSNs</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> use MD5/SHA-1 for passwords</li>
+                    <li><span class="badge critical">DO NOT</span> store passwords in plaintext</li>
+                    <li><span class="badge critical">DO NOT</span> hard-code encryption keys</li>
+                    <li><span class="badge high">DO</span> use bcrypt/Argon2 for passwords</li>
+                    <li><span class="badge high">DO</span> enforce HTTPS everywhere</li>
+                    <li><span class="badge medium">DO</span> encrypt sensitive data at rest</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">PCI-DSS</span> Requirement 3.4, 4.1</li>
+                    <li><span class="badge medium">GDPR</span> Art. 32 - Security of Processing</li>
+                    <li><span class="badge medium">HIPAA</span> Encryption Required</li>
+                    <li><span class="badge medium">SOC 2</span> CC6.1, CC6.7</li>
+                    <li><span class="badge medium">NIST</span> 800-53 SC-13</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Top 10 Educational Repository</strong> | <a href="../../README.md">Main Repo</a> | <a href="../README.md">All Cheat Sheets</a></p>
+            <p>For hands-on practice: <a href="../../OWASP-Web/02-Cryptographic-Failures/lab/">Try the Lab</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OWASP #9: Security Logging and Monitoring Failures - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+</head>
+<body>
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>📊 Security Logging & Monitoring Failures</h1>
+            <p class="subtitle">OWASP Web Top 10 - #9</p>
+            <span class="category">MEDIUM RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Security Logging and Monitoring Failures</strong> occur when insufficient logging and monitoring allow breaches to go undetected, significantly delaying incident response. Without proper logging, attacks are invisible and forensics are impossible.</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">#9</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">206</span>
+                        <span class="label">Avg Days to Detect</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">6.51%</span>
+                        <span class="label">Max Incidence</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Undetected Attacks:</strong> Breaches go unnoticed for months</li>
+                    <li><strong>Missing Audit Trails:</strong> No record of security events</li>
+                    <li><strong>No Alerting:</strong> Suspicious activity not flagged</li>
+                    <li><strong>Log Tampering:</strong> Attackers delete/modify logs</li>
+                    <li><strong>Insufficient Detail:</strong> Logs lack context for investigation</li>
+                    <li><strong>No Centralized Logging:</strong> Scattered, inaccessible logs</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Attacker attempts 1000+ login failures<br>
+   <span class="arrow">↓</span><br>
+2. No logging of failed attempts<br>
+   <span class="arrow">↓</span><br>
+3. Eventually gains access via brute force<br>
+   <span class="arrow">↓</span><br>
+4. Exfiltrates data over weeks<br>
+   <span class="arrow">↓</span><br>
+5. <strong>BREACH: Discovered months later!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: No logging of security events</span>
+@app.route(<span class="string">'/login'</span>, methods=[<span class="string">'POST'</span>])
+<span class="keyword">def</span> <span class="function">login</span>():
+    username = request.form.get(<span class="string">'username'</span>)
+    password = request.form.get(<span class="string">'password'</span>)
+    
+    <span class="keyword">if</span> check_credentials(username, password):
+        <span class="keyword">return</span> success()
+    
+    <span class="comment"># Failed attempt NOT logged!</span>
+    <span class="keyword">return</span> error(<span class="string">"Invalid credentials"</span>)
+
+<span class="comment">// Bad: No monitoring of sensitive operations</span>
+@app.route(<span class="string">'/admin/delete_user'</span>)
+<span class="keyword">def</span> <span class="function">delete_user</span>(user_id):
+    <span class="comment"># Critical action not logged!</span>
+    database.delete_user(user_id)
+    <span class="keyword">return</span> <span class="string">"User deleted"</span>
+
+<span class="comment">// Bad: Logs stored locally only</span>
+<span class="comment"># Attacker can delete logs easily</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: Comprehensive security logging</span>
+<span class="keyword">import</span> logging
+<span class="keyword">from</span> datetime <span class="keyword">import</span> datetime
+
+logger = logging.getLogger(__name__)
+
+@app.route(<span class="string">'/login'</span>, methods=[<span class="string">'POST'</span>])
+<span class="keyword">def</span> <span class="function">login</span>():
+    username = request.form.get(<span class="string">'username'</span>)
+    password = request.form.get(<span class="string">'password'</span>)
+    ip_address = request.remote_addr
+    
+    <span class="keyword">if</span> check_credentials(username, password):
+        logger.info(
+            <span class="string">f"Successful login: user={username}, ip={ip_address}"</span>
+        )
+        <span class="keyword">return</span> success()
+    
+    <span class="comment"># Log failed attempt with details</span>
+    logger.warning(
+        <span class="string">f"Failed login: user={username}, ip={ip_address}, "</span>
+        <span class="string">f"time={datetime.now()}"</span>
+    )
+    
+    <span class="comment"># Alert on multiple failures</span>
+    <span class="keyword">if</span> get_failed_attempts(ip_address) > <span class="number">5</span>:
+        logger.critical(<span class="string">f"Brute force detected: ip={ip_address}"</span>)
+        send_security_alert(ip_address)
+    
+    <span class="keyword">return</span> error(<span class="string">"Invalid credentials"</span>)
+
+<span class="comment">// Good: Audit trail for sensitive operations</span>
+@app.route(<span class="string">'/admin/delete_user'</span>)
+@admin_required
+<span class="keyword">def</span> <span class="function">delete_user</span>(user_id):
+    admin_user = get_current_user()
+    
+    <span class="comment"># Log who did what, when</span>
+    logger.info(
+        <span class="string">f"User deletion: target={user_id}, "</span>
+        <span class="string">f"admin={admin_user.id}, time={datetime.now()}"</span>
+    )
+    
+    database.delete_user(user_id)
+    <span class="keyword">return</span> <span class="string">"User deleted"</span>
+
+<span class="comment">// Good: Centralized, tamper-proof logging</span>
+<span class="comment"># Send logs to SIEM system (e.g., ELK, Splunk)</span>
+<span class="comment"># Use write-once storage for logs</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Log all authentication events (success/failure)</li>
+                    <li>Log access to sensitive data</li>
+                    <li>Log administrative actions</li>
+                    <li>Include context: user, IP, timestamp, action</li>
+                    <li>Use centralized logging (ELK, Splunk)</li>
+                    <li>Implement real-time alerting</li>
+                    <li>Retain logs for at least 90 days</li>
+                    <li>Protect logs from tampering (write-once)</li>
+                    <li>Monitor for unusual patterns</li>
+                    <li>Regular log review and analysis</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>SIEM Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">ELK Stack</span>
+                    <span class="tool-tag">Splunk</span>
+                    <span class="tool-tag">Graylog</span>
+                    <span class="tool-tag">Azure Sentinel</span>
+                </div>
+                
+                <h3>Log Libraries:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Python logging</span>
+                    <span class="tool-tag">Winston (Node)</span>
+                    <span class="tool-tag">Log4j</span>
+                    <span class="tool-tag">Serilog (.NET)</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Check if failed logins are logged</li>
+                    <li>Verify sensitive actions create audit logs</li>
+                    <li>Test if logs include enough context</li>
+                    <li>Confirm logs are sent to central system</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Breaches</h2>
+                <ul>
+                    <li><strong>Target (2013):</strong> Breach undetected for weeks despite security alerts being ignored</li>
+                    <li><strong>Equifax (2017):</strong> Attackers accessed systems for 76 days before detection</li>
+                    <li><strong>Marriott (2018):</strong> Breach went undetected for 4 years (2014-2018)</li>
+                    <li><strong>Yahoo (2013):</strong> Breach not discovered until 2016 - 3 billion accounts affected</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> ignore security logs</li>
+                    <li><span class="badge high">DO NOT</span> store logs only locally</li>
+                    <li><span class="badge critical">DO</span> log all authentication events</li>
+                    <li><span class="badge high">DO</span> implement real-time alerting</li>
+                    <li><span class="badge medium">DO</span> use centralized logging (SIEM)</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">PCI-DSS</span> Requirement 10 (Logging)</li>
+                    <li><span class="badge medium">GDPR</span> Art. 33 (Breach Notification)</li>
+                    <li><span class="badge medium">HIPAA</span> § 164.312 (Audit Controls)</li>
+                    <li><span class="badge medium">NIST</span> 800-53 AU Family</li>
+                    <li><span class="badge medium">SOC 2</span> CC7.2</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Top 10 Educational Repository</strong> | <a href="../../README.md">Main Repo</a> | <a href="../README.md">All Cheat Sheets</a></p>
+            <p>For hands-on practice: <a href="../../OWASP-Web/09-Security-Logging-Monitoring-Failures/lab/">Try the Lab</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>
