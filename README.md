@@ -108,7 +108,9 @@ OWASP-TOP10/
 │   ├── LLM05-Supply-Chain-Vulnerabilities/
 │   ├── LLM06-Sensitive-Information-Disclosure/
 │   ├── LLM07-Insecure-Plugin-Design/
-│   └── LLM08-Excessive-Agency/
+│   ├── LLM08-Excessive-Agency/
+│   ├── LLM09-Overreliance/
+│   └── LLM10-Model-Theft/
 │
 ├── OWASP-Mobile/                      # OWASP Mobile Top 10
 │   ├── M01-Improper-Credential-Usage/
