@@ -34,9 +34,22 @@ This repository exists to make **cybersecurity education accessible, practical, 
 
 By using this repository, you commit to **responsible, ethical cybersecurity practices**.
 
+## 🚀 Quick Start
+
+**Start the entire platform with one command:**
+
+```bash
+docker-compose up -d
+```
+
+Then open your browser to **http://localhost** to access the unified dashboard!
+
+See [DOCKER-SETUP.md](DOCKER-SETUP.md) for detailed instructions.
+
 ## 📋 Table of Contents
 
 - [What is OWASP Top 10?](#what-is-owasp-top-10)
+- [Unified Dashboard](#unified-dashboard)
 - [Repository Structure](#repository-structure)
 - [Interactive Learning Tools](#interactive-learning-tools)
 - [Getting Started](#getting-started)
@@ -67,6 +80,31 @@ Updated regularly by the Open Web Application Security Project (OWASP), this lis
 8. Software and Data Integrity Failures
 9. Security Logging and Monitoring Failures
 10. Server-Side Request Forgery (SSRF)
+
+## 🎯 Unified Dashboard
+
+This repository now features a **comprehensive web-based dashboard** that brings together all OWASP resources in one place!
+
+### 6 Main Sections:
+
+1. **📄 Cheat Sheets** - Quick reference guides for all 40+ vulnerabilities
+2. **⚖️ Compliance Mappings** - Map to GDPR, ISO 27001, NIST, PCI-DSS, SOC2
+3. **🚩 CTF Challenge Hub** - Capture The Flag challenges with progress tracking
+4. **📊 Attack Flow Diagrams** - Visual representations of attack vectors
+5. **🧪 OWASP Labs** - Hands-on vulnerable labs for all categories
+6. **❓ Security Quiz** - Test your knowledge with interactive quizzes
+
+### Access the Dashboard:
+
+```bash
+# Start the platform
+docker-compose up -d
+
+# Open in browser
+http://localhost
+```
+
+See [DOCKER-SETUP.md](DOCKER-SETUP.md) for complete setup instructions.
 
 ## 📁 Repository Structure
 

@@ -1,0 +1,95 @@
+version: '3.8'
+
+services:
+  # Main Dashboard - Web Interface
+  dashboard:
+    image: nginx:alpine
+    container_name: owasp-dashboard
+    ports:
+      - "80:80"
+    volumes:
+      - ./:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - owasp-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # CTF Hub Platform (if it has backend components)
+  # Uncomment and configure if CTF hub needs a backend
+  # ctf-backend:
+  #   build: ./ctf-hub/backend
+  #   container_name: owasp-ctf-backend
+  #   ports:
+  #     - "5000:5000"
+  #   networks:
+  #     - owasp-network
+  #   restart: unless-stopped
+
+  # Example: Web Vulnerability Lab (Broken Access Control)
+  # Uncomment to pre-start labs, or start them on-demand
+  # web-lab-01:
+  #   build: ./OWASP-Web/01-Broken-Access-Control/lab
+  #   container_name: owasp-web-lab-01
+  #   ports:
+  #     - "8001:5000"
+  #   networks:
+  #     - owasp-network
+  #   restart: unless-stopped
+
+  # Example: API Vulnerability Lab (BOLA)
+  # api-lab-01:
+  #   build: ./OWASP-API/API01-Broken-Object-Level-Authorization/lab
+  #   container_name: owasp-api-lab-01
+  #   ports:
+  #     - "9001:5000"
+  #   networks:
+  #     - owasp-network
+  #   restart: unless-stopped
+
+  # Portainer - Optional: Container management UI
+  # Uncomment for easier management of lab containers
+  # portainer:
+  #   image: portainer/portainer-ce:latest
+  #   container_name: owasp-portainer
+  #   ports:
+  #     - "9000:9000"
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #     - portainer_data:/data
+  #   networks:
+  #     - owasp-network
+  #   restart: unless-stopped
+
+networks:
+  owasp-network:
+    driver: bridge
+    name: owasp-network
+
+volumes:
+  portainer_data:
+    name: owasp-portainer-data
+
+# To start the dashboard:
+#   docker-compose up -d
+#
+# To start individual labs, navigate to the lab directory and run:
+#   cd OWASP-Web/01-Broken-Access-Control/lab
+#   docker-compose up -d
+#
+# Access the dashboard at: http://localhost
+#
+# For on-demand lab starting:
+# 1. Use the web interface to select a lab
+# 2. The interface will guide you to start the specific lab
+# 3. Or use docker-compose in the lab's directory
+#
+# To stop all services:
+#   docker-compose down
+#
+# To view running containers:
+#   docker ps
