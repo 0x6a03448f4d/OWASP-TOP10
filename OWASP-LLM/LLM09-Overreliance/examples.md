@@ -269,6 +269,7 @@ class VulnerableMedicalChatbot:
 from typing import Optional, List
 from dataclasses import dataclass
 from enum import Enum
+from datetime import datetime
 
 class ReviewStatus(Enum):
     PENDING = "pending"
@@ -763,6 +764,8 @@ response = assistant.doctor_assisted_response(
 ### Implementation 1: Verification Gate
 
 ```python
+from datetime import datetime
+
 class VerificationGate:
     """Enforce verification before use"""
     
