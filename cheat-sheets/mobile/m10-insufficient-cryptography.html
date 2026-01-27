@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M10: Insufficient Cryptography - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+</head>
+<body>
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔐 Insufficient Cryptography</h1>
+            <p class="subtitle">OWASP Mobile Top 10 - M10</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Insufficient Cryptography</strong> occurs when mobile applications use weak, broken, or improperly implemented cryptographic algorithms. This includes using deprecated algorithms (MD5, SHA1), weak key generation, hardcoded encryption keys, insecure random number generators, and improper initialization vectors. Strong cryptography is essential for protecting data in transit and at rest.</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">M10</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">61%</span>
+                        <span class="label">Apps Affected</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Varies</span>
+                        <span class="label">Time to Crack</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Crypto Weaknesses</h2>
+                <ul>
+                    <li><strong>Weak Algorithms:</strong> Using DES, RC4, MD5, SHA1</li>
+                    <li><strong>Hardcoded Keys:</strong> Encryption keys in source code</li>
+                    <li><strong>ECB Mode:</strong> Using insecure block cipher modes</li>
+                    <li><strong>Weak RNG:</strong> Predictable random number generation</li>
+                    <li><strong>Fixed IV:</strong> Reusing initialization vectors</li>
+                    <li><strong>Custom Crypto:</strong> Rolling your own encryption</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Attacker extracts encrypted data<br>
+   <span class="arrow">↓</span><br>
+2. Identifies weak algorithm (DES, MD5)<br>
+   <span class="arrow">↓</span><br>
+3. Uses rainbow tables or brute force<br>
+   <span class="arrow">↓</span><br>
+4. Decrypts data with weak key<br>
+   <span class="arrow">↓</span><br>
+5. <strong>BREACH: Sensitive data exposed!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: Weak algorithm DES (Android)</span>
+<span class="keyword">public</span> String <span class="function">encryptData</span>(String data) <span class="keyword">throws</span> Exception {
+    <span class="comment">// VULNERABLE: DES is deprecated and weak</span>
+    SecretKeySpec key = <span class="keyword">new</span> SecretKeySpec(<span class="string">"12345678"</span>.getBytes(), <span class="string">"DES"</span>);
+    Cipher cipher = Cipher.getInstance(<span class="string">"DES"</span>);
+    cipher.init(Cipher.ENCRYPT_MODE, key);
+    <span class="keyword">byte</span>[] encrypted = cipher.doFinal(data.getBytes());
+    <span class="keyword">return</span> Base64.encodeToString(encrypted, Base64.DEFAULT);
+}
+
+<span class="comment">// Bad: Hardcoded encryption key (Android)</span>
+<span class="keyword">public class</span> CryptoUtils {
+    <span class="comment">// VULNERABLE: Hardcoded key in source code</span>
+    <span class="keyword">private static final</span> String SECRET_KEY = <span class="string">"MySecretKey12345"</span>;
+    
+    <span class="keyword">public static</span> String <span class="function">encrypt</span>(String data) {
+        <span class="comment">// Anyone can decompile and extract this key</span>
+        SecretKeySpec key = <span class="keyword">new</span> SecretKeySpec(SECRET_KEY.getBytes(), <span class="string">"AES"</span>);
+        <span class="comment">// ...</span>
+    }
+}
+
+<span class="comment">// Bad: ECB mode (Android)</span>
+<span class="keyword">public</span> String <span class="function">encryptWithECB</span>(String data) <span class="keyword">throws</span> Exception {
+    <span class="comment">// VULNERABLE: ECB mode doesn't hide patterns</span>
+    Cipher cipher = Cipher.getInstance(<span class="string">"AES/ECB/PKCS5Padding"</span>);
+    cipher.init(Cipher.ENCRYPT_MODE, key);
+    <span class="keyword">return</span> Base64.encodeToString(cipher.doFinal(data.getBytes()), Base64.DEFAULT);
+}
+
+<span class="comment">// Bad: Weak random number generator (Android)</span>
+<span class="keyword">public</span> String <span class="function">generateSessionId</span>() {
+    <span class="comment">// VULNERABLE: Random() is predictable</span>
+    Random random = <span class="keyword">new</span> Random();
+    <span class="keyword">return</span> String.valueOf(random.nextLong());
+}
+
+<span class="comment">// Bad: MD5 for password hashing (iOS)</span>
+<span class="keyword">func</span> <span class="function">hashPassword</span>(_ password: String) -&gt; String {
+    <span class="comment">// VULNERABLE: MD5 is broken, use bcrypt/scrypt</span>
+    <span class="keyword">let</span> data = password.data(using: .utf8)!
+    <span class="keyword">var</span> digest = [UInt8](repeating: <span class="number">0</span>, count: Int(CC_MD5_DIGEST_LENGTH))
+    
+    data.withUnsafeBytes {
+        _ = CC_MD5($0.baseAddress, CC_LONG(data.count), &digest)
+    }
+    
+    <span class="keyword">return</span> digest.map { String(format: <span class="string">"%02x"</span>, $0) }.joined()
+}
+
+<span class="comment">// Bad: Static IV (Android)</span>
+<span class="keyword">public</span> String <span class="function">encrypt</span>(String data) <span class="keyword">throws</span> Exception {
+    <span class="comment">// VULNERABLE: Same IV for every encryption</span>
+    <span class="keyword">byte</span>[] iv = <span class="string">"1234567890123456"</span>.getBytes();
+    IvParameterSpec ivSpec = <span class="keyword">new</span> IvParameterSpec(iv);
+    
+    cipher.init(Cipher.ENCRYPT_MODE, key, ivSpec);
+    <span class="keyword">return</span> Base64.encodeToString(cipher.doFinal(data.getBytes()), Base64.DEFAULT);
+}
+
+<span class="comment">// Bad: Custom encryption algorithm</span>
+<span class="keyword">public</span> String <span class="function">customEncrypt</span>(String data) {
+    <span class="comment">// VULNERABLE: Don't roll your own crypto!</span>
+    StringBuilder encrypted = <span class="keyword">new</span> StringBuilder();
+    <span class="keyword">for</span> (<span class="keyword">char</span> c : data.toCharArray()) {
+        encrypted.append((<span class="keyword">char</span>)(c + <span class="number">5</span>));  <span class="comment">// Caesar cipher!</span>
+    }
+    <span class="keyword">return</span> encrypted.toString();
+}
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: AES-256 with GCM mode (Android)</span>
+<span class="keyword">public</span> String <span class="function">encryptDataSecurely</span>(String data) <span class="keyword">throws</span> Exception {
+    <span class="comment">// Use AES-256 with GCM mode (authenticated encryption)</span>
+    KeyGenerator keyGen = KeyGenerator.getInstance(
+        KeyProperties.KEY_ALGORITHM_AES, 
+        <span class="string">"AndroidKeyStore"</span>
+    );
+    
+    KeyGenParameterSpec spec = <span class="keyword">new</span> KeyGenParameterSpec.Builder(
+        <span class="string">"MyKeyAlias"</span>,
+        KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT
+    )
+    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+    .setKeySize(<span class="number">256</span>)
+    .build();
+    
+    keyGen.init(spec);
+    SecretKey key = keyGen.generateKey();
+    
+    <span class="comment">// Generate random IV for each encryption</span>
+    Cipher cipher = Cipher.getInstance(<span class="string">"AES/GCM/NoPadding"</span>);
+    cipher.init(Cipher.ENCRYPT_MODE, key);
+    
+    <span class="keyword">byte</span>[] iv = cipher.getIV();  <span class="comment">// Random IV</span>
+    <span class="keyword">byte</span>[] encrypted = cipher.doFinal(data.getBytes(StandardCharsets.UTF_8));
+    
+    <span class="comment">// Prepend IV to ciphertext</span>
+    <span class="keyword">byte</span>[] combined = <span class="keyword">new</span> <span class="keyword">byte</span>[iv.length + encrypted.length];
+    System.arraycopy(iv, <span class="number">0</span>, combined, <span class="number">0</span>, iv.length);
+    System.arraycopy(encrypted, <span class="number">0</span>, combined, iv.length, encrypted.length);
+    
+    <span class="keyword">return</span> Base64.encodeToString(combined, Base64.NO_WRAP);
+}
+
+<span class="comment">// Good: Key from Android Keystore (Android)</span>
+<span class="keyword">private</span> SecretKey <span class="function">getOrCreateKey</span>() <span class="keyword">throws</span> Exception {
+    KeyStore keyStore = KeyStore.getInstance(<span class="string">"AndroidKeyStore"</span>);
+    keyStore.load(<span class="keyword">null</span>);
+    
+    <span class="keyword">if</span> (!keyStore.containsAlias(<span class="string">"MyKeyAlias"</span>)) {
+        <span class="comment">// Generate new key in Keystore (hardware-backed if available)</span>
+        KeyGenerator keyGen = KeyGenerator.getInstance(
+            KeyProperties.KEY_ALGORITHM_AES,
+            <span class="string">"AndroidKeyStore"</span>
+        );
+        
+        keyGen.init(<span class="keyword">new</span> KeyGenParameterSpec.Builder(
+            <span class="string">"MyKeyAlias"</span>,
+            KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT
+        )
+        .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+        .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+        .setKeySize(<span class="number">256</span>)
+        .setUserAuthenticationRequired(<span class="keyword">false</span>)
+        .build());
+        
+        <span class="keyword">return</span> keyGen.generateKey();
+    }
+    
+    <span class="keyword">return</span> ((KeyStore.SecretKeyEntry) keyStore.getEntry(
+        <span class="string">"MyKeyAlias"</span>, <span class="keyword">null</span>
+    )).getSecretKey();
+}
+
+<span class="comment">// Good: Secure random number generation (Android)</span>
+<span class="keyword">public</span> String <span class="function">generateSecureSessionId</span>() {
+    <span class="comment">// Use SecureRandom for cryptographic operations</span>
+    SecureRandom random = <span class="keyword">new</span> SecureRandom();
+    <span class="keyword">byte</span>[] bytes = <span class="keyword">new</span> <span class="keyword">byte</span>[<span class="number">32</span>];
+    random.nextBytes(bytes);
+    <span class="keyword">return</span> Base64.encodeToString(bytes, Base64.NO_WRAP);
+}
+
+<span class="comment">// Good: Password hashing with PBKDF2 (Android)</span>
+<span class="keyword">public</span> String <span class="function">hashPassword</span>(String password, <span class="keyword">byte</span>[] salt) 
+    <span class="keyword">throws</span> Exception {
+    
+    <span class="comment">// Use PBKDF2 with high iteration count</span>
+    <span class="keyword">int</span> iterations = <span class="number">100000</span>;  <span class="comment">// Adjust based on performance</span>
+    <span class="keyword">int</span> keyLength = <span class="number">256</span>;
+    
+    PBEKeySpec spec = <span class="keyword">new</span> PBEKeySpec(
+        password.toCharArray(),
+        salt,
+        iterations,
+        keyLength
+    );
+    
+    SecretKeyFactory factory = SecretKeyFactory.getInstance(
+        <span class="string">"PBKDF2WithHmacSHA256"</span>
+    );
+    
+    <span class="keyword">byte</span>[] hash = factory.generateSecret(spec).getEncoded();
+    <span class="keyword">return</span> Base64.encodeToString(hash, Base64.NO_WRAP);
+}
+
+<span class="comment">// Good: iOS Keychain with encryption (iOS)</span>
+<span class="keyword">func</span> <span class="function">encryptAndStore</span>(_ data: Data) -&gt; Bool {
+    <span class="comment">// Generate symmetric key in Secure Enclave (if available)</span>
+    <span class="keyword">let</span> tag = <span class="string">"com.example.key"</span>.data(using: .utf8)!
+    
+    <span class="keyword">let</span> attributes: [String: Any] = [
+        kSecAttrKeyType <span class="keyword">as</span> String: kSecAttrKeyTypeECSECPrimeRandom,
+        kSecAttrKeySizeInBits <span class="keyword">as</span> String: <span class="number">256</span>,
+        kSecAttrTokenID <span class="keyword">as</span> String: kSecAttrTokenIDSecureEnclave,
+        kSecPrivateKeyAttrs <span class="keyword">as</span> String: [
+            kSecAttrIsPermanent <span class="keyword">as</span> String: <span class="keyword">true</span>,
+            kSecAttrApplicationTag <span class="keyword">as</span> String: tag
+        ]
+    ]
+    
+    <span class="keyword">var</span> error: Unmanaged&lt;CFError&gt;?
+    <span class="keyword">guard let</span> privateKey = SecKeyCreateRandomKey(
+        attributes <span class="keyword">as</span> CFDictionary, 
+        &error
+    ) <span class="keyword">else</span> {
+        <span class="keyword">return false</span>
+    }
+    
+    <span class="comment">// Use CryptoKit for modern cryptography</span>
+    <span class="keyword">let</span> symmetricKey = SymmetricKey(size: .bits256)
+    <span class="keyword">let</span> sealedBox = <span class="keyword">try</span>? AES.GCM.seal(data, using: symmetricKey)
+    
+    <span class="comment">// Store in Keychain</span>
+    <span class="keyword">return</span> storeInKeychain(sealedBox?.combined)
+}
+
+<span class="comment">// Good: Modern Swift crypto with CryptoKit (iOS)</span>
+<span class="keyword">import</span> CryptoKit
+
+<span class="keyword">func</span> <span class="function">encryptData</span>(_ data: Data) <span class="keyword">throws</span> -&gt; Data {
+    <span class="comment">// Generate or retrieve symmetric key</span>
+    <span class="keyword">let</span> key = SymmetricKey(size: .bits256)
+    
+    <span class="comment">// AES-GCM authenticated encryption</span>
+    <span class="keyword">let</span> sealedBox = <span class="keyword">try</span> AES.GCM.seal(data, using: key)
+    
+    <span class="comment">// Returns combined: nonce + ciphertext + tag</span>
+    <span class="keyword">return</span> sealedBox.combined!
+}
+
+<span class="comment">// Good: Secure hashing with SHA-256 (iOS)</span>
+<span class="keyword">func</span> <span class="function">hashData</span>(_ data: Data) -&gt; String {
+    <span class="comment">// Use SHA-256 for hashing (not MD5/SHA1)</span>
+    <span class="keyword">let</span> hash = SHA256.hash(data: data)
+    <span class="keyword">return</span> hash.compactMap { String(format: <span class="string">"%02x"</span>, $0) }.joined()
+}
+
+<span class="comment">// Good: HMAC for message authentication (iOS)</span>
+<span class="keyword">func</span> <span class="function">generateHMAC</span>(_ message: Data, key: SymmetricKey) -&gt; String {
+    <span class="keyword">let</span> hmac = HMAC&lt;SHA256&gt;.authenticationCode(for: message, using: key)
+    <span class="keyword">return</span> Data(hmac).base64EncodedString()
+}
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Use AES-256 with GCM mode for encryption</li>
+                    <li>Store keys in Android Keystore or iOS Keychain</li>
+                    <li>Never hardcode encryption keys in source code</li>
+                    <li>Use SecureRandom for cryptographic operations</li>
+                    <li>Generate unique IV/nonce for each encryption</li>
+                    <li>Use PBKDF2, bcrypt, or scrypt for password hashing</li>
+                    <li>Avoid deprecated algorithms (DES, RC4, MD5, SHA1)</li>
+                    <li>Never implement custom cryptographic algorithms</li>
+                    <li>Use authenticated encryption (GCM, CCM)</li>
+                    <li>Regular cryptographic library updates</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Analysis Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">MobSF</span>
+                    <span class="tool-tag">Qark</span>
+                    <span class="tool-tag">Androbugs</span>
+                    <span class="tool-tag">Cryptography Linter</span>
+                    <span class="tool-tag">Find Security Bugs</span>
+                </div>
+                
+                <h3>Crypto Libraries:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">CryptoKit (iOS)</span>
+                    <span class="tool-tag">Tink (Google)</span>
+                    <span class="tool-tag">Libsodium</span>
+                    <span class="tool-tag">Bouncy Castle</span>
+                    <span class="tool-tag">Conscrypt</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Static analysis: grep for "DES", "MD5", "ECB", "RC4"</li>
+                    <li>Check for hardcoded keys in decompiled code</li>
+                    <li>Analyze cipher initialization for weak parameters</li>
+                    <li>Test random number generator predictability</li>
+                    <li>Verify IV uniqueness across encryptions</li>
+                    <li>Check password hashing algorithm strength</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Breaches</h2>
+                <ul>
+                    <li><strong>Adobe (2013):</strong> Weak ECB encryption exposed 150M user passwords</li>
+                    <li><strong>LinkedIn (2012):</strong> Unsalted SHA1 hashes cracked in hours</li>
+                    <li><strong>Ashley Madison (2015):</strong> Weak bcrypt implementation compromised</li>
+                    <li><strong>Mobile Apps (2019):</strong> Hardcoded AES keys found in 100+ apps</li>
+                    <li><strong>IoT Devices (2020):</strong> Static encryption keys allowed mass decryption</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> use DES, RC4, MD5, or SHA1</li>
+                    <li><span class="badge critical">DO NOT</span> hardcode encryption keys</li>
+                    <li><span class="badge critical">DO NOT</span> use ECB mode or static IVs</li>
+                    <li><span class="badge high">DO</span> use AES-256-GCM or ChaCha20-Poly1305</li>
+                    <li><span class="badge high">DO</span> store keys in Keystore/Keychain</li>
+                    <li><span class="badge medium">DO</span> use established crypto libraries</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">PCI-DSS</span> Requirement 3.5, 3.6, 4.1</li>
+                    <li><span class="badge medium">FIPS 140-2/3</span> Cryptographic Standards</li>
+                    <li><span class="badge medium">NIST</span> 800-57, 800-131A</li>
+                    <li><span class="badge medium">OWASP MASVS</span> MSTG-CRYPTO-1 to 6</li>
+                    <li><span class="badge medium">ISO 27001</span> A.10.1.1, A.10.1.2</li>
+                    <li><span class="badge medium">GDPR</span> Art. 32 - State of the Art Encryption</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Mobile Security Top 10 Educational Repository</strong> | <a href="../../README.md">Main Repo</a> | <a href="../README.md">All Cheat Sheets</a></p>
+            <p>For hands-on practice: <a href="../../OWASP-Mobile/M10-Insufficient-Cryptography/lab/">Try the Lab</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

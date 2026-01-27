@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M05: Insecure Communication - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+</head>
+<body>
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>📡 Insecure Communication</h1>
+            <p class="subtitle">OWASP Mobile Top 10 - M05</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Insecure Communication</strong> occurs when mobile applications transmit sensitive data over unencrypted channels or fail to properly validate server certificates. This includes using HTTP instead of HTTPS, accepting invalid SSL certificates, and lacking certificate pinning. Mobile apps communicate over untrusted networks (public WiFi, cellular), making secure communication critical.</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">M05</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">73%</span>
+                        <span class="label">Apps Affected</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">&lt;30min</span>
+                        <span class="label">Time to Exploit</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Man-in-the-Middle (MITM):</strong> Intercept traffic on public WiFi</li>
+                    <li><strong>Certificate Spoofing:</strong> Present fake SSL certificates</li>
+                    <li><strong>Downgrade Attacks:</strong> Force HTTP instead of HTTPS</li>
+                    <li><strong>Traffic Sniffing:</strong> Capture unencrypted credentials/tokens</li>
+                    <li><strong>SSL Stripping:</strong> Remove HTTPS from connections</li>
+                    <li><strong>DNS Spoofing:</strong> Redirect to malicious servers</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Attacker sets up rogue WiFi hotspot<br>
+   <span class="arrow">↓</span><br>
+2. User connects and launches app<br>
+   <span class="arrow">↓</span><br>
+3. App sends HTTP request with credentials<br>
+   <span class="arrow">↓</span><br>
+4. Attacker intercepts plaintext traffic<br>
+   <span class="arrow">↓</span><br>
+5. <strong>BREACH: Credentials, tokens, PII stolen!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: Using HTTP instead of HTTPS (Android)</span>
+<span class="keyword">public void</span> <span class="function">login</span>(String username, String password) {
+    <span class="comment">// VULNERABLE: Unencrypted HTTP</span>
+    String url = <span class="string">"http://api.example.com/login"</span>;
+    
+    HttpClient client = <span class="keyword">new</span> DefaultHttpClient();
+    HttpPost post = <span class="keyword">new</span> HttpPost(url);
+    
+    <span class="comment">// Credentials sent in plain text!</span>
+    post.setEntity(<span class="keyword">new</span> StringEntity(
+        <span class="string">"username="</span> + username + <span class="string">"&password="</span> + password
+    ));
+}
+
+<span class="comment">// Bad: Accepting all SSL certificates (Android)</span>
+<span class="keyword">public void</span> <span class="function">disableSSLVerification</span>() {
+    <span class="comment">// VULNERABLE: Trust all certificates</span>
+    TrustManager[] trustAll = <span class="keyword">new</span> TrustManager[] {
+        <span class="keyword">new</span> X509TrustManager() {
+            <span class="keyword">public void</span> <span class="function">checkClientTrusted</span>(X509Certificate[] chain, String authType) {}
+            <span class="keyword">public void</span> <span class="function">checkServerTrusted</span>(X509Certificate[] chain, String authType) {}
+            <span class="keyword">public</span> X509Certificate[] <span class="function">getCertificates</span>() { <span class="keyword">return null</span>; }
+        }
+    };
+    
+    SSLContext sc = SSLContext.getInstance(<span class="string">"TLS"</span>);
+    sc.init(<span class="keyword">null</span>, trustAll, <span class="keyword">new</span> SecureRandom());
+}
+
+<span class="comment">// Bad: No certificate validation (iOS)</span>
+<span class="keyword">func</span> <span class="function">urlSession</span>(_ session: URLSession,
+    didReceive challenge: URLAuthenticationChallenge,
+    completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -&gt; Void) {
+    
+    <span class="comment">// VULNERABLE: Accept any certificate</span>
+    completionHandler(.useCredential, URLCredential(trust: challenge.protectionSpace.serverTrust!))
+}
+
+<span class="comment">// Bad: Mixed content (Android)</span>
+&lt;application
+    android:usesCleartextTraffic=<span class="string">"true"</span>&gt;  <span class="comment">&lt;!-- VULNERABLE: Allows HTTP --&gt;</span>
+&lt;/application&gt;
+
+<span class="comment">// Bad: Insecure WebSocket (JavaScript)</span>
+<span class="keyword">const</span> socket = <span class="keyword">new</span> WebSocket(<span class="string">'ws://api.example.com'</span>);
+<span class="comment">// VULNERABLE: Unencrypted WebSocket connection</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: Use HTTPS with certificate pinning (Android)</span>
+<span class="keyword">public void</span> <span class="function">login</span>(String username, String password) {
+    <span class="comment">// Use HTTPS only</span>
+    String url = <span class="string">"https://api.example.com/login"</span>;
+    
+    <span class="comment">// Configure OkHttp with certificate pinning</span>
+    CertificatePinner pinner = <span class="keyword">new</span> CertificatePinner.Builder()
+        .add(<span class="string">"api.example.com"</span>, <span class="string">"sha256/AAAAAAAAAA..."</span>)
+        .build();
+    
+    OkHttpClient client = <span class="keyword">new</span> OkHttpClient.Builder()
+        .certificatePinner(pinner)
+        .build();
+}
+
+<span class="comment">// Good: Proper certificate validation (iOS)</span>
+<span class="keyword">func</span> <span class="function">urlSession</span>(_ session: URLSession,
+    didReceive challenge: URLAuthenticationChallenge,
+    completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -&gt; Void) {
+    
+    <span class="keyword">guard</span> challenge.protectionSpace.authenticationMethod == 
+          NSURLAuthenticationMethodServerTrust <span class="keyword">else</span> {
+        completionHandler(.performDefaultHandling, <span class="keyword">nil</span>)
+        <span class="keyword">return</span>
+    }
+    
+    <span class="comment">// Validate certificate against pinned certificates</span>
+    <span class="keyword">if let</span> serverTrust = challenge.protectionSpace.serverTrust,
+       <span class="keyword">let</span> certificate = SecTrustGetCertificateAtIndex(serverTrust, <span class="number">0</span>) {
+        
+        <span class="keyword">let</span> serverCertData = SecCertificateCopyData(certificate) <span class="keyword">as</span> Data
+        <span class="keyword">let</span> pinnedCertData = pinnedCertificate() <span class="comment">// Load pinned cert</span>
+        
+        <span class="keyword">if</span> serverCertData == pinnedCertData {
+            completionHandler(.useCredential, 
+                            URLCredential(trust: serverTrust))
+        } <span class="keyword">else</span> {
+            completionHandler(.cancelAuthenticationChallenge, <span class="keyword">nil</span>)
+        }
+    }
+}
+
+<span class="comment">// Good: Network Security Config (Android)</span>
+<span class="comment">// res/xml/network_security_config.xml</span>
+&lt;?xml version=<span class="string">"1.0"</span> encoding=<span class="string">"utf-8"</span>?&gt;
+&lt;network-security-config&gt;
+    <span class="comment">&lt;!-- Disable cleartext traffic --&gt;</span>
+    &lt;base-config cleartextTrafficPermitted=<span class="string">"false"</span>&gt;
+        &lt;trust-anchors&gt;
+            &lt;certificates src=<span class="string">"system"</span> /&gt;
+        &lt;/trust-anchors&gt;
+    &lt;/base-config&gt;
+    
+    <span class="comment">&lt;!-- Certificate pinning for API --&gt;</span>
+    &lt;domain-config&gt;
+        &lt;domain includeSubdomains=<span class="string">"true"</span>&gt;api.example.com&lt;/domain&gt;
+        &lt;pin-set&gt;
+            &lt;pin digest=<span class="string">"SHA-256"</span>&gt;base64encodedpin==&lt;/pin&gt;
+            &lt;pin digest=<span class="string">"SHA-256"</span>&gt;backuppin==&lt;/pin&gt;
+        &lt;/pin-set&gt;
+    &lt;/domain-config&gt;
+&lt;/network-security-config&gt;
+
+<span class="comment">// AndroidManifest.xml</span>
+&lt;application
+    android:networkSecurityConfig=<span class="string">"@xml/network_security_config"</span>
+    android:usesCleartextTraffic=<span class="string">"false"</span>&gt;
+&lt;/application&gt;
+
+<span class="comment">// Good: Secure WebSocket (JavaScript)</span>
+<span class="keyword">const</span> socket = <span class="keyword">new</span> WebSocket(<span class="string">'wss://api.example.com'</span>);
+<span class="comment">// Use WSS (WebSocket Secure) instead of WS</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Use HTTPS for all network communications</li>
+                    <li>Implement certificate pinning for APIs</li>
+                    <li>Disable cleartext traffic in app configuration</li>
+                    <li>Validate SSL/TLS certificates properly</li>
+                    <li>Use TLS 1.2 or higher, disable older versions</li>
+                    <li>Implement proper certificate chain validation</li>
+                    <li>Use secure WebSocket (WSS) instead of WS</li>
+                    <li>Avoid accepting self-signed certificates in production</li>
+                    <li>Monitor for certificate expiration</li>
+                    <li>Test on public WiFi networks for vulnerabilities</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Testing Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Burp Suite</span>
+                    <span class="tool-tag">OWASP ZAP</span>
+                    <span class="tool-tag">mitmproxy</span>
+                    <span class="tool-tag">Wireshark</span>
+                    <span class="tool-tag">Charles Proxy</span>
+                    <span class="tool-tag">Fiddler</span>
+                </div>
+                
+                <h3>Implementation Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">OkHttp</span>
+                    <span class="tool-tag">Alamofire</span>
+                    <span class="tool-tag">TrustKit</span>
+                    <span class="tool-tag">Network Security Config</span>
+                    <span class="tool-tag">SSL Labs</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Set up Burp Suite/mitmproxy as intercepting proxy</li>
+                    <li>Install custom CA certificate on test device</li>
+                    <li>Monitor traffic for HTTP (unencrypted) requests</li>
+                    <li>Test with invalid/expired SSL certificates</li>
+                    <li>Verify certificate pinning bypasses are prevented</li>
+                    <li>Use Wireshark to capture and analyze traffic</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Breaches</h2>
+                <ul>
+                    <li><strong>Multiple Banking Apps (2018):</strong> Lack of cert pinning enabled MITM attacks</li>
+                    <li><strong>Skype (2015):</strong> Weak encryption allowed traffic interception</li>
+                    <li><strong>Snapchat (2014):</strong> Unencrypted API calls exposed user data on WiFi</li>
+                    <li><strong>Telegram (2016):</strong> Certificate validation bypass enabled MITM</li>
+                    <li><strong>WhatsApp (2017):</strong> Missing cert pinning in some versions exploited</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> use HTTP for any sensitive data</li>
+                    <li><span class="badge critical">DO NOT</span> accept all SSL certificates</li>
+                    <li><span class="badge critical">DO NOT</span> disable certificate validation</li>
+                    <li><span class="badge high">DO</span> enforce HTTPS for all communications</li>
+                    <li><span class="badge high">DO</span> implement certificate pinning</li>
+                    <li><span class="badge medium">DO</span> use TLS 1.2+ with strong cipher suites</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">PCI-DSS</span> Requirement 4.1</li>
+                    <li><span class="badge medium">GDPR</span> Art. 32 - Encryption in Transit</li>
+                    <li><span class="badge medium">HIPAA</span> §164.312(e)(1)</li>
+                    <li><span class="badge medium">NIST</span> 800-52, 800-53 SC-8</li>
+                    <li><span class="badge medium">OWASP MASVS</span> MSTG-NETWORK-1 to 6</li>
+                    <li><span class="badge medium">ISO 27001</span> A.10.1.1, A.13.1.1</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Mobile Security Top 10 Educational Repository</strong> | <a href="../../README.md">Main Repo</a> | <a href="../README.md">All Cheat Sheets</a></p>
+            <p>For hands-on practice: <a href="../../OWASP-Mobile/M05-Insecure-Communication/lab/">Try the Lab</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

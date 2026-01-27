@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M09: Insecure Data Storage - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+</head>
+<body>
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>💾 Insecure Data Storage</h1>
+            <p class="subtitle">OWASP Mobile Top 10 - M09</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Insecure Data Storage</strong> occurs when mobile applications store sensitive data in unprotected locations on the device. This includes storing data in plain text in SharedPreferences, NSUserDefaults, SQLite databases, log files, temporary caches, or external storage. Mobile devices can be lost, stolen, or compromised, making secure data storage essential.</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">M09</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">86%</span>
+                        <span class="label">Apps Affected</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">&lt;20min</span>
+                        <span class="label">Time to Extract</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Physical Access:</strong> Access data on lost/stolen device</li>
+                    <li><strong>Backup Extraction:</strong> Retrieve data from device backups</li>
+                    <li><strong>Malware Access:</strong> Read app data directories</li>
+                    <li><strong>Root/Jailbreak:</strong> Access all app sandboxes on compromised device</li>
+                    <li><strong>Log File Analysis:</strong> Extract sensitive data from logs</li>
+                    <li><strong>Cache Inspection:</strong> Recover data from temporary storage</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Attacker obtains physical device access<br>
+   <span class="arrow">↓</span><br>
+2. Connects device via USB, enables root<br>
+   <span class="arrow">↓</span><br>
+3. Browses /data/data/com.app/shared_prefs/<br>
+   <span class="arrow">↓</span><br>
+4. Finds auth_token.xml with plaintext token<br>
+   <span class="arrow">↓</span><br>
+5. <strong>BREACH: Full account access!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: Plain text in SharedPreferences (Android)</span>
+<span class="keyword">public void</span> <span class="function">saveUserData</span>(String username, String password, String token) {
+    SharedPreferences prefs = getSharedPreferences(<span class="string">"UserData"</span>, MODE_PRIVATE);
+    
+    <span class="comment">// VULNERABLE: Storing sensitive data in plain text</span>
+    prefs.edit()
+        .putString(<span class="string">"username"</span>, username)
+        .putString(<span class="string">"password"</span>, password)  <span class="comment">// Never store passwords!</span>
+        .putString(<span class="string">"auth_token"</span>, token)
+        .putString(<span class="string">"credit_card"</span>, <span class="string">"4532-1234-5678-9010"</span>)
+        .apply();
+}
+
+<span class="comment">// Bad: Unencrypted SQLite (Android)</span>
+<span class="keyword">public void</span> <span class="function">saveToDatabase</span>(String ssn, String dob) {
+    SQLiteDatabase db = dbHelper.getWritableDatabase();
+    
+    <span class="comment">// VULNERABLE: Sensitive data in plain SQLite</span>
+    ContentValues values = <span class="keyword">new</span> ContentValues();
+    values.put(<span class="string">"ssn"</span>, ssn);
+    values.put(<span class="string">"date_of_birth"</span>, dob);
+    values.put(<span class="string">"medical_record"</span>, <span class="string">"..."</span>);
+    
+    db.insert(<span class="string">"users"</span>, <span class="keyword">null</span>, values);
+}
+
+<span class="comment">// Bad: External storage (Android)</span>
+<span class="keyword">public void</span> <span class="function">saveFile</span>(String data) {
+    <span class="comment">// VULNERABLE: World-readable external storage</span>
+    File file = <span class="keyword">new</span> File(Environment.getExternalStorageDirectory(), 
+                       <span class="string">"userdata.txt"</span>);
+    FileWriter writer = <span class="keyword">new</span> FileWriter(file);
+    writer.write(data);  <span class="comment">// Any app can read this!</span>
+}
+
+<span class="comment">// Bad: NSUserDefaults plain text (iOS)</span>
+<span class="keyword">func</span> <span class="function">saveCredentials</span>(username: String, password: String) {
+    <span class="keyword">let</span> defaults = UserDefaults.standard
+    
+    <span class="comment">// VULNERABLE: Plain text storage</span>
+    defaults.set(username, forKey: <span class="string">"username"</span>)
+    defaults.set(password, forKey: <span class="string">"password"</span>)
+    defaults.set(authToken, forKey: <span class="string">"token"</span>)
+    defaults.synchronize()
+}
+
+<span class="comment">// Bad: Temporary files left behind (iOS)</span>
+<span class="keyword">func</span> <span class="function">processImage</span>(_ image: UIImage) {
+    <span class="keyword">let</span> temp = NSTemporaryDirectory() + <span class="string">"sensitive.jpg"</span>
+    
+    <span class="comment">// VULNERABLE: Sensitive data in temp, not cleaned up</span>
+    <span class="keyword">try</span>? image.jpegData(compressionQuality: <span class="number">1.0</span>)?
+        .write(to: URL(fileURLWithPath: temp))
+    <span class="comment">// File persists after app closes!</span>
+}
+
+<span class="comment">// Bad: Logging sensitive data</span>
+Log.d(<span class="string">"Auth"</span>, <span class="string">"User password: "</span> + password);  <span class="comment">// VULNERABLE!</span>
+NSLog(<span class="string">"Credit card: %@"</span>, creditCard);  <span class="comment">// VULNERABLE!</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: Encrypted SharedPreferences (Android)</span>
+<span class="keyword">public void</span> <span class="function">saveUserDataSecurely</span>(String username, String token) {
+    <span class="keyword">try</span> {
+        <span class="comment">// Use EncryptedSharedPreferences (androidx.security)</span>
+        MasterKey masterKey = <span class="keyword">new</span> MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build();
+        
+        SharedPreferences prefs = EncryptedSharedPreferences.create(
+            context,
+            <span class="string">"secure_prefs"</span>,
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        );
+        
+        <span class="comment">// Data encrypted automatically</span>
+        prefs.edit()
+            .putString(<span class="string">"username"</span>, username)
+            .putString(<span class="string">"auth_token"</span>, token)  <span class="comment">// Encrypted</span>
+            .apply();
+            
+    } <span class="keyword">catch</span> (Exception e) {
+        Log.e(<span class="string">"Security"</span>, <span class="string">"Encryption error"</span>, e);
+    }
+}
+
+<span class="comment">// Good: SQLCipher for encrypted database (Android)</span>
+<span class="keyword">public void</span> <span class="function">saveToEncryptedDatabase</span>(String ssn, String dob) {
+    <span class="comment">// Use SQLCipher for encrypted SQLite</span>
+    SQLiteDatabase.loadLibs(context);
+    
+    String password = generateDatabaseKey();  <span class="comment">// From Android Keystore</span>
+    SQLiteDatabase db = SQLiteDatabase.openOrCreateDatabase(
+        getDatabasePath(<span class="string">"secure.db"</span>), 
+        password, 
+        <span class="keyword">null</span>
+    );
+    
+    ContentValues values = <span class="keyword">new</span> ContentValues();
+    values.put(<span class="string">"ssn"</span>, ssn);
+    values.put(<span class="string">"dob"</span>, dob);
+    db.insert(<span class="string">"users"</span>, <span class="keyword">null</span>, values);
+}
+
+<span class="comment">// Good: Internal storage only (Android)</span>
+<span class="keyword">public void</span> <span class="function">saveFileSecurely</span>(String data) {
+    <span class="comment">// Use internal storage (app-private)</span>
+    File file = <span class="keyword">new</span> File(getFilesDir(), <span class="string">"userdata.txt"</span>);
+    
+    <span class="comment">// Encrypt before writing</span>
+    String encrypted = encryptData(data);
+    
+    <span class="keyword">try</span> (FileWriter writer = <span class="keyword">new</span> FileWriter(file)) {
+        writer.write(encrypted);
+    }
+}
+
+<span class="comment">// Good: iOS Keychain (iOS)</span>
+<span class="keyword">func</span> <span class="function">saveCredentialsSecurely</span>(username: String, password: String) {
+    <span class="comment">// Use Keychain for credentials</span>
+    <span class="keyword">let</span> passwordData = password.data(using: .utf8)!
+    
+    <span class="keyword">let</span> query: [String: Any] = [
+        kSecClass <span class="keyword">as</span> String: kSecClassGenericPassword,
+        kSecAttrAccount <span class="keyword">as</span> String: username,
+        kSecValueData <span class="keyword">as</span> String: passwordData,
+        kSecAttrAccessible <span class="keyword">as</span> String: 
+            kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+    ]
+    
+    <span class="comment">// Delete old entry if exists</span>
+    SecItemDelete(query <span class="keyword">as</span> CFDictionary)
+    
+    <span class="comment">// Add to Keychain</span>
+    <span class="keyword">let</span> status = SecItemAdd(query <span class="keyword">as</span> CFDictionary, <span class="keyword">nil</span>)
+    
+    <span class="keyword">if</span> status != errSecSuccess {
+        print(<span class="string">"Keychain save failed: \(status)"</span>)
+    }
+}
+
+<span class="comment">// Good: Secure file operations (iOS)</span>
+<span class="keyword">func</span> <span class="function">saveDataSecurely</span>(_ data: Data) {
+    <span class="keyword">let</span> fileManager = FileManager.default
+    <span class="keyword">guard let</span> documentsURL = fileManager.urls(
+        for: .documentDirectory, 
+        in: .userDomainMask
+    ).first <span class="keyword">else</span> { <span class="keyword">return</span> }
+    
+    <span class="keyword">let</span> fileURL = documentsURL.appendingPathComponent(<span class="string">"secure.dat"</span>)
+    
+    <span class="comment">// Encrypt data before writing</span>
+    <span class="keyword">if let</span> encryptedData = encrypt(data) {
+        <span class="keyword">try</span>? encryptedData.write(
+            to: fileURL,
+            options: [.completeFileProtection]  <span class="comment">// Device-level encryption</span>
+        )
+    }
+}
+
+<span class="comment">// Good: Clean up temporary files</span>
+<span class="keyword">func</span> <span class="function">processImageSecurely</span>(_ image: UIImage) {
+    <span class="keyword">let</span> tempURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString + <span class="string">".jpg"</span>)
+    
+    <span class="keyword">defer</span> {
+        <span class="comment">// Always clean up temp files</span>
+        <span class="keyword">try</span>? FileManager.default.removeItem(at: tempURL)
+    }
+    
+    <span class="keyword">if let</span> data = image.jpegData(compressionQuality: <span class="number">0.8</span>) {
+        <span class="keyword">try</span>? data.write(to: tempURL)
+        processFile(tempURL)
+    }
+}
+
+<span class="comment">// Good: Never log sensitive data</span>
+<span class="keyword">if</span> (BuildConfig.DEBUG) {
+    Log.d(<span class="string">"Auth"</span>, <span class="string">"Login attempt for user"</span>);  <span class="comment">// No PII</span>
+}
+<span class="comment">// Production: no logging of credentials/tokens at all</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Use EncryptedSharedPreferences (Android) for sensitive data</li>
+                    <li>Store credentials in iOS Keychain or Android Keystore</li>
+                    <li>Encrypt SQLite databases with SQLCipher</li>
+                    <li>Never store sensitive data on external storage</li>
+                    <li>Use internal app storage with encryption</li>
+                    <li>Clean up temporary files after use</li>
+                    <li>Remove sensitive data from logs</li>
+                    <li>Exclude sensitive files from backups</li>
+                    <li>Implement data-at-rest encryption</li>
+                    <li>Regular security audits of data storage</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Analysis Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">MobSF</span>
+                    <span class="tool-tag">Objection</span>
+                    <span class="tool-tag">Frida</span>
+                    <span class="tool-tag">adb</span>
+                    <span class="tool-tag">iExplorer</span>
+                    <span class="tool-tag">SQLite Browser</span>
+                </div>
+                
+                <h3>Encryption Libraries:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">androidx.security</span>
+                    <span class="tool-tag">SQLCipher</span>
+                    <span class="tool-tag">Keychain Services</span>
+                    <span class="tool-tag">Tink</span>
+                    <span class="tool-tag">Conceal</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Extract APK and check /data/data/[app]/</li>
+                    <li>Examine SharedPreferences XML files for plain text</li>
+                    <li>Open SQLite databases to verify encryption</li>
+                    <li>Check external storage for sensitive files</li>
+                    <li>Extract and analyze device backups</li>
+                    <li>Review logcat output for sensitive data</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Breaches</h2>
+                <ul>
+                    <li><strong>Numerous Apps (2020):</strong> OAuth tokens stored unencrypted in SharedPreferences</li>
+                    <li><strong>Health App (2019):</strong> Medical records in plain SQLite database</li>
+                    <li><strong>Banking Apps (2018):</strong> PINs stored in NSUserDefaults on iOS</li>
+                    <li><strong>Social Media (2020):</strong> Auth tokens in plaintext logs accessible via backup</li>
+                    <li><strong>E-commerce (2019):</strong> Payment card data in unencrypted local storage</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> store passwords on device</li>
+                    <li><span class="badge critical">DO NOT</span> use plain text for sensitive data</li>
+                    <li><span class="badge critical">DO NOT</span> write sensitive data to external storage</li>
+                    <li><span class="badge high">DO</span> use platform secure storage (Keychain/Keystore)</li>
+                    <li><span class="badge high">DO</span> encrypt all sensitive data at rest</li>
+                    <li><span class="badge medium">DO</span> clean up temporary files properly</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">PCI-DSS</span> Requirement 3.4, 8.2.1</li>
+                    <li><span class="badge medium">GDPR</span> Art. 32 - Encryption at Rest</li>
+                    <li><span class="badge medium">HIPAA</span> §164.312(a)(2)(iv)</li>
+                    <li><span class="badge medium">NIST</span> 800-53 SC-28</li>
+                    <li><span class="badge medium">OWASP MASVS</span> MSTG-STORAGE-1 to 15</li>
+                    <li><span class="badge medium">ISO 27001</span> A.10.1.1</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Mobile Security Top 10 Educational Repository</strong> | <a href="../../README.md">Main Repo</a> | <a href="../README.md">All Cheat Sheets</a></p>
+            <p>For hands-on practice: <a href="../../OWASP-Mobile/M09-Insecure-Data-Storage/lab/">Try the Lab</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M03: Insecure Authentication/Authorization - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+</head>
+<body>
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🚪 Insecure Authentication/Authorization</h1>
+            <p class="subtitle">OWASP Mobile Top 10 - M03</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Insecure Authentication/Authorization</strong> occurs when mobile applications fail to properly verify user identity or enforce access controls. This includes weak authentication schemes, missing session management, broken authorization checks, and client-side enforcement of security controls. Mobile apps must handle authentication securely despite operating in untrusted environments.</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">M03</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">71%</span>
+                        <span class="label">Apps Affected</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">&lt;2hrs</span>
+                        <span class="label">Time to Exploit</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Client-Side Bypass:</strong> Modify app logic to skip authentication</li>
+                    <li><strong>Weak Password Policy:</strong> Brute force weak credentials</li>
+                    <li><strong>Session Hijacking:</strong> Steal or reuse session tokens</li>
+                    <li><strong>Biometric Bypass:</strong> Circumvent fingerprint/face authentication</li>
+                    <li><strong>Authorization Bypass:</strong> Access restricted features via API calls</li>
+                    <li><strong>Token Manipulation:</strong> Modify JWT tokens or claims</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Attacker analyzes authentication flow<br>
+   <span class="arrow">↓</span><br>
+2. Identifies client-side validation only<br>
+   <span class="arrow">↓</span><br>
+3. Uses Frida to hook authentication check<br>
+   <span class="arrow">↓</span><br>
+4. Forces method to return "authenticated"<br>
+   <span class="arrow">↓</span><br>
+5. <strong>BREACH: Full app access without credentials!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: Client-side authentication only (Android)</span>
+<span class="keyword">public boolean</span> <span class="function">login</span>(String username, String password) {
+    <span class="comment">// VULNERABLE: Authentication logic on client</span>
+    <span class="keyword">if</span> (username.equals(<span class="string">"admin"</span>) && password.equals(<span class="string">"password123"</span>)) {
+        SharedPreferences.edit().putBoolean(<span class="string">"isLoggedIn"</span>, <span class="keyword">true</span>).apply();
+        <span class="keyword">return true</span>;
+    }
+    <span class="keyword">return false</span>;
+}
+
+<span class="comment">// Bad: No session expiration</span>
+<span class="keyword">public boolean</span> <span class="function">isAuthenticated</span>() {
+    <span class="comment">// VULNERABLE: Token never expires</span>
+    <span class="keyword">return</span> prefs.getString(<span class="string">"auth_token"</span>, <span class="keyword">null</span>) != <span class="keyword">null</span>;
+}
+
+<span class="comment">// Bad: Weak biometric implementation (iOS)</span>
+<span class="keyword">func</span> <span class="function">authenticateWithBiometrics</span>() {
+    <span class="keyword">let</span> context = LAContext()
+    <span class="keyword">var</span> error: NSError?
+    
+    <span class="comment">// VULNERABLE: No fallback policy</span>
+    <span class="keyword">if</span> context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
+        <span class="comment">// Grants access if biometrics available</span>
+        grantAccess()
+    }
+}
+
+<span class="comment">// Bad: JWT not verified (Android)</span>
+<span class="keyword">public boolean</span> <span class="function">checkAccess</span>(String token) {
+    <span class="comment">// VULNERABLE: Decodes but doesn't verify signature</span>
+    String[] parts = token.split(<span class="string">"\\."</span>);
+    String payload = <span class="keyword">new</span> String(Base64.decode(parts[<span class="number">1</span>]));
+    JSONObject claims = <span class="keyword">new</span> JSONObject(payload);
+    <span class="keyword">return</span> claims.getString(<span class="string">"role"</span>).equals(<span class="string">"admin"</span>);
+}
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: Server-side authentication (Android)</span>
+<span class="keyword">public void</span> <span class="function">login</span>(String username, String password) {
+    <span class="comment">// Send credentials to backend via HTTPS</span>
+    AuthRequest request = <span class="keyword">new</span> AuthRequest(username, password);
+    
+    api.login(request).enqueue(<span class="keyword">new</span> Callback&lt;AuthResponse&gt;() {
+        <span class="keyword">public void</span> <span class="function">onResponse</span>(Response&lt;AuthResponse&gt; response) {
+            <span class="keyword">if</span> (response.isSuccessful()) {
+                <span class="comment">// Store token securely</span>
+                secureStorage.storeToken(response.body().getToken());
+            }
+        }
+    });
+}
+
+<span class="comment">// Good: Token expiration and refresh</span>
+<span class="keyword">public boolean</span> <span class="function">isAuthenticated</span>() {
+    String token = secureStorage.getToken();
+    <span class="keyword">if</span> (token == <span class="keyword">null</span>) <span class="keyword">return false</span>;
+    
+    <span class="comment">// Verify token hasn't expired</span>
+    <span class="keyword">if</span> (isTokenExpired(token)) {
+        <span class="comment">// Attempt to refresh token</span>
+        refreshToken();
+        <span class="keyword">return false</span>;
+    }
+    
+    <span class="comment">// Verify token with backend</span>
+    <span class="keyword">return</span> verifyTokenWithBackend(token);
+}
+
+<span class="comment">// Good: Proper biometric implementation (iOS)</span>
+<span class="keyword">func</span> <span class="function">authenticateWithBiometrics</span>() {
+    <span class="keyword">let</span> context = LAContext()
+    context.localizedFallbackTitle = <span class="string">"Use Passcode"</span>
+    
+    context.evaluatePolicy(
+        .deviceOwnerAuthentication,
+        localizedReason: <span class="string">"Authenticate to access"</span>
+    ) { success, error <span class="keyword">in</span>
+        <span class="keyword">if</span> success {
+            <span class="comment">// Verify with backend before granting access</span>
+            <span class="keyword">self</span>.verifyAuthenticationWithBackend()
+        } <span class="keyword">else</span> {
+            <span class="comment">// Handle authentication failure</span>
+            <span class="keyword">self</span>.handleAuthenticationError(error)
+        }
+    }
+}
+
+<span class="comment">// Good: JWT verification with backend</span>
+<span class="keyword">public boolean</span> <span class="function">checkAccess</span>(String token) {
+    <span class="comment">// Always verify JWT signature server-side</span>
+    Response response = api.verifyToken(token);
+    
+    <span class="keyword">if</span> (!response.isSuccessful()) {
+        <span class="keyword">return false</span>;
+    }
+    
+    <span class="comment">// Backend validates signature, expiration, and claims</span>
+    <span class="keyword">return</span> response.body().isValid();
+}
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Perform all authentication server-side, never client-side</li>
+                    <li>Implement strong password policies and MFA</li>
+                    <li>Use secure session management with expiration</li>
+                    <li>Implement account lockout after failed attempts</li>
+                    <li>Use OAuth 2.0 or OpenID Connect for authentication</li>
+                    <li>Properly implement biometric authentication with fallback</li>
+                    <li>Verify JWT signatures and claims server-side</li>
+                    <li>Implement certificate pinning for API calls</li>
+                    <li>Never store passwords, only hashed values server-side</li>
+                    <li>Log and monitor authentication failures</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Testing Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Frida</span>
+                    <span class="tool-tag">Objection</span>
+                    <span class="tool-tag">Burp Suite</span>
+                    <span class="tool-tag">OWASP ZAP</span>
+                    <span class="tool-tag">MobSF</span>
+                    <span class="tool-tag">Drozer</span>
+                </div>
+                
+                <h3>Implementation Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Firebase Auth</span>
+                    <span class="tool-tag">Auth0</span>
+                    <span class="tool-tag">Okta</span>
+                    <span class="tool-tag">AWS Cognito</span>
+                    <span class="tool-tag">AppAuth</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Use Frida to hook authentication functions</li>
+                    <li>Intercept API traffic with Burp Suite/ZAP</li>
+                    <li>Test with expired/invalid tokens</li>
+                    <li>Attempt to access features without authentication</li>
+                    <li>Test biometric bypass on rooted/jailbroken devices</li>
+                    <li>Verify session timeout and token rotation</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Breaches</h2>
+                <ul>
+                    <li><strong>Banking App (2020):</strong> Client-side PIN verification bypassed with Frida</li>
+                    <li><strong>E-commerce App (2019):</strong> JWT signature not verified, allowed privilege escalation</li>
+                    <li><strong>Social Media App (2021):</strong> Tokens never expired, enabling long-term account access</li>
+                    <li><strong>Healthcare App (2018):</strong> Biometric bypass on jailbroken devices exposed patient data</li>
+                    <li><strong>Fintech App (2020):</strong> Missing session timeout led to unauthorized transactions</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> implement authentication client-side only</li>
+                    <li><span class="badge critical">DO NOT</span> trust client-provided tokens without verification</li>
+                    <li><span class="badge critical">DO NOT</span> skip session expiration</li>
+                    <li><span class="badge high">DO</span> validate all auth server-side</li>
+                    <li><span class="badge high">DO</span> implement MFA for sensitive operations</li>
+                    <li><span class="badge medium">DO</span> use industry-standard auth protocols (OAuth 2.0)</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">PCI-DSS</span> Requirement 8.1-8.3</li>
+                    <li><span class="badge medium">GDPR</span> Art. 32 - Security of Processing</li>
+                    <li><span class="badge medium">HIPAA</span> §164.312(a)(2)(i)</li>
+                    <li><span class="badge medium">NIST</span> 800-53 IA-2, IA-5</li>
+                    <li><span class="badge medium">OWASP MASVS</span> MSTG-AUTH-1 to 12</li>
+                    <li><span class="badge medium">ISO 27001</span> A.9.2.1, A.9.4.2</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Mobile Security Top 10 Educational Repository</strong> | <a href="../../README.md">Main Repo</a> | <a href="../README.md">All Cheat Sheets</a></p>
+            <p>For hands-on practice: <a href="../../OWASP-Mobile/M03-Insecure-Authentication-Authorization/lab/">Try the Lab</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M04: Insufficient Input/Output Validation - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+</head>
+<body>
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔍 Insufficient Input/Output Validation</h1>
+            <p class="subtitle">OWASP Mobile Top 10 - M04</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Insufficient Input/Output Validation</strong> occurs when mobile applications fail to properly validate, sanitize, or encode data received from users, servers, or other apps. This enables injection attacks, buffer overflows, and data corruption. Mobile apps must validate all inputs including user data, API responses, deep links, intents, and file uploads.</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">M04</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">65%</span>
+                        <span class="label">Apps Affected</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">&lt;3hrs</span>
+                        <span class="label">Time to Exploit</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>SQL Injection:</strong> Inject SQL through unvalidated inputs</li>
+                    <li><strong>XSS in WebViews:</strong> Execute JavaScript in mobile WebViews</li>
+                    <li><strong>Path Traversal:</strong> Access files outside intended directories</li>
+                    <li><strong>Deep Link Injection:</strong> Malicious URLs trigger unintended actions</li>
+                    <li><strong>Intent Injection:</strong> Send malicious intents to Android components</li>
+                    <li><strong>Command Injection:</strong> Execute OS commands through inputs</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Attacker identifies input field/deep link<br>
+   <span class="arrow">↓</span><br>
+2. Injects malicious payload (SQL, JavaScript, path)<br>
+   <span class="arrow">↓</span><br>
+3. App processes input without validation<br>
+   <span class="arrow">↓</span><br>
+4. Malicious code executes or data accessed<br>
+   <span class="arrow">↓</span><br>
+5. <strong>BREACH: SQLi, XSS, or file access!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: SQL Injection (Android)</span>
+<span class="keyword">public</span> User <span class="function">getUser</span>(String username) {
+    <span class="comment">// VULNERABLE: Direct string concatenation</span>
+    String query = <span class="string">"SELECT * FROM users WHERE username = '"</span> + username + <span class="string">"'"</span>;
+    Cursor cursor = db.rawQuery(query, <span class="keyword">null</span>);
+    <span class="comment">// username = "admin' OR '1'='1" bypasses authentication</span>
+}
+
+<span class="comment">// Bad: XSS in WebView (Android)</span>
+<span class="keyword">public void</span> <span class="function">loadContent</span>(String userInput) {
+    WebView webView = findViewById(R.id.webview);
+    <span class="comment">// VULNERABLE: No sanitization</span>
+    webView.loadData(<span class="string">"&lt;html&gt;&lt;body&gt;"</span> + userInput + <span class="string">"&lt;/body&gt;&lt;/html&gt;"</span>, 
+                     <span class="string">"text/html"</span>, <span class="string">"UTF-8"</span>);
+    <span class="comment">// userInput = "&lt;script&gt;malicious()&lt;/script&gt;" executes JS</span>
+}
+
+<span class="comment">// Bad: Path Traversal (iOS)</span>
+<span class="keyword">func</span> <span class="function">loadFile</span>(_ filename: String) -&gt; String? {
+    <span class="comment">// VULNERABLE: No path validation</span>
+    <span class="keyword">let</span> path = documentsDirectory + <span class="string">"/"</span> + filename
+    <span class="keyword">return try</span>? String(contentsOfFile: path)
+    <span class="comment">// filename = "../../etc/passwd" accesses system files</span>
+}
+
+<span class="comment">// Bad: Deep Link without validation (Android)</span>
+@Override
+<span class="keyword">protected void</span> <span class="function">onCreate</span>(Bundle savedInstanceState) {
+    Intent intent = getIntent();
+    Uri data = intent.getData();
+    
+    <span class="comment">// VULNERABLE: Trust deep link data</span>
+    String userId = data.getQueryParameter(<span class="string">"user_id"</span>);
+    loadUserProfile(userId);  <span class="comment">// No validation!</span>
+}
+
+<span class="comment">// Bad: Command Injection (Android)</span>
+<span class="keyword">public void</span> <span class="function">pingHost</span>(String host) {
+    <span class="comment">// VULNERABLE: Direct command execution</span>
+    Runtime.getRuntime().exec(<span class="string">"ping -c 1 "</span> + host);
+    <span class="comment">// host = "8.8.8.8; rm -rf /" executes additional commands</span>
+}
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: Parameterized queries (Android)</span>
+<span class="keyword">public</span> User <span class="function">getUser</span>(String username) {
+    <span class="comment">// Use prepared statements</span>
+    String query = <span class="string">"SELECT * FROM users WHERE username = ?"</span>;
+    String[] args = {username};
+    Cursor cursor = db.rawQuery(query, args);
+    <span class="comment">// SQL injection prevented by parameterization</span>
+}
+
+<span class="comment">// Good: Sanitize WebView content (Android)</span>
+<span class="keyword">public void</span> <span class="function">loadContent</span>(String userInput) {
+    WebView webView = findViewById(R.id.webview);
+    
+    <span class="comment">// Sanitize HTML to prevent XSS</span>
+    String sanitized = TextUtils.htmlEncode(userInput);
+    webView.loadData(<span class="string">"&lt;html&gt;&lt;body&gt;"</span> + sanitized + <span class="string">"&lt;/body&gt;&lt;/html&gt;"</span>,
+                     <span class="string">"text/html"</span>, <span class="string">"UTF-8"</span>);
+    
+    <span class="comment">// Or use Content Security Policy</span>
+    webView.getSettings().setJavaScriptEnabled(<span class="keyword">false</span>);
+}
+
+<span class="comment">// Good: Path validation (iOS)</span>
+<span class="keyword">func</span> <span class="function">loadFile</span>(_ filename: String) -&gt; String? {
+    <span class="comment">// Validate filename contains no path traversal</span>
+    <span class="keyword">guard</span> !filename.contains(<span class="string">".."</span>) && !filename.contains(<span class="string">"/"</span>) <span class="keyword">else</span> {
+        <span class="keyword">return nil</span>
+    }
+    
+    <span class="comment">// Whitelist allowed filenames</span>
+    <span class="keyword">let</span> allowedFiles = [<span class="string">"config.json"</span>, <span class="string">"data.txt"</span>]
+    <span class="keyword">guard</span> allowedFiles.contains(filename) <span class="keyword">else</span> {
+        <span class="keyword">return nil</span>
+    }
+    
+    <span class="keyword">let</span> path = documentsDirectory.appendingPathComponent(filename)
+    <span class="keyword">return try</span>? String(contentsOf: path)
+}
+
+<span class="comment">// Good: Deep Link validation (Android)</span>
+@Override
+<span class="keyword">protected void</span> <span class="function">onCreate</span>(Bundle savedInstanceState) {
+    Intent intent = getIntent();
+    Uri data = intent.getData();
+    
+    <span class="keyword">if</span> (data != <span class="keyword">null</span>) {
+        <span class="comment">// Validate scheme and host</span>
+        <span class="keyword">if</span> (!<span class="string">"myapp"</span>.equals(data.getScheme()) || 
+            !<span class="string">"trusted.com"</span>.equals(data.getHost())) {
+            <span class="keyword">return</span>;
+        }
+        
+        <span class="comment">// Validate and sanitize parameters</span>
+        String userId = data.getQueryParameter(<span class="string">"user_id"</span>);
+        <span class="keyword">if</span> (userId != <span class="keyword">null</span> && userId.matches(<span class="string">"^[0-9]+$"</span>)) {
+            loadUserProfile(userId);
+        }
+    }
+}
+
+<span class="comment">// Good: Input validation, avoid exec (Android)</span>
+<span class="keyword">public void</span> <span class="function">pingHost</span>(String host) {
+    <span class="comment">// Validate input format (IP or hostname)</span>
+    <span class="keyword">if</span> (!host.matches(<span class="string">"^[a-zA-Z0-9.-]+$"</span>)) {
+        <span class="keyword">throw new</span> IllegalArgumentException(<span class="string">"Invalid host"</span>);
+    }
+    
+    <span class="comment">// Use safe API instead of exec</span>
+    InetAddress address = InetAddress.getByName(host);
+    <span class="keyword">boolean</span> reachable = address.isReachable(<span class="number">5000</span>);
+}
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Validate all inputs (user, API, deep links, intents)</li>
+                    <li>Use parameterized queries for database operations</li>
+                    <li>Sanitize data before displaying in WebViews</li>
+                    <li>Implement whitelist validation for file paths</li>
+                    <li>Validate deep link schemes and hosts</li>
+                    <li>Use safe APIs instead of system commands</li>
+                    <li>Implement input length and format restrictions</li>
+                    <li>Encode outputs appropriately for context</li>
+                    <li>Never trust data from external sources</li>
+                    <li>Use security-focused validation libraries</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Testing Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Burp Suite</span>
+                    <span class="tool-tag">OWASP ZAP</span>
+                    <span class="tool-tag">MobSF</span>
+                    <span class="tool-tag">Drozer</span>
+                    <span class="tool-tag">Frida</span>
+                    <span class="tool-tag">sqlmap</span>
+                </div>
+                
+                <h3>Static Analysis:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">SonarQube</span>
+                    <span class="tool-tag">Checkmarx</span>
+                    <span class="tool-tag">Fortify</span>
+                    <span class="tool-tag">Veracode</span>
+                    <span class="tool-tag">FindBugs/SpotBugs</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Test SQL injection with payloads: ' OR '1'='1, admin'--</li>
+                    <li>Test XSS with: &lt;script&gt;alert(1)&lt;/script&gt;</li>
+                    <li>Test path traversal with: ../../../etc/passwd</li>
+                    <li>Test deep links with malicious parameters</li>
+                    <li>Fuzz inputs with special characters and long strings</li>
+                    <li>Use Drozer to test exported Android components</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Breaches</h2>
+                <ul>
+                    <li><strong>Uber (2016):</strong> SQL injection in mobile backend exposed rider data</li>
+                    <li><strong>Yahoo (2016):</strong> XSS vulnerability in mobile app allowed account takeover</li>
+                    <li><strong>Multiple Apps (2019):</strong> Deep link vulnerabilities enabled phishing attacks</li>
+                    <li><strong>Banking Apps (2018):</strong> Path traversal exposed sensitive files</li>
+                    <li><strong>E-commerce Apps (2020):</strong> Intent injection led to unauthorized purchases</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> concatenate user input into SQL queries</li>
+                    <li><span class="badge critical">DO NOT</span> trust deep link or intent data</li>
+                    <li><span class="badge critical">DO NOT</span> execute system commands with user input</li>
+                    <li><span class="badge high">DO</span> use parameterized queries for databases</li>
+                    <li><span class="badge high">DO</span> validate all inputs with whitelists</li>
+                    <li><span class="badge medium">DO</span> sanitize outputs for display context</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">PCI-DSS</span> Requirement 6.5.1</li>
+                    <li><span class="badge medium">OWASP Top 10</span> A03:2021 - Injection</li>
+                    <li><span class="badge medium">NIST</span> 800-53 SI-10</li>
+                    <li><span class="badge medium">OWASP MASVS</span> MSTG-PLATFORM-2</li>
+                    <li><span class="badge medium">CWE</span> CWE-89, CWE-79, CWE-22</li>
+                    <li><span class="badge medium">ISO 27001</span> A.14.2.5</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Mobile Security Top 10 Educational Repository</strong> | <a href="../../README.md">Main Repo</a> | <a href="../README.md">All Cheat Sheets</a></p>
+            <p>For hands-on practice: <a href="../../OWASP-Mobile/M04-Insufficient-Input-Output-Validation/lab/">Try the Lab</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

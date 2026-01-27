@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M08: Security Misconfiguration - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+</head>
+<body>
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>⚙️ Security Misconfiguration</h1>
+            <p class="subtitle">OWASP Mobile Top 10 - M08</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Security Misconfiguration</strong> occurs when mobile applications are deployed with insecure default settings, incomplete configurations, or overly permissive security controls. This includes debug flags in production, exposed backup files, insecure app transport settings, improper component exports, and misconfigured cloud services. Configuration errors are often overlooked but create significant vulnerabilities.</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">M08</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">76%</span>
+                        <span class="label">Apps Misconfigured</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">&lt;1hr</span>
+                        <span class="label">Time to Exploit</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Misconfigurations</h2>
+                <ul>
+                    <li><strong>Debug Mode Enabled:</strong> Production apps with debug flags active</li>
+                    <li><strong>Exported Components:</strong> Activities/Services accessible to other apps</li>
+                    <li><strong>Backup Allowed:</strong> Sensitive data included in device backups</li>
+                    <li><strong>WebView Misconfig:</strong> JavaScript enabled unnecessarily</li>
+                    <li><strong>Insecure Deeplinks:</strong> Unvalidated URL schemes</li>
+                    <li><strong>Cloud Storage Public:</strong> S3 buckets or Firebase databases open</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Attacker analyzes AndroidManifest.xml<br>
+   <span class="arrow">↓</span><br>
+2. Finds debuggable=true in production<br>
+   <span class="arrow">↓</span><br>
+3. Attaches debugger to running app<br>
+   <span class="arrow">↓</span><br>
+4. Extracts encryption keys from memory<br>
+   <span class="arrow">↓</span><br>
+5. <strong>BREACH: Full app compromise!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: Debug mode in production (Android)</span>
+<span class="comment">// AndroidManifest.xml</span>
+&lt;application
+    android:debuggable=<span class="string">"true"</span>  <span class="comment">&lt;!-- VULNERABLE: Allows debugging in production --&gt;</span>
+    android:allowBackup=<span class="string">"true"</span>  <span class="comment">&lt;!-- VULNERABLE: Data in backups --&gt;</span>
+    android:usesCleartextTraffic=<span class="string">"true"</span>&gt;  <span class="comment">&lt;!-- VULNERABLE: HTTP allowed --&gt;</span>
+    
+    <span class="comment">&lt;!-- VULNERABLE: Activity exported without protection --&gt;</span>
+    &lt;activity
+        android:name=<span class="string">".AdminActivity"</span>
+        android:exported=<span class="string">"true"</span> /&gt;
+    
+    <span class="comment">&lt;!-- VULNERABLE: Broadcast receiver accessible --&gt;</span>
+    &lt;receiver
+        android:name=<span class="string">".PaymentReceiver"</span>
+        android:exported=<span class="string">"true"</span> /&gt;
+        
+    <span class="comment">&lt;!-- VULNERABLE: Unprotected intent filter --&gt;</span>
+    &lt;activity android:name=<span class="string">".DeepLinkActivity"</span>&gt;
+        &lt;intent-filter&gt;
+            &lt;action android:name=<span class="string">"android.intent.action.VIEW"</span> /&gt;
+            &lt;category android:name=<span class="string">"android.intent.category.BROWSABLE"</span> /&gt;
+            &lt;data android:scheme=<span class="string">"myapp"</span> /&gt;
+        &lt;/intent-filter&gt;
+    &lt;/activity&gt;
+&lt;/application&gt;
+
+<span class="comment">// Bad: Insecure WebView (Android)</span>
+WebView webView = findViewById(R.id.webview);
+<span class="comment">// VULNERABLE: JavaScript enabled for all content</span>
+webView.getSettings().setJavaScriptEnabled(<span class="keyword">true</span>);
+webView.getSettings().setAllowFileAccess(<span class="keyword">true</span>);
+webView.getSettings().setAllowContentAccess(<span class="keyword">true</span>);
+<span class="comment">// VULNERABLE: No restrictions</span>
+webView.addJavascriptInterface(<span class="keyword">new</span> WebAppInterface(), <span class="string">"Android"</span>);
+
+<span class="comment">// Bad: Insecure ATS (iOS)</span>
+<span class="comment">// Info.plist</span>
+&lt;key&gt;NSAppTransportSecurity&lt;/key&gt;
+&lt;dict&gt;
+    <span class="comment">&lt;!-- VULNERABLE: Disables ATS entirely --&gt;</span>
+    &lt;key&gt;NSAllowsArbitraryLoads&lt;/key&gt;
+    &lt;true/&gt;
+&lt;/dict&gt;
+
+<span class="comment">// Bad: Public cloud storage</span>
+<span class="comment">// Firebase Realtime Database rules</span>
+{
+  <span class="string">"rules"</span>: {
+    <span class="string">".read"</span>: <span class="keyword">true</span>,   <span class="comment">// VULNERABLE: Anyone can read</span>
+    <span class="string">".write"</span>: <span class="keyword">true</span>  <span class="comment">// VULNERABLE: Anyone can write</span>
+  }
+}
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: Secure production config (Android)</span>
+<span class="comment">// AndroidManifest.xml</span>
+&lt;application
+    android:debuggable=<span class="string">"false"</span>  <span class="comment">&lt;!-- No debugging in production --&gt;</span>
+    android:allowBackup=<span class="string">"false"</span>  <span class="comment">&lt;!-- Prevent backup of sensitive data --&gt;</span>
+    android:fullBackupContent=<span class="string">"@xml/backup_rules"</span>
+    android:usesCleartextTraffic=<span class="string">"false"</span>  <span class="comment">&lt;!-- Enforce HTTPS --&gt;</span>
+    android:networkSecurityConfig=<span class="string">"@xml/network_security_config"</span>&gt;
+    
+    <span class="comment">&lt;!-- Good: Protected activity --&gt;</span>
+    &lt;activity
+        android:name=<span class="string">".AdminActivity"</span>
+        android:exported=<span class="string">"false"</span> /&gt;  <span class="comment">&lt;!-- Not accessible externally --&gt;</span>
+    
+    <span class="comment">&lt;!-- Good: Protected with permission --&gt;</span>
+    &lt;receiver
+        android:name=<span class="string">".PaymentReceiver"</span>
+        android:exported=<span class="string">"true"</span>
+        android:permission=<span class="string">"com.myapp.PAYMENT_PERMISSION"</span> /&gt;
+        
+    <span class="comment">&lt;!-- Good: Validated deep links --&gt;</span>
+    &lt;activity android:name=<span class="string">".DeepLinkActivity"</span>&gt;
+        &lt;intent-filter android:autoVerify=<span class="string">"true"</span>&gt;
+            &lt;action android:name=<span class="string">"android.intent.action.VIEW"</span> /&gt;
+            &lt;category android:name=<span class="string">"android.intent.category.BROWSABLE"</span> /&gt;
+            &lt;data 
+                android:scheme=<span class="string">"https"</span>
+                android:host=<span class="string">"myapp.com"</span> /&gt;
+        &lt;/intent-filter&gt;
+    &lt;/activity&gt;
+&lt;/application&gt;
+
+<span class="comment">// res/xml/backup_rules.xml</span>
+&lt;?xml version=<span class="string">"1.0"</span> encoding=<span class="string">"utf-8"</span>?&gt;
+&lt;full-backup-content&gt;
+    <span class="comment">&lt;!-- Exclude sensitive files from backup --&gt;</span>
+    &lt;exclude domain=<span class="string">"sharedpref"</span> path=<span class="string">"secure_prefs.xml"</span> /&gt;
+    &lt;exclude domain=<span class="string">"database"</span> path=<span class="string">"sensitive.db"</span> /&gt;
+    &lt;exclude domain=<span class="string">"file"</span> path=<span class="string">"keys/"</span> /&gt;
+&lt;/full-backup-content&gt;
+
+<span class="comment">// Good: Secure WebView configuration (Android)</span>
+WebView webView = findViewById(R.id.webview);
+WebSettings settings = webView.getSettings();
+
+<span class="comment">// Disable JavaScript unless absolutely necessary</span>
+settings.setJavaScriptEnabled(<span class="keyword">false</span>);
+
+<span class="comment">// If JavaScript needed, restrict access</span>
+settings.setAllowFileAccess(<span class="keyword">false</span>);
+settings.setAllowContentAccess(<span class="keyword">false</span>);
+settings.setAllowFileAccessFromFileURLs(<span class="keyword">false</span>);
+settings.setAllowUniversalAccessFromFileURLs(<span class="keyword">false</span>);
+
+<span class="comment">// Only add JavaScript interface if absolutely needed</span>
+<span class="comment">// And use @JavascriptInterface annotation</span>
+<span class="keyword">if</span> (Build.VERSION.SDK_INT &gt;= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+    webView.addJavascriptInterface(<span class="keyword">new</span> SecureWebInterface(), <span class="string">"Android"</span>);
+}
+
+<span class="comment">// Good: Selective ATS exceptions (iOS)</span>
+<span class="comment">// Info.plist - Only disable for specific domains if needed</span>
+&lt;key&gt;NSAppTransportSecurity&lt;/key&gt;
+&lt;dict&gt;
+    &lt;key&gt;NSExceptionDomains&lt;/key&gt;
+    &lt;dict&gt;
+        &lt;key&gt;legacy-api.example.com&lt;/key&gt;
+        &lt;dict&gt;
+            &lt;key&gt;NSExceptionAllowsInsecureHTTPLoads&lt;/key&gt;
+            &lt;true/&gt;
+            &lt;key&gt;NSExceptionMinimumTLSVersion&lt;/key&gt;
+            &lt;string&gt;TLSv1.2&lt;/string&gt;
+        &lt;/dict&gt;
+    &lt;/dict&gt;
+&lt;/dict&gt;
+
+<span class="comment">// Good: Secure Firebase rules</span>
+{
+  <span class="string">"rules"</span>: {
+    <span class="string">".read"</span>: <span class="keyword">false</span>,   <span class="comment">// Default deny</span>
+    <span class="string">".write"</span>: <span class="keyword">false</span>,
+    <span class="string">"users"</span>: {
+      <span class="string">"$uid"</span>: {
+        <span class="comment">// Users can only read/write their own data</span>
+        <span class="string">".read"</span>: <span class="string">"auth != null &amp;&amp; auth.uid == $uid"</span>,
+        <span class="string">".write"</span>: <span class="string">"auth != null &amp;&amp; auth.uid == $uid"</span>
+      }
+    }
+  }
+}
+
+<span class="comment">// Good: Build-specific configuration</span>
+buildTypes {
+    debug {
+        debuggable <span class="keyword">true</span>
+        applicationIdSuffix <span class="string">".debug"</span>
+    }
+    release {
+        debuggable <span class="keyword">false</span>
+        minifyEnabled <span class="keyword">true</span>
+        shrinkResources <span class="keyword">true</span>
+    }
+}
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Disable debug mode in production builds</li>
+                    <li>Set android:exported="false" for internal components</li>
+                    <li>Disable allowBackup or exclude sensitive files</li>
+                    <li>Configure Network Security Config properly</li>
+                    <li>Minimize WebView capabilities (disable JS if possible)</li>
+                    <li>Implement proper App Transport Security (iOS)</li>
+                    <li>Secure cloud storage with authentication/authorization</li>
+                    <li>Validate and sanitize deep link inputs</li>
+                    <li>Remove development/test configurations before release</li>
+                    <li>Regular security configuration audits</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Analysis Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">MobSF</span>
+                    <span class="tool-tag">Drozer</span>
+                    <span class="tool-tag">AndroBugs</span>
+                    <span class="tool-tag">QARK</span>
+                    <span class="tool-tag">apktool</span>
+                    <span class="tool-tag">Manifest Scanner</span>
+                </div>
+                
+                <h3>Cloud Security:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">AWS Config</span>
+                    <span class="tool-tag">Firebase Security Rules</span>
+                    <span class="tool-tag">ScoutSuite</span>
+                    <span class="tool-tag">Prowler</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Extract and analyze AndroidManifest.xml or Info.plist</li>
+                    <li>Check for debuggable=true in production APKs</li>
+                    <li>Test exported components with Drozer</li>
+                    <li>Verify backup configurations on device</li>
+                    <li>Test WebView with XSS payloads</li>
+                    <li>Audit Firebase/S3 permissions</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Breaches</h2>
+                <ul>
+                    <li><strong>Uber (2016):</strong> Debug mode left enabled, allowed code injection</li>
+                    <li><strong>Multiple Apps (2019):</strong> Exposed Firebase databases leaked millions of records</li>
+                    <li><strong>Government App (2020):</strong> Exported components allowed unauthorized access</li>
+                    <li><strong>Dating App (2018):</strong> Backup files exposed user credentials</li>
+                    <li><strong>Banking Apps (2019):</strong> WebView misconfigurations enabled XSS attacks</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> ship production apps with debuggable=true</li>
+                    <li><span class="badge critical">DO NOT</span> export components unnecessarily</li>
+                    <li><span class="badge critical">DO NOT</span> disable App Transport Security globally</li>
+                    <li><span class="badge high">DO</span> review manifest/plist before each release</li>
+                    <li><span class="badge high">DO</span> secure cloud storage with proper rules</li>
+                    <li><span class="badge medium">DO</span> automate configuration security checks in CI/CD</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">PCI-DSS</span> Requirement 2.2</li>
+                    <li><span class="badge medium">NIST</span> 800-53 CM-6, CM-7</li>
+                    <li><span class="badge medium">OWASP MASVS</span> MSTG-PLATFORM-1, 2</li>
+                    <li><span class="badge medium">CWE</span> CWE-16, CWE-200</li>
+                    <li><span class="badge medium">ISO 27001</span> A.12.6.1</li>
+                    <li><span class="badge medium">CIS</span> Mobile Device Benchmarks</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Mobile Security Top 10 Educational Repository</strong> | <a href="../../README.md">Main Repo</a> | <a href="../README.md">All Cheat Sheets</a></p>
+            <p>For hands-on practice: <a href="../../OWASP-Mobile/M08-Security-Misconfiguration/lab/">Try the Lab</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

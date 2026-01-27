@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M02: Inadequate Supply Chain Security - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+</head>
+<body>
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔗 Inadequate Supply Chain Security</h1>
+            <p class="subtitle">OWASP Mobile Top 10 - M02</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Inadequate Supply Chain Security</strong> occurs when mobile applications integrate vulnerable third-party libraries, SDKs, or components without proper security vetting. This includes using outdated dependencies, malicious packages, or components with known vulnerabilities. Mobile apps typically integrate 10-30+ third-party libraries, creating a significant attack surface.</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">M02</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">82%</span>
+                        <span class="label">Apps with Vuln Deps</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Varied</span>
+                        <span class="label">Time to Exploit</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Vulnerable Dependencies:</strong> Exploit known CVEs in outdated libraries</li>
+                    <li><strong>Malicious SDKs:</strong> Trojanized advertising or analytics SDKs</li>
+                    <li><strong>Typosquatting:</strong> Install malicious packages with similar names</li>
+                    <li><strong>Dependency Confusion:</strong> Private package names replaced with public malicious ones</li>
+                    <li><strong>Compromised Packages:</strong> Legitimate packages hijacked by attackers</li>
+                    <li><strong>Transitive Dependencies:</strong> Vulnerabilities in nested dependencies</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Developer integrates popular SDK<br>
+   <span class="arrow">↓</span><br>
+2. SDK contains known vulnerability (CVE)<br>
+   <span class="arrow">↓</span><br>
+3. Attacker identifies vulnerable version<br>
+   <span class="arrow">↓</span><br>
+4. Exploits vulnerability in mobile app<br>
+   <span class="arrow">↓</span><br>
+5. <strong>BREACH: RCE, data theft, or malware!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: Outdated vulnerable dependency (Android)</span>
+<span class="comment">// build.gradle</span>
+dependencies {
+    <span class="comment">// VULNERABLE: Old version with known CVEs</span>
+    implementation <span class="string">'com.squareup.okhttp3:okhttp:3.12.0'</span>
+    implementation <span class="string">'com.google.code.gson:gson:2.8.5'</span>
+    
+    <span class="comment">// VULNERABLE: Using + for version (unpredictable)</span>
+    implementation <span class="string">'com.example:untrusted-sdk:+'</span>
+    
+    <span class="comment">// VULNERABLE: No integrity verification</span>
+    implementation <span class="string">'com.unknown:suspicious-library:1.0'</span>
+}
+
+<span class="comment">// Bad: No SDK verification (iOS)</span>
+<span class="comment">// Podfile</span>
+pod <span class="string">'AFNetworking'</span>, <span class="string">'~> 3.0'</span>  <span class="comment"># Outdated version</span>
+pod <span class="string">'Alamofire'</span>, <span class="string">'4.5'</span>      <span class="comment"># Has known vulnerabilities</span>
+
+<span class="comment">// Bad: Loading remote code without validation</span>
+<span class="keyword">public void</span> <span class="function">loadPlugin</span>(String url) {
+    <span class="comment">// VULNERABLE: No signature verification</span>
+    DexClassLoader loader = <span class="keyword">new</span> DexClassLoader(
+        downloadPlugin(url), getCacheDir(), <span class="keyword">null</span>, getClassLoader()
+    );
+}
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: Updated dependencies with verification (Android)</span>
+<span class="comment">// build.gradle</span>
+dependencies {
+    <span class="comment">// Use latest stable versions</span>
+    implementation <span class="string">'com.squareup.okhttp3:okhttp:4.12.0'</span>
+    implementation <span class="string">'com.google.code.gson:gson:2.10.1'</span>
+    
+    <span class="comment">// Specific versions, no wildcards</span>
+    implementation(<span class="string">'com.example:trusted-sdk:2.5.0'</span>) {
+        <span class="comment">// Exclude vulnerable transitive dependencies</span>
+        exclude group: <span class="string">'org.apache.commons'</span>, module: <span class="string">'commons-text'</span>
+    }
+}
+
+<span class="comment">// Dependency verification with checksums</span>
+dependencyVerification {
+    verify(<span class="string">'com.example:trusted-sdk:2.5.0'</span>) {
+        checksum = <span class="string">'sha256:abc123...'</span>
+    }
+}
+
+<span class="comment">// Good: SDK verification and monitoring</span>
+buildscript {
+    repositories {
+        <span class="comment">// Use trusted repositories only</span>
+        google()
+        mavenCentral()
+        <span class="comment">// Avoid unknown repositories</span>
+    }
+}
+
+<span class="comment">// Good: Verify dynamic code loading</span>
+<span class="keyword">public void</span> <span class="function">loadPlugin</span>(String url) {
+    File plugin = downloadPlugin(url);
+    
+    <span class="comment">// Verify signature before loading</span>
+    <span class="keyword">if</span> (!verifySignature(plugin, TRUSTED_PUBLIC_KEY)) {
+        <span class="keyword">throw new</span> SecurityException(<span class="string">"Invalid plugin signature"</span>);
+    }
+    
+    DexClassLoader loader = <span class="keyword">new</span> DexClassLoader(
+        plugin.getPath(), getCacheDir(), <span class="keyword">null</span>, getClassLoader()
+    );
+}
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Maintain inventory of all third-party dependencies</li>
+                    <li>Use dependency scanning tools (OWASP Dependency-Check)</li>
+                    <li>Keep all libraries updated to latest secure versions</li>
+                    <li>Avoid using wildcards in dependency versions</li>
+                    <li>Verify checksums/signatures of dependencies</li>
+                    <li>Use only trusted package repositories</li>
+                    <li>Review security advisories for used libraries</li>
+                    <li>Implement Software Bill of Materials (SBOM)</li>
+                    <li>Monitor for new vulnerabilities (CVE databases)</li>
+                    <li>Remove unused dependencies to reduce attack surface</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Analysis Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">OWASP Dependency-Check</span>
+                    <span class="tool-tag">Snyk</span>
+                    <span class="tool-tag">MobSF</span>
+                    <span class="tool-tag">Checkmarx</span>
+                    <span class="tool-tag">Sonatype Nexus</span>
+                    <span class="tool-tag">JFrog Xray</span>
+                </div>
+                
+                <h3>CI/CD Integration:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">GitHub Dependabot</span>
+                    <span class="tool-tag">Renovate</span>
+                    <span class="tool-tag">WhiteSource</span>
+                    <span class="tool-tag">Black Duck</span>
+                    <span class="tool-tag">Veracode</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Extract dependencies from build.gradle or Podfile</li>
+                    <li>Run dependency vulnerability scan (e.g., dependency-check)</li>
+                    <li>Check CVE databases for known vulnerabilities</li>
+                    <li>Analyze transitive dependencies for issues</li>
+                    <li>Review SDK permissions and capabilities</li>
+                    <li>Monitor SDK network traffic for suspicious behavior</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Breaches</h2>
+                <ul>
+                    <li><strong>Log4Shell (2021):</strong> Log4j vulnerability affected countless mobile apps worldwide</li>
+                    <li><strong>Equifax (2017):</strong> Apache Struts vulnerability led to massive data breach</li>
+                    <li><strong>Chinese SDK Malware (2020):</strong> 1,200+ apps infected via malicious SDK</li>
+                    <li><strong>Codecov (2021):</strong> Supply chain attack compromised CI/CD pipelines</li>
+                    <li><strong>SolarWinds (2020):</strong> Compromised software updates affected thousands</li>
+                    <li><strong>event-stream (2018):</strong> NPM package hijacked to steal cryptocurrency</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> use outdated dependencies with CVEs</li>
+                    <li><span class="badge critical">DO NOT</span> trust unknown SDK sources</li>
+                    <li><span class="badge critical">DO NOT</span> use wildcards in versions</li>
+                    <li><span class="badge high">DO</span> scan dependencies regularly for vulnerabilities</li>
+                    <li><span class="badge high">DO</span> maintain SBOM for all components</li>
+                    <li><span class="badge medium">DO</span> automate dependency updates with security checks</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">PCI-DSS</span> Requirement 6.2</li>
+                    <li><span class="badge medium">NIST</span> 800-53 SA-12, SR-3</li>
+                    <li><span class="badge medium">OWASP MASVS</span> MSTG-CODE-5</li>
+                    <li><span class="badge medium">ISO 27001</span> A.14.2.9</li>
+                    <li><span class="badge medium">SSDF</span> Supply Chain Security</li>
+                    <li><span class="badge medium">Executive Order 14028</span> SBOM Requirements</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Mobile Security Top 10 Educational Repository</strong> | <a href="../../README.md">Main Repo</a> | <a href="../README.md">All Cheat Sheets</a></p>
+            <p>For hands-on practice: <a href="../../OWASP-Mobile/M02-Inadequate-Supply-Chain-Security/lab/">Try the Lab</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

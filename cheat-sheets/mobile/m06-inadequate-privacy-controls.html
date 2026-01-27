@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M06: Inadequate Privacy Controls - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+</head>
+<body>
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🕵️ Inadequate Privacy Controls</h1>
+            <p class="subtitle">OWASP Mobile Top 10 - M06</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Inadequate Privacy Controls</strong> occurs when mobile applications collect, store, or share user data without proper consent, transparency, or protection. This includes excessive permissions, unauthorized data collection, tracking without consent, and failure to comply with privacy regulations like GDPR and CCPA. Mobile apps have access to sensitive sensors and data, making privacy controls essential.</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">M06</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">68%</span>
+                        <span class="label">Apps with Issues</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Varies</span>
+                        <span class="label">Detection Time</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Privacy Issues</h2>
+                <ul>
+                    <li><strong>Excessive Permissions:</strong> Request unnecessary device permissions</li>
+                    <li><strong>Unauthorized Tracking:</strong> Collect analytics without consent</li>
+                    <li><strong>Data Leakage:</strong> Share PII with third-party SDKs</li>
+                    <li><strong>Clipboard Access:</strong> Read clipboard data without notice</li>
+                    <li><strong>Location Tracking:</strong> Constant location access when not needed</li>
+                    <li><strong>Contact Harvesting:</strong> Upload entire contact lists</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Privacy Violation Flow</h2>
+                <div class="attack-flow">
+1. App requests broad permissions<br>
+   <span class="arrow">↓</span><br>
+2. User grants without understanding scope<br>
+   <span class="arrow">↓</span><br>
+3. App collects location, contacts, clipboard<br>
+   <span class="arrow">↓</span><br>
+4. Data shared with advertising SDKs<br>
+   <span class="arrow">↓</span><br>
+5. <strong>VIOLATION: Privacy breach, GDPR fines!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: Excessive permissions (Android)</span>
+<span class="comment">// AndroidManifest.xml</span>
+&lt;uses-permission android:name=<span class="string">"android.permission.READ_CONTACTS"</span> /&gt;
+&lt;uses-permission android:name=<span class="string">"android.permission.ACCESS_FINE_LOCATION"</span> /&gt;
+&lt;uses-permission android:name=<span class="string">"android.permission.CAMERA"</span> /&gt;
+&lt;uses-permission android:name=<span class="string">"android.permission.READ_SMS"</span> /&gt;
+&lt;uses-permission android:name=<span class="string">"android.permission.RECORD_AUDIO"</span> /&gt;
+<span class="comment">&lt;!-- VULNERABLE: Requesting all permissions without justification --&gt;</span>
+
+<span class="comment">// Bad: Tracking without consent (Android)</span>
+<span class="keyword">public void</span> <span class="function">onCreate</span>() {
+    <span class="comment">// VULNERABLE: Analytics started without user consent</span>
+    FirebaseAnalytics.getInstance(<span class="keyword">this</span>).setAnalyticsCollectionEnabled(<span class="keyword">true</span>);
+    FacebookSdk.setAdvertiserIDCollectionEnabled(<span class="keyword">true</span>);
+    
+    <span class="comment">// Immediately start collecting data</span>
+    trackUserBehavior();
+}
+
+<span class="comment">// Bad: Uploading contacts without consent (iOS)</span>
+<span class="keyword">func</span> <span class="function">uploadContacts</span>() {
+    <span class="comment">// VULNERABLE: No user consent, no privacy notice</span>
+    <span class="keyword">let</span> store = CNContactStore()
+    <span class="keyword">let</span> keys = [CNContactGivenNameKey, CNContactPhoneNumbersKey]
+    
+    <span class="keyword">let</span> contacts = <span class="keyword">try</span>? store.unifiedContacts(
+        matching: NSPredicate(value: <span class="keyword">true</span>),
+        keysToFetch: keys <span class="keyword">as</span> [CNKeyDescriptor]
+    )
+    
+    <span class="comment">// Upload all contacts to server</span>
+    uploadToServer(contacts)
+}
+
+<span class="comment">// Bad: Clipboard monitoring (iOS)</span>
+<span class="keyword">func</span> <span class="function">monitorClipboard</span>() {
+    Timer.scheduledTimer(withTimeInterval: <span class="number">1.0</span>, repeats: <span class="keyword">true</span>) { _ <span class="keyword">in</span>
+        <span class="comment">// VULNERABLE: Constant clipboard monitoring</span>
+        <span class="keyword">let</span> clipboard = UIPasteboard.general.string
+        sendToServer(clipboard)  <span class="comment">// Privacy violation!</span>
+    }
+}
+
+<span class="comment">// Bad: Always-on location (Android)</span>
+locationManager.requestLocationUpdates(
+    LocationManager.GPS_PROVIDER,
+    <span class="number">0</span>,  <span class="comment">// VULNERABLE: Continuous tracking</span>
+    <span class="number">0</span>,
+    locationListener
+);
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: Minimal permissions (Android)</span>
+<span class="comment">// AndroidManifest.xml - Only request what's needed</span>
+&lt;uses-permission android:name=<span class="string">"android.permission.INTERNET"</span> /&gt;
+&lt;uses-permission 
+    android:name=<span class="string">"android.permission.ACCESS_COARSE_LOCATION"</span>
+    android:maxSdkVersion=<span class="string">"31"</span> /&gt;  <span class="comment">&lt;!-- Approximate, not fine --&gt;</span>
+
+<span class="comment">// Good: Request permission with context (Android)</span>
+<span class="keyword">public void</span> <span class="function">requestLocationPermission</span>() {
+    <span class="keyword">if</span> (ContextCompat.checkSelfPermission(<span class="keyword">this</span>, 
+            Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+        
+        <span class="comment">// Explain why permission is needed</span>
+        <span class="keyword">new</span> AlertDialog.Builder(<span class="keyword">this</span>)
+            .setTitle(<span class="string">"Location Access"</span>)
+            .setMessage(<span class="string">"We need your location to show nearby stores"</span>)
+            .setPositiveButton(<span class="string">"OK"</span>, (dialog, which) -&gt; {
+                ActivityCompat.requestPermissions(<span class="keyword">this</span>,
+                    <span class="keyword">new</span> String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
+                    LOCATION_REQUEST_CODE);
+            })
+            .show();
+    }
+}
+
+<span class="comment">// Good: Consent-based analytics (Android)</span>
+<span class="keyword">public void</span> <span class="function">showPrivacyConsent</span>() {
+    <span class="comment">// Show privacy policy and get explicit consent</span>
+    <span class="keyword">new</span> AlertDialog.Builder(<span class="keyword">this</span>)
+        .setTitle(<span class="string">"Privacy Settings"</span>)
+        .setMessage(<span class="string">"Allow analytics to improve app experience?"</span>)
+        .setPositiveButton(<span class="string">"Allow"</span>, (d, w) -&gt; {
+            <span class="comment">// Only enable after consent</span>
+            FirebaseAnalytics.getInstance(<span class="keyword">this</span>)
+                .setAnalyticsCollectionEnabled(<span class="keyword">true</span>);
+            saveConsentPreference(<span class="keyword">true</span>);
+        })
+        .setNegativeButton(<span class="string">"Decline"</span>, (d, w) -&gt; {
+            FirebaseAnalytics.getInstance(<span class="keyword">this</span>)
+                .setAnalyticsCollectionEnabled(<span class="keyword">false</span>);
+            saveConsentPreference(<span class="keyword">false</span>);
+        })
+        .show();
+}
+
+<span class="comment">// Good: Privacy manifest (iOS 17+)</span>
+<span class="comment">// PrivacyInfo.xcprivacy</span>
+{
+  <span class="string">"NSPrivacyTracking"</span>: <span class="keyword">false</span>,
+  <span class="string">"NSPrivacyCollectedDataTypes"</span>: [
+    {
+      <span class="string">"NSPrivacyCollectedDataType"</span>: <span class="string">"NSPrivacyCollectedDataTypeEmailAddress"</span>,
+      <span class="string">"NSPrivacyCollectedDataTypeLinked"</span>: <span class="keyword">true</span>,
+      <span class="string">"NSPrivacyCollectedDataTypeTracking"</span>: <span class="keyword">false</span>,
+      <span class="string">"NSPrivacyCollectedDataTypePurposes"</span>: [
+        <span class="string">"NSPrivacyCollectedDataTypePurposeAppFunctionality"</span>
+      ]
+    }
+  ]
+}
+
+<span class="comment">// Good: Request contacts with clear purpose (iOS)</span>
+<span class="keyword">func</span> <span class="function">requestContactAccess</span>() {
+    <span class="keyword">let</span> store = CNContactStore()
+    
+    <span class="comment">// Show alert explaining why</span>
+    <span class="keyword">let</span> alert = UIAlertController(
+        title: <span class="string">"Contact Access"</span>,
+        message: <span class="string">"We need access to invite friends. We never store your contacts."</span>,
+        preferredStyle: .alert
+    )
+    
+    alert.addAction(UIAlertAction(title: <span class="string">"OK"</span>, style: .default) { _ <span class="keyword">in</span>
+        store.requestAccess(for: .contacts) { granted, error <span class="keyword">in</span>
+            <span class="keyword">if</span> granted {
+                <span class="comment">// Only access with explicit permission</span>
+                <span class="keyword">self</span>.loadContactsForInvite()
+            }
+        }
+    })
+}
+
+<span class="comment">// Good: Location only when needed (Android)</span>
+<span class="keyword">public void</span> <span class="function">getLocationOnce</span>() {
+    <span class="comment">// Request single location update, not continuous</span>
+    LocationRequest request = LocationRequest.create()
+        .setNumUpdates(<span class="number">1</span>)  <span class="comment">// Just once</span>
+        .setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
+    
+    fusedLocationClient.requestLocationUpdates(request, callback, <span class="keyword">null</span>);
+}
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Request only necessary permissions with clear justification</li>
+                    <li>Obtain explicit consent before collecting data</li>
+                    <li>Provide clear privacy policy accessible in-app</li>
+                    <li>Implement opt-out mechanisms for analytics/tracking</li>
+                    <li>Use privacy-preserving alternatives when possible</li>
+                    <li>Minimize data collection (data minimization principle)</li>
+                    <li>Allow users to delete their data (right to erasure)</li>
+                    <li>Implement iOS Privacy Manifest (iOS 17+)</li>
+                    <li>Audit third-party SDKs for privacy compliance</li>
+                    <li>Regular privacy impact assessments</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Analysis Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Exodus Privacy</span>
+                    <span class="tool-tag">MobSF</span>
+                    <span class="tool-tag">AppCensus</span>
+                    <span class="tool-tag">PrivacyScore</span>
+                    <span class="tool-tag">Permission Analyzer</span>
+                    <span class="tool-tag">Charles Proxy</span>
+                </div>
+                
+                <h3>Compliance Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">OneTrust</span>
+                    <span class="tool-tag">TrustArc</span>
+                    <span class="tool-tag">Cookiebot</span>
+                    <span class="tool-tag">Osano</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Analyze AndroidManifest.xml for excessive permissions</li>
+                    <li>Review Info.plist for iOS permission usage descriptions</li>
+                    <li>Monitor network traffic for unauthorized data transmission</li>
+                    <li>Check for third-party tracker SDKs</li>
+                    <li>Test data collection without user consent</li>
+                    <li>Verify privacy policy matches actual behavior</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Privacy Issues</h2>
+                <ul>
+                    <li><strong>TikTok (2021):</strong> Clipboard monitoring without disclosure, $92M fine</li>
+                    <li><strong>Facebook (2019):</strong> Unauthorized contact collection, $5B FTC fine</li>
+                    <li><strong>Google (2021):</strong> Location tracking without consent, €50M GDPR fine</li>
+                    <li><strong>Uber (2018):</strong> Background location tracking disclosure issues</li>
+                    <li><strong>LinkedIn (2020):</strong> Clipboard reading on iOS, public backlash</li>
+                    <li><strong>Various Apps (2020):</strong> Excessive location permissions during COVID-19</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> collect data without explicit consent</li>
+                    <li><span class="badge critical">DO NOT</span> request unnecessary permissions</li>
+                    <li><span class="badge critical">DO NOT</span> hide data collection in fine print</li>
+                    <li><span class="badge high">DO</span> implement granular privacy controls</li>
+                    <li><span class="badge high">DO</span> provide clear opt-out mechanisms</li>
+                    <li><span class="badge medium">DO</span> minimize data collection and retention</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">GDPR</span> Art. 6, 7, 13, 15, 17</li>
+                    <li><span class="badge medium">CCPA</span> Consumer Privacy Rights</li>
+                    <li><span class="badge medium">COPPA</span> Children's Privacy</li>
+                    <li><span class="badge medium">Apple App Store</span> Privacy Requirements</li>
+                    <li><span class="badge medium">Google Play</span> Data Safety Section</li>
+                    <li><span class="badge medium">OWASP MASVS</span> MSTG-STORAGE-12</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Mobile Security Top 10 Educational Repository</strong> | <a href="../../README.md">Main Repo</a> | <a href="../README.md">All Cheat Sheets</a></p>
+            <p>For hands-on practice: <a href="../../OWASP-Mobile/M06-Inadequate-Privacy-Controls/lab/">Try the Lab</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>
