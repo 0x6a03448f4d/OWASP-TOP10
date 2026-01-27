@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API10: Unsafe Consumption of APIs - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+</head>
+<body>
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔗 Unsafe Consumption of APIs</h1>
+            <p class="subtitle">OWASP API Security Top 10 - API10</p>
+            <span class="category">MEDIUM RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Unsafe Consumption of APIs</strong> occurs when developers blindly trust data received from third-party APIs without proper validation and sanitization. Even if your own API is secure, consuming compromised or malicious third-party APIs can introduce vulnerabilities into your system.</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">API10</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">3rd Party</span>
+                        <span class="label">API Trust Issue</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Supply Chain</span>
+                        <span class="label">Attack Vector</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Unvalidated Data:</strong> Trust external API responses without validation</li>
+                    <li><strong>Injection Attacks:</strong> XSS, SQLi via third-party API responses</li>
+                    <li><strong>Compromised APIs:</strong> Third-party API hacked, serves malicious data</li>
+                    <li><strong>No Input Sanitization:</strong> External data stored/displayed without escaping</li>
+                    <li><strong>Broken Integrations:</strong> Weak authentication to third-party services</li>
+                    <li><strong>Data Leakage:</strong> Sending sensitive data to third-party APIs</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Your API calls third-party weather API<br>
+   <span class="arrow">↓</span><br>
+2. Third-party API compromised by attacker<br>
+   <span class="arrow">↓</span><br>
+3. Returns malicious payload with XSS<br>
+   <span class="arrow">↓</span><br>
+4. Your API displays data without escaping<br>
+   <span class="arrow">↓</span><br>
+5. <strong>BREACH: XSS executed on your users!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: Blindly trust third-party API response</span>
+@app.route(<span class="string">'/api/weather'</span>)
+<span class="keyword">def</span> <span class="function">get_weather</span>():
+    city = request.args.get(<span class="string">'city'</span>)
+    
+    <span class="comment"># Call third-party weather API</span>
+    response = requests.get(
+        f<span class="string">'https://weather-api.com/city/{city}'</span>
+    )
+    
+    <span class="comment"># VULNERABLE: No validation of response!</span>
+    weather_data = response.json()
+    
+    <span class="comment"># Directly store in database</span>
+    Weather.create(
+        city=weather_data[<span class="string">'city'</span>],          <span class="comment">← Could contain SQLi!</span>
+        description=weather_data[<span class="string">'description'</span>]  <span class="comment">← Could contain XSS!</span>
+    )
+    
+    <span class="keyword">return</span> jsonify(weather_data)
+
+<span class="comment">// Bad: No SSL verification</span>
+response = requests.get(
+    <span class="string">'https://third-party-api.com/data'</span>,
+    verify=<span class="keyword">False</span>  <span class="comment">← DANGEROUS! Allows MITM attacks</span>
+)
+
+<span class="comment">// Bad: Sending sensitive data to third-party</span>
+@app.route(<span class="string">'/api/analytics'</span>)
+<span class="keyword">def</span> <span class="function">track_event</span>():
+    user = get_current_user()
+    
+    <span class="comment"># Sends sensitive data to analytics service</span>
+    requests.post(<span class="string">'https://analytics.com/track'</span>, json={
+        <span class="string">'user_id'</span>: user.id,
+        <span class="string">'email'</span>: user.email,          <span class="comment">← PII leaked!</span>
+        <span class="string">'ssn'</span>: user.ssn,              <span class="comment">← Sensitive data leaked!</span>
+        <span class="string">'credit_card'</span>: user.cc_last4  <span class="comment">← Financial data leaked!</span>
+    })
+
+<span class="comment">// Bad: No timeout on third-party calls</span>
+response = requests.get(
+    <span class="string">'https://slow-api.com/data'</span>
+    <span class="comment"># No timeout - could hang forever!</span>
+)
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: Validate and sanitize third-party data</span>
+<span class="keyword">from</span> bleach <span class="keyword">import</span> clean
+<span class="keyword">import</span> re
+
+<span class="keyword">def</span> <span class="function">validate_weather_response</span>(data):
+    <span class="string">"""Validate structure and sanitize content"""</span>
+    <span class="keyword">if not</span> isinstance(data, dict):
+        <span class="keyword">raise</span> ValueError(<span class="string">"Invalid response format"</span>)
+    
+    <span class="comment"># Whitelist expected fields</span>
+    required_fields = [<span class="string">'city'</span>, <span class="string">'temperature'</span>, <span class="string">'description'</span>]
+    <span class="keyword">for</span> field <span class="keyword">in</span> required_fields:
+        <span class="keyword">if</span> field <span class="keyword">not in</span> data:
+            <span class="keyword">raise</span> ValueError(f<span class="string">"Missing field: {field}"</span>)
+    
+    <span class="comment"># Sanitize strings</span>
+    data[<span class="string">'city'</span>] = clean(data[<span class="string">'city'</span>], tags=[], strip=<span class="keyword">True</span>)
+    data[<span class="string">'description'</span>] = clean(data[<span class="string">'description'</span>], tags=[], strip=<span class="keyword">True</span>)
+    
+    <span class="comment"># Validate data types and ranges</span>
+    <span class="keyword">if not</span> isinstance(data[<span class="string">'temperature'</span>], (int, float)):
+        <span class="keyword">raise</span> ValueError(<span class="string">"Invalid temperature type"</span>)
+    
+    <span class="keyword">if not</span> -<span class="number">100</span> &lt;= data[<span class="string">'temperature'</span>] &lt;= <span class="number">150</span>:
+        <span class="keyword">raise</span> ValueError(<span class="string">"Temperature out of range"</span>)
+    
+    <span class="keyword">return</span> data
+
+@app.route(<span class="string">'/api/weather'</span>)
+<span class="keyword">def</span> <span class="function">get_weather</span>():
+    city = request.args.get(<span class="string">'city'</span>)
+    
+    <span class="keyword">try</span>:
+        <span class="comment"># Secure API call with timeout and SSL verification</span>
+        response = requests.get(
+            f<span class="string">'https://weather-api.com/city/{city}'</span>,
+            timeout=<span class="number">5</span>,           <span class="comment"># 5 second timeout</span>
+            verify=<span class="keyword">True</span>,         <span class="comment"># Verify SSL certificate</span>
+            headers={
+                <span class="string">'Authorization'</span>: f<span class="string">'Bearer {API_KEY}'</span>
+            }
+        )
+        
+        response.raise_for_status()  <span class="comment"># Raise on HTTP errors</span>
+        
+        weather_data = response.json()
+        
+        <span class="comment"># Validate and sanitize response</span>
+        validated_data = validate_weather_response(weather_data)
+        
+        <span class="comment"># Use parameterized queries (prevents SQLi)</span>
+        Weather.create(
+            city=validated_data[<span class="string">'city'</span>],
+            temperature=validated_data[<span class="string">'temperature'</span>],
+            description=validated_data[<span class="string">'description'</span>]
+        )
+        
+        <span class="keyword">return</span> jsonify(validated_data)
+        
+    <span class="keyword">except</span> requests.Timeout:
+        <span class="keyword">return</span> {<span class="string">'error'</span>: <span class="string">'Third-party API timeout'</span>}, <span class="number">504</span>
+    <span class="keyword">except</span> requests.RequestException <span class="keyword">as</span> e:
+        logger.error(f<span class="string">"API error: {e}"</span>)
+        <span class="keyword">return</span> {<span class="string">'error'</span>: <span class="string">'External service unavailable'</span>}, <span class="number">503</span>
+    <span class="keyword">except</span> ValueError <span class="keyword">as</span> e:
+        logger.warning(f<span class="string">"Invalid response: {e}"</span>)
+        <span class="keyword">return</span> {<span class="string">'error'</span>: <span class="string">'Invalid data from external API'</span>}, <span class="number">502</span>
+
+<span class="comment">// Good: Minimal data sharing with third-parties</span>
+@app.route(<span class="string">'/api/analytics'</span>)
+<span class="keyword">def</span> <span class="function">track_event</span>():
+    user = get_current_user()
+    
+    <span class="comment"># Only send anonymous/aggregated data</span>
+    requests.post(<span class="string">'https://analytics.com/track'</span>, 
+        json={
+            <span class="string">'user_id_hash'</span>: hash(user.id),  <span class="comment"># Hashed, not actual ID</span>
+            <span class="string">'event'</span>: <span class="string">'page_view'</span>,
+            <span class="string">'timestamp'</span>: datetime.utcnow().isoformat()
+            <span class="comment"># NO PII, NO sensitive data!</span>
+        },
+        timeout=<span class="number">3</span>,
+        verify=<span class="keyword">True</span>
+    )
+
+<span class="comment">// Good: Circuit breaker for third-party APIs</span>
+<span class="keyword">from</span> pybreaker <span class="keyword">import</span> CircuitBreaker
+
+third_party_breaker = CircuitBreaker(
+    fail_max=<span class="number">5</span>,           <span class="comment"># Open after 5 failures</span>
+    timeout_duration=<span class="number">60</span>   <span class="comment"># Stay open for 60 seconds</span>
+)
+
+@third_party_breaker
+<span class="keyword">def</span> <span class="function">call_third_party_api</span>(url):
+    <span class="keyword">return</span> requests.get(url, timeout=<span class="number">5</span>, verify=<span class="keyword">True</span>)
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Validate all third-party API responses</li>
+                    <li>Sanitize data before storing or displaying</li>
+                    <li>Always verify SSL/TLS certificates</li>
+                    <li>Set timeouts on external API calls</li>
+                    <li>Use schema validation for responses</li>
+                    <li>Implement circuit breakers for resilience</li>
+                    <li>Never trust external data implicitly</li>
+                    <li>Minimize data sent to third-parties</li>
+                    <li>Encrypt sensitive data in transit</li>
+                    <li>Monitor third-party API health</li>
+                    <li>Have fallback mechanisms</li>
+                    <li>Regular security audits of integrations</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Validation Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">JSON Schema</span>
+                    <span class="tool-tag">Pydantic</span>
+                    <span class="tool-tag">Joi</span>
+                    <span class="tool-tag">Marshmallow</span>
+                    <span class="tool-tag">Bleach</span>
+                    <span class="tool-tag">DOMPurify</span>
+                </div>
+                
+                <h3>Monitoring Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Datadog</span>
+                    <span class="tool-tag">New Relic</span>
+                    <span class="tool-tag">Prometheus</span>
+                    <span class="tool-tag">Sentry</span>
+                    <span class="tool-tag">PyBreaker</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Mock third-party APIs with malicious payloads</li>
+                    <li>Test with XSS/SQLi in response data</li>
+                    <li>Verify timeout handling</li>
+                    <li>Test SSL certificate validation</li>
+                    <li>Check error handling for invalid responses</li>
+                    <li>Monitor data sent to third-parties</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Breaches</h2>
+                <ul>
+                    <li><strong>SolarWinds (2020):</strong> Supply chain attack via compromised third-party software</li>
+                    <li><strong>British Airways (2018):</strong> Third-party script injected malicious code</li>
+                    <li><strong>Ticketmaster (2018):</strong> Compromised third-party chatbot stole payment data</li>
+                    <li><strong>Target (2013):</strong> Breach via compromised HVAC vendor credentials</li>
+                    <li><strong>Magecart Attacks:</strong> Compromised third-party JavaScript libraries stealing credit cards</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> trust third-party data without validation</li>
+                    <li><span class="badge critical">DO NOT</span> disable SSL verification</li>
+                    <li><span class="badge critical">DO NOT</span> send PII to third-parties unnecessarily</li>
+                    <li><span class="badge high">DO</span> validate response schemas</li>
+                    <li><span class="badge high">DO</span> sanitize all external data</li>
+                    <li><span class="badge high">DO</span> set timeouts on API calls</li>
+                    <li><span class="badge medium">DO</span> implement circuit breakers</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">GDPR</span> Art. 28 - Processor Requirements</li>
+                    <li><span class="badge medium">PCI-DSS</span> Requirement 12.8 - Third-party Management</li>
+                    <li><span class="badge medium">SOC 2</span> CC9.2 - Vendor Management</li>
+                    <li><span class="badge medium">ISO 27001</span> A.15.1.1 - Supplier Relationships</li>
+                    <li><span class="badge medium">NIST</span> 800-161 - Supply Chain Risk</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP API Security Top 10 Educational Repository</strong> | <a href="../../README.md">Main Repo</a> | <a href="../README.md">All Cheat Sheets</a></p>
+            <p>For hands-on practice: <a href="../../OWASP-API/API10-Unsafe-Consumption-of-APIs/lab/">Try the Lab</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

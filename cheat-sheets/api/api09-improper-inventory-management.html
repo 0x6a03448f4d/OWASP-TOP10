@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API09: Improper Inventory Management - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+</head>
+<body>
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>📊 Improper Inventory Management</h1>
+            <p class="subtitle">OWASP API Security Top 10 - API09</p>
+            <span class="category">MEDIUM RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Improper Inventory Management</strong> occurs when organizations lack visibility into their API landscape. This includes outdated API versions, exposed debug endpoints, unpatched systems, and lack of documentation. Attackers exploit old, forgotten, or poorly documented APIs that organizations don't even know exist.</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">API09</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Shadow</span>
+                        <span class="label">APIs at Risk</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Old</span>
+                        <span class="label">Versions Exposed</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Old API Versions:</strong> /api/v1 still accessible with known vulnerabilities</li>
+                    <li><strong>Shadow APIs:</strong> Undocumented endpoints deployed without security review</li>
+                    <li><strong>Zombie APIs:</strong> Forgotten APIs still running and accessible</li>
+                    <li><strong>Debug Endpoints:</strong> /debug, /test left in production</li>
+                    <li><strong>Unpatched APIs:</strong> Old versions missing critical security updates</li>
+                    <li><strong>Beta/Staging Exposed:</strong> Non-production environments publicly accessible</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Attacker discovers current API: /api/v3<br>
+   <span class="arrow">↓</span><br>
+2. Tests old versions: /api/v1, /api/v2<br>
+   <span class="arrow">↓</span><br>
+3. Finds v1 still active with vulnerabilities<br>
+   <span class="arrow">↓</span><br>
+4. Exploits known BOLA in v1<br>
+   <span class="arrow">↓</span><br>
+5. <strong>BREACH: Access to all user data via old API!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Configuration</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: Multiple API versions without sunset</span>
+<span class="comment">// All versions accessible simultaneously:</span>
+/api/v1/users  <span class="comment">← Deployed 2019, has BOLA vulnerability</span>
+/api/v2/users  <span class="comment">← Deployed 2020, missing auth on some endpoints</span>
+/api/v3/users  <span class="comment">← Current version (2023), secure</span>
+
+<span class="comment">// Bad: No inventory tracking</span>
+<span class="comment">// Routes.py - Teams don't know what's deployed</span>
+@app.route(<span class="string">'/api/users'</span>)
+@app.route(<span class="string">'/api/v1/users'</span>)
+@app.route(<span class="string">'/api/v2/users'</span>)
+@app.route(<span class="string">'/api/internal/users'</span>)  <span class="comment">← Shadow API!</span>
+@app.route(<span class="string">'/api/test/users'</span>)       <span class="comment">← Test endpoint in prod!</span>
+
+<span class="comment">// Bad: No documentation</span>
+<span class="comment">// Endpoints exist but not documented:</span>
+GET  /api/users           <span class="comment">← Documented</span>
+POST /api/users           <span class="comment">← Documented</span>
+GET  /api/admin/export    <span class="comment">← NOT documented (shadow API)</span>
+GET  /api/debug/dump      <span class="comment">← NOT documented (dangerous!)</span>
+
+<span class="comment">// Bad: Exposed non-production environments</span>
+https://api.example.com        <span class="comment">← Production</span>
+https://staging-api.example.com <span class="comment">← Publicly accessible!</span>
+https://dev-api.example.com     <span class="comment">← Publicly accessible!</span>
+https://test-api.example.com    <span class="comment">← Publicly accessible!</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Management</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: API versioning with sunset policy</span>
+<span class="comment">// api_versions.py</span>
+SUPPORTED_VERSIONS = {
+    <span class="string">'v3'</span>: {<span class="string">'active'</span>: <span class="keyword">True</span>, <span class="string">'sunset_date'</span>: <span class="keyword">None</span>},
+    <span class="string">'v2'</span>: {<span class="string">'active'</span>: <span class="keyword">True</span>, <span class="string">'sunset_date'</span>: <span class="string">'2024-12-31'</span>},
+    <span class="string">'v1'</span>: {<span class="string">'active'</span>: <span class="keyword">False</span>, <span class="string">'deprecated'</span>: <span class="keyword">True</span>}  <span class="comment">← Disabled!</span>
+}
+
+@app.before_request
+<span class="keyword">def</span> <span class="function">check_api_version</span>():
+    version = extract_version(request.path)
+    
+    <span class="keyword">if</span> version <span class="keyword">not in</span> SUPPORTED_VERSIONS:
+        abort(<span class="number">404</span>)
+    
+    <span class="keyword">if not</span> SUPPORTED_VERSIONS[version].get(<span class="string">'active'</span>):
+        <span class="keyword">return</span> jsonify({
+            <span class="string">'error'</span>: <span class="string">'API version deprecated'</span>,
+            <span class="string">'message'</span>: <span class="string">'Please upgrade to v3'</span>
+        }), <span class="number">410</span>  <span class="comment"># Gone</span>
+    
+    <span class="comment"># Add sunset header for soon-to-be-deprecated versions</span>
+    sunset = SUPPORTED_VERSIONS[version].get(<span class="string">'sunset_date'</span>)
+    <span class="keyword">if</span> sunset:
+        response.headers[<span class="string">'Sunset'</span>] = sunset
+        response.headers[<span class="string">'Deprecation'</span>] = <span class="string">'true'</span>
+
+<span class="comment">// Good: API inventory management</span>
+<span class="comment">// api_catalog.yaml - Single source of truth</span>
+apis:
+  - name: User API
+    version: v3
+    endpoint: /api/v3/users
+    status: active
+    owner: team-backend
+    authentication: JWT
+    last_security_review: <span class="number">2024</span>-<span class="number">01</span>-<span class="number">15</span>
+    
+  - name: User API v2
+    version: v2
+    endpoint: /api/v2/users
+    status: deprecating
+    sunset_date: <span class="number">2024</span>-<span class="number">12</span>-<span class="number">31</span>
+    owner: team-backend
+    
+  - name: User API v1
+    version: v1
+    endpoint: /api/v1/users
+    status: disabled
+    disabled_date: <span class="number">2023</span>-<span class="number">06</span>-<span class="number">01</span>
+
+<span class="comment">// Good: Environment restrictions</span>
+<span class="comment">// Nginx configuration</span>
+<span class="keyword">server</span> {
+    server_name staging-api.example.com;
+    
+    <span class="comment"># Restrict to internal IPs only</span>
+    allow <span class="number">10.0</span>.<span class="number">0.0</span>/<span class="number">8</span>;
+    allow <span class="number">192.168</span>.<span class="number">0.0</span>/<span class="number">16</span>;
+    deny all;
+    
+    location / {
+        proxy_pass http://staging-backend;
+    }
+}
+
+<span class="comment">// Good: Automated API discovery</span>
+<span class="keyword">def</span> <span class="function">scan_registered_routes</span>():
+    <span class="string">"""Scan and catalog all registered API routes"""</span>
+    routes = []
+    <span class="keyword">for</span> rule <span class="keyword">in</span> app.url_map.iter_rules():
+        routes.append({
+            <span class="string">'endpoint'</span>: rule.rule,
+            <span class="string">'methods'</span>: list(rule.methods),
+            <span class="string">'function'</span>: rule.endpoint
+        })
+    
+    <span class="comment"># Compare with documented APIs</span>
+    undocumented = find_undocumented_routes(routes)
+    <span class="keyword">if</span> undocumented:
+        logger.warning(f<span class="string">"Shadow APIs detected: {undocumented}"</span>)
+    
+    <span class="keyword">return</span> routes
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Maintain complete API inventory/catalog</li>
+                    <li>Document all API endpoints and versions</li>
+                    <li>Implement API versioning with sunset policy</li>
+                    <li>Disable/remove old API versions</li>
+                    <li>Regular API discovery scans</li>
+                    <li>Restrict non-production environments</li>
+                    <li>Remove debug/test endpoints from production</li>
+                    <li>Track API owners and responsibilities</li>
+                    <li>Regular security reviews per API</li>
+                    <li>Monitor for shadow APIs</li>
+                    <li>Use API gateways for centralized management</li>
+                    <li>Implement API lifecycle management</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Discovery Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Postman</span>
+                    <span class="tool-tag">Swagger</span>
+                    <span class="tool-tag">OpenAPI</span>
+                    <span class="tool-tag">APIClarity</span>
+                    <span class="tool-tag">Traceable AI</span>
+                    <span class="tool-tag">Noname Security</span>
+                </div>
+                
+                <h3>Management Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Kong</span>
+                    <span class="tool-tag">Apigee</span>
+                    <span class="tool-tag">AWS API Gateway</span>
+                    <span class="tool-tag">Azure API Management</span>
+                    <span class="tool-tag">MuleSoft</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Enumerate API versions (v1, v2, v3, etc.)</li>
+                    <li>Test common debug paths (/debug, /test, /admin)</li>
+                    <li>Check for staging/dev subdomains</li>
+                    <li>Compare documented vs actual endpoints</li>
+                    <li>Scan for orphaned endpoints</li>
+                    <li>Review DNS records for forgotten APIs</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Breaches</h2>
+                <ul>
+                    <li><strong>T-Mobile (2021):</strong> Old API version with vulnerabilities still accessible</li>
+                    <li><strong>USPS (2018):</strong> API endpoint existed for years without security review</li>
+                    <li><strong>Facebook (2019):</strong> Deprecated API still accessible, exposing user data</li>
+                    <li><strong>Venmo (2018):</strong> Old API version leaked transaction data</li>
+                    <li><strong>Panera Bread (2018):</strong> Forgotten API exposed 37M customer records</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> leave old API versions running</li>
+                    <li><span class="badge critical">DO NOT</span> expose staging/dev environments</li>
+                    <li><span class="badge critical">DO NOT</span> deploy undocumented APIs</li>
+                    <li><span class="badge high">DO</span> maintain complete API inventory</li>
+                    <li><span class="badge high">DO</span> implement API versioning sunset</li>
+                    <li><span class="badge high">DO</span> regularly scan for shadow APIs</li>
+                    <li><span class="badge medium">DO</span> use API gateway for management</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">PCI-DSS</span> Requirement 2.2.5 - Inventory</li>
+                    <li><span class="badge medium">NIST</span> 800-53 CM-8 - System Inventory</li>
+                    <li><span class="badge medium">ISO 27001</span> A.8.1.1 - Asset Inventory</li>
+                    <li><span class="badge medium">SOC 2</span> CC7.1</li>
+                    <li><span class="badge medium">GDPR</span> Art. 30 - Records of Processing</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP API Security Top 10 Educational Repository</strong> | <a href="../../README.md">Main Repo</a> | <a href="../README.md">All Cheat Sheets</a></p>
+            <p>For hands-on practice: <a href="../../OWASP-API/API09-Improper-Inventory-Management/lab/">Try the Lab</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

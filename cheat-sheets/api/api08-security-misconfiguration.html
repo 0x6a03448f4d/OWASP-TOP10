@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API08: Security Misconfiguration - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+</head>
+<body>
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>⚙️ Security Misconfiguration</h1>
+            <p class="subtitle">OWASP API Security Top 10 - API08</p>
+            <span class="category">MEDIUM RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Security Misconfiguration</strong> occurs when APIs are deployed with insecure default configurations, incomplete setups, open cloud storage, misconfigured HTTP headers, verbose error messages, or missing security patches. This is often the result of insecure defaults or incomplete configurations.</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">API08</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Config</span>
+                        <span class="label">Focus Area</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Easy</span>
+                        <span class="label">To Prevent</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Debug Mode Enabled:</strong> Production APIs with debug=True exposing stack traces</li>
+                    <li><strong>Default Credentials:</strong> Admin/admin still active on API gateways</li>
+                    <li><strong>Verbose Errors:</strong> Stack traces revealing file paths and internals</li>
+                    <li><strong>Missing CORS:</strong> Allowing requests from any origin</li>
+                    <li><strong>Exposed Admin Panels:</strong> /admin, /swagger, /actuator publicly accessible</li>
+                    <li><strong>Unnecessary HTTP Methods:</strong> TRACE, OPTIONS enabled without need</li>
+                    <li><strong>Missing Security Headers:</strong> No HSTS, CSP, X-Frame-Options</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Attacker accesses API endpoint<br>
+   <span class="arrow">↓</span><br>
+2. Error occurs, debug mode is on<br>
+   <span class="arrow">↓</span><br>
+3. Full stack trace returned with paths<br>
+   <span class="arrow">↓</span><br>
+4. Discovers internal structure and libs<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Information leakage aids further attacks!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: Debug mode in production!</span>
+<span class="keyword">from</span> flask <span class="keyword">import</span> Flask
+
+app = Flask(__name__)
+app.config[<span class="string">'DEBUG'</span>] = <span class="keyword">True</span>  <span class="comment">← NEVER in production!</span>
+
+<span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:
+    app.run(host=<span class="string">'0.0.0.0'</span>, port=<span class="number">5000</span>)
+
+<span class="comment">// Bad: CORS allows any origin</span>
+<span class="keyword">from</span> flask_cors <span class="keyword">import</span> CORS
+
+CORS(app, origins=<span class="string">"*"</span>)  <span class="comment">← Allows any website!</span>
+
+<span class="comment">// Bad: Verbose error messages</span>
+@app.errorhandler(<span class="number">500</span>)
+<span class="keyword">def</span> <span class="function">handle_error</span>(error):
+    <span class="keyword">return</span> jsonify({
+        <span class="string">'error'</span>: str(error),
+        <span class="string">'traceback'</span>: traceback.format_exc()  <span class="comment">← Exposes internals!</span>
+    }), <span class="number">500</span>
+
+<span class="comment">// Bad: Swagger docs in production</span>
+<span class="comment">// Exposes all endpoints, parameters, schemas</span>
+GET /swagger-ui.html  <span class="comment">← Publicly accessible!</span>
+GET /api-docs         <span class="comment">← Complete API documentation!</span>
+
+<span class="comment">// Bad: Unnecessary HTTP methods</span>
+@app.route(<span class="string">'/api/users'</span>, methods=[<span class="string">'GET'</span>, <span class="string">'POST'</span>, <span class="string">'PUT'</span>, <span class="string">'DELETE'</span>, <span class="string">'TRACE'</span>])
+<span class="keyword">def</span> <span class="function">users</span>():
+    <span class="keyword">pass</span>  <span class="comment">← TRACE shouldn't be enabled!</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: Production configuration</span>
+<span class="keyword">import</span> os
+<span class="keyword">from</span> flask <span class="keyword">import</span> Flask
+
+app = Flask(__name__)
+app.config[<span class="string">'DEBUG'</span>] = <span class="keyword">False</span>  <span class="comment">← Always False in prod</span>
+app.config[<span class="string">'ENV'</span>] = <span class="string">'production'</span>
+
+<span class="comment">// Good: Restricted CORS</span>
+<span class="keyword">from</span> flask_cors <span class="keyword">import</span> CORS
+
+CORS(app, origins=[
+    <span class="string">"https://app.example.com"</span>,
+    <span class="string">"https://admin.example.com"</span>
+])
+
+<span class="comment">// Good: Generic error messages</span>
+@app.errorhandler(<span class="number">500</span>)
+<span class="keyword">def</span> <span class="function">handle_error</span>(error):
+    <span class="comment"># Log detailed error internally</span>
+    logger.error(f<span class="string">"Error: {error}"</span>, exc_info=<span class="keyword">True</span>)
+    
+    <span class="comment"># Return generic message to client</span>
+    <span class="keyword">return</span> jsonify({
+        <span class="string">'error'</span>: <span class="string">'Internal server error'</span>,
+        <span class="string">'code'</span>: <span class="string">'ERR_500'</span>
+    }), <span class="number">500</span>
+
+<span class="comment">// Good: Secure headers</span>
+@app.after_request
+<span class="keyword">def</span> <span class="function">add_security_headers</span>(response):
+    response.headers[<span class="string">'Strict-Transport-Security'</span>] = <span class="string">'max-age=31536000; includeSubDomains'</span>
+    response.headers[<span class="string">'X-Content-Type-Options'</span>] = <span class="string">'nosniff'</span>
+    response.headers[<span class="string">'X-Frame-Options'</span>] = <span class="string">'DENY'</span>
+    response.headers[<span class="string">'Content-Security-Policy'</span>] = <span class="string">"default-src 'self'"</span>
+    response.headers[<span class="string">'X-XSS-Protection'</span>] = <span class="string">'1; mode=block'</span>
+    <span class="keyword">return</span> response
+
+<span class="comment">// Good: Protect admin endpoints</span>
+<span class="keyword">if</span> os.getenv(<span class="string">'ENVIRONMENT'</span>) == <span class="string">'production'</span>:
+    <span class="comment"># Disable Swagger in production</span>
+    app.config[<span class="string">'SWAGGER'</span>] = {<span class="string">'enabled'</span>: <span class="keyword">False</span>}
+<span class="keyword">else</span>:
+    <span class="comment"># Only enable in development</span>
+    <span class="keyword">from</span> flask_swagger_ui <span class="keyword">import</span> get_swaggerui_blueprint
+    app.register_blueprint(swaggerui_blueprint)
+
+<span class="comment">// Good: Only necessary HTTP methods</span>
+@app.route(<span class="string">'/api/users'</span>, methods=[<span class="string">'GET'</span>, <span class="string">'POST'</span>])
+<span class="keyword">def</span> <span class="function">users</span>():
+    <span class="keyword">if</span> request.method == <span class="string">'GET'</span>:
+        <span class="keyword">return</span> get_users()
+    <span class="keyword">elif</span> request.method == <span class="string">'POST'</span>:
+        <span class="keyword">return</span> create_user()
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Disable debug mode in production</li>
+                    <li>Remove or secure Swagger/API docs in production</li>
+                    <li>Implement proper error handling (generic messages)</li>
+                    <li>Configure restrictive CORS policies</li>
+                    <li>Add security headers (HSTS, CSP, etc.)</li>
+                    <li>Disable unnecessary HTTP methods</li>
+                    <li>Change all default credentials</li>
+                    <li>Remove stack traces from responses</li>
+                    <li>Disable directory listing</li>
+                    <li>Keep software up to date</li>
+                    <li>Use environment variables for secrets</li>
+                    <li>Regular security audits and scans</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Scanning Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Nmap</span>
+                    <span class="tool-tag">Nikto</span>
+                    <span class="tool-tag">OWASP ZAP</span>
+                    <span class="tool-tag">Burp Suite</span>
+                    <span class="tool-tag">SecurityHeaders.com</span>
+                    <span class="tool-tag">SSL Labs</span>
+                </div>
+                
+                <h3>Configuration Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Helmet.js</span>
+                    <span class="tool-tag">Flask-Talisman</span>
+                    <span class="tool-tag">Spring Security</span>
+                    <span class="tool-tag">django-csp</span>
+                    <span class="tool-tag">ModSecurity</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Check for debug mode by triggering errors</li>
+                    <li>Access common admin paths (/admin, /swagger)</li>
+                    <li>Verify security headers are present</li>
+                    <li>Test CORS with different origins</li>
+                    <li>Try unnecessary HTTP methods (TRACE, OPTIONS)</li>
+                    <li>Check for default credentials</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Breaches</h2>
+                <ul>
+                    <li><strong>MongoDB Databases (2017):</strong> 27,000+ databases exposed due to default configs</li>
+                    <li><strong>Elasticsearch Instances:</strong> Billions of records exposed via misconfigured servers</li>
+                    <li><strong>S3 Buckets:</strong> Countless data leaks from public S3 buckets</li>
+                    <li><strong>Docker Registries:</strong> Exposed container images with secrets</li>
+                    <li><strong>Jenkins Servers:</strong> Publicly accessible with default credentials</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> enable debug mode in production</li>
+                    <li><span class="badge critical">DO NOT</span> expose stack traces</li>
+                    <li><span class="badge critical">DO NOT</span> use default credentials</li>
+                    <li><span class="badge high">DO</span> add security headers</li>
+                    <li><span class="badge high">DO</span> restrict CORS properly</li>
+                    <li><span class="badge high">DO</span> disable/protect API documentation</li>
+                    <li><span class="badge medium">DO</span> regular security scans</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">PCI-DSS</span> Requirement 2.2 - Configuration Standards</li>
+                    <li><span class="badge medium">NIST</span> 800-53 CM-6 - Configuration Settings</li>
+                    <li><span class="badge medium">CIS</span> Benchmarks</li>
+                    <li><span class="badge medium">ISO 27001</span> A.12.6.1</li>
+                    <li><span class="badge medium">SOC 2</span> CC7.1</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP API Security Top 10 Educational Repository</strong> | <a href="../../README.md">Main Repo</a> | <a href="../README.md">All Cheat Sheets</a></p>
+            <p>For hands-on practice: <a href="../../OWASP-API/API08-Security-Misconfiguration/lab/">Try the Lab</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API03: Broken Object Property Level Authorization - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+</head>
+<body>
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔒 Broken Object Property Level Authorization</h1>
+            <p class="subtitle">OWASP API Security Top 10 - API03</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Broken Object Property Level Authorization</strong> occurs when APIs expose too many object properties or allow modification of restricted properties. This manifests as <strong>Excessive Data Exposure</strong> (seeing sensitive fields) and <strong>Mass Assignment</strong> (modifying restricted fields).</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">API03</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Object</span>
+                        <span class="label">Property Level</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">2 Types</span>
+                        <span class="label">Exposure+Assignment</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Excessive Data Exposure:</strong> API returns password_hash, SSN, salary in user profile</li>
+                    <li><strong>Mass Assignment:</strong> Set is_admin=true in profile update request</li>
+                    <li><strong>Price Manipulation:</strong> Change product price or discount in order request</li>
+                    <li><strong>Role Escalation:</strong> Modify role field to gain admin privileges</li>
+                    <li><strong>Status Manipulation:</strong> Change order status from pending to approved</li>
+                    <li><strong>Hidden Fields:</strong> Sensitive fields exposed in API but hidden in UI</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. User requests profile: GET /api/users/me<br>
+   <span class="arrow">↓</span><br>
+2. API returns ALL fields including sensitive ones<br>
+   <span class="arrow">↓</span><br>
+3. Attacker observes is_admin: false<br>
+   <span class="arrow">↓</span><br>
+4. Sends PUT with is_admin: true<br>
+   <span class="arrow">↓</span><br>
+5. <strong>BREACH: Admin access granted!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: Returns entire model with sensitive fields</span>
+@app.route(<span class="string">'/api/users/me'</span>)
+@login_required
+<span class="keyword">def</span> <span class="function">get_profile</span>():
+    <span class="comment"># Returns ALL fields including sensitive ones!</span>
+    <span class="keyword">return</span> jsonify(current_user)
+    
+<span class="comment">// Response exposes:</span>
+{
+  <span class="string">"id"</span>: <span class="number">123</span>,
+  <span class="string">"name"</span>: <span class="string">"John Doe"</span>,
+  <span class="string">"password_hash"</span>: <span class="string">"$2b$12$..."</span>,  <span class="comment">← Shouldn't expose!</span>
+  <span class="string">"is_admin"</span>: <span class="keyword">false</span>,             <span class="comment">← Shouldn't expose!</span>
+  <span class="string">"salary"</span>: <span class="number">85000</span>,                <span class="comment">← Shouldn't expose!</span>
+  <span class="string">"ssn"</span>: <span class="string">"123-45-6789"</span>          <span class="comment">← Shouldn't expose!</span>
+}
+
+<span class="comment">// Bad: Mass assignment vulnerability</span>
+@app.route(<span class="string">'/api/users/&lt;user_id&gt;'</span>, methods=[<span class="string">'PUT'</span>])
+@login_required
+<span class="keyword">def</span> <span class="function">update_profile</span>(user_id):
+    user = User.query.get(user_id)
+    <span class="comment"># Accepts ALL fields from request!</span>
+    user.update(**request.json)  <span class="comment">← DANGEROUS!</span>
+    db.session.commit()
+    <span class="keyword">return</span> jsonify(user)
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: Whitelist fields to return</span>
+@app.route(<span class="string">'/api/users/me'</span>)
+@login_required
+<span class="keyword">def</span> <span class="function">get_profile</span>():
+    <span class="comment"># Only return safe fields</span>
+    <span class="keyword">return</span> jsonify({
+        <span class="string">'id'</span>: current_user.id,
+        <span class="string">'name'</span>: current_user.name,
+        <span class="string">'email'</span>: current_user.email,
+        <span class="string">'created_at'</span>: current_user.created_at
+    })
+
+<span class="comment">// Good: Use DTO/serializer for responses</span>
+<span class="keyword">class</span> <span class="function">UserSerializer</span>:
+    safe_fields = [<span class="string">'id'</span>, <span class="string">'name'</span>, <span class="string">'email'</span>]
+    
+    <span class="keyword">def</span> <span class="function">serialize</span>(user):
+        <span class="keyword">return</span> {field: getattr(user, field) 
+                <span class="keyword">for</span> field <span class="keyword">in</span> safe_fields}
+
+<span class="comment">// Good: Whitelist fields for updates</span>
+@app.route(<span class="string">'/api/users/&lt;user_id&gt;'</span>, methods=[<span class="string">'PUT'</span>])
+@login_required
+<span class="keyword">def</span> <span class="function">update_profile</span>(user_id):
+    user = User.query.get_or_404(user_id)
+    
+    <span class="comment"># Only allow specific fields to be updated</span>
+    allowed_fields = [<span class="string">'name'</span>, <span class="string">'email'</span>, <span class="string">'bio'</span>]
+    
+    <span class="keyword">for</span> field <span class="keyword">in</span> allowed_fields:
+        <span class="keyword">if</span> field <span class="keyword">in</span> request.json:
+            setattr(user, field, request.json[field])
+    
+    db.session.commit()
+    <span class="keyword">return</span> jsonify(UserSerializer.serialize(user))
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Use DTOs/serializers to control exposed fields</li>
+                    <li>Whitelist fields for API responses</li>
+                    <li>Whitelist fields accepted in updates</li>
+                    <li>Never return entire database models</li>
+                    <li>Remove sensitive fields: passwords, tokens, keys</li>
+                    <li>Implement role-based field visibility</li>
+                    <li>Validate field permissions on every request</li>
+                    <li>Use separate models for input/output</li>
+                    <li>Test with different user roles</li>
+                    <li>Code review for property exposure</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Testing Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Burp Suite</span>
+                    <span class="tool-tag">OWASP ZAP</span>
+                    <span class="tool-tag">Postman</span>
+                    <span class="tool-tag">curl</span>
+                    <span class="tool-tag">Fiddler</span>
+                </div>
+                
+                <h3>Prevention Libraries:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Marshmallow</span>
+                    <span class="tool-tag">Django REST Framework</span>
+                    <span class="tool-tag">Pydantic</span>
+                    <span class="tool-tag">Jackson (Java)</span>
+                    <span class="tool-tag">Active Model Serializers</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Examine all API response fields for sensitive data</li>
+                    <li>Try adding admin/privileged fields in PUT/PATCH</li>
+                    <li>Test mass assignment with unexpected fields</li>
+                    <li>Compare database schema vs API response</li>
+                    <li>Check for password hashes, tokens in responses</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Breaches</h2>
+                <ul>
+                    <li><strong>LinkedIn (2012):</strong> Mass assignment allowed users to modify any profile field</li>
+                    <li><strong>GitHub (2012):</strong> Mass assignment vulnerability allowed public key injection</li>
+                    <li><strong>Ruby on Rails Apps:</strong> Mass assignment vulnerabilities in early Rails versions</li>
+                    <li><strong>E-commerce Platforms:</strong> Price manipulation via mass assignment in checkout APIs</li>
+                    <li><strong>Banking APIs:</strong> Excessive data exposure revealing account balances and PINs</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> return entire database models</li>
+                    <li><span class="badge critical">DO NOT</span> accept all request fields blindly</li>
+                    <li><span class="badge critical">DO NOT</span> expose admin/internal fields</li>
+                    <li><span class="badge high">DO</span> use serializers/DTOs for responses</li>
+                    <li><span class="badge high">DO</span> whitelist allowed update fields</li>
+                    <li><span class="badge medium">DO</span> implement field-level permissions</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">GDPR</span> Art. 5 - Data Minimization</li>
+                    <li><span class="badge medium">PCI-DSS</span> Requirement 3.3</li>
+                    <li><span class="badge medium">HIPAA</span> §164.514 - De-identification</li>
+                    <li><span class="badge medium">SOC 2</span> CC6.1</li>
+                    <li><span class="badge medium">ISO 27001</span> A.9.4</li>
+                    <li><span class="badge medium">CCPA</span> Data Minimization</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP API Security Top 10 Educational Repository</strong> | <a href="../../README.md">Main Repo</a> | <a href="../README.md">All Cheat Sheets</a></p>
+            <p>For hands-on practice: <a href="../../OWASP-API/API03-Broken-Object-Property-Level-Authorization/lab/">Try the Lab</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

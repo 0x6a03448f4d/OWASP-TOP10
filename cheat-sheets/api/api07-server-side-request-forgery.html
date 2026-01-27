@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API07: Server-Side Request Forgery (SSRF) - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+</head>
+<body>
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🌐 Server-Side Request Forgery (SSRF)</h1>
+            <p class="subtitle">OWASP API Security Top 10 - API07</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Server-Side Request Forgery (SSRF)</strong> occurs when an API fetches a remote resource without validating the user-supplied URL. Attackers can trick the server into making requests to internal services, cloud metadata endpoints, or arbitrary external URLs, bypassing firewalls and accessing sensitive data.</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">API07</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Internal</span>
+                        <span class="label">Network Access</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Cloud</span>
+                        <span class="label">Metadata Exposure</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Cloud Metadata Access:</strong> Fetch AWS/Azure/GCP credentials from metadata endpoints</li>
+                    <li><strong>Internal Network Scanning:</strong> Probe internal IPs and ports</li>
+                    <li><strong>Local File Access:</strong> Read files using file:// protocol</li>
+                    <li><strong>Internal API Access:</strong> Call internal services not exposed externally</li>
+                    <li><strong>Firewall Bypass:</strong> Access services protected by firewall</li>
+                    <li><strong>Port Scanning:</strong> Enumerate open ports on internal systems</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Attacker finds URL parameter in API<br>
+   <span class="arrow">↓</span><br>
+2. Sends internal URL: http://169.254.169.254/<br>
+   <span class="arrow">↓</span><br>
+3. Server fetches AWS metadata endpoint<br>
+   <span class="arrow">↓</span><br>
+4. Returns IAM credentials in response<br>
+   <span class="arrow">↓</span><br>
+5. <strong>BREACH: AWS account compromised!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: No URL validation!</span>
+@app.route(<span class="string">'/api/fetch'</span>, methods=[<span class="string">'POST'</span>])
+<span class="keyword">def</span> <span class="function">fetch_url</span>():
+    url = request.json.get(<span class="string">'url'</span>)
+    
+    <span class="comment"># VULNERABLE: Fetches any URL!</span>
+    response = requests.get(url)
+    <span class="keyword">return</span> response.text
+
+<span class="comment">// Attack examples:</span>
+<span class="keyword">POST</span> /api/fetch
+{
+  <span class="string">"url"</span>: <span class="string">"http://169.254.169.254/latest/meta-data/iam/security-credentials/"</span>
+}
+<span class="comment">← AWS credentials!</span>
+
+{
+  <span class="string">"url"</span>: <span class="string">"http://localhost:8080/admin"</span>
+}
+<span class="comment">← Internal admin panel!</span>
+
+{
+  <span class="string">"url"</span>: <span class="string">"file:///etc/passwd"</span>
+}
+<span class="comment">← Local file access!</span>
+
+<span class="comment">// Bad: Webhook without validation</span>
+@app.route(<span class="string">'/api/webhook'</span>, methods=[<span class="string">'POST'</span>])
+<span class="keyword">def</span> <span class="function">register_webhook</span>():
+    webhook_url = request.json.get(<span class="string">'url'</span>)
+    
+    <span class="comment"># Stores and calls user-provided URL</span>
+    save_webhook(current_user.id, webhook_url)
+    <span class="keyword">return</span> {<span class="string">'status'</span>: <span class="string">'registered'</span>}
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: Strict URL validation</span>
+<span class="keyword">import</span> ipaddress
+<span class="keyword">from</span> urllib.parse <span class="keyword">import</span> urlparse
+
+ALLOWED_DOMAINS = [<span class="string">'example.com'</span>, <span class="string">'api.partner.com'</span>]
+BLOCKED_IPS = [
+    ipaddress.ip_network(<span class="string">'127.0.0.0/8'</span>),    <span class="comment"># localhost</span>
+    ipaddress.ip_network(<span class="string">'169.254.0.0/16'</span>),  <span class="comment"># link-local (AWS metadata)</span>
+    ipaddress.ip_network(<span class="string">'10.0.0.0/8'</span>),      <span class="comment"># private</span>
+    ipaddress.ip_network(<span class="string">'172.16.0.0/12'</span>),   <span class="comment"># private</span>
+    ipaddress.ip_network(<span class="string">'192.168.0.0/16'</span>),  <span class="comment"># private</span>
+]
+
+<span class="keyword">def</span> <span class="function">is_safe_url</span>(url):
+    parsed = urlparse(url)
+    
+    <span class="comment"># Only allow HTTP/HTTPS</span>
+    <span class="keyword">if</span> parsed.scheme <span class="keyword">not in</span> [<span class="string">'http'</span>, <span class="string">'https'</span>]:
+        <span class="keyword">return</span> <span class="keyword">False</span>
+    
+    <span class="comment"># Whitelist allowed domains</span>
+    <span class="keyword">if</span> parsed.hostname <span class="keyword">not in</span> ALLOWED_DOMAINS:
+        <span class="keyword">return</span> <span class="keyword">False</span>
+    
+    <span class="comment"># Resolve hostname and check IP</span>
+    <span class="keyword">try</span>:
+        ip = ipaddress.ip_address(socket.gethostbyname(parsed.hostname))
+        <span class="keyword">for</span> blocked_network <span class="keyword">in</span> BLOCKED_IPS:
+            <span class="keyword">if</span> ip <span class="keyword">in</span> blocked_network:
+                <span class="keyword">return</span> <span class="keyword">False</span>
+    <span class="keyword">except</span>:
+        <span class="keyword">return</span> <span class="keyword">False</span>
+    
+    <span class="keyword">return</span> <span class="keyword">True</span>
+
+@app.route(<span class="string">'/api/fetch'</span>, methods=[<span class="string">'POST'</span>])
+<span class="keyword">def</span> <span class="function">fetch_url</span>():
+    url = request.json.get(<span class="string">'url'</span>)
+    
+    <span class="comment"># Validate URL before fetching</span>
+    <span class="keyword">if not</span> is_safe_url(url):
+        <span class="keyword">return</span> {<span class="string">'error'</span>: <span class="string">'Invalid URL'</span>}, <span class="number">400</span>
+    
+    <span class="keyword">try</span>:
+        response = requests.get(
+            url,
+            timeout=<span class="number">5</span>,
+            allow_redirects=<span class="keyword">False</span>  <span class="comment"># Prevent redirect attacks</span>
+        )
+        <span class="keyword">return</span> response.text
+    <span class="keyword">except</span> requests.RequestException <span class="keyword">as</span> e:
+        <span class="keyword">return</span> {<span class="string">'error'</span>: <span class="string">'Failed to fetch'</span>}, <span class="number">500</span>
+
+<span class="comment">// Good: Use predefined resources instead of URLs</span>
+@app.route(<span class="string">'/api/avatar'</span>, methods=[<span class="string">'POST'</span>])
+<span class="keyword">def</span> <span class="function">set_avatar</span>():
+    <span class="comment"># Instead of accepting URL, use resource ID</span>
+    avatar_id = request.json.get(<span class="string">'avatar_id'</span>)
+    
+    <span class="comment"># Fetch from predefined list</span>
+    avatar_url = PREDEFINED_AVATARS.get(avatar_id)
+    <span class="keyword">if not</span> avatar_url:
+        <span class="keyword">return</span> {<span class="string">'error'</span>: <span class="string">'Invalid avatar'</span>}, <span class="number">400</span>
+    
+    current_user.avatar = avatar_url
+    <span class="keyword">return</span> {<span class="string">'status'</span>: <span class="string">'updated'</span>}
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Whitelist allowed domains/protocols</li>
+                    <li>Block private IP ranges (RFC1918, link-local)</li>
+                    <li>Disable unused URL schemes (file://, gopher://, etc.)</li>
+                    <li>Validate and sanitize all user-supplied URLs</li>
+                    <li>Disable HTTP redirects or validate redirect targets</li>
+                    <li>Use DNS resolution validation</li>
+                    <li>Implement network segmentation</li>
+                    <li>Block cloud metadata IPs (169.254.169.254)</li>
+                    <li>Use resource identifiers instead of URLs when possible</li>
+                    <li>Set request timeouts</li>
+                    <li>Log all outbound requests</li>
+                    <li>Apply principle of least privilege for network access</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Testing Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Burp Suite</span>
+                    <span class="tool-tag">OWASP ZAP</span>
+                    <span class="tool-tag">SSRFmap</span>
+                    <span class="tool-tag">Gopherus</span>
+                    <span class="tool-tag">curl</span>
+                    <span class="tool-tag">Postman</span>
+                </div>
+                
+                <h3>Prevention Libraries:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">SafeCurl</span>
+                    <span class="tool-tag">SSRF-Filter</span>
+                    <span class="tool-tag">urllib3</span>
+                    <span class="tool-tag">requests</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Try localhost: http://127.0.0.1, http://localhost</li>
+                    <li>Test metadata: http://169.254.169.254/</li>
+                    <li>Try file:// protocol for local files</li>
+                    <li>Test internal IPs: 10.0.0.1, 192.168.1.1</li>
+                    <li>Use URL encoding/obfuscation bypasses</li>
+                    <li>Test redirect chains</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Breaches</h2>
+                <ul>
+                    <li><strong>Capital One (2019):</strong> SSRF to AWS metadata led to 100M+ records breach</li>
+                    <li><strong>Shopify (2020):</strong> SSRF vulnerability allowed internal network access</li>
+                    <li><strong>Verizon (2017):</strong> SSRF exposed internal systems and credentials</li>
+                    <li><strong>Uber (2016):</strong> SSRF in internal tools led to data exposure</li>
+                    <li><strong>Atlassian (2019):</strong> SSRF in Jira allowed AWS metadata access</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> fetch user-supplied URLs without validation</li>
+                    <li><span class="badge critical">DO NOT</span> trust URL schemes beyond HTTP/HTTPS</li>
+                    <li><span class="badge critical">DO NOT</span> allow access to 169.254.169.254</li>
+                    <li><span class="badge high">DO</span> whitelist allowed domains</li>
+                    <li><span class="badge high">DO</span> block private IP ranges</li>
+                    <li><span class="badge high">DO</span> disable redirects or validate targets</li>
+                    <li><span class="badge medium">DO</span> use network segmentation</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">OWASP</span> ASVS V5.2</li>
+                    <li><span class="badge medium">PCI-DSS</span> Requirement 6.5.1</li>
+                    <li><span class="badge medium">NIST</span> 800-53 SC-7</li>
+                    <li><span class="badge medium">ISO 27001</span> A.13.1.3</li>
+                    <li><span class="badge medium">SOC 2</span> CC6.6</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP API Security Top 10 Educational Repository</strong> | <a href="../../README.md">Main Repo</a> | <a href="../README.md">All Cheat Sheets</a></p>
+            <p>For hands-on practice: <a href="../../OWASP-API/API07-Server-Side-Request-Forgery/lab/">Try the Lab</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

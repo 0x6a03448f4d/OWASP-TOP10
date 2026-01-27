@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API02: Broken Authentication - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+</head>
+<body>
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔑 Broken Authentication</h1>
+            <p class="subtitle">OWASP API Security Top 10 - API02</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Broken Authentication</strong> occurs when API authentication mechanisms are poorly implemented, allowing attackers to compromise authentication tokens, passwords, session IDs, or exploit implementation flaws to assume other users' identities temporarily or permanently.</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">API02</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">62%</span>
+                        <span class="label">APIs Tested</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Minutes</span>
+                        <span class="label">Time to Exploit</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Brute Force:</strong> No rate limiting allows password guessing</li>
+                    <li><strong>Credential Stuffing:</strong> Using leaked credentials from other breaches</li>
+                    <li><strong>Weak JWT:</strong> Predictable secrets, no expiration, algorithm confusion</li>
+                    <li><strong>Token Theft:</strong> Stealing and reusing authentication tokens</li>
+                    <li><strong>Missing MFA:</strong> Single-factor authentication on sensitive operations</li>
+                    <li><strong>Weak Passwords:</strong> No complexity requirements or length enforcement</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Attacker identifies login endpoint<br>
+   <span class="arrow">↓</span><br>
+2. No rate limiting detected<br>
+   <span class="arrow">↓</span><br>
+3. Launches automated brute force attack<br>
+   <span class="arrow">↓</span><br>
+4. Tries 10,000 common passwords<br>
+   <span class="arrow">↓</span><br>
+5. <strong>BREACH: Account compromised!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: Weak JWT implementation</span>
+<span class="keyword">const</span> token = jwt.sign(
+    { userId: user.id },
+    <span class="string">'secret123'</span>,  <span class="comment">// Weak secret!</span>
+    { algorithm: <span class="string">'HS256'</span> }  <span class="comment">// No expiration!</span>
+);
+
+<span class="comment">// Bad: No rate limiting on login</span>
+@app.route(<span class="string">'/api/login'</span>, methods=[<span class="string">'POST'</span>])
+<span class="keyword">def</span> <span class="function">login</span>():
+    username = request.json.get(<span class="string">'username'</span>)
+    password = request.json.get(<span class="string">'password'</span>)
+    
+    user = User.query.filter_by(username=username).first()
+    <span class="keyword">if</span> user <span class="keyword">and</span> user.check_password(password):
+        <span class="keyword">return</span> jsonify({<span class="string">'token'</span>: generate_token(user)})
+    <span class="keyword">return</span> jsonify({<span class="string">'error'</span>: <span class="string">'Invalid credentials'</span>}), <span class="number">401</span>
+
+<span class="comment">// Bad: Weak password policy</span>
+<span class="keyword">if</span> len(password) &gt;= <span class="number">5</span>:  <span class="comment"># Too short!</span>
+    create_user(username, password)
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: Secure JWT with expiration</span>
+<span class="keyword">const</span> token = jwt.sign(
+    { 
+        userId: user.id,
+        exp: Math.floor(Date.now() / <span class="number">1000</span>) + (<span class="number">15</span> * <span class="number">60</span>)  <span class="comment">// 15 min</span>
+    },
+    process.env.JWT_SECRET,  <span class="comment">// Strong secret from env</span>
+    { algorithm: <span class="string">'RS256'</span> }  <span class="comment">// Asymmetric signing</span>
+);
+
+<span class="comment">// Good: Rate limiting + account lockout</span>
+@limiter.limit(<span class="string">"5 per minute"</span>)
+@app.route(<span class="string">'/api/login'</span>, methods=[<span class="string">'POST'</span>])
+<span class="keyword">def</span> <span class="function">login</span>():
+    username = request.json.get(<span class="string">'username'</span>)
+    password = request.json.get(<span class="string">'password'</span>)
+    
+    user = User.query.filter_by(username=username).first()
+    
+    <span class="comment"># Check if account is locked</span>
+    <span class="keyword">if</span> user <span class="keyword">and</span> user.is_locked():
+        <span class="keyword">return</span> jsonify({<span class="string">'error'</span>: <span class="string">'Account locked'</span>}), <span class="number">403</span>
+    
+    <span class="keyword">if</span> user <span class="keyword">and</span> user.check_password(password):
+        user.reset_failed_attempts()
+        <span class="keyword">return</span> jsonify({<span class="string">'token'</span>: generate_token(user)})
+    
+    <span class="comment"># Increment failed attempts</span>
+    <span class="keyword">if</span> user:
+        user.increment_failed_attempts()
+    
+    <span class="keyword">return</span> jsonify({<span class="string">'error'</span>: <span class="string">'Invalid credentials'</span>}), <span class="number">401</span>
+
+<span class="comment">// Good: Strong password policy</span>
+<span class="keyword">def</span> <span class="function">validate_password</span>(password):
+    <span class="keyword">if</span> len(password) &lt; <span class="number">12</span>:
+        <span class="keyword">raise</span> ValueError(<span class="string">"Password too short"</span>)
+    <span class="keyword">if</span> <span class="keyword">not</span> has_uppercase(password):
+        <span class="keyword">raise</span> ValueError(<span class="string">"Needs uppercase"</span>)
+    <span class="keyword">if</span> is_common_password(password):
+        <span class="keyword">raise</span> ValueError(<span class="string">"Password too common"</span>)
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Implement rate limiting on all auth endpoints</li>
+                    <li>Use strong, random secrets for token generation</li>
+                    <li>Set short expiration times (15 min access tokens)</li>
+                    <li>Implement refresh token mechanism</li>
+                    <li>Use asymmetric algorithms (RS256) for JWTs</li>
+                    <li>Enforce strong password policies (12+ chars)</li>
+                    <li>Implement MFA for sensitive operations</li>
+                    <li>Hash passwords with bcrypt/argon2</li>
+                    <li>Implement account lockout after failed attempts</li>
+                    <li>Validate token signatures and expiration</li>
+                    <li>Implement token revocation on logout</li>
+                    <li>Never expose tokens in URLs or logs</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Testing Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Burp Suite</span>
+                    <span class="tool-tag">OWASP ZAP</span>
+                    <span class="tool-tag">Postman</span>
+                    <span class="tool-tag">Hydra</span>
+                    <span class="tool-tag">Medusa</span>
+                    <span class="tool-tag">jwt_tool</span>
+                    <span class="tool-tag">JohnTheRipper</span>
+                </div>
+                
+                <h3>Security Libraries:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Passport.js</span>
+                    <span class="tool-tag">Spring Security</span>
+                    <span class="tool-tag">Auth0</span>
+                    <span class="tool-tag">OAuth 2.0</span>
+                    <span class="tool-tag">OpenID Connect</span>
+                    <span class="tool-tag">Flask-Limiter</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Test for rate limiting (try 100+ login attempts)</li>
+                    <li>Check JWT algorithm and secret strength</li>
+                    <li>Verify token expiration is enforced</li>
+                    <li>Test with weak passwords (123456, password)</li>
+                    <li>Try credential stuffing with known breaches</li>
+                    <li>Test token reuse after logout</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Breaches</h2>
+                <ul>
+                    <li><strong>T-Mobile (2021):</strong> SIM swapping via weak API authentication, no MFA enforcement</li>
+                    <li><strong>Twitter (2020):</strong> OAuth token leak exposed 5.4M accounts</li>
+                    <li><strong>Experian (2021):</strong> Weak password reset tokens allowed credit report access</li>
+                    <li><strong>Robinhood (2021):</strong> Social engineering due to insufficient authentication controls</li>
+                    <li><strong>Capital One (2019):</strong> Stolen credentials led to 100M+ records breach</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> use weak secrets like 'secret' or 'password'</li>
+                    <li><span class="badge critical">DO NOT</span> create tokens without expiration</li>
+                    <li><span class="badge critical">DO NOT</span> skip rate limiting on auth endpoints</li>
+                    <li><span class="badge high">DO</span> use RS256 or ES256 for JWTs</li>
+                    <li><span class="badge high">DO</span> implement account lockout after 5 failures</li>
+                    <li><span class="badge high">DO</span> require MFA for sensitive operations</li>
+                    <li><span class="badge medium">DO</span> log all authentication events</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">PCI-DSS</span> Requirement 8.1-8.8</li>
+                    <li><span class="badge medium">GDPR</span> Art. 32 - Security of Processing</li>
+                    <li><span class="badge medium">NIST</span> 800-63B - Digital Identity</li>
+                    <li><span class="badge medium">SOC 2</span> CC6.1 - Logical Access</li>
+                    <li><span class="badge medium">ISO 27001</span> A.9.2, A.9.4</li>
+                    <li><span class="badge medium">HIPAA</span> §164.312(a)(1)</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP API Security Top 10 Educational Repository</strong> | <a href="../../README.md">Main Repo</a> | <a href="../README.md">All Cheat Sheets</a></p>
+            <p>For hands-on practice: <a href="../../OWASP-API/API02-Broken-Authentication/lab/">Try the Lab</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

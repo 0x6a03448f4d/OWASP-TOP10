@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API01: Broken Object Level Authorization - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+</head>
+<body>
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔐 Broken Object Level Authorization (BOLA)</h1>
+            <p class="subtitle">OWASP API Security Top 10 - API01</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Broken Object Level Authorization (BOLA)</strong>, also known as <strong>Insecure Direct Object Reference (IDOR)</strong>, occurs when an API endpoint receives an object identifier and performs actions on that object without properly validating whether the requesting user has permission to access it. This is the #1 API security vulnerability.</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">API01</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">95%</span>
+                        <span class="label">APIs Affected</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">&lt;30min</span>
+                        <span class="label">Time to Exploit</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Parameter Tampering:</strong> Modify user_id, order_id, or document_id in API requests</li>
+                    <li><strong>ID Enumeration:</strong> Iterate through sequential IDs to access all objects</li>
+                    <li><strong>URL Manipulation:</strong> Change resource identifiers in API endpoints</li>
+                    <li><strong>Body Manipulation:</strong> Modify object IDs in JSON request bodies</li>
+                    <li><strong>Batch Operations:</strong> Include unauthorized object IDs in bulk requests</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Attacker authenticates as regular user<br>
+   <span class="arrow">↓</span><br>
+2. Observes API call: GET /api/orders/1234<br>
+   <span class="arrow">↓</span><br>
+3. Changes ID: GET /api/orders/1235<br>
+   <span class="arrow">↓</span><br>
+4. API doesn't verify ownership<br>
+   <span class="arrow">↓</span><br>
+5. <strong>BREACH: Access to other user's order!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: No ownership check!</span>
+<span class="keyword">GET</span> /api/orders/<span class="string">5827</span>
+Authorization: Bearer &lt;token&gt;
+
+<span class="comment">// Backend code (Python Flask)</span>
+@app.route(<span class="string">'/api/orders/&lt;order_id&gt;'</span>)
+@login_required
+<span class="keyword">def</span> <span class="function">get_order</span>(order_id):
+    <span class="comment"># VULNERABLE: No ownership verification!</span>
+    order = Order.query.get(order_id)
+    <span class="keyword">return</span> jsonify(order)
+
+<span class="comment">// Bad: Trusting client-provided object IDs</span>
+<span class="keyword">POST</span> /api/documents/share
+{
+  <span class="string">"document_id"</span>: <span class="number">9812</span>,
+  <span class="string">"share_with"</span>: <span class="string">"attacker@example.com"</span>
+}
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: Verify ownership before access</span>
+@app.route(<span class="string">'/api/orders/&lt;order_id&gt;'</span>)
+@login_required
+<span class="keyword">def</span> <span class="function">get_order</span>(order_id):
+    order = Order.query.get_or_404(order_id)
+    
+    <span class="comment"># Verify user owns this order</span>
+    <span class="keyword">if</span> order.user_id != current_user.id <span class="keyword">and not</span> current_user.is_admin:
+        abort(<span class="number">403</span>)  <span class="comment"># Forbidden</span>
+    
+    <span class="keyword">return</span> jsonify(order)
+
+<span class="comment">// Good: Filter by ownership in query</span>
+@app.route(<span class="string">'/api/orders'</span>)
+@login_required
+<span class="keyword">def</span> <span class="function">get_user_orders</span>():
+    <span class="comment"># Only return user's own orders</span>
+    orders = Order.query.filter_by(user_id=current_user.id).all()
+    <span class="keyword">return</span> jsonify(orders)
+
+<span class="comment">// Good: Use UUIDs + ownership checks</span>
+<span class="keyword">def</span> <span class="function">verify_ownership</span>(resource, user):
+    <span class="keyword">if</span> resource.owner_id != user.id:
+        <span class="keyword">raise</span> PermissionError(<span class="string">"Access denied"</span>)
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Verify object ownership on every API request</li>
+                    <li>Use user context from authentication token, never request</li>
+                    <li>Implement database queries with ownership filters</li>
+                    <li>Use random UUIDs instead of sequential IDs</li>
+                    <li>Implement centralized authorization logic</li>
+                    <li>Test with different user contexts</li>
+                    <li>Log authorization failures for monitoring</li>
+                    <li>Never trust client-provided object IDs</li>
+                    <li>Use framework authorization libraries</li>
+                    <li>Conduct regular security testing</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Testing Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Burp Suite</span>
+                    <span class="tool-tag">OWASP ZAP</span>
+                    <span class="tool-tag">Postman</span>
+                    <span class="tool-tag">curl</span>
+                    <span class="tool-tag">Insomnia</span>
+                    <span class="tool-tag">APIFuzzer</span>
+                </div>
+                
+                <h3>Prevention Libraries:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Pundit (Ruby)</span>
+                    <span class="tool-tag">CanCanCan (Ruby)</span>
+                    <span class="tool-tag">Casbin</span>
+                    <span class="tool-tag">Spring Security</span>
+                    <span class="tool-tag">Django Guardian</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Create two test accounts (User A and User B)</li>
+                    <li>Capture API requests as User A</li>
+                    <li>Replay requests as User B with User A's object IDs</li>
+                    <li>Iterate through ID ranges to test enumeration</li>
+                    <li>Test all HTTP methods (GET, POST, PUT, DELETE, PATCH)</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Breaches</h2>
+                <ul>
+                    <li><strong>T-Mobile (2021):</strong> 40M+ customer records exposed via BOLA in customer API</li>
+                    <li><strong>Peloton (2021):</strong> API allowed access to any user's profile, workout data, and location</li>
+                    <li><strong>Parler (2021):</strong> 70TB of data scraped via sequential post ID enumeration</li>
+                    <li><strong>USPS (2018):</strong> 60M user accounts accessible by changing account parameter</li>
+                    <li><strong>Bumble (2019):</strong> User data accessible by iterating through user IDs</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> trust any client-provided object IDs</li>
+                    <li><span class="badge critical">DO NOT</span> rely on UUIDs alone for security</li>
+                    <li><span class="badge critical">DO NOT</span> skip authorization checks for internal APIs</li>
+                    <li><span class="badge high">DO</span> verify ownership on every request</li>
+                    <li><span class="badge high">DO</span> use WHERE user_id = ? in database queries</li>
+                    <li><span class="badge medium">DO</span> log and monitor authorization failures</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">PCI-DSS</span> Requirement 6.5.8</li>
+                    <li><span class="badge medium">GDPR</span> Art. 32 - Security of Processing</li>
+                    <li><span class="badge medium">HIPAA</span> §164.312 - Access Control</li>
+                    <li><span class="badge medium">SOC 2</span> CC6.1, CC6.3</li>
+                    <li><span class="badge medium">ISO 27001</span> A.9.4.1</li>
+                    <li><span class="badge medium">NIST</span> 800-53 AC-3</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP API Security Top 10 Educational Repository</strong> | <a href="../../README.md">Main Repo</a> | <a href="../README.md">All Cheat Sheets</a></p>
+            <p>For hands-on practice: <a href="../../OWASP-API/API01-Broken-Object-Level-Authorization/lab/">Try the Lab</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

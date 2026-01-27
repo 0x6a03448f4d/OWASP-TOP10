@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API05: Broken Function Level Authorization - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+</head>
+<body>
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🛡️ Broken Function Level Authorization (BFLA)</h1>
+            <p class="subtitle">OWASP API Security Top 10 - API05</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Broken Function Level Authorization (BFLA)</strong> occurs when an API endpoint doesn't properly verify whether the authenticated user has the necessary privileges to execute a specific function. Regular users can access administrative or privileged operations intended only for elevated roles.</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">API05</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Function</span>
+                        <span class="label">Operation Level</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Admin</span>
+                        <span class="label">Target Functions</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Admin Function Access:</strong> Regular user calls DELETE /api/users endpoint</li>
+                    <li><strong>HTTP Method Tampering:</strong> Change GET to DELETE to bypass controls</li>
+                    <li><strong>Hidden Endpoints:</strong> Discover undocumented admin endpoints via fuzzing</li>
+                    <li><strong>Role Parameter Manipulation:</strong> Send role=admin in request</li>
+                    <li><strong>Vertical Privilege Escalation:</strong> User executes admin-only operations</li>
+                    <li><strong>Lateral Movement:</strong> Access functions of different departments</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Attacker logs in as regular user<br>
+   <span class="arrow">↓</span><br>
+2. Discovers admin endpoint via API docs/fuzzing<br>
+   <span class="arrow">↓</span><br>
+3. Calls DELETE /api/admin/users/456<br>
+   <span class="arrow">↓</span><br>
+4. API doesn't verify role/privileges<br>
+   <span class="arrow">↓</span><br>
+5. <strong>BREACH: User deleted by regular user!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: No role check on admin function!</span>
+@app.route(<span class="string">'/api/admin/users'</span>, methods=[<span class="string">'DELETE'</span>])
+@login_required  <span class="comment">← Only checks authentication, not authorization!</span>
+<span class="keyword">def</span> <span class="function">delete_user</span>():
+    user_id = request.json.get(<span class="string">'user_id'</span>)
+    User.query.filter_by(id=user_id).delete()
+    <span class="keyword">return</span> {<span class="string">'status'</span>: <span class="string">'deleted'</span>}
+
+<span class="comment">// Bad: Client-side role check only</span>
+<span class="comment">// Frontend (JavaScript)</span>
+<span class="keyword">if</span> (user.role === <span class="string">'admin'</span>) {
+    showDeleteButton();  <span class="comment">← UI hides button, but endpoint accessible!</span>
+}
+
+<span class="comment">// Bad: Hidden admin endpoints</span>
+<span class="comment">// Documented:</span>
+<span class="keyword">GET</span>  /api/users        <span class="comment"># List users</span>
+<span class="keyword">POST</span> /api/users        <span class="comment"># Create user</span>
+
+<span class="comment">// Undocumented but accessible:</span>
+<span class="keyword">DELETE</span> /api/users/:id  <span class="comment"># Delete user (no role check!)</span>
+<span class="keyword">PUT</span>    /api/users/:id/promote  <span class="comment"># Promote to admin!</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: Proper role-based authorization</span>
+<span class="keyword">def</span> <span class="function">require_admin</span>(f):
+    @wraps(f)
+    <span class="keyword">def</span> <span class="function">decorated_function</span>(*args, **kwargs):
+        <span class="keyword">if not</span> current_user.is_admin:
+            abort(<span class="number">403</span>)  <span class="comment"># Forbidden</span>
+        <span class="keyword">return</span> f(*args, **kwargs)
+    <span class="keyword">return</span> decorated_function
+
+@app.route(<span class="string">'/api/admin/users'</span>, methods=[<span class="string">'DELETE'</span>])
+@login_required
+@require_admin  <span class="comment">← Verifies admin role!</span>
+<span class="keyword">def</span> <span class="function">delete_user</span>():
+    user_id = request.json.get(<span class="string">'user_id'</span>)
+    User.query.filter_by(id=user_id).delete()
+    <span class="keyword">return</span> {<span class="string">'status'</span>: <span class="string">'deleted'</span>}
+
+<span class="comment">// Good: Permission-based authorization</span>
+<span class="keyword">def</span> <span class="function">require_permission</span>(permission):
+    <span class="keyword">def</span> <span class="function">decorator</span>(f):
+        @wraps(f)
+        <span class="keyword">def</span> <span class="function">decorated_function</span>(*args, **kwargs):
+            <span class="keyword">if not</span> current_user.has_permission(permission):
+                abort(<span class="number">403</span>)
+            <span class="keyword">return</span> f(*args, **kwargs)
+        <span class="keyword">return</span> decorated_function
+    <span class="keyword">return</span> decorator
+
+@app.route(<span class="string">'/api/reports/financial'</span>)
+@login_required
+@require_permission(<span class="string">'view_financial_reports'</span>)
+<span class="keyword">def</span> <span class="function">get_financial_report</span>():
+    <span class="keyword">return</span> generate_report()
+
+<span class="comment">// Good: RBAC with multiple roles</span>
+@app.route(<span class="string">'/api/config'</span>, methods=[<span class="string">'PUT'</span>])
+@login_required
+@require_roles([<span class="string">'admin'</span>, <span class="string">'system_manager'</span>])
+<span class="keyword">def</span> <span class="function">update_config</span>():
+    <span class="keyword">return</span> apply_config(request.json)
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Implement server-side role/permission checks</li>
+                    <li>Deny access by default, whitelist allowed roles</li>
+                    <li>Use decorators/middleware for authorization</li>
+                    <li>Never rely on client-side role checks</li>
+                    <li>Document all endpoints and their required roles</li>
+                    <li>Test all HTTP methods (GET, POST, PUT, DELETE, PATCH)</li>
+                    <li>Use RBAC (Role-Based Access Control)</li>
+                    <li>Implement centralized authorization logic</li>
+                    <li>Log authorization failures</li>
+                    <li>Regular security audits of endpoints</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Testing Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Burp Suite</span>
+                    <span class="tool-tag">OWASP ZAP</span>
+                    <span class="tool-tag">Postman</span>
+                    <span class="tool-tag">Insomnia</span>
+                    <span class="tool-tag">FFuF</span>
+                    <span class="tool-tag">DirBuster</span>
+                </div>
+                
+                <h3>Authorization Frameworks:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Spring Security</span>
+                    <span class="tool-tag">Apache Shiro</span>
+                    <span class="tool-tag">Casbin</span>
+                    <span class="tool-tag">Passport.js</span>
+                    <span class="tool-tag">Django Auth</span>
+                    <span class="tool-tag">Pundit</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Create accounts with different roles (user, admin)</li>
+                    <li>Try accessing admin endpoints as regular user</li>
+                    <li>Change HTTP methods (GET → DELETE, POST → PUT)</li>
+                    <li>Fuzz for hidden admin endpoints</li>
+                    <li>Test role parameter manipulation</li>
+                    <li>Check API documentation vs actual access</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Breaches</h2>
+                <ul>
+                    <li><strong>Instagram (2019):</strong> API allowed regular users to delete any comment</li>
+                    <li><strong>Uber (2016):</strong> Drivers could access admin functions via undocumented endpoints</li>
+                    <li><strong>Yahoo (2012):</strong> API vulnerability allowed unauthorized profile edits</li>
+                    <li><strong>Twitter (2020):</strong> Admin API accessible without proper role verification</li>
+                    <li><strong>E-commerce Platforms:</strong> Regular users accessing inventory management APIs</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> rely on client-side role checks</li>
+                    <li><span class="badge critical">DO NOT</span> hide endpoints without authorization</li>
+                    <li><span class="badge critical">DO NOT</span> trust role parameters from requests</li>
+                    <li><span class="badge high">DO</span> verify roles on every sensitive endpoint</li>
+                    <li><span class="badge high">DO</span> use server-side authorization middleware</li>
+                    <li><span class="badge high">DO</span> implement principle of least privilege</li>
+                    <li><span class="badge medium">DO</span> log and monitor privilege escalation attempts</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">PCI-DSS</span> Requirement 7.1 - Limit Access</li>
+                    <li><span class="badge medium">SOC 2</span> CC6.1, CC6.3</li>
+                    <li><span class="badge medium">ISO 27001</span> A.9.2.3</li>
+                    <li><span class="badge medium">NIST</span> 800-53 AC-3, AC-6</li>
+                    <li><span class="badge medium">GDPR</span> Art. 32</li>
+                    <li><span class="badge medium">HIPAA</span> §164.312(a)(4)</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP API Security Top 10 Educational Repository</strong> | <a href="../../README.md">Main Repo</a> | <a href="../README.md">All Cheat Sheets</a></p>
+            <p>For hands-on practice: <a href="../../OWASP-API/API05-Broken-Function-Level-Authorization/lab/">Try the Lab</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

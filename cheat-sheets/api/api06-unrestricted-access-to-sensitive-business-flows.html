@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API06: Unrestricted Access to Sensitive Business Flows - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+</head>
+<body>
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🎯 Unrestricted Access to Sensitive Business Flows</h1>
+            <p class="subtitle">OWASP API Security Top 10 - API06</p>
+            <span class="category">MEDIUM RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Unrestricted Access to Sensitive Business Flows</strong> occurs when APIs expose business workflows that can be excessively used in automated ways, harming the business. Attackers exploit legitimate business features at scale for malicious purposes like scalping, market manipulation, or unfair advantages.</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">API06</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Business</span>
+                        <span class="label">Logic Abuse</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Bots</span>
+                        <span class="label">Automated Attacks</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Ticket Scalping:</strong> Bots buy all concert tickets in seconds</li>
+                    <li><strong>Inventory Hoarding:</strong> Automated purchase of limited stock items</li>
+                    <li><strong>Fake Reviews:</strong> Automated posting of fake reviews/ratings</li>
+                    <li><strong>Coupon Abuse:</strong> Generating/using unlimited discount codes</li>
+                    <li><strong>Flash Sale Gaming:</strong> Bots completing purchases faster than humans</li>
+                    <li><strong>Account Creation:</strong> Mass fake account creation for spam/fraud</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Attacker identifies checkout API<br>
+   <span class="arrow">↓</span><br>
+2. Creates bot to monitor inventory<br>
+   <span class="arrow">↓</span><br>
+3. Item goes on sale (limited quantity)<br>
+   <span class="arrow">↓</span><br>
+4. Bot purchases 100 units in 5 seconds<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Legitimate customers can't buy!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: No bot protection on checkout</span>
+@app.route(<span class="string">'/api/checkout'</span>, methods=[<span class="string">'POST'</span>])
+@login_required
+<span class="keyword">def</span> <span class="function">checkout</span>():
+    items = request.json.get(<span class="string">'items'</span>)
+    
+    <span class="comment"># No verification if user is human!</span>
+    <span class="comment"># No limit on purchase frequency!</span>
+    order = create_order(current_user, items)
+    <span class="keyword">return</span> jsonify(order)
+
+<span class="comment">// Bad: Unlimited review posting</span>
+@app.route(<span class="string">'/api/products/&lt;id&gt;/review'</span>, methods=[<span class="string">'POST'</span>])
+@login_required
+<span class="keyword">def</span> <span class="function">post_review</span>(id):
+    rating = request.json.get(<span class="string">'rating'</span>)
+    comment = request.json.get(<span class="string">'comment'</span>)
+    
+    <span class="comment"># No verification of actual purchase!</span>
+    <span class="comment"># No limit on reviews per user!</span>
+    review = Review.create(product_id=id, 
+                          user_id=current_user.id,
+                          rating=rating, 
+                          comment=comment)
+    <span class="keyword">return</span> jsonify(review)
+
+<span class="comment">// Bad: Unlimited coupon generation</span>
+@app.route(<span class="string">'/api/referral/code'</span>, methods=[<span class="string">'GET'</span>])
+@login_required
+<span class="keyword">def</span> <span class="function">get_referral_code</span>():
+    <span class="comment"># User can generate unlimited codes!</span>
+    code = generate_referral_code(current_user.id)
+    <span class="keyword">return</span> {<span class="string">'code'</span>: code}
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: Bot detection + rate limiting</span>
+@app.route(<span class="string">'/api/checkout'</span>, methods=[<span class="string">'POST'</span>])
+@login_required
+@limiter.limit(<span class="string">"3 per hour"</span>)  <span class="comment"># Max 3 checkouts/hour</span>
+<span class="keyword">def</span> <span class="function">checkout</span>():
+    items = request.json.get(<span class="string">'items'</span>)
+    
+    <span class="comment"># Verify CAPTCHA for bot detection</span>
+    <span class="keyword">if not</span> verify_captcha(request.json.get(<span class="string">'captcha_token'</span>)):
+        <span class="keyword">return</span> {<span class="string">'error'</span>: <span class="string">'CAPTCHA failed'</span>}, <span class="number">400</span>
+    
+    <span class="comment"># Check user behavior patterns</span>
+    <span class="keyword">if</span> is_suspicious_behavior(current_user):
+        <span class="keyword">return</span> {<span class="string">'error'</span>: <span class="string">'Suspicious activity detected'</span>}, <span class="number">403</span>
+    
+    <span class="comment"># Limit quantity per user</span>
+    <span class="keyword">if</span> total_quantity(items) &gt; MAX_ITEMS_PER_ORDER:
+        <span class="keyword">return</span> {<span class="string">'error'</span>: <span class="string">'Quantity limit exceeded'</span>}, <span class="number">400</span>
+    
+    order = create_order(current_user, items)
+    <span class="keyword">return</span> jsonify(order)
+
+<span class="comment">// Good: Verified purchase required for review</span>
+@app.route(<span class="string">'/api/products/&lt;id&gt;/review'</span>, methods=[<span class="string">'POST'</span>])
+@login_required
+<span class="keyword">def</span> <span class="function">post_review</span>(id):
+    rating = request.json.get(<span class="string">'rating'</span>)
+    comment = request.json.get(<span class="string">'comment'</span>)
+    
+    <span class="comment"># Verify user purchased this product</span>
+    <span class="keyword">if not</span> has_purchased(current_user.id, id):
+        <span class="keyword">return</span> {<span class="string">'error'</span>: <span class="string">'Purchase required'</span>}, <span class="number">403</span>
+    
+    <span class="comment"># Check if user already reviewed</span>
+    <span class="keyword">if</span> Review.exists(user_id=current_user.id, product_id=id):
+        <span class="keyword">return</span> {<span class="string">'error'</span>: <span class="string">'Already reviewed'</span>}, <span class="number">400</span>
+    
+    <span class="comment"># Apply rate limit on reviews</span>
+    <span class="keyword">if</span> user_reviews_today(current_user.id) &gt;= <span class="number">5</span>:
+        <span class="keyword">return</span> {<span class="string">'error'</span>: <span class="string">'Daily limit reached'</span>}, <span class="number">429</span>
+    
+    review = Review.create(product_id=id,
+                          user_id=current_user.id,
+                          rating=rating,
+                          comment=comment)
+    <span class="keyword">return</span> jsonify(review)
+
+<span class="comment">// Good: Limited coupon generation with cooldown</span>
+@app.route(<span class="string">'/api/referral/code'</span>, methods=[<span class="string">'GET'</span>])
+@login_required
+<span class="keyword">def</span> <span class="function">get_referral_code</span>():
+    <span class="comment"># Check cooldown period (1 code per 30 days)</span>
+    last_generated = get_last_code_time(current_user.id)
+    <span class="keyword">if</span> last_generated <span class="keyword">and</span> (datetime.now() - last_generated).days &lt; <span class="number">30</span>:
+        <span class="keyword">return</span> {<span class="string">'error'</span>: <span class="string">'Wait 30 days between codes'</span>}, <span class="number">429</span>
+    
+    <span class="comment"># Limit total codes per user</span>
+    <span class="keyword">if</span> total_codes_generated(current_user.id) &gt;= <span class="number">10</span>:
+        <span class="keyword">return</span> {<span class="string">'error'</span>: <span class="string">'Code limit reached'</span>}, <span class="number">403</span>
+    
+    code = generate_referral_code(current_user.id)
+    <span class="keyword">return</span> {<span class="string">'code'</span>: code}
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Implement CAPTCHA for sensitive business flows</li>
+                    <li>Apply rate limiting per user and IP</li>
+                    <li>Monitor and detect automated behavior patterns</li>
+                    <li>Require verified purchase for reviews</li>
+                    <li>Limit quantity per order/user</li>
+                    <li>Implement cooldown periods for actions</li>
+                    <li>Use device fingerprinting</li>
+                    <li>Implement progressive delays for suspicious behavior</li>
+                    <li>Add randomized timing to prevent automation</li>
+                    <li>Monitor for velocity anomalies</li>
+                    <li>Implement account aging requirements</li>
+                    <li>Use behavioral analysis (ML/AI)</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Bot Detection Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">reCAPTCHA</span>
+                    <span class="tool-tag">hCaptcha</span>
+                    <span class="tool-tag">PerimeterX</span>
+                    <span class="tool-tag">DataDome</span>
+                    <span class="tool-tag">Cloudflare Bot Management</span>
+                    <span class="tool-tag">Akamai Bot Manager</span>
+                </div>
+                
+                <h3>Rate Limiting Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Redis</span>
+                    <span class="tool-tag">Flask-Limiter</span>
+                    <span class="tool-tag">Express Rate Limit</span>
+                    <span class="tool-tag">Kong</span>
+                    <span class="tool-tag">AWS WAF</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Automate business flow requests at high speed</li>
+                    <li>Test purchase limits per user/session</li>
+                    <li>Try posting multiple reviews without purchase</li>
+                    <li>Test referral code generation limits</li>
+                    <li>Monitor for CAPTCHA requirements</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Breaches</h2>
+                <ul>
+                    <li><strong>PlayStation 5 Launch (2020):</strong> Bots bought entire stock in minutes, resold at 2x price</li>
+                    <li><strong>Supreme Clothing Drops:</strong> Automated bots dominate limited releases</li>
+                    <li><strong>Concert Tickets:</strong> Ticket scalpers use bots to buy thousands of tickets</li>
+                    <li><strong>Sneaker Releases:</strong> Nike, Adidas face constant bot attacks on limited editions</li>
+                    <li><strong>COVID Vaccine Appointments:</strong> Bots booked appointments, preventing legitimate access</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> allow unlimited sensitive actions</li>
+                    <li><span class="badge critical">DO NOT</span> skip bot detection on business flows</li>
+                    <li><span class="badge high">DO</span> implement CAPTCHA on checkout/purchase</li>
+                    <li><span class="badge high">DO</span> rate limit per user and IP</li>
+                    <li><span class="badge high">DO</span> monitor for automation patterns</li>
+                    <li><span class="badge medium">DO</span> require purchase verification for reviews</li>
+                    <li><span class="badge medium">DO</span> implement progressive delays</span></li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">PCI-DSS</span> Requirement 6.5.10</li>
+                    <li><span class="badge medium">NIST</span> 800-53 SC-5</li>
+                    <li><span class="badge medium">ISO 27001</span> A.12.2.1</li>
+                    <li><span class="badge medium">SOC 2</span> CC7.2</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP API Security Top 10 Educational Repository</strong> | <a href="../../README.md">Main Repo</a> | <a href="../README.md">All Cheat Sheets</a></p>
+            <p>For hands-on practice: <a href="../../OWASP-API/API06-Unrestricted-Access-to-Sensitive-Business-Flows/lab/">Try the Lab</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>
