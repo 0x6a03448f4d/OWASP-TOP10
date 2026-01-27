@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OWASP Top 10 Labs - All Categories</title>
-    <link rel="stylesheet" href="assets/dashboard.css">
+    <link rel="stylesheet" href="src/web-assets/dashboard.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         .labs-container {
@@ -381,7 +381,7 @@
                     <button class="lab-btn lab-btn-start" onclick="startLab('${category}', '${lab.num}', ${lab.port}, event)">>
                         <i class="fas fa-play"></i> Start Lab
                     </button>
-                    <a href="${lab.path}/README.md" class="lab-btn lab-btn-docs" target="_blank">
+                    <a href="${lab.path}/README.md" class="lab-btn lab-btn-docs">
                         <i class="fas fa-book"></i> Documentation
                     </a>
                 </div>
@@ -421,14 +421,13 @@
             status.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting...';
             
             // Map category and lab number to lab_id
-            const labIdMap = {
-                'web': `web-${labNum}`,
-                'api': `api-${labNum.toLowerCase()}`,
-                'mobile': `mobile-${labNum.toLowerCase()}`,
-                'llm': `llm-${labNum.toLowerCase()}`
-            };
+            // For web: web-01, web-02, etc.
+            // For api: api-api01, api-api02, etc.
+            // For mobile: mobile-m01, mobile-m02, etc.
+            // For llm: llm-llm01, llm-llm02, etc.
+            const labId = `${category}-${labNum.toLowerCase()}`;
             
-            const labId = labIdMap[category];
+            console.log(`Starting lab: ${labId} on port ${port}`);
             
             // Call lab-manager API to start the lab
             fetch(`http://localhost:4999/api/labs/${labId}/start`, {
@@ -439,6 +438,7 @@
             })
             .then(response => response.json())
             .then(data => {
+                console.log('Lab start response:', data);
                 if (data.status === 'started' || data.status === 'already_running') {
                     status.className = 'lab-status status-running';
                     status.innerHTML = '<i class="fas fa-circle"></i> Running';
@@ -461,13 +461,23 @@
                     btn.innerHTML = '<i class="fas fa-play"></i> Start Lab';
                     btn.disabled = false;
                     
-                    showNotification('info', data.message);
+                    showNotification('info', data.message || 'Lab status unknown');
                 }
             })
             .catch(error => {
                 console.error('Error starting lab:', error);
                 status.className = 'lab-status status-ready';
                 status.innerHTML = '<i class="fas fa-circle"></i> Ready';
+                btn.innerHTML = '<i class="fas fa-play"></i> Start Lab';
+                btn.disabled = false;
+                
+                // Fallback: show manual instructions
+                const categoryPath = category === 'web' ? 'OWASP-Web' : 
+                                   category === 'api' ? 'OWASP-API' : 
+                                   category === 'mobile' ? 'OWASP-Mobile' : 'OWASP-LLM';
+                showNotification('warning', `Could not connect to lab manager. Lab manager may not be running.\n\nTo start manually, run:\ndocker-compose up -d\n\nThen the lab should be available at http://localhost:${port}`);
+            });
+        }
                 btn.innerHTML = '<i class="fas fa-play"></i> Start Lab';
                 btn.disabled = false;
                 
