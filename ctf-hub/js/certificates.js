@@ -117,7 +117,9 @@ function generateCertificate(category) {
     doc.text('Verify at: github.com/0x6a03448f4d/OWASP-TOP10', 148.5, 195, { align: 'center' });
     
     // Save PDF
-    const fileName = `OWASP-${category.toUpperCase()}-Certificate-${appState.userName.replace(/\s+/g, '-')}-${date.replace(/\//g, '-')}.pdf`;
+    // Sanitize username for filename - only allow alphanumeric, spaces, hyphens, underscores
+    const sanitizedName = appState.userName.replace(/[^a-zA-Z0-9\s\-_]/g, '').replace(/\s+/g, '-').substring(0, 50);
+    const fileName = `OWASP-${category.toUpperCase()}-Certificate-${sanitizedName}-${date.replace(/\//g, '-')}.pdf`;
     doc.save(fileName);
     
     // Log activity

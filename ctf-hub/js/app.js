@@ -41,7 +41,16 @@ function initializeApp() {
 
 // Save state to localStorage
 function saveState() {
-    localStorage.setItem('owaspCTFHub', JSON.stringify(appState));
+    try {
+        localStorage.setItem('owaspCTFHub', JSON.stringify(appState));
+    } catch (e) {
+        if (e.name === 'QuotaExceededError') {
+            alert('Storage quota exceeded. Please export your data and reset to continue.');
+        } else {
+            console.error('Failed to save progress:', e);
+            alert('Failed to save progress. Your browser may have storage disabled.');
+        }
+    }
 }
 
 // Load progress data
