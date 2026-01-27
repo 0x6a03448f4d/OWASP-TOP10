@@ -1,7 +1,7 @@
 // Dashboard JavaScript functionality
 
 // Copy to clipboard functionality
-function copyToClipboard(text) {
+function copyToClipboard(text, event) {
     navigator.clipboard.writeText(text).then(() => {
         const btn = event.target.closest('.copy-btn');
         const originalHTML = btn.innerHTML;
