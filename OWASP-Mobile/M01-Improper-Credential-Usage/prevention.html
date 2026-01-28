@@ -215,7 +215,549 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>M01: Improper Credential Usage - Prevention</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#prevention-strategy-overview">Prevention Strategy Overview</a></li>
+<li><a href="#secure-credential-storage">Secure Credential Storage</a></li>
+<li><a href="#development-best-practices">Development Best Practices</a></li>
+<li><a href="#architecture-and-design">Architecture and Design</a></li>
+<li><a href="#testing-and-validation">Testing and Validation</a></li>
+<li><a href="#prevention-checklist">Prevention Checklist</a></li>
+</ul>
+
+<h2>Prevention Strategy Overview</h2>
+
+<p>Preventing credential exposure requires a defense-in-depth approach across the entire application lifecycle:</p>
+
+<p>``<code></p>
+<p>Design → Development → Testing → Deployment → Monitoring</p>
+<p>   ↓          ↓          ↓          ↓            ↓</p>
+<p> Secure    No Hardcoded  Automated  Secure      Anomaly</p>
+<p> Design    Credentials   Testing   Distribution Detection</p>
+</code>`<code>
+
+<h3>Core Principles</h3>
+
+<ol>
+<li><strong>Never Trust the Client</strong>: Assume the device is compromised</li>
+<li><strong>Minimize Credential Storage</strong>: Only store what's absolutely necessary</li>
+<li><strong>Use Platform Security</strong>: Leverage OS-provided secure storage</li>
+<li><strong>Encrypt Everything</strong>: Multiple layers of encryption</li>
+<li><strong>Short-Lived Tokens</strong>: Implement token rotation</li>
+<li><strong>Monitor and Alert</strong>: Detect abnormal credential usage</li>
+</ol>
+
+<h2>Secure Credential Storage</h2>
+
+<h3>✅ Use Platform Keychain/KeyStore</h3>
+
+<strong>Android - KeyStore</strong>:
+</code>`<code>java
+<p>// Store credentials securely using Android KeyStore</p>
+<p>import android.security.keystore.KeyGenParameterSpec;</p>
+<p>import android.security.keystore.KeyProperties;</p>
+<p>import javax.crypto.Cipher;</p>
+<p>import javax.crypto.KeyGenerator;</p>
+<p>import javax.crypto.SecretKey;</p>
+
+<p>public class SecureCredentialStorage {</p>
+<p>    private static final String KEY_ALIAS = "MyKeyAlias";</p>
+    
+<p>    // Generate and store a key</p>
+<p>    public void generateKey() throws Exception {</p>
+<p>        KeyGenerator keyGenerator = KeyGenerator.getInstance(</p>
+<p>            KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore");</p>
+            
+<p>        keyGenerator.init(new KeyGenParameterSpec.Builder(</p>
+<p>                KEY_ALIAS,</p>
+<p>                KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)</p>
+<p>            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)</p>
+<p>            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)</p>
+<p>            .setUserAuthenticationRequired(false)</p>
+<p>            .build());</p>
+            
+<p>        keyGenerator.generateKey();</p>
+<p>    }</p>
+    
+<p>    // Encrypt and store credentials</p>
+<p>    public void storeCredential(String credential) throws Exception {</p>
+<p>        KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");</p>
+<p>        keyStore.load(null);</p>
+        
+<p>        SecretKey secretKey = (SecretKey) keyStore.getKey(KEY_ALIAS, null);</p>
+        
+<p>        Cipher cipher = Cipher.getInstance(</p>
+<p>            "AES/GCM/NoPadding");</p>
+<p>        cipher.init(Cipher.ENCRYPT_MODE, secretKey);</p>
+        
+<p>        byte[] iv = cipher.getIV();</p>
+<p>        byte[] encrypted = cipher.doFinal(credential.getBytes());</p>
+        
+<p>        // Store encrypted data and IV</p>
+<p>        SharedPreferences prefs = getEncryptedSharedPreferences();</p>
+<p>        prefs.edit()</p>
+<p>            .putString("encrypted_credential", Base64.encodeToString(encrypted, Base64.DEFAULT))</p>
+<p>            .putString("iv", Base64.encodeToString(iv, Base64.DEFAULT))</p>
+<p>            .apply();</p>
+<p>    }</p>
+    
+<p>    // Use EncryptedSharedPreferences for additional security</p>
+<p>    private SharedPreferences getEncryptedSharedPreferences() throws Exception {</p>
+<p>        MasterKey masterKey = new MasterKey.Builder(context)</p>
+<p>            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)</p>
+<p>            .build();</p>
+            
+<p>        return EncryptedSharedPreferences.create(</p>
+<p>            context,</p>
+<p>            "secure_prefs",</p>
+<p>            masterKey,</p>
+<p>            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,</p>
+<p>            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM</p>
+<p>        );</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>iOS - Keychain</strong>:
+</code>`<code>swift
+<p>import Security</p>
+
+<p>class SecureCredentialStorage {</p>
+<p>    // Store credential in iOS Keychain</p>
+<p>    func storeCredential(key: String, value: String) -> Bool {</p>
+<p>        guard let valueData = value.data(using: .utf8) else {</p>
+<p>            return false</p>
+<p>        }</p>
+        
+<p>        // Delete any existing item</p>
+<p>        deleteCredential(key: key)</p>
+        
+<p>        // Create query</p>
+<p>        let query: [String: Any] = [</p>
+<p>            kSecClass as String: kSecClassGenericPassword,</p>
+<p>            kSecAttrAccount as String: key,</p>
+<p>            kSecValueData as String: valueData,</p>
+<p>            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly</p>
+<p>        ]</p>
+        
+<p>        let status = SecItemAdd(query as CFDictionary, nil)</p>
+<p>        return status == errSecSuccess</p>
+<p>    }</p>
+    
+<p>    // Retrieve credential from Keychain</p>
+<p>    func retrieveCredential(key: String) -> String? {</p>
+<p>        let query: [String: Any] = [</p>
+<p>            kSecClass as String: kSecClassGenericPassword,</p>
+<p>            kSecAttrAccount as String: key,</p>
+<p>            kSecReturnData as String: true,</p>
+<p>            kSecMatchLimit as String: kSecMatchLimitOne</p>
+<p>        ]</p>
+        
+<p>        var result: AnyObject?</p>
+<p>        let status = SecItemCopyMatching(query as CFDictionary, &result)</p>
+        
+<p>        guard status == errSecSuccess,</p>
+<p>              let data = result as? Data,</p>
+<p>              let credential = String(data: data, encoding: .utf8) else {</p>
+<p>            return nil</p>
+<p>        }</p>
+        
+<p>        return credential</p>
+<p>    }</p>
+    
+<p>    // Delete credential</p>
+<p>    func deleteCredential(key: String) {</p>
+<p>        let query: [String: Any] = [</p>
+<p>            kSecClass as String: kSecClassGenericPassword,</p>
+<p>            kSecAttrAccount as String: key</p>
+<p>        ]</p>
+<p>        SecItemDelete(query as CFDictionary)</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>✅ Implement Encrypted Shared Preferences</h3>
+
+<strong>Android - EncryptedSharedPreferences</strong>:
+</code>`<code>java
+<p>import androidx.security.crypto.EncryptedSharedPreferences;</p>
+<p>import androidx.security.crypto.MasterKey;</p>
+
+<p>public class SecurePreferences {</p>
+<p>    public static SharedPreferences getEncryptedPrefs(Context context) </p>
+<p>            throws Exception {</p>
+<p>        MasterKey masterKey = new MasterKey.Builder(context)</p>
+<p>            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)</p>
+<p>            .build();</p>
+        
+<p>        return EncryptedSharedPreferences.create(</p>
+<p>            context,</p>
+<p>            "secure_prefs",</p>
+<p>            masterKey,</p>
+<p>            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,</p>
+<p>            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM</p>
+<p>        );</p>
+<p>    }</p>
+    
+<p>    // Usage</p>
+<p>    public void saveToken(String token) throws Exception {</p>
+<p>        SharedPreferences prefs = getEncryptedPrefs(context);</p>
+<p>        prefs.edit().putString("auth_token", token).apply();</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Development Best Practices</h2>
+
+<h3>✅ Never Hardcode Credentials</h3>
+
+<strong>❌ WRONG - Hardcoded API Key</strong>:
+</code>`<code>java
+<p>public class ApiClient {</p>
+<p>    // NEVER DO THIS!</p>
+<p>    private static final String API_KEY = "sk_live_51H7h8dK2eZv...";</p>
+<p>    private static final String SECRET = "your_secret_here";</p>
+<p>}</p>
+</code>`<code>
+
+<strong>✅ CORRECT - Runtime Configuration</strong>:
+</code>`<code>java
+<p>public class ApiClient {</p>
+<p>    private String apiKey;</p>
+    
+<p>    public ApiClient() {</p>
+<p>        // Fetch from secure backend on app launch</p>
+<p>        this.apiKey = fetchApiKeyFromServer();</p>
+<p>    }</p>
+    
+<p>    private String fetchApiKeyFromServer() {</p>
+<p>        // Authenticate user first</p>
+<p>        // Server generates short-lived API key</p>
+<p>        // Return encrypted key to app</p>
+<p>        return serverResponse.getEncryptedApiKey();</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>✅ Use Environment-Specific Configuration</h3>
+
+<strong>Build Configuration (Android)</strong>:
+</code>`<code>gradle
+<p>// build.gradle</p>
+<p>android {</p>
+<p>    buildTypes {</p>
+<p>        debug {</p>
+<p>            buildConfigField "String", "API_URL", '"https://dev-api.example.com"'</p>
+<p>            // Never put real credentials here - they end up in APK</p>
+<p>        }</p>
+<p>        release {</p>
+<p>            buildConfigField "String", "API_URL", '"https://api.example.com"'</p>
+<p>            // Fetch actual credentials at runtime from server</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>✅ Implement Secure Logging</h3>
+
+<strong>❌ WRONG - Logging Credentials</strong>:
+</code>`<code>java
+<p>// NEVER DO THIS!</p>
+<p>Log.d("Auth", "Password: " + password);</p>
+<p>Log.d("API", "Token: " + authToken);</p>
+<p>System.out.println("API Key: " + apiKey);</p>
+</code>`<code>
+
+<strong>✅ CORRECT - Sanitized Logging</strong>:
+</code>`<code>java
+<p>public class SecureLogger {</p>
+<p>    public static void logAuth(String message) {</p>
+<p>        if (BuildConfig.DEBUG) {</p>
+<p>            // Even in debug, never log full credentials</p>
+<p>            Log.d("Auth", message.replaceAll("password=.<em>", "password=</em>**"));</p>
+<p>        }</p>
+<p>        // Production: no logging of auth events</p>
+<p>    }</p>
+    
+<p>    public static String sanitize(String input) {</p>
+<p>        // Mask sensitive data</p>
+<p>        return input.replaceAll(</p>
+<p>            "\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b", </p>
+<p>            "<strong><em>@</strong></em>.<em>*</em>"</p>
+<p>        );</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>✅ Disable Backup for Sensitive Data</h3>
+
+<strong>Android - Exclude from Backups</strong>:
+</code>`<code>xml
+<!-- AndroidManifest.xml -->
+<application
+<p>    android:allowBackup="false"</p>
+<p>    android:fullBackupContent="@xml/backup_rules"></p>
+    
+<!-- backup_rules.xml -->
+<full-backup-content>
+    <exclude domain="sharedpref" path="secure_prefs.xml"/>
+    <exclude domain="database" path="sensitive.db"/>
+</full-backup-content>
+</code>`<code>
+
+<strong>iOS - Exclude from iCloud Backup</strong>:
+</code>`<code>swift
+<p>func excludeFromBackup(url: URL) {</p>
+<p>    var resourceValues = URLResourceValues()</p>
+<p>    resourceValues.isExcludedFromBackup = true</p>
+<p>    try? url.setResourceValues(resourceValues)</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Architecture and Design</h2>
+
+<h3>✅ Implement Token Rotation</h3>
+
+<strong>Short-Lived Access Tokens</strong>:
+</code>`<code>java
+<p>public class TokenManager {</p>
+<p>    private static final int TOKEN_LIFETIME_MINUTES = 15;</p>
+    
+<p>    public void refreshTokenIfNeeded() {</p>
+<p>        Token currentToken = getStoredToken();</p>
+        
+<p>        if (currentToken.isExpired() || currentToken.willExpireSoon()) {</p>
+<p>            // Use refresh token to get new access token</p>
+<p>            Token newToken = authService.refreshToken(currentToken.getRefreshToken());</p>
+            
+<p>            // Store new token securely</p>
+<p>            storeTokenSecurely(newToken);</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    private boolean willExpireSoon(Token token) {</p>
+<p>        long expiryTime = token.getExpiryTimestamp();</p>
+<p>        long currentTime = System.currentTimeMillis();</p>
+<p>        long buffer = TimeUnit.MINUTES.toMillis(2); // 2-minute buffer</p>
+        
+<p>        return (expiryTime - currentTime) < buffer;</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>✅ Use Certificate Pinning</h3>
+
+<strong>Android - Network Security Config</strong>:
+</code>`<code>xml
+<!-- res/xml/network_security_config.xml -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api.example.com</domain>
+        <pin-set expiration="2025-12-31">
+            <pin digest="SHA-256">base64encodedpinhash1==</pin>
+            <pin digest="SHA-256">base64encodedpinhash2==</pin>
+        </pin-set>
+    </domain-config>
+</network-security-config>
+</code>`<code>
+
+<strong>iOS - Certificate Pinning</strong>:
+</code>`<code>swift
+<p>class PinningDelegate: NSObject, URLSessionDelegate {</p>
+<p>    func urlSession(_ session: URLSession, </p>
+<p>                   didReceive challenge: URLAuthenticationChallenge,</p>
+<p>                   completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {</p>
+        
+<p>        guard let serverTrust = challenge.protectionSpace.serverTrust else {</p>
+<p>            completionHandler(.cancelAuthenticationChallenge, nil)</p>
+<p>            return</p>
+<p>        }</p>
+        
+<p>        let policies = [SecPolicy.create(SecPolicyIdentifier.SSL, hostname: challenge.protectionSpace.host)]</p>
+<p>        SecTrustSetPolicies(serverTrust, policies as CFTypeRef)</p>
+        
+<p>        // Validate against pinned certificates</p>
+<p>        if validatePinnedCertificate(serverTrust) {</p>
+<p>            completionHandler(.useCredential, URLCredential(trust: serverTrust))</p>
+<p>        } else {</p>
+<p>            completionHandler(.cancelAuthenticationChallenge, nil)</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>✅ Implement Proper Session Management</h3>
+
+</code>`<code>java
+<p>public class SessionManager {</p>
+<p>    private static final long SESSION_TIMEOUT = TimeUnit.HOURS.toMillis(1);</p>
+    
+<p>    public boolean isSessionValid() {</p>
+<p>        long lastActivity = getLastActivityTime();</p>
+<p>        long currentTime = System.currentTimeMillis();</p>
+        
+<p>        if (currentTime - lastActivity > SESSION_TIMEOUT) {</p>
+<p>            // Session expired, clear credentials</p>
+<p>            clearSession();</p>
+<p>            return false;</p>
+<p>        }</p>
+        
+<p>        // Update last activity</p>
+<p>        updateLastActivityTime(currentTime);</p>
+<p>        return true;</p>
+<p>    }</p>
+    
+<p>    public void clearSession() {</p>
+<p>        // Remove all stored credentials</p>
+<p>        secureStorage.deleteAll();</p>
+<p>        // Clear app state</p>
+<p>        clearAppState();</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Testing and Validation</h2>
+
+<h3>✅ Automated Security Scanning</h3>
+
+<strong>Static Analysis Tools</strong>:
+<ul>
+<li><strong>MobSF (Mobile Security Framework)</strong>: Automated binary analysis</li>
+<li><strong>QARK</strong>: Android-specific vulnerability scanner</li>
+<li><strong>Checkmarx</strong>: Commercial SAST tool</li>
+<li><strong>SonarQube</strong>: Code quality and security</li>
+</ul>
+
+<strong>Integration Example</strong>:
+</code>`<code>bash
+<h1>Run MobSF scan in CI/CD pipeline</h1>
+<p>docker run -it --rm -p 8000:8000 opensecurity/mobile-security-framework-mobsf</p>
+
+<h1>API scan</h1>
+<p>curl -F "file=@app-release.apk" http://localhost:8000/api/v1/upload</p>
+</code>`<code>
+
+<h3>✅ Manual Security Testing</h3>
+
+<strong>Testing Checklist</strong>:
+<ol>
+<li>Decompile APK/IPA and search for hardcoded credentials</li>
+<li>Check all string resources and configuration files</li>
+<li>Analyze local storage for plaintext credentials</li>
+<li>Intercept network traffic for credential leakage</li>
+<li>Review logs for sensitive data exposure</li>
+<li>Test on rooted/jailbroken devices</li>
+<li>Analyze backup files</li>
+</ol>
+
+<h3>✅ Dynamic Analysis Testing</h3>
+
+</code>`<code>bash
+<h1>Example Frida script to detect hardcoded secrets</h1>
+<p>frida -U -f com.example.app -l detect_secrets.js</p>
+
+<h1>detect_secrets.js</h1>
+<p>Java.perform(function() {</p>
+<p>    // Hook string operations</p>
+<p>    var String = Java.use("java.lang.String");</p>
+<p>    String.equals.implementation = function(other) {</p>
+<p>        var result = this.equals(other);</p>
+<p>        if (this.value && this.value.length > 10) {</p>
+<p>            console.log("[String Comparison] " + this.value);</p>
+<p>        }</p>
+<p>        return result;</p>
+<p>    };</p>
+<p>});</p>
+</code>``
+
+<h2>Prevention Checklist</h2>
+
+<h3>Development Phase</h3>
+<ul>
+<li>[ ] No credentials hardcoded in source code</li>
+<li>[ ] No credentials in string resources</li>
+<li>[ ] No credentials in configuration files</li>
+<li>[ ] Using platform KeyStore/Keychain for storage</li>
+<li>[ ] Encryption implemented for sensitive data</li>
+<li>[ ] Logging doesn't include sensitive information</li>
+<li>[ ] Environment variables not containing secrets in builds</li>
+</ul>
+
+<h3>Testing Phase</h3>
+<ul>
+<li>[ ] Static analysis tools passing with no credential issues</li>
+<li>[ ] Dynamic analysis shows no credential exposure</li>
+<li>[ ] Decompiled app contains no discoverable secrets</li>
+<li>[ ] Network traffic properly encrypted</li>
+<li>[ ] Local storage encrypted</li>
+<li>[ ] Backup exclusions working</li>
+<li>[ ] Certificate pinning functional</li>
+</ul>
+
+<h3>Deployment Phase</h3>
+<ul>
+<li>[ ] Production builds remove debug logging</li>
+<li>[ ] Backup exclusions configured</li>
+<li>[ ] Certificate pinning enabled</li>
+<li>[ ] Token rotation implemented</li>
+<li>[ ] Session timeout configured</li>
+<li>[ ] API keys rotatable without app update</li>
+<li>[ ] Monitoring and alerting active</li>
+</ul>
+
+<h3>Ongoing Maintenance</h3>
+<ul>
+<li>[ ] Regular security audits</li>
+<li>[ ] Dependency vulnerability scanning</li>
+<li>[ ] Certificate rotation planning</li>
+<li>[ ] Incident response plan ready</li>
+<li>[ ] Token rotation tested regularly</li>
+<li>[ ] User credential breach monitoring</li>
+</ul>
+
+<h2>Quick Reference: Dos and Don'ts</h2>
+
+<h3>✅ DO</h3>
+<ul>
+<li>Use platform-provided secure storage (Keychain/KeyStore)</li>
+<li>Implement certificate pinning</li>
+<li>Use short-lived, rotatable tokens</li>
+<li>Encrypt all stored credentials</li>
+<li>Implement proper session management</li>
+<li>Use automated security scanning</li>
+<li>Monitor for credential abuse</li>
+<li>Have a credential rotation strategy</li>
+</ul>
+
+<h3>❌ DON'T</h3>
+<ul>
+<li>Hardcode API keys, passwords, or secrets</li>
+<li>Store credentials in plain text</li>
+<li>Log sensitive information</li>
+<li>Use weak or deprecated encryption</li>
+<li>Trust the client device</li>
+<li>Include credentials in version control</li>
+<li>Store credentials in app backups</li>
+<li>Use long-lived credentials</li>
+</ul>
+
+<h2>Additional Resources</h2>
+
+<ul>
+<li><strong>OWASP Mobile Security Testing Guide</strong>: Detailed testing procedures</li>
+<li><strong>Android Security Best Practices</strong>: Official Android security documentation</li>
+<li><strong>iOS Security Guide</strong>: Apple's security implementation guide</li>
+<li><strong>NIST Mobile Device Security</strong>: Government security standards</li>
+</ul>
+
+<p>---</p>
+
+<strong>Remember</strong>: Defense in depth is essential. Implement multiple layers of protection.
+
+<em>Part of OWASP Mobile Top 10 - Educational Repository</em>
+
         </div>
     </div>
 </body>

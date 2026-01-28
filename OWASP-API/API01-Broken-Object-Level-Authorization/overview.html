@@ -215,7 +215,301 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>API01: Broken Object Level Authorization - Overview</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#what-is-broken-object-level-authorization">What is Broken Object Level Authorization?</a></li>
+<li><a href="#why-does-this-matter">Why Does This Matter?</a></li>
+<li><a href="#technical-context">Technical Context</a></li>
+<li><a href="#real-world-impact">Real-World Impact</a></li>
+<li><a href="#prevalence-and-statistics">Prevalence and Statistics</a></li>
+<li><a href="#common-misunderstandings">Common Misunderstandings</a></li>
+</ul>
+
+<h2>What is Broken Object Level Authorization?</h2>
+
+<strong>Broken Object Level Authorization (BOLA)</strong>, also known as <strong>Insecure Direct Object Reference (IDOR)</strong>, is the most critical API security vulnerability. It occurs when an API endpoint receives an object identifier (ID) and performs actions on that object without properly validating whether the requesting user has permission to access it.
+
+<p>APIs tend to expose endpoints that handle object identifiers, creating a wide attack surface for access control issues. Authorization checks should verify that the logged-in user has permissions to perform the requested action on the specific object.</p>
+
+<h3>Core Concept</h3>
+
+<p>``<code></p>
+<p>User A requests: GET /api/users/123/profile</p>
+<p>User B requests: GET /api/users/456/profile</p>
+
+<p>BROKEN BOLA = User A can access /api/users/456/profile (User B's data)</p>
+<p>              by simply changing the ID in the request</p>
+</code>`<code>
+
+<h3>Why It's #1 for APIs</h3>
+
+<p>Unlike traditional web applications where access control is often session-based, APIs:</p>
+<ul>
+<li>Expose object identifiers directly in URLs, JSON payloads, or query parameters</li>
+<li>Are consumed by mobile apps, SPAs, and third-party clients</li>
+<li>Often use predictable IDs (sequential integers, UUIDs)</li>
+<li>Handle multiple objects per request</li>
+<li>Lack the UI layer that might hide unauthorized options</li>
+</ul>
+
+<h2>Why Does This Matter?</h2>
+
+<h3>The Business Impact</h3>
+
+<ul>
+<li><strong>Massive Data Breaches</strong>: Attackers can iterate through IDs to scrape entire databases</li>
+<li><strong>Privacy Violations</strong>: Unauthorized access to personal information (GDPR, CCPA violations)</li>
+<li><strong>Financial Fraud</strong>: Access to other users' transactions, payment methods, or wallets</li>
+<li><strong>Competitive Damage</strong>: Exposure of business-critical data to competitors</li>
+<li><strong>Regulatory Fines</strong>: Multi-million dollar penalties for data protection failures</li>
+<li><strong>Trust Erosion</strong>: Permanent damage to brand reputation</li>
+</ul>
+
+<h3>The Technical Impact</h3>
+
+<ul>
+<li><strong>Horizontal Privilege Escalation</strong>: Users access other users' resources at the same privilege level</li>
+<li><strong>Vertical Privilege Escalation</strong>: Regular users access admin-level resources</li>
+<li><strong>Data Enumeration</strong>: Attackers systematically extract entire datasets</li>
+<li><strong>Business Logic Bypass</strong>: Circumventing intended workflows and restrictions</li>
+<li><strong>Combined Attacks</strong>: BOLA often enables other vulnerabilities (data exfiltration, account takeover)</li>
+</ul>
+
+<h2>Technical Context</h2>
+
+<h3>How BOLA Differs from Traditional Access Control</h3>
+
+<p>| Traditional Web Apps | Modern APIs |</p>
+<p>|---------------------|-------------|</p>
+<p>| Session-based context | Stateless, token-based |</p>
+<p>| Server-rendered HTML | JSON/XML responses |</p>
+<p>| Limited endpoints | Many granular endpoints |</p>
+<p>| UI masks unauthorized options | All endpoints accessible |</p>
+<p>| Page-level authorization | Object-level authorization needed |</p>
+
+<h3>Common Vulnerable Patterns</h3>
+
+<h4>Pattern 1: Direct ID in URL</h4>
+</code>`<code>
+<p>GET /api/v1/orders/5827</p>
+<p>Authorization: Bearer <token></p>
+
+<p>Response: 200 OK</p>
+<p>{</p>
+<p>  "order_id": 5827,</p>
+<p>  "user_id": 42,</p>
+<p>  "items": [...],</p>
+<p>  "total": 299.99</p>
+<p>}</p>
+</code>`<code>
+<strong>Vulnerability</strong>: Anyone with a valid token can change the order ID
+
+<h4>Pattern 2: ID in Request Body</h4>
+</code>`<code>
+<p>POST /api/v1/documents/share</p>
+<p>Authorization: Bearer <token></p>
+<p>{</p>
+<p>  "document_id": 9812,</p>
+<p>  "share_with": "attacker@example.com"</p>
+<p>}</p>
+</code>`<code>
+<strong>Vulnerability</strong>: Attacker can share any document by changing document_id
+
+<h4>Pattern 3: Nested Resource Access</h4>
+</code>`<code>
+<p>GET /api/v1/users/123/wallet/transactions</p>
+<p>Authorization: Bearer <token></p>
+</code>`<code>
+<strong>Vulnerability</strong>: Can access any user's wallet by changing user ID
+
+<h4>Pattern 4: Batch Operations</h4>
+</code>`<code>
+<p>POST /api/v1/messages/delete</p>
+<p>{</p>
+<p>  "message_ids": [101, 102, 103, 999, 1000]</p>
+<p>}</p>
+</code>`<code>
+<strong>Vulnerability</strong>: Can delete other users' messages by including their message IDs
+
+<h3>The Authorization Stack</h3>
+
+</code>`<code>
+<p>┌─────────────────────────────────────┐</p>
+<p>│   1. Authentication (Who are you?)  │  ← Token validates identity</p>
+<p>├─────────────────────────────────────┤</p>
+<p>│   2. Function Authorization         │  ← Can you call this endpoint?</p>
+<p>│      (Can you do this action?)      │</p>
+<p>├─────────────────────────────────────┤</p>
+<p>│   3. Object Authorization (BOLA)    │  ← Can you access THIS object?</p>
+<p>│      (Can you access THIS resource?)│  ← MOST COMMONLY FORGOTTEN</p>
+<p>└─────────────────────────────────────┘</p>
+</code>`<code>
+
+<strong>BOLA vulnerabilities occur at Layer 3</strong> - even with perfect authentication and function-level authorization, object-level checks may be missing.
+
+<h2>Real-World Impact</h2>
+
+<h3>Case Study 1: T-Mobile (2021)</h3>
+<strong>Vulnerability</strong>: BOLA in API allowed access to customer data  
+<strong>Impact</strong>: 40+ million customer records exposed  
+<strong>Attack Method</strong>: Simple ID enumeration in API endpoints  
+<strong>Root Cause</strong>: Missing object-level authorization checks
+
+<h3>Case Study 2: Peloton (2021)</h3>
+<strong>Vulnerability</strong>: API allowed access to any user's profile data  
+<strong>Impact</strong>: Private profiles, workout history, and location data exposed  
+<strong>Attack Method</strong>: Changing user ID in API requests  
+<strong>Root Cause</strong>: No validation that requesting user owned the data
+
+<h3>Case Study 3: Parler (2021)</h3>
+<strong>Vulnerability</strong>: Sequential post IDs with no authorization  
+<strong>Impact</strong>: Entire platform data (70TB) scraped in days  
+<strong>Attack Method</strong>: Iterating through post IDs 1 to N  
+<strong>Root Cause</strong>: Publicly accessible endpoints with predictable IDs
+
+<h3>Case Study 4: USPS (2018)</h3>
+<strong>Vulnerability</strong>: API endpoint exposed user account details  
+<strong>Impact</strong>: 60 million user accounts accessible  
+<strong>Attack Method</strong>: Changing account parameter in authenticated requests  
+<strong>Root Cause</strong>: Authentication present but no authorization validation
+
+<h2>Prevalence and Statistics</h2>
+
+<h3>OWASP API Security Top 10 2023 Data</h3>
+
+<ul>
+<li><strong>#1</strong> most critical API vulnerability</li>
+<li>Found in approximately <strong>95%</strong> of penetration-tested APIs</li>
+<li><strong>Most exploited</strong> API vulnerability in the wild</li>
+<li>Average time to exploit: <strong>Less than 30 minutes</strong> for skilled attackers</li>
+<li>Detection difficulty: <strong>Easy</strong> (automated tools readily available)</li>
+</ul>
+
+<h3>Attack Characteristics</h3>
+
+<p>| Metric | Value |</p>
+<p>|--------|-------|</p>
+<p>| <strong>Exploitability</strong> | Easy - requires minimal technical skill |</p>
+<p>| <strong>Prevalence</strong> | Widespread - found in most APIs |</p>
+<p>| <strong>Detectability</strong> | Easy - simple fuzzing reveals issues |</p>
+<p>| <strong>Technical Impact</strong> | Severe - complete data exposure |</p>
+<p>| <strong>Business Impact</strong> | Severe - breaches, compliance violations |</p>
+
+<h3>Industry Vulnerabilities</h3>
+
+<p>Different API types face varying risks:</p>
+
+<p>| API Type | Risk Level | Common Scenarios |</p>
+<p>|----------|------------|------------------|</p>
+<p>| <strong>Healthcare APIs</strong> | Critical | Patient record access (HIPAA) |</p>
+<p>| <strong>Financial APIs</strong> | Critical | Account/transaction access |</p>
+<p>| <strong>E-commerce APIs</strong> | High | Order/payment data access |</p>
+<p>| <strong>Social Media APIs</strong> | High | Private profile/message access |</p>
+<p>| <strong>IoT/Device APIs</strong> | High | Device control, sensor data |</p>
+<p>| <strong>SaaS APIs</strong> | High | Multi-tenant data isolation |</p>
+<p>| <strong>Internal APIs</strong> | Medium-High | Assume trusted network (risky) |</p>
+
+<h2>Common Misunderstandings</h2>
+
+<h3>Myth 1: "Authentication = Authorization"</h3>
+<strong>Reality</strong>: Having a valid token proves identity, NOT permissions for specific objects.
+
+</code>`<code>python
+<h1>NOT ENOUGH:</h1>
+<p>@app.route('/api/orders/<order_id>')</p>
+<p>@require_auth  # Only checks valid token</p>
+<p>def get_order(order_id):</p>
+<p>    return Order.query.get(order_id)</p>
+
+<h1>CORRECT:</h1>
+<p>@app.route('/api/orders/<order_id>')</p>
+<p>@require_auth</p>
+<p>def get_order(order_id):</p>
+<p>    order = Order.query.get_or_404(order_id)</p>
+<p>    if order.user_id != current_user.id:</p>
+<p>        abort(403)</p>
+<p>    return order</p>
+</code>`<code>
+
+<h3>Myth 2: "UUIDs Prevent BOLA"</h3>
+<strong>Reality</strong>: UUIDs make enumeration harder but don't prevent BOLA if IDs leak.
+
+</code>`<code>
+<p>Sequential IDs: Easy to enumerate (1, 2, 3, ...)</p>
+<p>UUIDs: Harder to guess but still vulnerable if:</p>
+<ul>
+<li>Exposed in responses</li>
+<li>Leaked through other endpoints</li>
+<li>Found in logs or error messages</li>
+<li>Shared in URLs or emails</li>
+</ul>
+
+<p>Authorization checks are STILL required!</p>
+</code>`<code>
+
+<h3>Myth 3: "Private APIs Don't Need BOLA Protection"</h3>
+<strong>Reality</strong>: Internal/private APIs need authorization too.
+
+</code>`<code>
+<p>Threats to "private" APIs:</p>
+<p>✗ Compromised credentials</p>
+<p>✗ Insider threats</p>
+<p>✗ Mobile app decompilation</p>
+<p>✗ Network sniffing</p>
+<p>✗ Supply chain attacks</p>
+<p>✗ Future public exposure</p>
+
+<p>Defense in depth: Protect ALL APIs</p>
+</code>`<code>
+
+<h3>Myth 4: "Rate Limiting Prevents BOLA"</h3>
+<strong>Reality</strong>: Rate limiting slows attacks but doesn't prevent unauthorized access.
+
+</code>`<code>
+<p>Rate Limiting: Slows enumeration attacks</p>
+<p>BOLA Prevention: Stops unauthorized access entirely</p>
+
+<p>Both are needed, but rate limiting ≠ authorization</p>
+</code>``
+
+<h3>Myth 5: "Framework Security Features Handle This"</h3>
+<strong>Reality</strong>: Most frameworks don't automatically enforce object-level authorization.
+
+<p>Frameworks provide:</p>
+<ul>
+<li>✅ Authentication mechanisms</li>
+<li>✅ Session management</li>
+<li>✅ CSRF protection</li>
+<li>❌ Object-level authorization (YOU must implement this)</li>
+</ul>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li>✅ <strong>Always validate object ownership</strong> - Check that current_user owns the requested resource</li>
+<li>✅ <strong>Never trust client-provided IDs</strong> - Validate authorization for every object ID</li>
+<li>✅ <strong>Use database queries to enforce ownership</strong> - Filter by user_id AND object_id</li>
+<li>✅ <strong>Implement centralized authorization logic</strong> - DRY principle for security</li>
+<li>✅ <strong>Test with different user contexts</strong> - Verify User A cannot access User B's data</li>
+<li>✅ <strong>Log authorization failures</strong> - Monitor for attack attempts</li>
+<li>✅ <strong>Use random, non-sequential IDs</strong> - Defense in depth (not a substitute for authorization)</li>
+</ol>
+
+<h2>What's Next?</h2>
+
+<ul>
+<li><strong><a href="./attack-vectors.md">Attack Vectors</a></strong>: Learn how attackers exploit BOLA vulnerabilities</li>
+<li><strong><a href="./prevention.md">Prevention</a></strong>: Best practices and secure coding patterns for APIs</li>
+<li><strong><a href="./examples.md">Examples</a></strong>: Code examples showing vulnerable vs secure API implementations</li>
+<li><strong><a href="./lab/api01-idor-lab/">Lab</a></strong>: Hands-on practice with BOLA vulnerabilities in a safe environment</li>
+</ul>
+
+<p>---</p>
+
+<em>Part of the <a href="../../README.md">OWASP API Security Top 10 Educational Repository</a></em>
+
         </div>
     </div>
 </body>

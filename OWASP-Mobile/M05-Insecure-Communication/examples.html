@@ -215,7 +215,830 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>M05: Insecure Communication - Code Examples</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#vulnerable-vs-secure-patterns">Vulnerable vs Secure Patterns</a></li>
+<li><a href="#android-examples">Android Examples</a></li>
+<li><a href="#ios-examples">iOS Examples</a></li>
+<li><a href="#react-native-examples">React Native Examples</a></li>
+<li><a href="#flutter-examples">Flutter Examples</a></li>
+<li><a href="#common-mistakes">Common Mistakes</a></li>
+</ul>
+
+<h2>Vulnerable vs Secure Patterns</h2>
+
+<h3>Pattern 1: HTTP vs HTTPS</h3>
+
+<strong>❌ VULNERABLE: Using HTTP</strong>
+<p>``<code>java</p>
+<p>// INSECURE: Cleartext HTTP transmission</p>
+<p>String apiUrl = "http://api.example.com/user/login";</p>
+<p>HttpURLConnection connection = (HttpURLConnection) new URL(apiUrl).openConnection();</p>
+<p>connection.setRequestMethod("POST");</p>
+
+<p>// Credentials sent in cleartext!</p>
+<p>String credentials = "{\"username\":\"user\",\"password\":\"pass123\"}";</p>
+<p>connection.getOutputStream().write(credentials.getBytes());</p>
+</code>`<code>
+
+<strong>✅ SECURE: Using HTTPS</strong>
+</code>`<code>java
+<p>// SECURE: Encrypted HTTPS transmission</p>
+<p>String apiUrl = "https://api.example.com/user/login";</p>
+<p>HttpsURLConnection connection = (HttpsURLConnection) new URL(apiUrl).openConnection();</p>
+<p>connection.setRequestMethod("POST");</p>
+
+<p>String credentials = "{\"username\":\"user\",\"password\":\"pass123\"}";</p>
+<p>connection.getOutputStream().write(credentials.getBytes());</p>
+</code>`<code>
+
+<h3>Pattern 2: Certificate Validation</h3>
+
+<strong>❌ VULNERABLE: Trusting All Certificates</strong>
+</code>`<code>java
+<p>// INSECURE: Accepts any certificate (NEVER DO THIS!)</p>
+<p>TrustManager[] trustAllCerts = new TrustManager[] {</p>
+<p>    new X509TrustManager() {</p>
+<p>        @Override</p>
+<p>        public void checkClientTrusted(X509Certificate[] chain, String authType) {</p>
+<p>            // Empty - trusts everything!</p>
+<p>        }</p>
+        
+<p>        @Override</p>
+<p>        public void checkServerTrusted(X509Certificate[] chain, String authType) {</p>
+<p>            // Empty - trusts everything!</p>
+<p>        }</p>
+        
+<p>        @Override</p>
+<p>        public X509Certificate[] getAcceptedIssuers() {</p>
+<p>            return new X509Certificate[0];</p>
+<p>        }</p>
+<p>    }</p>
+<p>};</p>
+
+<p>SSLContext sslContext = SSLContext.getInstance("TLS");</p>
+<p>sslContext.init(null, trustAllCerts, new SecureRandom());</p>
+
+<p>// All certificate validation bypassed - VULNERABLE TO MITM!</p>
+<p>HttpsURLConnection.setDefaultSSLSocketFactory(sslContext.getSocketFactory());</p>
+</code>`<code>
+
+<strong>✅ SECURE: Proper Certificate Validation</strong>
+</code>`<code>java
+<p>// SECURE: Use default system trust store</p>
+<p>public OkHttpClient createSecureClient() {</p>
+<p>    try {</p>
+<p>        TrustManagerFactory tmf = TrustManagerFactory.getInstance(</p>
+<p>            TrustManagerFactory.getDefaultAlgorithm()</p>
+<p>        );</p>
+<p>        tmf.init((KeyStore) null);  // Uses system trust store</p>
+        
+<p>        X509TrustManager trustManager = (X509TrustManager) tmf.getTrustManagers()[0];</p>
+        
+<p>        SSLContext sslContext = SSLContext.getInstance("TLS");</p>
+<p>        sslContext.init(null, tmf.getTrustManagers(), new SecureRandom());</p>
+        
+<p>        return new OkHttpClient.Builder()</p>
+<p>            .sslSocketFactory(sslContext.getSocketFactory(), trustManager)</p>
+<p>            .hostnameVerifier(HttpsURLConnection.getDefaultHostnameVerifier())</p>
+<p>            .build();</p>
+            
+<p>    } catch (Exception e) {</p>
+<p>        throw new RuntimeException("Failed to create secure client", e);</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Pattern 3: TLS Version Configuration</h3>
+
+<strong>❌ VULNERABLE: Using Outdated TLS</strong>
+</code>`<code>java
+<p>// INSECURE: Using deprecated SSL/TLS versions</p>
+<p>SSLContext sslContext = SSLContext.getInstance("SSL");  // Don't use SSL!</p>
+<p>// or</p>
+<p>SSLContext sslContext = SSLContext.getInstance("TLSv1");  // TLS 1.0 is deprecated!</p>
+</code>`<code>
+
+<strong>✅ SECURE: Using Modern TLS</strong>
+</code>`<code>java
+<p>// SECURE: Use TLS 1.2 or 1.3</p>
+<p>public OkHttpClient createTLSSecureClient() {</p>
+<p>    ConnectionSpec spec = new ConnectionSpec.Builder(ConnectionSpec.MODERN_TLS)</p>
+<p>        .tlsVersions(TlsVersion.TLS_1_3, TlsVersion.TLS_1_2)</p>
+<p>        .cipherSuites(</p>
+<p>            CipherSuite.TLS_AES_128_GCM_SHA256,</p>
+<p>            CipherSuite.TLS_AES_256_GCM_SHA384,</p>
+<p>            CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,</p>
+<p>            CipherSuite.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384</p>
+<p>        )</p>
+<p>        .build();</p>
+    
+<p>    return new OkHttpClient.Builder()</p>
+<p>        .connectionSpecs(Collections.singletonList(spec))</p>
+<p>        .build();</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Android Examples</h2>
+
+<h3>Example 1: Secure Retrofit Configuration</h3>
+
+<strong>❌ VULNERABLE</strong>
+</code>`<code>java
+<p>public class InsecureApiService {</p>
+<p>    private static Retrofit retrofit;</p>
+    
+<p>    public static Retrofit getInstance() {</p>
+<p>        if (retrofit == null) {</p>
+<p>            // Using HTTP - VULNERABLE!</p>
+<p>            retrofit = new Retrofit.Builder()</p>
+<p>                .baseUrl("http://api.example.com/")  // HTTP!</p>
+<p>                .addConverterFactory(GsonConverterFactory.create())</p>
+<p>                .build();</p>
+<p>        }</p>
+<p>        return retrofit;</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>✅ SECURE</strong>
+</code>`<code>java
+<p>public class SecureApiService {</p>
+<p>    private static Retrofit retrofit;</p>
+    
+<p>    public static Retrofit getInstance() {</p>
+<p>        if (retrofit == null) {</p>
+<p>            OkHttpClient client = createSecureClient();</p>
+            
+<p>            retrofit = new Retrofit.Builder()</p>
+<p>                .baseUrl("https://api.example.com/")  // HTTPS!</p>
+<p>                .client(client)</p>
+<p>                .addConverterFactory(GsonConverterFactory.create())</p>
+<p>                .build();</p>
+<p>        }</p>
+<p>        return retrofit;</p>
+<p>    }</p>
+    
+<p>    private static OkHttpClient createSecureClient() {</p>
+<p>        return new OkHttpClient.Builder()</p>
+<p>            // Enforce HTTPS</p>
+<p>            .addInterceptor(chain -> {</p>
+<p>                Request request = chain.request();</p>
+<p>                if (!"https".equals(request.url().scheme())) {</p>
+<p>                    throw new SecurityException("HTTPS required");</p>
+<p>                }</p>
+<p>                return chain.proceed(request);</p>
+<p>            })</p>
+<p>            // Certificate pinning</p>
+<p>            .certificatePinner(new CertificatePinner.Builder()</p>
+<p>                .add("api.example.com", "sha256/primaryHash=")</p>
+<p>                .add("api.example.com", "sha256/backupHash=")</p>
+<p>                .build())</p>
+<p>            // Modern TLS only</p>
+<p>            .connectionSpecs(Arrays.asList(</p>
+<p>                ConnectionSpec.MODERN_TLS,</p>
+<p>                ConnectionSpec.COMPATIBLE_TLS</p>
+<p>            ))</p>
+<p>            .build();</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Example 2: Network Security Configuration</h3>
+
+<strong>❌ VULNERABLE</strong>
+</code>`<code>xml
+<!-- AndroidManifest.xml - INSECURE -->
+<application
+<p>    android:usesCleartextTraffic="true">  <!-- Allows HTTP! --></p>
+    <!-- ... -->
+</application>
+</code>`<code>
+
+<strong>✅ SECURE</strong>
+</code>`<code>xml
+<!-- AndroidManifest.xml - SECURE -->
+<application
+<p>    android:networkSecurityConfig="@xml/network_security_config"</p>
+<p>    android:usesCleartextTraffic="false">  <!-- Blocks HTTP --></p>
+    <!-- ... -->
+</application>
+</code>`<code>
+
+</code>`<code>xml
+<!-- res/xml/network_security_config.xml - SECURE -->
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api.example.com</domain>
+        <pin-set expiration="2025-12-31">
+            <pin digest="SHA-256">primaryCertHash=</pin>
+            <pin digest="SHA-256">backupCertHash=</pin>
+        </pin-set>
+    </domain-config>
+</network-security-config>
+</code>`<code>
+
+<h3>Example 3: Volley Configuration</h3>
+
+<strong>❌ VULNERABLE</strong>
+</code>`<code>java
+<p>// INSECURE: No certificate validation</p>
+<p>RequestQueue queue = Volley.newRequestQueue(context);</p>
+
+<p>StringRequest request = new StringRequest(</p>
+<p>    Request.Method.POST,</p>
+<p>    "http://api.example.com/login",  // HTTP!</p>
+<p>    response -> {</p>
+<p>        // Handle response</p>
+<p>    },</p>
+<p>    error -> {</p>
+<p>        // Handle error</p>
+<p>    }</p>
+<p>);</p>
+
+<p>queue.add(request);</p>
+</code>`<code>
+
+<strong>✅ SECURE</strong>
+</code>`<code>java
+<p>// SECURE: With proper HTTPS and validation</p>
+<p>public class SecureVolleyClient {</p>
+    
+<p>    public static RequestQueue createSecureQueue(Context context) {</p>
+<p>        OkHttpClient client = new OkHttpClient.Builder()</p>
+<p>            .certificatePinner(new CertificatePinner.Builder()</p>
+<p>                .add("api.example.com", "sha256/certHash=")</p>
+<p>                .build())</p>
+<p>            .build();</p>
+        
+<p>        Volley.RequestQueue queue = Volley.newRequestQueue(</p>
+<p>            context,</p>
+<p>            new OkHttp3Stack(client)</p>
+<p>        );</p>
+        
+<p>        return queue;</p>
+<p>    }</p>
+    
+<p>    public static void makeSecureRequest(Context context) {</p>
+<p>        RequestQueue queue = createSecureQueue(context);</p>
+        
+<p>        StringRequest request = new StringRequest(</p>
+<p>            Request.Method.POST,</p>
+<p>            "https://api.example.com/login",  // HTTPS!</p>
+<p>            response -> { /<em> Handle response </em>/ },</p>
+<p>            error -> { /<em> Handle error </em>/ }</p>
+<p>        );</p>
+        
+<p>        queue.add(request);</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>iOS Examples</h2>
+
+<h3>Example 1: URLSession Configuration</h3>
+
+<strong>❌ VULNERABLE</strong>
+</code>`<code>swift
+<p>// INSECURE: Bypassing certificate validation</p>
+<p>class InsecureNetworkManager: NSObject, URLSessionDelegate {</p>
+    
+<p>    func urlSession(_ session: URLSession,</p>
+<p>                   didReceive challenge: URLAuthenticationChallenge,</p>
+<p>                   completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {</p>
+        
+<p>        // DANGEROUS: Accepts any certificate!</p>
+<p>        if let serverTrust = challenge.protectionSpace.serverTrust {</p>
+<p>            completionHandler(.useCredential, URLCredential(trust: serverTrust))</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    func makeRequest() {</p>
+<p>        // Using HTTP - INSECURE!</p>
+<p>        let url = URL(string: "http://api.example.com/login")!</p>
+<p>        let task = URLSession.shared.dataTask(with: url) { data, response, error in</p>
+<p>            // Handle response</p>
+<p>        }</p>
+<p>        task.resume()</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>✅ SECURE</strong>
+</code>`<code>swift
+<p>// SECURE: Proper certificate validation and HTTPS</p>
+<p>class SecureNetworkManager: NSObject, URLSessionDelegate {</p>
+    
+<p>    private let pinnedHashes: Set<String> = [</p>
+<p>        "primaryCertHash",</p>
+<p>        "backupCertHash"</p>
+<p>    ]</p>
+    
+<p>    func urlSession(_ session: URLSession,</p>
+<p>                   didReceive challenge: URLAuthenticationChallenge,</p>
+<p>                   completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {</p>
+        
+<p>        guard challenge.protectionSpace.authenticationMethod == </p>
+<p>              NSURLAuthenticationMethodServerTrust,</p>
+<p>              let serverTrust = challenge.protectionSpace.serverTrust else {</p>
+<p>            completionHandler(.cancelAuthenticationChallenge, nil)</p>
+<p>            return</p>
+<p>        }</p>
+        
+<p>        // Validate certificate</p>
+<p>        var error: CFError?</p>
+<p>        guard SecTrustEvaluateWithError(serverTrust, &error) else {</p>
+<p>            print("Certificate validation failed: \(error!)")</p>
+<p>            completionHandler(.cancelAuthenticationChallenge, nil)</p>
+<p>            return</p>
+<p>        }</p>
+        
+<p>        // Certificate pinning</p>
+<p>        if let serverCert = SecTrustGetCertificateAtIndex(serverTrust, 0),</p>
+<p>           let publicKey = SecCertificateCopyKey(serverCert),</p>
+<p>           let publicKeyData = SecKeyCopyExternalRepresentation(publicKey, nil) as Data? {</p>
+            
+<p>            let hash = publicKeyData.sha256().base64EncodedString()</p>
+            
+<p>            if pinnedHashes.contains(hash) {</p>
+<p>                completionHandler(.useCredential, URLCredential(trust: serverTrust))</p>
+<p>            } else {</p>
+<p>                print("Certificate pinning failed")</p>
+<p>                completionHandler(.cancelAuthenticationChallenge, nil)</p>
+<p>            }</p>
+<p>        } else {</p>
+<p>            completionHandler(.cancelAuthenticationChallenge, nil)</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    func makeRequest() {</p>
+<p>        // Using HTTPS - SECURE!</p>
+<p>        guard let url = URL(string: "https://api.example.com/login"),</p>
+<p>              url.scheme == "https" else {</p>
+<p>            print("HTTPS required")</p>
+<p>            return</p>
+<p>        }</p>
+        
+<p>        let session = URLSession(configuration: .default, delegate: self, delegateQueue: nil)</p>
+<p>        let task = session.dataTask(with: url) { data, response, error in</p>
+<p>            // Handle response</p>
+<p>        }</p>
+<p>        task.resume()</p>
+<p>    }</p>
+<p>}</p>
+
+<p>extension Data {</p>
+<p>    func sha256() -> Data {</p>
+<p>        var hash = <a href="repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH">UInt8</a>)</p>
+<p>        self.withUnsafeBytes {</p>
+<p>            _ = CC_SHA256($0.baseAddress, CC_LONG(self.count), &hash)</p>
+<p>        }</p>
+<p>        return Data(hash)</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Example 2: App Transport Security (ATS)</h3>
+
+<strong>❌ VULNERABLE</strong>
+</code>`<code>xml
+<!-- Info.plist - INSECURE -->
+<key>NSAppTransportSecurity</key>
+<dict>
+    <!-- Disables ATS entirely - DANGEROUS! -->
+    <key>NSAllowsArbitraryLoads</key>
+    <true/>
+</dict>
+</code>`<code>
+
+<strong>✅ SECURE</strong>
+</code>`<code>xml
+<!-- Info.plist - SECURE -->
+<key>NSAppTransportSecurity</key>
+<dict>
+    <!-- ATS enabled by default -->
+    <key>NSAllowsArbitraryLoads</key>
+    <false/>
+    
+    <!-- Specific domain configuration -->
+    <key>NSExceptionDomains</key>
+    <dict>
+        <key>api.example.com</key>
+        <dict>
+            <key>NSIncludesSubdomains</key>
+            <true/>
+            <key>NSExceptionRequiresForwardSecrecy</key>
+            <true/>
+            <key>NSExceptionMinimumTLSVersion</key>
+            <string>TLSv1.2</string>
+            <key>NSRequiresCertificateTransparency</key>
+            <true/>
+        </dict>
+    </dict>
+</dict>
+</code>`<code>
+
+<h3>Example 3: Alamofire Configuration</h3>
+
+<strong>❌ VULNERABLE</strong>
+</code>`<code>swift
+<p>// INSECURE: No certificate validation</p>
+<p>let manager = Session(configuration: .default)</p>
+
+<p>manager.request("http://api.example.com/data")  // HTTP!</p>
+<p>    .responseJSON { response in</p>
+<p>        // Handle response</p>
+<p>    }</p>
+</code>`<code>
+
+<strong>✅ SECURE</strong>
+</code>`<code>swift
+<p>// SECURE: With certificate pinning and HTTPS enforcement</p>
+<p>import Alamofire</p>
+
+<p>class SecureAPIManager {</p>
+<p>    static let shared = SecureAPIManager()</p>
+<p>    private let session: Session</p>
+    
+<p>    init() {</p>
+<p>        let evaluators: [String: ServerTrustEvaluating] = [</p>
+<p>            "api.example.com": PinnedCertificatesTrustEvaluator(</p>
+<p>                certificates: [</p>
+<p>                    SecureAPIManager.certificate(named: "api_example_com")</p>
+<p>                ],</p>
+<p>                acceptSelfSignedCertificates: false,</p>
+<p>                performDefaultValidation: true,</p>
+<p>                validateHost: true</p>
+<p>            )</p>
+<p>        ]</p>
+        
+<p>        let serverTrustManager = ServerTrustManager(evaluators: evaluators)</p>
+        
+<p>        session = Session(</p>
+<p>            serverTrustManager: serverTrustManager</p>
+<p>        )</p>
+<p>    }</p>
+    
+<p>    func makeRequest(endpoint: String) {</p>
+<p>        guard endpoint.hasPrefix("https://") else {</p>
+<p>            print("HTTPS required")</p>
+<p>            return</p>
+<p>        }</p>
+        
+<p>        session.request(endpoint)</p>
+<p>            .validate()</p>
+<p>            .responseJSON { response in</p>
+<p>                // Handle response</p>
+<p>            }</p>
+<p>    }</p>
+    
+<p>    private static func certificate(named name: String) -> SecCertificate {</p>
+<p>        let path = Bundle.main.path(forResource: name, ofType: "cer")!</p>
+<p>        let data = try! Data(contentsOf: URL(fileURLWithPath: path))</p>
+<p>        return SecCertificateCreateWithData(nil, data as CFData)!</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>React Native Examples</h2>
+
+<h3>Example 1: Fetch API</h3>
+
+<strong>❌ VULNERABLE</strong>
+</code>`<code>javascript
+<p>// INSECURE: Using HTTP</p>
+<p>async function login(username, password) {</p>
+<p>  try {</p>
+<p>    const response = await fetch('http://api.example.com/login', {  // HTTP!</p>
+<p>      method: 'POST',</p>
+<p>      headers: {</p>
+<p>        'Content-Type': 'application/json',</p>
+<p>      },</p>
+<p>      body: JSON.stringify({ username, password }),</p>
+<p>    });</p>
+    
+<p>    return await response.json();</p>
+<p>  } catch (error) {</p>
+<p>    console.error('Login failed:', error);</p>
+<p>  }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>✅ SECURE</strong>
+</code>`<code>javascript
+<p>// SECURE: Using HTTPS with validation</p>
+<p>const API_BASE_URL = 'https://api.example.com';  // HTTPS only</p>
+
+<p>// Certificate pinning using react-native-ssl-pinning</p>
+<p>import { fetch as sslFetch } from 'react-native-ssl-pinning';</p>
+
+<p>async function secureLogin(username, password) {</p>
+<p>  try {</p>
+<p>    // Validate URL scheme</p>
+<p>    if (!API_BASE_URL.startsWith('https://')) {</p>
+<p>      throw new Error('HTTPS required');</p>
+<p>    }</p>
+    
+<p>    const response = await sslFetch(</code>${API_BASE_URL}/login<code>, {</p>
+<p>      method: 'POST',</p>
+<p>      headers: {</p>
+<p>        'Content-Type': 'application/json',</p>
+<p>      },</p>
+<p>      body: JSON.stringify({ username, password }),</p>
+<p>      sslPinning: {</p>
+<p>        certs: ['api_example_com'],  // Certificate in assets</p>
+<p>      },</p>
+<p>      timeoutInterval: 30000,</p>
+<p>    });</p>
+    
+<p>    return await response.json();</p>
+<p>  } catch (error) {</p>
+<p>    console.error('Secure login failed:', error);</p>
+<p>    throw error;</p>
+<p>  }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Example 2: Axios Configuration</h3>
+
+<strong>❌ VULNERABLE</strong>
+</code>`<code>javascript
+<p>// INSECURE: No certificate validation</p>
+<p>import axios from 'axios';</p>
+
+<p>const client = axios.create({</p>
+<p>  baseURL: 'http://api.example.com',  // HTTP!</p>
+<p>});</p>
+
+<p>// No certificate validation configured</p>
+</code>`<code>
+
+<strong>✅ SECURE</strong>
+</code>`<code>javascript
+<p>// SECURE: With HTTPS enforcement</p>
+<p>import axios from 'axios';</p>
+<p>import { Platform } from 'react-native';</p>
+
+<p>const API_BASE_URL = 'https://api.example.com';  // HTTPS</p>
+
+<p>// Enforce HTTPS</p>
+<p>const enforceHttps = (config) => {</p>
+<p>  if (!config.url.startsWith('https://')) {</p>
+<p>    throw new Error('HTTPS required for all requests');</p>
+<p>  }</p>
+<p>  return config;</p>
+<p>};</p>
+
+<p>const client = axios.create({</p>
+<p>  baseURL: API_BASE_URL,</p>
+<p>  timeout: 30000,</p>
+<p>});</p>
+
+<p>client.interceptors.request.use(enforceHttps);</p>
+
+<p>// For certificate pinning on React Native</p>
+<p>if (Platform.OS === 'android' || Platform.OS === 'ios') {</p>
+<p>  // Use react-native-ssl-pinning or configure native modules</p>
+<p>  // See native configuration files</p>
+<p>}</p>
+
+<p>export default client;</p>
+</code>`<code>
+
+<h2>Flutter Examples</h2>
+
+<h3>Example 1: HTTP Client</h3>
+
+<strong>❌ VULNERABLE</strong>
+</code>`<code>dart
+<p>// INSECURE: Using HTTP</p>
+<p>import 'package:http/http.dart' as http;</p>
+
+<p>Future<void> login(String username, String password) async {</p>
+<p>  // HTTP - INSECURE!</p>
+<p>  final response = await http.post(</p>
+<p>    Uri.parse('http://api.example.com/login'),</p>
+<p>    body: {'username': username, 'password': password},</p>
+<p>  );</p>
+  
+<p>  if (response.statusCode == 200) {</p>
+<p>    // Handle success</p>
+<p>  }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>✅ SECURE</strong>
+</code>`<code>dart
+<p>// SECURE: Using HTTPS with certificate pinning</p>
+<p>import 'package:http/http.dart' as http;</p>
+<p>import 'package:http/io_client.dart';</p>
+<p>import 'dart:io';</p>
+
+<p>class SecureHttpClient {</p>
+<p>  static http.Client createSecureClient() {</p>
+<p>    final securityContext = SecurityContext.defaultContext;</p>
+    
+<p>    // Load certificate for pinning</p>
+<p>    final certBytes = File('assets/certificates/api_example_com.pem')</p>
+<p>        .readAsBytesSync();</p>
+<p>    securityContext.setTrustedCertificatesBytes(certBytes);</p>
+    
+<p>    final httpClient = HttpClient(context: securityContext);</p>
+    
+<p>    // Enforce HTTPS</p>
+<p>    httpClient.badCertificateCallback = (cert, host, port) {</p>
+<p>      // Only for specific pinned certificates</p>
+<p>      // Perform certificate validation here</p>
+<p>      return false;  // Reject by default</p>
+<p>    };</p>
+    
+<p>    return IOClient(httpClient);</p>
+<p>  }</p>
+  
+<p>  static Future<void> secureLogin(String username, String password) async {</p>
+<p>    final client = createSecureClient();</p>
+    
+<p>    // HTTPS only</p>
+<p>    final url = Uri.parse('https://api.example.com/login');</p>
+    
+<p>    if (url.scheme != 'https') {</p>
+<p>      throw Exception('HTTPS required');</p>
+<p>    }</p>
+    
+<p>    try {</p>
+<p>      final response = await client.post(</p>
+<p>        url,</p>
+<p>        body: {'username': username, 'password': password},</p>
+<p>      );</p>
+      
+<p>      if (response.statusCode == 200) {</p>
+<p>        // Handle success</p>
+<p>      }</p>
+<p>    } finally {</p>
+<p>      client.close();</p>
+<p>    }</p>
+<p>  }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Example 2: Dio Configuration</h3>
+
+<strong>❌ VULNERABLE</strong>
+</code>`<code>dart
+<p>// INSECURE: No certificate validation</p>
+<p>import 'package:dio/dio.dart';</p>
+
+<p>final dio = Dio(BaseOptions(</p>
+<p>  baseUrl: 'http://api.example.com',  // HTTP!</p>
+<p>));</p>
+</code>`<code>
+
+<strong>✅ SECURE</strong>
+</code>`<code>dart
+<p>// SECURE: With certificate pinning</p>
+<p>import 'package:dio/dio.dart';</p>
+<p>import 'package:dio/adapter.dart';</p>
+<p>import 'dart:io';</p>
+
+<p>class SecureDioClient {</p>
+<p>  static Dio createSecureClient() {</p>
+<p>    final dio = Dio(BaseOptions(</p>
+<p>      baseUrl: 'https://api.example.com',  // HTTPS</p>
+<p>      connectTimeout: 30000,</p>
+<p>      receiveTimeout: 30000,</p>
+<p>    ));</p>
+    
+<p>    // Add interceptor to enforce HTTPS</p>
+<p>    dio.interceptors.add(InterceptorsWrapper(</p>
+<p>      onRequest: (options, handler) {</p>
+<p>        if (!options.uri.scheme.startsWith('https')) {</p>
+<p>          return handler.reject(</p>
+<p>            DioError(</p>
+<p>              requestOptions: options,</p>
+<p>              error: 'HTTPS required',</p>
+<p>            ),</p>
+<p>          );</p>
+<p>        }</p>
+<p>        return handler.next(options);</p>
+<p>      },</p>
+<p>    ));</p>
+    
+<p>    // Configure certificate pinning</p>
+<p>    (dio.httpClientAdapter as DefaultHttpClientAdapter).onHttpClientCreate = </p>
+<p>        (client) {</p>
+<p>      client.badCertificateCallback = </p>
+<p>          (X509Certificate cert, String host, int port) {</p>
+<p>        // Validate certificate hash</p>
+<p>        final certHash = cert.sha256.toString();</p>
+<p>        final pinnedHashes = [</p>
+<p>          'primaryCertHash',</p>
+<p>          'backupCertHash',</p>
+<p>        ];</p>
+        
+<p>        return pinnedHashes.contains(certHash);</p>
+<p>      };</p>
+      
+<p>      return client;</p>
+<p>    };</p>
+    
+<p>    return dio;</p>
+<p>  }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Common Mistakes</h2>
+
+<h3>Mistake 1: Development Code in Production</h3>
+
+</code>`<code>java
+<p>// DANGEROUS: Debug code left in production</p>
+<p>if (BuildConfig.DEBUG) {</p>
+<p>    // Disable certificate validation for testing</p>
+<p>    trustAllCertificates();  // NEVER ship this!</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Fix:</strong>
+</code>`<code>java
+<p>// Use proper build configurations</p>
+<p>// Remove all certificate bypasses before release</p>
+<p>// Use ProGuard to strip debug code</p>
+</code>`<code>
+
+<h3>Mistake 2: Improper Error Handling</h3>
+
+</code>`<code>java
+<p>// VULNERABLE: Falling back to HTTP on HTTPS failure</p>
+<p>try {</p>
+<p>    response = httpsClient.execute(request);</p>
+<p>} catch (SSLException e) {</p>
+<p>    // DANGEROUS: Retry with HTTP</p>
+<p>    response = httpClient.execute(request);  // INSECURE!</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Fix:</strong>
+</code>`<code>java
+<p>// SECURE: Fail securely, never downgrade</p>
+<p>try {</p>
+<p>    response = httpsClient.execute(request);</p>
+<p>} catch (SSLException e) {</p>
+<p>    // Log error and fail</p>
+<p>    logger.error("HTTPS connection failed", e);</p>
+<p>    throw new SecurityException("Secure connection required", e);</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Mistake 3: Mixed Content</h3>
+
+</code>`<code>java
+<p>// VULNERABLE: Mixing HTTP and HTTPS</p>
+<p>String apiUrl = "https://api.example.com/data";</p>
+<p>String imageUrl = "http://cdn.example.com/image.jpg";  // HTTP!</p>
+
+<p>// HTTPS API call</p>
+<p>fetchData(apiUrl);</p>
+
+<p>// HTTP image load - INSECURE!</p>
+<p>loadImage(imageUrl);</p>
+</code>`<code>
+
+<strong>Fix:</strong>
+</code>`<code>java
+<p>// SECURE: Use HTTPS for all resources</p>
+<p>String apiUrl = "https://api.example.com/data";</p>
+<p>String imageUrl = "https://cdn.example.com/image.jpg";  // HTTPS</p>
+
+<p>// Both use HTTPS</p>
+<p>fetchData(apiUrl);</p>
+<p>loadImage(imageUrl);</p>
+</code>``
+
+<h2>Summary</h2>
+
+<p>Key takeaways:</p>
+<ol>
+<li><strong>Always use HTTPS</strong> - Never HTTP for sensitive data</li>
+<li><strong>Proper certificate validation</strong> - Don't trust all certificates</li>
+<li><strong>Modern TLS</strong> - Use TLS 1.2 or 1.3</li>
+<li><strong>Certificate pinning</strong> - For critical APIs</li>
+<li><strong>Platform features</strong> - Use NSC (Android) and ATS (iOS)</li>
+<li><strong>No exceptions</strong> - Never disable security for convenience</li>
+</ol>
+
+<p>---</p>
+
+<strong>Next:</strong> Try the <a href="./lab/">Hands-on Lab</a> to practice identifying and fixing insecure communication vulnerabilities.
+
         </div>
     </div>
 </body>

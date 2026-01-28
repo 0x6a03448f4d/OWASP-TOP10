@@ -215,7 +215,1182 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>M10: Insufficient Cryptography - Prevention</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#strong-cryptographic-algorithms">Strong Cryptographic Algorithms</a></li>
+<li><a href="#proper-key-management">Proper Key Management</a></li>
+<li><a href="#android-keystore-implementation">Android KeyStore Implementation</a></li>
+<li><a href="#ios-keychain-implementation">iOS Keychain Implementation</a></li>
+<li><a href="#secure-random-number-generation">Secure Random Number Generation</a></li>
+<li><a href="#password-hashing-best-practices">Password Hashing Best Practices</a></li>
+<li><a href="#certificate-pinning">Certificate Pinning</a></li>
+<li><a href="#cryptographic-best-practices">Cryptographic Best Practices</a></li>
+<li><a href="#security-testing-and-validation">Security Testing and Validation</a></li>
+</ul>
+
+<h2>Strong Cryptographic Algorithms</h2>
+
+<h3>Recommended Algorithms (2024)</h3>
+
+<strong>Symmetric Encryption</strong>:
+<p>| Use Case | Algorithm | Mode | Key Size | Status |</p>
+<p>|----------|-----------|------|----------|--------|</p>
+<p>| Data at rest | AES | GCM | 256-bit | ✅ Recommended |</p>
+<p>| Data at rest | ChaCha20 | Poly1305 | 256-bit | ✅ Recommended |</p>
+<p>| Legacy support | AES | CBC | 256-bit | ⚠️ Acceptable with proper IV |</p>
+<p>| Streaming | AES | CTR | 256-bit | ✅ Recommended |</p>
+
+<strong>Asymmetric Encryption</strong>:
+<p>| Algorithm | Key Size | Use Case | Status |</p>
+<p>|-----------|----------|----------|--------|</p>
+<p>| RSA | 2048-bit | Key exchange, signatures | ✅ Minimum |</p>
+<p>| RSA | 4096-bit | High-security scenarios | ✅ Recommended |</p>
+<p>| ECDSA | 256-bit (P-256) | Signatures | ✅ Recommended |</p>
+<p>| EdDSA | 256-bit (Ed25519) | Signatures | ✅ Recommended |</p>
+<p>| ECDH | 256-bit (X25519) | Key exchange | ✅ Recommended |</p>
+
+<strong>Cryptographic Hashing</strong>:
+<p>| Algorithm | Output Size | Use Case | Status |</p>
+<p>|-----------|-------------|----------|--------|</p>
+<p>| SHA-256 | 256-bit | General hashing | ✅ Recommended |</p>
+<p>| SHA-384 | 384-bit | High security | ✅ Recommended |</p>
+<p>| SHA-512 | 512-bit | High security | ✅ Recommended |</p>
+<p>| SHA-3 | 256/512-bit | Modern alternative | ✅ Recommended |</p>
+<p>| BLAKE2 | 256/512-bit | Fast hashing | ✅ Recommended |</p>
+
+<strong>Password Hashing</strong>:
+<p>| Algorithm | Parameters | Use Case | Status |</p>
+<p>|-----------|------------|----------|--------|</p>
+<p>| Argon2id | m=64MB, t=3, p=4 | Modern apps | ✅ Best choice |</p>
+<p>| bcrypt | Cost factor 12+ | Widely supported | ✅ Recommended |</p>
+<p>| scrypt | N=2^14, r=8, p=1 | Alternative | ✅ Acceptable |</p>
+<p>| PBKDF2-SHA256 | 100,000+ iterations | Legacy support | ⚠️ Minimum |</p>
+
+<h3>❌ Deprecated Algorithms to Avoid</h3>
+
+<strong>Never Use</strong>:
+<p>``<code></p>
+<p>❌ DES (56-bit key) - Broken since 1999</p>
+<p>❌ 3DES (Sweet32 attack) - Deprecated 2023</p>
+<p>❌ RC4 (biased keystream) - Broken 2015</p>
+<p>❌ MD5 (collision attacks) - Broken 2004</p>
+<p>❌ SHA-1 (SHAttered attack) - Deprecated 2017</p>
+<p>❌ ECB mode (pattern preservation) - Fundamentally flawed</p>
+<p>❌ Custom/proprietary algorithms - Security through obscurity</p>
+</code>`<code>
+
+<h3>Algorithm Selection Guide</h3>
+
+<strong>✅ Secure: AES-256-GCM</strong>
+</code>`<code>java
+<p>// Android - Correct algorithm selection</p>
+<p>Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");</p>
+<p>// AES: Strong algorithm</p>
+<p>// GCM: Authenticated encryption (detects tampering)</p>
+<p>// NoPadding: GCM doesn't need padding</p>
+</code>`<code>
+
+<strong>✅ Secure: ChaCha20-Poly1305</strong>
+</code>`<code>swift
+<p>// iOS - Modern alternative to AES</p>
+<p>import CryptoKit</p>
+
+<p>let key = SymmetricKey(size: .bits256)</p>
+<p>let nonce = try! ChaChaPoly.Nonce(data: nonceData)</p>
+<p>let sealedBox = try! ChaChaPoly.seal(data, using: key, nonce: nonce)</p>
+</code>`<code>
+
+<strong>❌ Insecure: DES/ECB</strong>
+</code>`<code>java
+<p>// NEVER DO THIS!</p>
+<p>Cipher cipher = Cipher.getInstance("DES/ECB/PKCS5Padding");</p>
+<p>// DES: 56-bit key, broken</p>
+<p>// ECB: Preserves patterns, weak</p>
+<p>// PKCS5: Vulnerable to padding oracle attacks in ECB/CBC</p>
+</code>`<code>
+
+<h2>Proper Key Management</h2>
+
+<h3>Key Management Principles</h3>
+
+<strong>Fundamental Rules</strong>:
+<ol>
+<li><strong>Never hard-code keys</strong> in source code</li>
+<li><strong>Never derive keys from weak passwords</strong> without proper KDF</li>
+<li><strong>Never store keys in plain text</strong></li>
+<li><strong>Never transmit keys in the clear</strong></li>
+<li><strong>Never use the same key for multiple purposes</strong></li>
+<li><strong>Always use platform key storage</strong> (KeyStore/Keychain)</li>
+<li><strong>Always rotate keys periodically</strong></li>
+<li><strong>Always have a key revocation strategy</strong></li>
+</ol>
+
+<h3>Key Storage Hierarchy</h3>
+
+</code>`<code>
+<p>Best to Worst Key Storage:</p>
+
+<ol>
+<li>✅ Hardware Security Module (HSM)</li>
+</ol>
+<p>   └─ Secure Element / TEE / Secure Enclave</p>
+   
+<ol>
+<li>✅ Platform KeyStore with Hardware Backing</li>
+</ol>
+<p>   ├─ Android: KeyStore (StrongBox on supported devices)</p>
+<p>   └─ iOS: Keychain (Secure Enclave on A7+ chips)</p>
+
+<ol>
+<li>⚠️ Platform KeyStore without Hardware Backing</li>
+</ol>
+<p>   ├─ Software-based encryption</p>
+<p>   └─ Better than nothing, but vulnerable on rooted/jailbroken devices</p>
+
+<ol>
+<li>❌ Encrypted SharedPreferences/UserDefaults</li>
+</ol>
+<p>   └─ Master key still needs secure storage</p>
+
+<ol>
+<li>❌ Plain Text SharedPreferences/UserDefaults</li>
+</ol>
+<p>   └─ Completely insecure</p>
+
+<ol>
+<li>❌ Hard-Coded in Application</li>
+</ol>
+<p>   └─ Trivially extractable</p>
+</code>`<code>
+
+<h3>Key Derivation</h3>
+
+<strong>✅ Secure: PBKDF2 with High Iterations</strong>
+</code>`<code>java
+<p>// Derive encryption key from user password</p>
+<p>public static SecretKey deriveKeyFromPassword(String password, byte[] salt) {</p>
+<p>    try {</p>
+<p>        PBEKeySpec spec = new PBEKeySpec(</p>
+<p>            password.toCharArray(),</p>
+<p>            salt,</p>
+<p>            100000,  // Iterations (adjust based on device performance)</p>
+<p>            256      // Key length in bits</p>
+<p>        );</p>
+        
+<p>        SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");</p>
+<p>        byte[] keyBytes = factory.generateSecret(spec).getEncoded();</p>
+        
+<p>        return new SecretKeySpec(keyBytes, "AES");</p>
+        
+<p>    } catch (Exception e) {</p>
+<p>        throw new RuntimeException("Key derivation failed", e);</p>
+<p>    }</p>
+<p>}</p>
+
+<p>// Generate cryptographically secure random salt</p>
+<p>public static byte[] generateSalt() {</p>
+<p>    byte[] salt = new byte[32]; // 256-bit salt</p>
+<p>    new SecureRandom().nextBytes(salt);</p>
+<p>    return salt;</p>
+<p>}</p>
+</code>`<code>
+
+<strong>✅ Secure: Argon2 (Modern Alternative)</strong>
+</code>`<code>kotlin
+<p>// Kotlin - Using Argon2 for key derivation</p>
+<p>import org.bouncycastle.crypto.generators.Argon2BytesGenerator</p>
+<p>import org.bouncycastle.crypto.params.Argon2Parameters</p>
+
+<p>fun deriveKeyArgon2(password: String, salt: ByteArray): ByteArray {</p>
+<p>    val parameters = Argon2Parameters.Builder(Argon2Parameters.ARGON2_id)</p>
+<p>        .withSalt(salt)</p>
+<p>        .withParallelism(4)</p>
+<p>        .withMemoryAsKB(65536)  // 64 MB</p>
+<p>        .withIterations(3)</p>
+<p>        .build()</p>
+    
+<p>    val generator = Argon2BytesGenerator()</p>
+<p>    generator.init(parameters)</p>
+    
+<p>    val key = ByteArray(32)  // 256-bit key</p>
+<p>    generator.generateBytes(password.toCharArray(), key)</p>
+    
+<p>    return key</p>
+<p>}</p>
+</code>`<code>
+
+<strong>❌ Insecure: MD5-based Key Derivation</strong>
+</code>`<code>java
+<p>// NEVER DO THIS!</p>
+<p>public static SecretKey weakKeyDerivation(String password) {</p>
+<p>    // MD5 is broken, no salt, only 128-bit output</p>
+<p>    byte[] keyBytes = MessageDigest.getInstance("MD5").digest(password.getBytes());</p>
+<p>    return new SecretKeySpec(keyBytes, "AES");</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Android KeyStore Implementation</h2>
+
+<h3>Basic KeyStore Usage</h3>
+
+<strong>✅ Generating and Storing Keys in KeyStore</strong>
+</code>`<code>java
+<p>import android.security.keystore.KeyGenParameterSpec;</p>
+<p>import android.security.keystore.KeyProperties;</p>
+<p>import java.security.KeyStore;</p>
+<p>import javax.crypto.KeyGenerator;</p>
+<p>import javax.crypto.SecretKey;</p>
+
+<p>public class SecureKeyManager {</p>
+<p>    private static final String KEY_ALIAS = "MySecureKey";</p>
+<p>    private static final String KEYSTORE_PROVIDER = "AndroidKeyStore";</p>
+    
+<p>    /**</p>
+<ul>
+<li>Generate AES key in Android KeyStore</li>
+<li>Hardware-backed on supported devices</li>
+</ul>
+<p>     */</p>
+<p>    public static SecretKey generateKey() throws Exception {</p>
+<p>        KeyGenerator keyGenerator = KeyGenerator.getInstance(</p>
+<p>            KeyProperties.KEY_ALGORITHM_AES,</p>
+<p>            KEYSTORE_PROVIDER</p>
+<p>        );</p>
+        
+<p>        KeyGenParameterSpec keySpec = new KeyGenParameterSpec.Builder(</p>
+<p>            KEY_ALIAS,</p>
+<p>            KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT</p>
+<p>        )</p>
+<p>        .setBlockModes(KeyProperties.BLOCK_MODE_GCM)</p>
+<p>        .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)</p>
+<p>        .setKeySize(256)</p>
+<p>        .setUserAuthenticationRequired(false)  // Set true for biometric protection</p>
+<p>        .setRandomizedEncryptionRequired(true)  // Enforce unique IVs</p>
+<p>        .build();</p>
+        
+<p>        keyGenerator.init(keySpec);</p>
+<p>        return keyGenerator.generateKey();</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Retrieve existing key from KeyStore</li>
+</ul>
+<p>     */</p>
+<p>    public static SecretKey getKey() throws Exception {</p>
+<p>        KeyStore keyStore = KeyStore.getInstance(KEYSTORE_PROVIDER);</p>
+<p>        keyStore.load(null);</p>
+        
+<p>        if (!keyStore.containsAlias(KEY_ALIAS)) {</p>
+<p>            return generateKey();</p>
+<p>        }</p>
+        
+<p>        return (SecretKey) keyStore.getKey(KEY_ALIAS, null);</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Delete key from KeyStore</li>
+</ul>
+<p>     */</p>
+<p>    public static void deleteKey() throws Exception {</p>
+<p>        KeyStore keyStore = KeyStore.getInstance(KEYSTORE_PROVIDER);</p>
+<p>        keyStore.load(null);</p>
+<p>        keyStore.deleteEntry(KEY_ALIAS);</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Encryption with KeyStore Key</h3>
+
+<strong>✅ AES-GCM Encryption</strong>
+</code>`<code>java
+<p>import javax.crypto.Cipher;</p>
+<p>import javax.crypto.spec.GCMParameterSpec;</p>
+<p>import android.util.Base64;</p>
+
+<p>public class SecureEncryption {</p>
+<p>    private static final String TRANSFORMATION = "AES/GCM/NoPadding";</p>
+<p>    private static final int GCM_TAG_LENGTH = 128; // bits</p>
+<p>    private static final int GCM_IV_LENGTH = 12;   // bytes (96 bits)</p>
+    
+<p>    /**</p>
+<ul>
+<li>Encrypt data using AES-GCM with KeyStore key</li>
+</ul>
+<p>     */</p>
+<p>    public static String encrypt(String plaintext, SecretKey key) throws Exception {</p>
+<p>        // Generate random IV for each encryption</p>
+<p>        byte[] iv = new byte[GCM_IV_LENGTH];</p>
+<p>        new SecureRandom().nextBytes(iv);</p>
+        
+<p>        Cipher cipher = Cipher.getInstance(TRANSFORMATION);</p>
+<p>        GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);</p>
+<p>        cipher.init(Cipher.ENCRYPT_MODE, key, spec);</p>
+        
+<p>        byte[] ciphertext = cipher.doFinal(plaintext.getBytes(StandardCharsets.UTF_8));</p>
+        
+<p>        // Combine IV + ciphertext for storage</p>
+<p>        byte[] combined = new byte[iv.length + ciphertext.length];</p>
+<p>        System.arraycopy(iv, 0, combined, 0, iv.length);</p>
+<p>        System.arraycopy(ciphertext, 0, combined, iv.length, ciphertext.length);</p>
+        
+<p>        return Base64.encodeToString(combined, Base64.NO_WRAP);</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Decrypt data using AES-GCM with KeyStore key</li>
+</ul>
+<p>     */</p>
+<p>    public static String decrypt(String encryptedData, SecretKey key) throws Exception {</p>
+<p>        byte[] combined = Base64.decode(encryptedData, Base64.NO_WRAP);</p>
+        
+<p>        // Extract IV and ciphertext</p>
+<p>        byte[] iv = new byte[GCM_IV_LENGTH];</p>
+<p>        byte[] ciphertext = new byte[combined.length - GCM_IV_LENGTH];</p>
+        
+<p>        System.arraycopy(combined, 0, iv, 0, iv.length);</p>
+<p>        System.arraycopy(combined, iv.length, ciphertext, 0, ciphertext.length);</p>
+        
+<p>        Cipher cipher = Cipher.getInstance(TRANSFORMATION);</p>
+<p>        GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);</p>
+<p>        cipher.init(Cipher.DECRYPT_MODE, key, spec);</p>
+        
+<p>        byte[] plaintext = cipher.doFinal(ciphertext);</p>
+<p>        return new String(plaintext, StandardCharsets.UTF_8);</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Hardware-Backed Key Attestation</h3>
+
+<strong>✅ Verify Hardware Backing</strong>
+</code>`<code>java
+<p>import android.security.keystore.KeyInfo;</p>
+<p>import javax.crypto.SecretKeyFactory;</p>
+
+<p>public static boolean isKeyHardwareBacked(SecretKey key) throws Exception {</p>
+<p>    SecretKeyFactory factory = SecretKeyFactory.getInstance(</p>
+<p>        key.getAlgorithm(),</p>
+<p>        "AndroidKeyStore"</p>
+<p>    );</p>
+    
+<p>    KeyInfo keyInfo = (KeyInfo) factory.getKeySpec(key, KeyInfo.class);</p>
+    
+<p>    // Check if key is hardware-backed</p>
+<p>    boolean isInsideSecureHardware = keyInfo.isInsideSecureHardware();</p>
+    
+<p>    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {</p>
+<p>        // Check for StrongBox (dedicated HSM)</p>
+<p>        int securityLevel = keyInfo.getSecurityLevel();</p>
+<p>        boolean isStrongBox = (securityLevel == KeyProperties.SECURITY_LEVEL_STRONGBOX);</p>
+        
+<p>        Log.d("KeySecurity", "Hardware-backed: " + isInsideSecureHardware);</p>
+<p>        Log.d("KeySecurity", "StrongBox: " + isStrongBox);</p>
+        
+<p>        return isStrongBox || isInsideSecureHardware;</p>
+<p>    }</p>
+    
+<p>    return isInsideSecureHardware;</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Biometric-Protected Keys</h3>
+
+<strong>✅ Require Biometric Authentication</strong>
+</code>`<code>java
+<p>public static SecretKey generateBiometricProtectedKey() throws Exception {</p>
+<p>    KeyGenerator keyGenerator = KeyGenerator.getInstance(</p>
+<p>        KeyProperties.KEY_ALGORITHM_AES,</p>
+<p>        "AndroidKeyStore"</p>
+<p>    );</p>
+    
+<p>    KeyGenParameterSpec.Builder builder = new KeyGenParameterSpec.Builder(</p>
+<p>        "BiometricKey",</p>
+<p>        KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT</p>
+<p>    )</p>
+<p>    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)</p>
+<p>    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)</p>
+<p>    .setKeySize(256)</p>
+<p>    .setUserAuthenticationRequired(true);  // Require authentication</p>
+    
+<p>    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {</p>
+<p>        // Set authentication timeout (0 = every use)</p>
+<p>        builder.setUserAuthenticationParameters(0, </p>
+<p>            KeyProperties.AUTH_BIOMETRIC_STRONG | KeyProperties.AUTH_DEVICE_CREDENTIAL);</p>
+<p>    } else {</p>
+<p>        builder.setUserAuthenticationValidityDurationSeconds(-1); // Every use</p>
+<p>    }</p>
+    
+<p>    keyGenerator.init(builder.build());</p>
+<p>    return keyGenerator.generateKey();</p>
+<p>}</p>
+</code>`<code>
+
+<h2>iOS Keychain Implementation</h2>
+
+<h3>Basic Keychain Usage</h3>
+
+<strong>✅ Storing Data in Keychain</strong>
+</code>`<code>swift
+<p>import Security</p>
+<p>import Foundation</p>
+
+<p>class KeychainManager {</p>
+    
+<p>    /**</p>
+<ul>
+<li>Save data to iOS Keychain with strong protection</li>
+</ul>
+<p>     */</p>
+<p>    static func save(key: String, data: Data) -> Bool {</p>
+<p>        // Delete any existing item</p>
+<p>        delete(key: key)</p>
+        
+<p>        let query: [String: Any] = [</p>
+<p>            kSecClass as String: kSecClassGenericPassword,</p>
+<p>            kSecAttrAccount as String: key,</p>
+<p>            kSecValueData as String: data,</p>
+<p>            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly</p>
+<p>            // This ensures data is only accessible when device is unlocked</p>
+<p>            // and doesn't sync to iCloud or other devices</p>
+<p>        ]</p>
+        
+<p>        let status = SecItemAdd(query as CFDictionary, nil)</p>
+<p>        return status == errSecSuccess</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Retrieve data from Keychain</li>
+</ul>
+<p>     */</p>
+<p>    static func load(key: String) -> Data? {</p>
+<p>        let query: [String: Any] = [</p>
+<p>            kSecClass as String: kSecClassGenericPassword,</p>
+<p>            kSecAttrAccount as String: key,</p>
+<p>            kSecReturnData as String: true,</p>
+<p>            kSecMatchLimit as String: kSecMatchLimitOne</p>
+<p>        ]</p>
+        
+<p>        var result: AnyObject?</p>
+<p>        let status = SecItemCopyMatching(query as CFDictionary, &result)</p>
+        
+<p>        guard status == errSecSuccess else {</p>
+<p>            return nil</p>
+<p>        }</p>
+        
+<p>        return result as? Data</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Delete data from Keychain</li>
+</ul>
+<p>     */</p>
+<p>    static func delete(key: String) {</p>
+<p>        let query: [String: Any] = [</p>
+<p>            kSecClass as String: kSecClassGenericPassword,</p>
+<p>            kSecAttrAccount as String: key</p>
+<p>        ]</p>
+        
+<p>        SecItemDelete(query as CFDictionary)</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Secure Enclave Protection</h3>
+
+<strong>✅ Generate Key in Secure Enclave</strong>
+</code>`<code>swift
+<p>import Security</p>
+<p>import CryptoKit</p>
+
+<p>class SecureEnclaveKeyManager {</p>
+    
+<p>    /**</p>
+<ul>
+<li>Generate encryption key in Secure Enclave (iOS 11+)</li>
+<li>Hardware-backed, cannot be exported</li>
+</ul>
+<p>     */</p>
+<p>    static func generateSecureEnclaveKey() throws -> SecKey {</p>
+<p>        guard SecureEnclave.isAvailable else {</p>
+<p>            throw KeyGenerationError.secureEnclaveNotAvailable</p>
+<p>        }</p>
+        
+<p>        let attributes: [String: Any] = [</p>
+<p>            kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,</p>
+<p>            kSecAttrKeySizeInBits as String: 256,</p>
+<p>            kSecAttrTokenID as String: kSecAttrTokenIDSecureEnclave,</p>
+<p>            kSecPrivateKeyAttrs as String: [</p>
+<p>                kSecAttrIsPermanent as String: true,</p>
+<p>                kSecAttrApplicationTag as String: "com.app.securekey".data(using: .utf8)!,</p>
+<p>                kSecAttrAccessControl as String: SecAccessControlCreateWithFlags(</p>
+<p>                    kCFAllocatorDefault,</p>
+<p>                    kSecAttrAccessibleWhenUnlockedThisDeviceOnly,</p>
+<p>                    [.privateKeyUsage, .biometryCurrentSet],  // Require biometric</p>
+<p>                    nil</p>
+<p>                )!</p>
+<p>            ]</p>
+<p>        ]</p>
+        
+<p>        var error: Unmanaged<CFError>?</p>
+<p>        guard let privateKey = SecKeyCreateRandomKey(attributes as CFDictionary, &error) else {</p>
+<p>            throw error!.takeRetainedValue() as Error</p>
+<p>        }</p>
+        
+<p>        return privateKey</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Encrypt data using Secure Enclave key</li>
+</ul>
+<p>     */</p>
+<p>    static func encrypt(data: Data, using key: SecKey) throws -> Data {</p>
+<p>        guard let publicKey = SecKeyCopyPublicKey(key) else {</p>
+<p>            throw EncryptionError.publicKeyExtractionFailed</p>
+<p>        }</p>
+        
+<p>        var error: Unmanaged<CFError>?</p>
+<p>        guard let encrypted = SecKeyCreateEncryptedData(</p>
+<p>            publicKey,</p>
+<p>            .eciesEncryptionStandardX963SHA256AESGCM,</p>
+<p>            data as CFData,</p>
+<p>            &error</p>
+<p>        ) as Data? else {</p>
+<p>            throw error!.takeRetainedValue() as Error</p>
+<p>        }</p>
+        
+<p>        return encrypted</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Decrypt data using Secure Enclave key (requires biometric)</li>
+</ul>
+<p>     */</p>
+<p>    static func decrypt(data: Data, using key: SecKey) throws -> Data {</p>
+<p>        var error: Unmanaged<CFError>?</p>
+<p>        guard let decrypted = SecKeyCreateDecryptedData(</p>
+<p>            key,</p>
+<p>            .eciesEncryptionStandardX963SHA256AESGCM,</p>
+<p>            data as CFData,</p>
+<p>            &error</p>
+<p>        ) as Data? else {</p>
+<p>            throw error!.takeRetainedValue() as Error</p>
+<p>        }</p>
+        
+<p>        return decrypted</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Modern CryptoKit Implementation</h3>
+
+<strong>✅ Using CryptoKit for Encryption (iOS 13+)</strong>
+</code>`<code>swift
+<p>import CryptoKit</p>
+<p>import Foundation</p>
+
+<p>class ModernEncryption {</p>
+    
+<p>    /**</p>
+<ul>
+<li>Generate symmetric key and store in Keychain</li>
+</ul>
+<p>     */</p>
+<p>    static func generateAndStoreKey(identifier: String) throws -> SymmetricKey {</p>
+<p>        let key = SymmetricKey(size: .bits256)</p>
+        
+<p>        // Convert key to Data for storage</p>
+<p>        let keyData = key.withUnsafeBytes { Data($0) }</p>
+        
+<p>        // Store in Keychain</p>
+<p>        guard KeychainManager.save(key: identifier, data: keyData) else {</p>
+<p>            throw KeyStorageError.keychainSaveFailed</p>
+<p>        }</p>
+        
+<p>        return key</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Retrieve key from Keychain</li>
+</ul>
+<p>     */</p>
+<p>    static func loadKey(identifier: String) throws -> SymmetricKey {</p>
+<p>        guard let keyData = KeychainManager.load(key: identifier) else {</p>
+<p>            throw KeyStorageError.keyNotFound</p>
+<p>        }</p>
+        
+<p>        return SymmetricKey(data: keyData)</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Encrypt using AES-GCM (authenticated encryption)</li>
+</ul>
+<p>     */</p>
+<p>    static func encrypt(data: Data, key: SymmetricKey) throws -> Data {</p>
+<p>        let sealedBox = try AES.GCM.seal(data, using: key)</p>
+        
+<p>        // combined contains nonce + ciphertext + tag</p>
+<p>        guard let combined = sealedBox.combined else {</p>
+<p>            throw EncryptionError.sealedBoxCreationFailed</p>
+<p>        }</p>
+        
+<p>        return combined</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Decrypt using AES-GCM</li>
+</ul>
+<p>     */</p>
+<p>    static func decrypt(data: Data, key: SymmetricKey) throws -> Data {</p>
+<p>        let sealedBox = try AES.GCM.SealedBox(combined: data)</p>
+<p>        let decrypted = try AES.GCM.open(sealedBox, using: key)</p>
+        
+<p>        return decrypted</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Encrypt using ChaCha20-Poly1305 (alternative to AES)</li>
+</ul>
+<p>     */</p>
+<p>    static func encryptChaCha(data: Data, key: SymmetricKey) throws -> Data {</p>
+<p>        let sealedBox = try ChaChaPoly.seal(data, using: key)</p>
+<p>        return sealedBox.combined</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Hash data using SHA-256</li>
+</ul>
+<p>     */</p>
+<p>    static func hash(data: Data) -> String {</p>
+<p>        let digest = SHA256.hash(data: data)</p>
+<p>        return digest.map { String(format: "%02x", $0) }.joined()</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Secure Random Number Generation</h2>
+
+<h3>Android Secure Random</h3>
+
+<strong>✅ Using SecureRandom</strong>
+</code>`<code>java
+<p>import java.security.SecureRandom;</p>
+
+<p>public class SecureRandomGenerator {</p>
+    
+<p>    /**</p>
+<ul>
+<li>Generate cryptographically secure random bytes</li>
+</ul>
+<p>     */</p>
+<p>    public static byte[] generateSecureRandomBytes(int length) {</p>
+<p>        SecureRandom secureRandom = new SecureRandom();</p>
+<p>        byte[] randomBytes = new byte[length];</p>
+<p>        secureRandom.nextBytes(randomBytes);</p>
+<p>        return randomBytes;</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Generate secure random token (e.g., for session IDs)</li>
+</ul>
+<p>     */</p>
+<p>    public static String generateSecureToken(int byteLength) {</p>
+<p>        byte[] randomBytes = generateSecureRandomBytes(byteLength);</p>
+<p>        return Base64.encodeToString(randomBytes, Base64.URL_SAFE | Base64.NO_WRAP);</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Generate random IV for AES-GCM</li>
+</ul>
+<p>     */</p>
+<p>    public static byte[] generateIV() {</p>
+<p>        return generateSecureRandomBytes(12); // 96-bit IV for GCM</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Generate random salt for password hashing</li>
+</ul>
+<p>     */</p>
+<p>    public static byte[] generateSalt() {</p>
+<p>        return generateSecureRandomBytes(32); // 256-bit salt</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>❌ Insecure: Using Math.random()</strong>
+</code>`<code>java
+<p>// NEVER DO THIS!</p>
+<p>public static String generateWeakToken() {</p>
+<p>    // Math.random() is NOT cryptographically secure!</p>
+<p>    return String.valueOf(Math.random() * Long.MAX_VALUE);</p>
+<p>}</p>
+
+<p>// NEVER DO THIS!</p>
+<p>public static byte[] generateWeakIV() {</p>
+<p>    byte[] iv = new byte[16];</p>
+<p>    Random random = new Random(System.currentTimeMillis()); // Predictable seed!</p>
+<p>    random.nextBytes(iv);</p>
+<p>    return iv;</p>
+<p>}</p>
+</code>`<code>
+
+<h3>iOS Secure Random</h3>
+
+<strong>✅ Using SecRandomCopyBytes</strong>
+</code>`<code>swift
+<p>import Security</p>
+
+<p>class SecureRandomGenerator {</p>
+    
+<p>    /**</p>
+<ul>
+<li>Generate cryptographically secure random bytes</li>
+</ul>
+<p>     */</p>
+<p>    static func generateSecureBytes(count: Int) -> Data? {</p>
+<p>        var bytes = <a href="repeating: 0, count: count">UInt8</a></p>
+<p>        let status = SecRandomCopyBytes(kSecRandomDefault, count, &bytes)</p>
+        
+<p>        guard status == errSecSuccess else {</p>
+<p>            return nil</p>
+<p>        }</p>
+        
+<p>        return Data(bytes)</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Generate secure random token</li>
+</ul>
+<p>     */</p>
+<p>    static func generateToken(byteCount: Int = 32) -> String? {</p>
+<p>        guard let data = generateSecureBytes(count: byteCount) else {</p>
+<p>            return nil</p>
+<p>        }</p>
+        
+<p>        return data.base64EncodedString()</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Generate random salt for password hashing</li>
+</ul>
+<p>     */</p>
+<p>    static func generateSalt() -> Data? {</p>
+<p>        return generateSecureBytes(count: 32)</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>✅ Using CryptoKit (iOS 13+)</strong>
+</code>`<code>swift
+<p>import CryptoKit</p>
+
+<p>extension Data {</p>
+<p>    /**</p>
+<ul>
+<li>Generate cryptographically secure random data</li>
+</ul>
+<p>     */</p>
+<p>    static func secureRandom(count: Int) -> Data {</p>
+<p>        var bytes = <a href="repeating: 0, count: count">UInt8</a></p>
+<p>        _ = SecRandomCopyBytes(kSecRandomDefault, count, &bytes)</p>
+<p>        return Data(bytes)</p>
+<p>    }</p>
+<p>}</p>
+
+<p>// Usage</p>
+<p>let randomNonce = Data.secureRandom(count: 12)</p>
+<p>let randomSalt = Data.secureRandom(count: 32)</p>
+<p>let sessionToken = Data.secureRandom(count: 32).base64EncodedString()</p>
+</code>`<code>
+
+<h2>Password Hashing Best Practices</h2>
+
+<h3>bcrypt Implementation</h3>
+
+<strong>✅ Android: Using bcrypt</strong>
+</code>`<code>java
+<p>// Add dependency: implementation 'org.mindrot:jbcrypt:0.4'</p>
+<p>import org.mindrot.jbcrypt.BCrypt;</p>
+
+<p>public class PasswordHasher {</p>
+    
+<p>    private static final int BCRYPT_COST_FACTOR = 12; // 2^12 = 4,096 iterations</p>
+    
+<p>    /**</p>
+<ul>
+<li>Hash password using bcrypt</li>
+</ul>
+<p>     */</p>
+<p>    public static String hashPassword(String password) {</p>
+<p>        // BCrypt automatically generates salt</p>
+<p>        return BCrypt.hashpw(password, BCrypt.gensalt(BCRYPT_COST_FACTOR));</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Verify password against bcrypt hash</li>
+</ul>
+<p>     */</p>
+<p>    public static boolean verifyPassword(String password, String hashedPassword) {</p>
+<p>        try {</p>
+<p>            return BCrypt.checkpw(password, hashedPassword);</p>
+<p>        } catch (IllegalArgumentException e) {</p>
+<p>            return false;</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Check if hash needs rehashing (increase cost factor over time)</li>
+</ul>
+<p>     */</p>
+<p>    public static boolean needsRehash(String hashedPassword) {</p>
+<p>        // Extract cost factor from hash</p>
+<p>        String costString = hashedPassword.substring(4, 6);</p>
+<p>        int currentCost = Integer.parseInt(costString);</p>
+        
+<p>        return currentCost < BCRYPT_COST_FACTOR;</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>✅ iOS: Using CommonCrypto for PBKDF2</strong>
+</code>`<code>swift
+<p>import CommonCrypto</p>
+<p>import Foundation</p>
+
+<p>class PasswordHasher {</p>
+    
+<p>    /**</p>
+<ul>
+<li>Hash password using PBKDF2-SHA256</li>
+</ul>
+<p>     */</p>
+<p>    static func hashPassword(_ password: String, salt: Data? = nil) -> (hash: String, salt: String)? {</p>
+<p>        let saltData = salt ?? SecureRandomGenerator.generateSalt()!</p>
+        
+<p>        guard let passwordData = password.data(using: .utf8) else {</p>
+<p>            return nil</p>
+<p>        }</p>
+        
+<p>        var derivedKeyData = Data(repeating: 0, count: 32) // 256-bit output</p>
+        
+<p>        let derivationStatus = derivedKeyData.withUnsafeMutableBytes { derivedKeyBytes in</p>
+<p>            saltData.withUnsafeBytes { saltBytes in</p>
+<p>                CCKeyDerivationPBKDF(</p>
+<p>                    CCPBKDFAlgorithm(kCCPBKDF2),</p>
+<p>                    password,</p>
+<p>                    passwordData.count,</p>
+<p>                    saltBytes.baseAddress?.assumingMemoryBound(to: UInt8.self),</p>
+<p>                    saltData.count,</p>
+<p>                    CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA256),</p>
+<p>                    100000, // Iterations</p>
+<p>                    derivedKeyBytes.baseAddress?.assumingMemoryBound(to: UInt8.self),</p>
+<p>                    derivedKeyData.count</p>
+<p>                )</p>
+<p>            }</p>
+<p>        }</p>
+        
+<p>        guard derivationStatus == kCCSuccess else {</p>
+<p>            return nil</p>
+<p>        }</p>
+        
+<p>        return (</p>
+<p>            hash: derivedKeyData.base64EncodedString(),</p>
+<p>            salt: saltData.base64EncodedString()</p>
+<p>        )</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Verify password against hash and salt</li>
+</ul>
+<p>     */</p>
+<p>    static func verifyPassword(_ password: String, hash: String, salt: String) -> Bool {</p>
+<p>        guard let saltData = Data(base64Encoded: salt),</p>
+<p>              let result = hashPassword(password, salt: saltData) else {</p>
+<p>            return false</p>
+<p>        }</p>
+        
+<p>        return result.hash == hash</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Argon2 Implementation</h3>
+
+<strong>✅ Using Argon2 (Modern Best Practice)</strong>
+</code>`<code>kotlin
+<p>// Kotlin - Add dependency: implementation 'org.bouncycastle:bcprov-jdk15on:1.70'</p>
+<p>import org.bouncycastle.crypto.generators.Argon2BytesGenerator</p>
+<p>import org.bouncycastle.crypto.params.Argon2Parameters</p>
+<p>import java.util.Base64</p>
+
+<p>object Argon2Hasher {</p>
+    
+<p>    private const val SALT_LENGTH = 32</p>
+<p>    private const val HASH_LENGTH = 32</p>
+<p>    private const val ITERATIONS = 3</p>
+<p>    private const val MEMORY_KB = 65536 // 64 MB</p>
+<p>    private const val PARALLELISM = 4</p>
+    
+<p>    /**</p>
+<ul>
+<li>Hash password using Argon2id</li>
+</ul>
+<p>     */</p>
+<p>    fun hashPassword(password: String): String {</p>
+<p>        val salt = ByteArray(SALT_LENGTH)</p>
+<p>        SecureRandom().nextBytes(salt)</p>
+        
+<p>        val hash = hashWithSalt(password, salt)</p>
+        
+<p>        // Encode as: $argon2id$v=19$m=65536,t=3,p=4$salt$hash</p>
+<p>        val encoded = StringBuilder()</p>
+<p>        encoded.append("\$argon2id\$v=19\$")</p>
+<p>        encoded.append("m=$MEMORY_KB,t=$ITERATIONS,p=$PARALLELISM\$")</p>
+<p>        encoded.append(Base64.getEncoder().encodeToString(salt)).append("\$")</p>
+<p>        encoded.append(Base64.getEncoder().encodeToString(hash))</p>
+        
+<p>        return encoded.toString()</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Verify password against Argon2 hash</li>
+</ul>
+<p>     */</p>
+<p>    fun verifyPassword(password: String, encodedHash: String): Boolean {</p>
+<p>        val parts = encodedHash.split("$")</p>
+<p>        if (parts.size != 6) return false</p>
+        
+<p>        val salt = Base64.getDecoder().decode(parts[4])</p>
+<p>        val expectedHash = Base64.getDecoder().decode(parts[5])</p>
+<p>        val actualHash = hashWithSalt(password, salt)</p>
+        
+<p>        return MessageDigest.isEqual(expectedHash, actualHash)</p>
+<p>    }</p>
+    
+<p>    private fun hashWithSalt(password: String, salt: ByteArray): ByteArray {</p>
+<p>        val parameters = Argon2Parameters.Builder(Argon2Parameters.ARGON2_id)</p>
+<p>            .withSalt(salt)</p>
+<p>            .withParallelism(PARALLELISM)</p>
+<p>            .withMemoryAsKB(MEMORY_KB)</p>
+<p>            .withIterations(ITERATIONS)</p>
+<p>            .build()</p>
+        
+<p>        val generator = Argon2BytesGenerator()</p>
+<p>        generator.init(parameters)</p>
+        
+<p>        val hash = ByteArray(HASH_LENGTH)</p>
+<p>        generator.generateBytes(password.toCharArray(), hash)</p>
+        
+<p>        return hash</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Certificate Pinning</h2>
+
+<h3>SSL/TLS Certificate Pinning</h3>
+
+<strong>✅ Android: Network Security Config</strong>
+</code>`<code>xml
+<!-- res/xml/network_security_config.xml -->
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api.example.com</domain>
+        <pin-set expiration="2025-12-31">
+            <!-- Pin backup certificate too -->
+            <pin digest="SHA-256">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>
+            <pin digest="SHA-256">BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=</pin>
+        </pin-set>
+    </domain-config>
+</network-security-config>
+</code>`<code>
+
+</code>`<code>xml
+<!-- AndroidManifest.xml -->
+<application
+<p>    android:networkSecurityConfig="@xml/network_security_config"</p>
+<p>    ...></p>
+</code>`<code>
+
+<strong>✅ iOS: Certificate Pinning with URLSession</strong>
+</code>`<code>swift
+<p>class PinnedURLSessionDelegate: NSObject, URLSessionDelegate {</p>
+    
+<p>    let pinnedCertificates: [Data]</p>
+    
+<p>    init(pinnedCertificateNames: [String]) {</p>
+<p>        var certificates: [Data] = []</p>
+        
+<p>        for name in pinnedCertificateNames {</p>
+<p>            if let path = Bundle.main.path(forResource: name, ofType: "cer"),</p>
+<p>               let data = try? Data(contentsOf: URL(fileURLWithPath: path)) {</p>
+<p>                certificates.append(data)</p>
+<p>            }</p>
+<p>        }</p>
+        
+<p>        self.pinnedCertificates = certificates</p>
+<p>        super.init()</p>
+<p>    }</p>
+    
+<p>    func urlSession(_ session: URLSession,</p>
+<p>                    didReceive challenge: URLAuthenticationChallenge,</p>
+<p>                    completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {</p>
+        
+<p>        guard let serverTrust = challenge.protectionSpace.serverTrust else {</p>
+<p>            completionHandler(.cancelAuthenticationChallenge, nil)</p>
+<p>            return</p>
+<p>        }</p>
+        
+<p>        // Validate certificate chain</p>
+<p>        var secresult = SecTrustResultType.invalid</p>
+<p>        let status = SecTrustEvaluate(serverTrust, &secresult)</p>
+        
+<p>        guard status == errSecSuccess else {</p>
+<p>            completionHandler(.cancelAuthenticationChallenge, nil)</p>
+<p>            return</p>
+<p>        }</p>
+        
+<p>        // Check against pinned certificates</p>
+<p>        if let serverCertificate = SecTrustGetCertificateAtIndex(serverTrust, 0) {</p>
+<p>            let serverCertificateData = SecCertificateCopyData(serverCertificate) as Data</p>
+            
+<p>            for pinnedCertificate in pinnedCertificates {</p>
+<p>                if serverCertificateData == pinnedCertificate {</p>
+<p>                    completionHandler(.useCredential, URLCredential(trust: serverTrust))</p>
+<p>                    return</p>
+<p>                }</p>
+<p>            }</p>
+<p>        }</p>
+        
+<p>        // Certificate not pinned - reject connection</p>
+<p>        completionHandler(.cancelAuthenticationChallenge, nil)</p>
+<p>    }</p>
+<p>}</p>
+
+<p>// Usage</p>
+<p>let delegate = PinnedURLSessionDelegate(pinnedCertificateNames: ["api_certificate"])</p>
+<p>let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)</p>
+</code>`<code>
+
+<h2>Cryptographic Best Practices</h2>
+
+<h3>Complete Secure Implementation Checklist</h3>
+
+<strong>Algorithm Selection</strong>:
+<ul>
+<li>✅ Use AES-256-GCM or ChaCha20-Poly1305 for symmetric encryption</li>
+<li>✅ Use RSA-2048+ or ECC-256+ for asymmetric encryption</li>
+<li>✅ Use SHA-256+ for hashing (not for passwords)</li>
+<li>✅ Use bcrypt/Argon2/scrypt for password hashing</li>
+<li>❌ Never use DES, 3DES, RC4, MD5, SHA-1, or ECB mode</li>
+</ul>
+
+<strong>Key Management</strong>:
+<ul>
+<li>✅ Store keys in Android KeyStore or iOS Keychain</li>
+<li>✅ Use hardware-backed storage when available</li>
+<li>✅ Generate keys with platform APIs (KeyGenerator, SecKeyCreateRandomKey)</li>
+<li>✅ Derive keys with PBKDF2/Argon2 (100,000+ iterations)</li>
+<li>✅ Use unique keys per user/device/purpose</li>
+<li>✅ Rotate keys periodically</li>
+<li>❌ Never hard-code keys</li>
+<li>❌ Never store keys in SharedPreferences/UserDefaults</li>
+<li>❌ Never transmit keys in cleartext</li>
+</ul>
+
+<strong>Random Number Generation</strong>:
+<ul>
+<li>✅ Use SecureRandom (Android) or SecRandomCopyBytes (iOS)</li>
+<li>✅ Generate unique IV/nonce for each encryption</li>
+<li>✅ Use sufficient entropy (256-bit salt)</li>
+<li>❌ Never use Math.random() or Random with predictable seeds</li>
+<li>❌ Never reuse IVs/nonces</li>
+</ul>
+
+<strong>Implementation</strong>:
+<ul>
+<li>✅ Use platform cryptographic APIs</li>
+<li>✅ Keep cryptographic libraries updated</li>
+<li>✅ Implement proper error handling</li>
+<li>✅ Clear sensitive data from memory after use</li>
+<li>✅ Validate all cryptographic operations</li>
+<li>❌ Never implement custom cryptography</li>
+<li>❌ Never ignore cryptographic errors</li>
+<li>❌ Never trust client-side encryption alone</li>
+</ul>
+
+<h2>Security Testing and Validation</h2>
+
+<h3>Static Analysis Tests</h3>
+
+</code>`<code>bash
+<h1>Check for weak algorithms</h1>
+<p>$ grep -r "DES\|MD5\|SHA1\|ECB" app/src/</p>
+
+<h1>Check for hard-coded keys</h1>
+<p>$ grep -r "SecretKeySpec\|AES.<em>=.</em>\"" app/src/</p>
+
+<h1>Check for weak random</h1>
+<p>$ grep -r "Math.random\|Random(" app/src/</p>
+</code>`<code>
+
+<h3>Dynamic Analysis Tests</h3>
+
+</code>`<code>bash
+<h1>Use Frida to hook crypto functions</h1>
+<p>$ frida -U -f com.app -l crypto-hooks.js</p>
+
+<h1>Monitor TLS connections</h1>
+<p>$ mitmproxy --mode transparent</p>
+
+<h1>Check certificate pinning</h1>
+<p>$ objection -g com.app explore</p>
+<p>> android sslpinning disable</p>
+</code>``
+
+<h3>Compliance Validation</h3>
+
+<ul>
+<li>✅ FIPS 140-2/140-3 validation for cryptographic modules</li>
+<li>✅ NIST SP 800-175B algorithm compliance</li>
+<li>✅ PCI-DSS cryptography requirements</li>
+<li>✅ HIPAA encryption standards</li>
+<li>✅ GDPR data protection requirements</li>
+</ul>
+
+<p>---</p>
+
+<strong>Related Documentation</strong>:
+<ul>
+<li><a href="overview.md">Overview</a> - Understanding insufficient cryptography</li>
+<li><a href="attack-vectors.md">Attack Vectors</a> - How weak crypto is exploited</li>
+<li><a href="examples.md">Examples</a> - Code examples and patterns</li>
+<li><a href="lab/">Lab</a> - Hands-on practice exercises</li>
+</ul>
+
         </div>
     </div>
 </body>

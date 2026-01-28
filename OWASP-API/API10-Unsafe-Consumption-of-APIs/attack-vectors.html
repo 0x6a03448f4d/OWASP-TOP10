@@ -215,7 +215,75 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>API10: Unsafe Consumption of APIs - Attack Vectors</h1>
+
+<h2>Third-Party Data Injection</h2>
+
+<h3>XSS via Weather API</h3>
+
+<p>``<code>python</p>
+<h1>Vulnerable</h1>
+<p>weather = requests.get('https://weather-api.com/current').json()</p>
+<p>return f"<div>{weather['description']}</div>"  # XSS!</p>
+
+<h1>If weather API compromised:</h1>
+<p>{"description": "<script>steal_cookies()</script>"}</p>
+</code>`<code>
+
+<h2>SQL Injection via External API</h2>
+
+</code>`<code>python
+<h1>Vulnerable</h1>
+<p>users = requests.get('https://crm-api.com/users').json()</p>
+<p>for user in users:</p>
+<p>    db.execute(f"INSERT INTO users VALUES ('{user['name']}')")  # SQLi!</p>
+
+<h1>If CRM API returns:</h1>
+<p>{"name": "'; DROP TABLE users; --"}</p>
+</code>`<code>
+
+<h2>Payment Response Manipulation</h2>
+
+</code>`<code>python
+<h1>Vulnerable</h1>
+<p>payment = requests.post('https://payment-api.com/charge', json=order)</p>
+<p>if payment.json()['status'] == 'success':  # Trusts response!</p>
+<p>    grant_premium_access()</p>
+
+<h1>Attacker intercepts, changes response to:</h1>
+<p>{"status": "success"}  # Without actually paying</p>
+</code>`<code>
+
+<h2>XML Injection from Third-Party</h2>
+
+</code>`<code>python
+<h1>Vulnerable</h1>
+<p>xml_data = requests.get('https://partner-api.com/export').text</p>
+<p>doc = etree.fromstring(xml_data)  # XXE possible!</p>
+
+<h1>If partner API returns:</h1>
+<!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>
+</code>`<code>
+
+<h2>Deserialization Attack</h2>
+
+</code>`<code>python
+<h1>Vulnerable</h1>
+<p>import pickle</p>
+<p>data = requests.get('https://data-api.com/export').content</p>
+<p>obj = pickle.loads(data)  # Arbitrary code execution!</p>
+</code>``
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Validate everything</strong>: Never trust third-party data</li>
+<li><strong>Sanitize</strong>: Treat as user input</li>
+<li><strong>Parameterize</strong>: Use prepared statements</li>
+<li><strong>Encode</strong>: Escape before rendering</li>
+<li><strong>Verify</strong>: Check signatures/certificates</li>
+</ol>
+
         </div>
     </div>
 </body>

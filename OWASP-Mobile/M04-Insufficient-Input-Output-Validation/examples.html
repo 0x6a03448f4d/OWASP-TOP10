@@ -215,7 +215,784 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>M04: Insufficient Input/Output Validation - Examples</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#sql-injection-examples">SQL Injection Examples</a></li>
+<li><a href="#command-injection-examples">Command Injection Examples</a></li>
+<li><a href="#path-traversal-examples">Path Traversal Examples</a></li>
+<li><a href="#xss-in-webview-examples">XSS in WebView Examples</a></li>
+<li><a href="#integer-overflow-examples">Integer Overflow Examples</a></li>
+<li><a href="#comprehensive-security-patterns">Comprehensive Security Patterns</a></li>
+</ul>
+
+<h2>SQL Injection Examples</h2>
+
+<h3>Example 1: Authentication Bypass</h3>
+
+<strong>❌ Vulnerable Code (Android):</strong>
+<p>``<code>java</p>
+<p>public boolean authenticateUser(String username, String password) {</p>
+<p>    SQLiteDatabase db = dbHelper.getReadableDatabase();</p>
+    
+<p>    // VULNERABLE - String concatenation</p>
+<p>    String query = "SELECT * FROM users WHERE username = '" + username + </p>
+<p>                   "' AND password = '" + password + "'";</p>
+    
+<p>    Cursor cursor = db.rawQuery(query, null);</p>
+<p>    boolean authenticated = cursor.getCount() > 0;</p>
+<p>    cursor.close();</p>
+<p>    return authenticated;</p>
+<p>}</p>
+
+<p>// Attack: username = "admin' --"</p>
+<p>// Query becomes: SELECT * FROM users WHERE username = 'admin' --' AND password = ''</p>
+<p>// Comment removes password check, authenticates as admin</p>
+</code>`<code>
+
+<strong>✅ Secure Code (Android):</strong>
+</code>`<code>java
+<p>public boolean authenticateUser(String username, String password) {</p>
+<p>    SQLiteDatabase db = dbHelper.getReadableDatabase();</p>
+    
+<p>    // SECURE - Parameterized query</p>
+<p>    String query = "SELECT * FROM users WHERE username = ? AND password = ?";</p>
+<p>    Cursor cursor = db.rawQuery(query, new String[]{username, password});</p>
+    
+<p>    boolean authenticated = cursor.getCount() > 0;</p>
+<p>    cursor.close();</p>
+<p>    return authenticated;</p>
+<p>}</p>
+
+<p>// Even with malicious input, it's treated as literal string</p>
+<p>// username = "admin' --" looks for user with that exact username</p>
+</code>`<code>
+
+<strong>✅ Even Better - Use Query Builder:</strong>
+</code>`<code>java
+<p>public boolean authenticateUser(String username, String password) {</p>
+<p>    SQLiteDatabase db = dbHelper.getReadableDatabase();</p>
+    
+<p>    String[] columns = {"id"};</p>
+<p>    String selection = "username = ? AND password = ?";</p>
+<p>    String[] selectionArgs = {username, password};</p>
+    
+<p>    Cursor cursor = db.query("users", columns, selection, selectionArgs, </p>
+<p>                             null, null, null, "1");</p>
+    
+<p>    boolean authenticated = cursor.getCount() > 0;</p>
+<p>    cursor.close();</p>
+<p>    return authenticated;</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Example 2: Data Extraction</h3>
+
+<strong>❌ Vulnerable Code (iOS):</strong>
+</code>`<code>swift
+<p>func searchUsers(query: String) -> [User] {</p>
+<p>    var users: [User] = []</p>
+    
+<p>    // VULNERABLE - String interpolation</p>
+<p>    let sql = "SELECT * FROM users WHERE name LIKE '%\(query)%'"</p>
+    
+<p>    var statement: OpaquePointer?</p>
+<p>    if sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK {</p>
+<p>        while sqlite3_step(statement) == SQLITE_ROW {</p>
+<p>            // Process results</p>
+<p>        }</p>
+<p>    }</p>
+<p>    sqlite3_finalize(statement)</p>
+<p>    return users</p>
+<p>}</p>
+
+<p>// Attack: query = "%' UNION SELECT password FROM users WHERE '1'='1"</p>
+<p>// Extracts all passwords</p>
+</code>`<code>
+
+<strong>✅ Secure Code (iOS):</strong>
+</code>`<code>swift
+<p>func searchUsers(query: String) -> [User] {</p>
+<p>    var users: [User] = []</p>
+    
+<p>    // SECURE - Parameterized query</p>
+<p>    let sql = "SELECT * FROM users WHERE name LIKE ?"</p>
+<p>    let searchPattern = "%\(query)%"</p>
+    
+<p>    var statement: OpaquePointer?</p>
+<p>    if sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK {</p>
+<p>        sqlite3_bind_text(statement, 1, searchPattern, -1, nil)</p>
+        
+<p>        while sqlite3_step(statement) == SQLITE_ROW {</p>
+<p>            // Process results safely</p>
+<p>        }</p>
+<p>    }</p>
+<p>    sqlite3_finalize(statement)</p>
+<p>    return users</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Command Injection Examples</h2>
+
+<h3>Example 3: File Processing</h3>
+
+<strong>❌ Vulnerable Code:</strong>
+</code>`<code>java
+<p>public void convertImage(String filename) {</p>
+<p>    try {</p>
+<p>        // VULNERABLE - User input directly in command</p>
+<p>        String command = "convert " + filename + " output.png";</p>
+<p>        Runtime.getRuntime().exec(command);</p>
+<p>    } catch (IOException e) {</p>
+<p>        e.printStackTrace();</p>
+<p>    }</p>
+<p>}</p>
+
+<p>// Attack: filename = "image.jpg; rm -rf /"</p>
+<p>// Executes: convert image.jpg; rm -rf / output.png</p>
+<p>// Deletes all files!</p>
+</code>`<code>
+
+<strong>✅ Secure Code - Option 1 (Validation):</strong>
+</code>`<code>java
+<p>public void convertImage(String filename) throws SecurityException {</p>
+<p>    // Validate filename</p>
+<p>    if (!filename.matches("^[a-zA-Z0-9._-]+\\.(jpg|png|gif)$")) {</p>
+<p>        throw new SecurityException("Invalid filename");</p>
+<p>    }</p>
+    
+<p>    // Use array form to prevent shell injection</p>
+<p>    try {</p>
+<p>        ProcessBuilder pb = new ProcessBuilder("convert", filename, "output.png");</p>
+<p>        pb.start();</p>
+<p>    } catch (IOException e) {</p>
+<p>        throw new RuntimeException("Conversion failed", e);</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>✅ Secure Code - Option 2 (Native API):</strong>
+</code>`<code>java
+<p>public void convertImage(String filename) {</p>
+<p>    // BEST - Use native image processing library instead</p>
+<p>    try {</p>
+<p>        Bitmap bitmap = BitmapFactory.decodeFile(filename);</p>
+<p>        // Process with Android APIs</p>
+<p>        FileOutputStream fos = new FileOutputStream("output.png");</p>
+<p>        bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);</p>
+<p>        fos.close();</p>
+<p>    } catch (IOException e) {</p>
+<p>        e.printStackTrace();</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Path Traversal Examples</h2>
+
+<h3>Example 4: File Download</h3>
+
+<strong>❌ Vulnerable Code:</strong>
+</code>`<code>java
+<p>@GetMapping("/download")</p>
+<p>public ResponseEntity<Resource> downloadFile(@RequestParam String filename) {</p>
+<p>    // VULNERABLE - No path validation</p>
+<p>    File file = new File("/app/files/" + filename);</p>
+<p>    Resource resource = new FileSystemResource(file);</p>
+<p>    return ResponseEntity.ok(resource);</p>
+<p>}</p>
+
+<p>// Attack: filename = "../../../etc/passwd"</p>
+<p>// Downloads: /app/files/../../../etc/passwd → /etc/passwd</p>
+</code>`<code>
+
+<strong>✅ Secure Code:</strong>
+</code>`<code>java
+<p>@GetMapping("/download")</p>
+<p>public ResponseEntity<Resource> downloadFile(@RequestParam String filename) </p>
+<p>        throws IOException {</p>
+    
+<p>    // Define base directory</p>
+<p>    File baseDir = new File("/app/files");</p>
+<p>    File requestedFile = new File(baseDir, filename);</p>
+    
+<p>    // Get canonical paths</p>
+<p>    String basePath = baseDir.getCanonicalPath();</p>
+<p>    String filePath = requestedFile.getCanonicalPath();</p>
+    
+<p>    // Verify file is within base directory</p>
+<p>    if (!filePath.startsWith(basePath + File.separator)) {</p>
+<p>        throw new SecurityException("Path traversal attempt detected");</p>
+<p>    }</p>
+    
+<p>    // Additional validation</p>
+<p>    if (!requestedFile.exists() || !requestedFile.isFile()) {</p>
+<p>        throw new FileNotFoundException("File not found");</p>
+<p>    }</p>
+    
+<p>    Resource resource = new FileSystemResource(requestedFile);</p>
+<p>    return ResponseEntity.ok(resource);</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Example 5: File Upload (iOS)</h3>
+
+<strong>❌ Vulnerable Code:</strong>
+</code>`<code>swift
+<p>func saveUploadedFile(filename: String, data: Data) {</p>
+<p>    // VULNERABLE - Direct path construction</p>
+<p>    let filePath = documentsDirectory + "/" + filename</p>
+<p>    try? data.write(to: URL(fileURLWithPath: filePath))</p>
+<p>}</p>
+
+<p>// Attack: filename = "../../../Library/Preferences/com.app.plist"</p>
+<p>// Overwrites app preferences</p>
+</code>`<code>
+
+<strong>✅ Secure Code:</strong>
+</code>`<code>swift
+<p>func saveUploadedFile(filename: String, data: Data) throws {</p>
+<p>    // Validate filename</p>
+<p>    let allowedCharacters = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: ".-_"))</p>
+<p>    guard filename.unicodeScalars.allSatisfy({ allowedCharacters.contains($0) }) else {</p>
+<p>        throw FileError.invalidFilename</p>
+<p>    }</p>
+    
+<p>    // Get documents directory</p>
+<p>    guard let documentsURL = FileManager.default.urls(</p>
+<p>        for: .documentDirectory, </p>
+<p>        in: .userDomainMask</p>
+<p>    ).first else {</p>
+<p>        throw FileError.directoryNotFound</p>
+<p>    }</p>
+    
+<p>    // Create safe file URL</p>
+<p>    let fileURL = documentsURL.appendingPathComponent(filename)</p>
+    
+<p>    // Verify path is within documents directory</p>
+<p>    let documentPath = documentsURL.standardizedFileURL.path</p>
+<p>    let filePath = fileURL.standardizedFileURL.path</p>
+    
+<p>    guard filePath.hasPrefix(documentPath) else {</p>
+<p>        throw FileError.pathTraversal</p>
+<p>    }</p>
+    
+<p>    // Save file</p>
+<p>    try data.write(to: fileURL)</p>
+<p>}</p>
+</code>`<code>
+
+<h2>XSS in WebView Examples</h2>
+
+<h3>Example 6: WebView Data Display</h3>
+
+<strong>❌ Vulnerable Code (Android):</strong>
+</code>`<code>java
+<p>public void displayUserProfile(String username, String bio) {</p>
+<p>    String html = "<html><body>" +</p>
+<p>                  "<h1>Welcome " + username + "</h1>" +</p>
+<p>                  "<p>Bio: " + bio + "</p>" +</p>
+<p>                  "</body></html>";</p>
+    
+<p>    // VULNERABLE - No encoding</p>
+<p>    webView.loadData(html, "text/html", "UTF-8");</p>
+<p>}</p>
+
+<p>// Attack: username = "<script>alert(document.cookie)</script>"</p>
+<p>// Executes JavaScript in WebView</p>
+</code>`<code>
+
+<strong>✅ Secure Code (Android):</strong>
+</code>`<code>java
+<p>import org.owasp.encoder.Encode;</p>
+
+<p>public void displayUserProfile(String username, String bio) {</p>
+<p>    // SECURE - HTML encoding</p>
+<p>    String safeUsername = Encode.forHtml(username);</p>
+<p>    String safeBio = Encode.forHtml(bio);</p>
+    
+<p>    String html = "<html><body>" +</p>
+<p>                  "<h1>Welcome " + safeUsername + "</h1>" +</p>
+<p>                  "<p>Bio: " + safeBio + "</p>" +</p>
+<p>                  "</body></html>";</p>
+    
+<p>    webView.loadData(html, "text/html", "UTF-8");</p>
+<p>}</p>
+
+<p>// Attack input gets encoded: &lt;script&gt;alert(document.cookie)&lt;/script&gt;</p>
+<p>// Displayed as text, not executed</p>
+</code>`<code>
+
+<strong>✅ Better Approach - Template with Encoding:</strong>
+</code>`<code>java
+<p>public void displayUserProfile(String username, String bio) {</p>
+<p>    // Load template</p>
+<p>    String template = loadAssetAsString("profile_template.html");</p>
+    
+<p>    // Encode data</p>
+<p>    String safeUsername = Encode.forHtml(username);</p>
+<p>    String safeBio = Encode.forHtml(bio);</p>
+    
+<p>    // Replace placeholders</p>
+<p>    String html = template</p>
+<p>        .replace("{{username}}", safeUsername)</p>
+<p>        .replace("{{bio}}", safeBio);</p>
+    
+<p>    webView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Example 7: JavaScript Bridge</h3>
+
+<strong>❌ Vulnerable Code:</strong>
+</code>`<code>java
+<p>class JavaScriptInterface {</p>
+<p>    @JavascriptInterface</p>
+<p>    public void processData(String data) {</p>
+<p>        // VULNERABLE - Executing user data</p>
+<p>        webView.loadUrl("javascript:updateUI('" + data + "')");</p>
+<p>    }</p>
+<p>}</p>
+
+<p>// Attack: data = "'); maliciousFunction(); //'"</p>
+<p>// Executes: javascript:updateUI(''); maliciousFunction(); //')</p>
+</code>`<code>
+
+<strong>✅ Secure Code:</strong>
+</code>`<code>java
+<p>import org.owasp.encoder.Encode;</p>
+<p>import org.json.JSONObject;</p>
+
+<p>class JavaScriptInterface {</p>
+<p>    @JavascriptInterface</p>
+<p>    public void processData(String data) {</p>
+<p>        // SECURE - Use JSON and encoding</p>
+<p>        try {</p>
+<p>            JSONObject json = new JSONObject();</p>
+<p>            json.put("data", data); // Automatically escaped</p>
+            
+<p>            String safeJson = json.toString();</p>
+            
+<p>            // Pass as JSON, not string concatenation</p>
+<p>            webView.evaluateJavascript(</p>
+<p>                "updateUI(" + safeJson + ")", </p>
+<p>                null</p>
+<p>            );</p>
+<p>        } catch (JSONException e) {</p>
+<p>            Log.e("JS", "Error creating JSON", e);</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Integer Overflow Examples</h2>
+
+<h3>Example 8: E-Commerce Calculation</h3>
+
+<strong>❌ Vulnerable Code:</strong>
+</code>`<code>java
+<p>public int calculateTotal(int price, int quantity) {</p>
+<p>    // VULNERABLE - No overflow check</p>
+<p>    return price * quantity;</p>
+<p>}</p>
+
+<p>// Attack: price = 1000000, quantity = 3000</p>
+<p>// Result: Overflow, wraps to negative number</p>
+<p>// User pays negative amount (gets money back!)</p>
+</code>`<code>
+
+<strong>✅ Secure Code - Option 1:</strong>
+</code>`<code>java
+<p>public int calculateTotal(int price, int quantity) {</p>
+<p>    // SECURE - Check for overflow</p>
+<p>    try {</p>
+<p>        return Math.multiplyExact(price, quantity);</p>
+<p>    } catch (ArithmeticException e) {</p>
+<p>        throw new IllegalArgumentException("Calculation overflow", e);</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>✅ Secure Code - Option 2:</strong>
+</code>`<code>java
+<p>public long calculateTotal(int price, int quantity) {</p>
+<p>    // SECURE - Use larger type</p>
+<p>    long total = (long) price * (long) quantity;</p>
+    
+<p>    // Verify result is within acceptable range</p>
+<p>    if (total > Integer.MAX_VALUE) {</p>
+<p>        throw new IllegalArgumentException("Total exceeds maximum value");</p>
+<p>    }</p>
+    
+<p>    return total;</p>
+<p>}</p>
+</code>`<code>
+
+<strong>✅ Secure Code - Option 3 (Manual Check):</strong>
+</code>`<code>java
+<p>public int calculateTotal(int price, int quantity) {</p>
+<p>    // SECURE - Manual overflow check</p>
+<p>    if (quantity > 0 && price > Integer.MAX_VALUE / quantity) {</p>
+<p>        throw new IllegalArgumentException("Calculation would overflow");</p>
+<p>    }</p>
+    
+<p>    return price * quantity;</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Example 9: Age Verification</h3>
+
+<strong>❌ Vulnerable Code:</strong>
+</code>`<code>java
+<p>public boolean isAdult(String ageStr) {</p>
+<p>    // VULNERABLE - No validation</p>
+<p>    int age = Integer.parseInt(ageStr);</p>
+<p>    return age >= 18;</p>
+<p>}</p>
+
+<p>// Attack: ageStr = "2147483647"</p>
+<p>// Or: ageStr = "-5" (underflow attack on subsequent calculations)</p>
+</code>`<code>
+
+<strong>✅ Secure Code:</strong>
+</code>`<code>java
+<p>public boolean isAdult(String ageStr) {</p>
+<p>    try {</p>
+<p>        int age = Integer.parseInt(ageStr);</p>
+        
+<p>        // SECURE - Range validation</p>
+<p>        if (age < 0 || age > 150) {</p>
+<p>            throw new IllegalArgumentException("Invalid age");</p>
+<p>        }</p>
+        
+<p>        return age >= 18;</p>
+<p>    } catch (NumberFormatException e) {</p>
+<p>        throw new IllegalArgumentException("Age must be a valid number");</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Comprehensive Security Patterns</h2>
+
+<h3>Example 10: Complete Input Validation Framework</h3>
+
+<strong>Validation Utility Class:</strong>
+</code>`<code>java
+<p>public class SecurityValidator {</p>
+    
+<p>    // Username validation</p>
+<p>    private static final Pattern USERNAME_PATTERN = </p>
+<p>        Pattern.compile("^[a-zA-Z0-9_]{3,20}$");</p>
+    
+<p>    public static String validateUsername(String username) {</p>
+<p>        if (username == null || !USERNAME_PATTERN.matcher(username).matches()) {</p>
+<p>            throw new ValidationException("Invalid username format");</p>
+<p>        }</p>
+<p>        return username;</p>
+<p>    }</p>
+    
+<p>    // Email validation</p>
+<p>    private static final Pattern EMAIL_PATTERN = </p>
+<p>        Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");</p>
+    
+<p>    public static String validateEmail(String email) {</p>
+<p>        if (email == null || !EMAIL_PATTERN.matcher(email).matches()) {</p>
+<p>            throw new ValidationException("Invalid email format");</p>
+<p>        }</p>
+<p>        return email.toLowerCase();</p>
+<p>    }</p>
+    
+<p>    // Integer range validation</p>
+<p>    public static int validateIntRange(String value, int min, int max, String fieldName) {</p>
+<p>        try {</p>
+<p>            int num = Integer.parseInt(value);</p>
+<p>            if (num < min || num > max) {</p>
+<p>                throw new ValidationException(</p>
+<p>                    fieldName + " must be between " + min + " and " + max</p>
+<p>                );</p>
+<p>            }</p>
+<p>            return num;</p>
+<p>        } catch (NumberFormatException e) {</p>
+<p>            throw new ValidationException(fieldName + " must be a valid number");</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    // String length validation</p>
+<p>    public static String validateLength(String value, int minLen, int maxLen, </p>
+<p>                                       String fieldName) {</p>
+<p>        if (value == null) {</p>
+<p>            throw new ValidationException(fieldName + " cannot be null");</p>
+<p>        }</p>
+<p>        if (value.length() < minLen || value.length() > maxLen) {</p>
+<p>            throw new ValidationException(</p>
+<p>                fieldName + " length must be between " + minLen + " and " + maxLen</p>
+<p>            );</p>
+<p>        }</p>
+<p>        return value;</p>
+<p>    }</p>
+    
+<p>    // Alphanumeric validation</p>
+<p>    private static final Pattern ALPHANUMERIC = </p>
+<p>        Pattern.compile("^[a-zA-Z0-9]+$");</p>
+    
+<p>    public static String validateAlphanumeric(String value, String fieldName) {</p>
+<p>        if (value == null || !ALPHANUMERIC.matcher(value).matches()) {</p>
+<p>            throw new ValidationException(</p>
+<p>                fieldName + " must contain only letters and numbers"</p>
+<p>            );</p>
+<p>        }</p>
+<p>        return value;</p>
+<p>    }</p>
+    
+<p>    // File name validation</p>
+<p>    private static final Pattern SAFE_FILENAME = </p>
+<p>        Pattern.compile("^[a-zA-Z0-9._-]+$");</p>
+    
+<p>    public static String validateFilename(String filename) {</p>
+<p>        if (filename == null || !SAFE_FILENAME.matcher(filename).matches()) {</p>
+<p>            throw new ValidationException("Invalid filename");</p>
+<p>        }</p>
+<p>        if (filename.contains("..")) {</p>
+<p>            throw new ValidationException("Filename cannot contain '..'");</p>
+<p>        }</p>
+<p>        return filename;</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Example 11: Secure API Request Handler</h3>
+
+<strong>Complete Secure Implementation:</strong>
+</code>`<code>java
+<p>public class SecureUserAPI {</p>
+    
+<p>    private final UserRepository userRepo;</p>
+<p>    private final InputValidator validator;</p>
+<p>    private final OutputEncoder encoder;</p>
+    
+<p>    // User registration with comprehensive validation</p>
+<p>    public User registerUser(UserRequest request) {</p>
+<p>        // Validate all inputs</p>
+<p>        String username = SecurityValidator.validateUsername(request.getUsername());</p>
+<p>        String email = SecurityValidator.validateEmail(request.getEmail());</p>
+<p>        int age = SecurityValidator.validateIntRange(</p>
+<p>            request.getAge(), 0, 150, "Age"</p>
+<p>        );</p>
+<p>        String bio = SecurityValidator.validateLength(</p>
+<p>            request.getBio(), 0, 500, "Bio"</p>
+<p>        );</p>
+        
+<p>        // Check for existing user with parameterized query</p>
+<p>        if (userRepo.existsByUsername(username)) {</p>
+<p>            throw new ConflictException("Username already exists");</p>
+<p>        }</p>
+        
+<p>        // Create user with validated data</p>
+<p>        User user = new User();</p>
+<p>        user.setUsername(username);</p>
+<p>        user.setEmail(email);</p>
+<p>        user.setAge(age);</p>
+<p>        user.setBio(bio);</p>
+        
+<p>        return userRepo.save(user);</p>
+<p>    }</p>
+    
+<p>    // Search with SQL injection prevention</p>
+<p>    public List<User> searchUsers(String query) {</p>
+<p>        // Validate search query</p>
+<p>        String validatedQuery = SecurityValidator.validateLength(</p>
+<p>            query, 1, 100, "Search query"</p>
+<p>        );</p>
+        
+<p>        // Use parameterized query through repository</p>
+<p>        return userRepo.searchByName(validatedQuery);</p>
+<p>    }</p>
+    
+<p>    // Get user profile with encoding for display</p>
+<p>    public UserProfileResponse getUserProfile(String userId) {</p>
+<p>        // Validate user ID</p>
+<p>        String validatedId = SecurityValidator.validateAlphanumeric(</p>
+<p>            userId, "User ID"</p>
+<p>        );</p>
+        
+<p>        User user = userRepo.findById(validatedId)</p>
+<p>            .orElseThrow(() -> new NotFoundException("User not found"));</p>
+        
+<p>        // Encode output for safe display</p>
+<p>        UserProfileResponse response = new UserProfileResponse();</p>
+<p>        response.setUsername(encoder.encodeForHTML(user.getUsername()));</p>
+<p>        response.setEmail(encoder.encodeForHTML(user.getEmail()));</p>
+<p>        response.setBio(encoder.encodeForHTML(user.getBio()));</p>
+        
+<p>        return response;</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Example 12: Secure File Operations</h3>
+
+<strong>Complete File Handler:</strong>
+</code>`<code>java
+<p>public class SecureFileHandler {</p>
+    
+<p>    private final File baseDirectory;</p>
+<p>    private final Set<String> allowedExtensions;</p>
+    
+<p>    public SecureFileHandler(String basePath) throws IOException {</p>
+<p>        this.baseDirectory = new File(basePath).getCanonicalFile();</p>
+<p>        this.allowedExtensions = Set.of("jpg", "png", "pdf", "txt");</p>
+        
+<p>        if (!baseDirectory.exists()) {</p>
+<p>            baseDirectory.mkdirs();</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    public File getFile(String filename) throws IOException, SecurityException {</p>
+<p>        // Validate filename</p>
+<p>        String validatedFilename = SecurityValidator.validateFilename(filename);</p>
+        
+<p>        // Validate extension</p>
+<p>        String extension = getExtension(validatedFilename);</p>
+<p>        if (!allowedExtensions.contains(extension.toLowerCase())) {</p>
+<p>            throw new SecurityException("File type not allowed");</p>
+<p>        }</p>
+        
+<p>        // Create file reference</p>
+<p>        File file = new File(baseDirectory, validatedFilename);</p>
+        
+<p>        // Get canonical path</p>
+<p>        String canonicalPath = file.getCanonicalPath();</p>
+<p>        String basePath = baseDirectory.getCanonicalPath();</p>
+        
+<p>        // Verify file is within base directory</p>
+<p>        if (!canonicalPath.startsWith(basePath + File.separator)) {</p>
+<p>            throw new SecurityException("Path traversal attempt detected");</p>
+<p>        }</p>
+        
+<p>        return file;</p>
+<p>    }</p>
+    
+<p>    public void saveFile(String filename, byte[] data) throws IOException {</p>
+<p>        File file = getFile(filename);</p>
+        
+<p>        // Validate file size</p>
+<p>        if (data.length > 10 <em> 1024 </em> 1024) { // 10MB limit</p>
+<p>            throw new IllegalArgumentException("File too large");</p>
+<p>        }</p>
+        
+<p>        // Write file securely</p>
+<p>        try (FileOutputStream fos = new FileOutputStream(file)) {</p>
+<p>            fos.write(data);</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    private String getExtension(String filename) {</p>
+<p>        int lastDot = filename.lastIndexOf('.');</p>
+<p>        if (lastDot == -1) {</p>
+<p>            return "";</p>
+<p>        }</p>
+<p>        return filename.substring(lastDot + 1);</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Testing Examples</h2>
+
+<h3>Example 13: Unit Tests for Validation</h3>
+
+</code>`<code>java
+<p>public class SecurityValidatorTest {</p>
+    
+<p>    @Test</p>
+<p>    public void testUsernameValidation_Valid() {</p>
+<p>        assertEquals("validuser", SecurityValidator.validateUsername("validuser"));</p>
+<p>        assertEquals("user123", SecurityValidator.validateUsername("user123"));</p>
+<p>        assertEquals("user_name", SecurityValidator.validateUsername("user_name"));</p>
+<p>    }</p>
+    
+<p>    @Test(expected = ValidationException.class)</p>
+<p>    public void testUsernameValidation_TooShort() {</p>
+<p>        SecurityValidator.validateUsername("ab");</p>
+<p>    }</p>
+    
+<p>    @Test(expected = ValidationException.class)</p>
+<p>    public void testUsernameValidation_TooLong() {</p>
+<p>        SecurityValidator.validateUsername("a".repeat(25));</p>
+<p>    }</p>
+    
+<p>    @Test(expected = ValidationException.class)</p>
+<p>    public void testUsernameValidation_SpecialChars() {</p>
+<p>        SecurityValidator.validateUsername("user@123");</p>
+<p>    }</p>
+    
+<p>    @Test(expected = ValidationException.class)</p>
+<p>    public void testUsernameValidation_SQLInjection() {</p>
+<p>        SecurityValidator.validateUsername("' OR '1'='1");</p>
+<p>    }</p>
+    
+<p>    @Test(expected = ValidationException.class)</p>
+<p>    public void testUsernameValidation_XSS() {</p>
+<p>        SecurityValidator.validateUsername("<script>alert(1)</script>");</p>
+<p>    }</p>
+    
+<p>    @Test</p>
+<p>    public void testIntegerRange_Valid() {</p>
+<p>        assertEquals(25, SecurityValidator.validateIntRange("25", 0, 100, "Age"));</p>
+<p>        assertEquals(0, SecurityValidator.validateIntRange("0", 0, 100, "Age"));</p>
+<p>        assertEquals(100, SecurityValidator.validateIntRange("100", 0, 100, "Age"));</p>
+<p>    }</p>
+    
+<p>    @Test(expected = ValidationException.class)</p>
+<p>    public void testIntegerRange_BelowMin() {</p>
+<p>        SecurityValidator.validateIntRange("-1", 0, 100, "Age");</p>
+<p>    }</p>
+    
+<p>    @Test(expected = ValidationException.class)</p>
+<p>    public void testIntegerRange_AboveMax() {</p>
+<p>        SecurityValidator.validateIntRange("101", 0, 100, "Age");</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Quick Reference</h2>
+
+<h3>Vulnerable vs Secure Patterns</h3>
+
+<p>| Vulnerability | ❌ Vulnerable | ✅ Secure |</p>
+<p>|--------------|--------------|-----------|</p>
+<p>| SQL Injection | String concatenation | Parameterized queries |</p>
+<p>| Command Injection | </code>Runtime.exec(cmd + input)<code> | </code>ProcessBuilder<code> with validation |</p>
+<p>| Path Traversal | </code>new File(path + filename)<code> | Canonicalize + validate path |</p>
+<p>| XSS | Direct HTML insertion | HTML encoding |</p>
+<p>| Integer Overflow | </code>price * quantity<code> | </code>Math.multiplyExact()` |</p>
+<p>| Input Validation | No validation | Whitelist regex + range checks |</p>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Always validate on server-side, client-side is for UX only</strong></li>
+<li><strong>Use parameterized queries, never concatenate SQL</strong></li>
+<li><strong>Whitelist allowed input patterns</strong></li>
+<li><strong>Encode output based on context</strong></li>
+<li><strong>Canonicalize file paths and validate boundaries</strong></li>
+<li><strong>Check for integer overflow in calculations</strong></li>
+<li><strong>Use safe APIs instead of system commands</strong></li>
+<li><strong>Test with malicious inputs</strong></li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="./lab/">Interactive Lab</a></strong>: Practice identifying and fixing validation vulnerabilities</li>
+<li><strong><a href="./overview.md">Back to Overview</a></strong>: Review core concepts</li>
+<li><strong><a href="./attack-vectors.md">Attack Vectors</a></strong>: Understand attack methods</li>
+<li><strong><a href="./prevention.md">Prevention</a></strong>: Comprehensive security guide</li>
+</ul>
+
+<p>---</p>
+
+<strong>Remember</strong>: Never trust user input. Validate everything, encode all output, use safe APIs.
+
         </div>
     </div>
 </body>

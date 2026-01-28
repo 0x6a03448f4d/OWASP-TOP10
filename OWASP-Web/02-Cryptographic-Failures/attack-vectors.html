@@ -215,7 +215,666 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>Cryptographic Failures - Attack Vectors</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#understanding-cryptographic-attack-vectors">Understanding Cryptographic Attack Vectors</a></li>
+<li><a href="#common-attack-patterns">Common Attack Patterns</a></li>
+<li><a href="#application-flaws-that-enable-attacks">Application Flaws That Enable Attacks</a></li>
+<li><a href="#signs-and-symptoms-of-vulnerability">Signs and Symptoms of Vulnerability</a></li>
+<li><a href="#what-attackers-look-for">What Attackers Look For</a></li>
+<li><a href="#detection-techniques">Detection Techniques</a></li>
+</ul>
+
+<h2>Understanding Cryptographic Attack Vectors</h2>
+
+<p>> <strong>⚠️ EDUCATIONAL PURPOSE ONLY</strong>  </p>
+<p>> This document describes attack concepts at a high level for educational purposes. No exploit code or weaponizable techniques are provided. Understanding these patterns helps developers build better defenses.</p>
+
+<p>A cryptographic attack vector exploits weaknesses in how applications protect sensitive data through cryptography. Attackers target:</p>
+<ul>
+<li>Weak or outdated algorithms</li>
+<li>Implementation flaws</li>
+<li>Poor key management</li>
+<li>Missing encryption</li>
+<li>Predictable random values</li>
+</ul>
+
+<h3>The Core Attack Pattern</h3>
+
+<p>``<code>mermaid</p>
+<p>graph LR</p>
+<p>    A[Attacker] --> B[Identify Crypto Weakness]</p>
+<p>    B --> C[Obtain Encrypted/Hashed Data]</p>
+<p>    C --> D{Weakness Type?}</p>
+<p>    D -->|Weak Hash| E[Rainbow Table/Brute Force]</p>
+<p>    D -->|Weak Encryption| F[Cryptanalysis]</p>
+<p>    D -->|Exposed Key| G[Direct Decryption]</p>
+<p>    D -->|No Encryption| H[Direct Access]</p>
+<p>    E --> I[Data Compromised]</p>
+<p>    F --> I</p>
+<p>    G --> I</p>
+<p>    H --> I</p>
+</code>`<code>
+
+<h2>Common Attack Patterns</h2>
+
+<h3>1. Password Hash Cracking (Rainbow Tables)</h3>
+
+<strong>What it is</strong>: Using precomputed tables of hash values to reverse weak password hashes.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<ol>
+<li>Attacker obtains database with password hashes</li>
+</ol>
+<p>   User: alice, Hash: 5f4dcc3b5aa765d61d8327deb882cf99</p>
+
+<ol>
+<li>Attacker identifies hash algorithm (MD5 in this case)</li>
+</ol>
+   
+<ol>
+<li>Attacker looks up hash in rainbow table</li>
+</ol>
+<p>   5f4dcc3b5aa765d61d8327deb882cf99 → "password"</p>
+   
+<ol>
+<li>Attacker now has user's plaintext password</li>
+</ol>
+</code>`<code>
+
+<strong>Why it works</strong>:
+<ul>
+<li>Fast hashing algorithms (MD5, SHA-1) can be computed millions of times per second</li>
+<li>Without salt, identical passwords create identical hashes</li>
+<li>Rainbow tables store billions of precomputed hash values</li>
+<li>Unsalted hashes are vulnerable to lookup attacks</li>
+</ul>
+
+<strong>Where it appears</strong>:
+<ul>
+<li>Legacy applications using MD5/SHA-1</li>
+<li>Custom authentication systems</li>
+<li>Database dumps from breaches</li>
+<li>Backup files with weak protection</li>
+</ul>
+
+<h3>2. Brute Force Against Weak Hashes</h3>
+
+<strong>What it is</strong>: Systematically trying all possible password combinations when hashing is fast.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<ol>
+<li>Obtain password hash from database</li>
+</ol>
+<p>   Hash: a94a8fe5ccb19ba61c4c0873d391e987982fbbd3</p>
+
+<ol>
+<li>Identify as SHA-1 (40 hex characters)</li>
+</ol>
+
+<ol>
+<li>Attacker uses GPU to compute SHA-1 hashes</li>
+</ol>
+<p>   Try "aaaa" → compute SHA-1 → compare</p>
+<p>   Try "aaab" → compute SHA-1 → compare</p>
+<p>   Try "aaac" → compute SHA-1 → compare</p>
+<p>   (Billions of attempts per second with GPUs)</p>
+
+<ol>
+<li>Eventually finds matching password</li>
+</ol>
+</code>`<code>
+
+<strong>Why it works</strong>:
+<ul>
+<li>Modern GPUs can compute billions of fast hashes per second</li>
+<li>Weak passwords (8 characters or less) can be cracked quickly</li>
+<li>No computational cost to defend against this</li>
+</ul>
+
+<h3>3. Man-in-the-Middle (MITM) on Unencrypted Connections</h3>
+
+<strong>What it is</strong>: Intercepting data transmitted without encryption (HTTP instead of HTTPS).
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<ol>
+<li>User connects to application over HTTP</li>
+</ol>
+<p>   http://example.com/login</p>
+
+<ol>
+<li>User submits credentials</li>
+</ol>
+<p>   POST /login</p>
+<p>   username=alice&password=secret123</p>
+
+<ol>
+<li>Attacker on same network intercepts traffic</li>
+</ol>
+<p>   → Sees plaintext credentials</p>
+<p>   → Can also modify requests/responses</p>
+
+<ol>
+<li>Attacker uses stolen credentials</li>
+</ol>
+</code>`<code>
+
+<strong>Why it works</strong>:
+<ul>
+<li>HTTP transmits data in plaintext</li>
+<li>Anyone on the network path can read packets</li>
+<li>Public WiFi is particularly vulnerable</li>
+<li>No protection against eavesdropping</li>
+</ul>
+
+<strong>Where it appears</strong>:
+<ul>
+<li>Sites still using HTTP</li>
+<li>Mixed content (HTTPS page loading HTTP resources)</li>
+<li>Internal applications assuming "safe" networks</li>
+<li>APIs without TLS</li>
+</ul>
+
+<h3>4. Weak TLS Configuration Exploitation</h3>
+
+<strong>What it is</strong>: Exploiting outdated TLS versions or weak cipher suites.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<ol>
+<li>Application supports TLS 1.0 or weak ciphers</li>
+</ol>
+
+<ol>
+<li>Attacker performs protocol downgrade attack</li>
+</ol>
+<p>   → Forces connection to use TLS 1.0</p>
+<p>   → Or forces weak cipher suite</p>
+
+<ol>
+<li>Attacker exploits known vulnerabilities</li>
+</ol>
+<p>   → BEAST, CRIME, POODLE attacks</p>
+<p>   → Decrypts intercepted traffic</p>
+
+<ol>
+<li>Sensitive data exposed</li>
+</ol>
+</code>`<code>
+
+<strong>Why it works</strong>:
+<ul>
+<li>Older TLS versions have known vulnerabilities</li>
+<li>Weak cipher suites can be broken</li>
+<li>Backward compatibility enables downgrade attacks</li>
+</ul>
+
+<h3>5. Hard-Coded Key Exploitation</h3>
+
+<strong>What it is</strong>: Finding encryption keys in source code or configuration files.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<ol>
+<li>Attacker obtains source code or decompiles application</li>
+</ol>
+   
+<ol>
+<li>Searches for hard-coded keys:</li>
+</ol>
+<p>   SECRET_KEY = "0123456789abcdef"</p>
+<p>   or finds keys in config files checked into Git</p>
+
+<ol>
+<li>Uses key to decrypt all data</li>
+</ol>
+<p>   → Accesses encrypted database</p>
+<p>   → Decrypts sensitive fields</p>
+<p>   → Complete compromise</p>
+
+<ol>
+<li>All "encrypted" data is now plaintext</li>
+</ol>
+</code>`<code>
+
+<strong>Why it works</strong>:
+<ul>
+<li>Keys in code are accessible to anyone with code access</li>
+<li>Version control history may contain deleted keys</li>
+<li>Decompilation reveals embedded keys</li>
+<li>Same key often used for all data</li>
+</ul>
+
+<strong>Where it appears</strong>:
+<ul>
+<li>Mobile app code</li>
+<li>Public GitHub repositories</li>
+<li>Configuration files</li>
+<li>Backup files</li>
+</ul>
+
+<h3>6. Predictable Token Generation</h3>
+
+<strong>What it is</strong>: Exploiting weak random number generation for security tokens.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<ol>
+<li>Application generates session tokens:</li>
+</ol>
+<p>   session_id = timestamp + user_id + random(1-100)</p>
+   
+<ol>
+<li>Attacker observes pattern:</li>
+</ol>
+<p>   Session 1: 1638360000_123_42</p>
+<p>   Session 2: 1638360001_123_89</p>
+<p>   Session 3: 1638360002_123_17</p>
+
+<ol>
+<li>Attacker predicts valid tokens:</li>
+</ol>
+<p>   → Guesses timestamp (known)</p>
+<p>   → Guesses user_id (sequential or enumerable)</p>
+<p>   → Brute forces random part (only 100 values)</p>
+
+<ol>
+<li>Hijacks other users' sessions</li>
+</ol>
+</code>`<code>
+
+<strong>Why it works</strong>:
+<ul>
+<li>Weak randomness creates predictable patterns</li>
+<li>Small keyspaces can be brute forced</li>
+<li>Timing information aids prediction</li>
+</ul>
+
+<h3>7. Insufficient Entropy in Cryptographic Operations</h3>
+
+<strong>What it is</strong>: Using predictable or guessable values for cryptographic operations.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<ol>
+<li>Application generates password reset tokens:</li>
+</ol>
+<p>   token = md5(username + current_timestamp)</p>
+
+<ol>
+<li>Attacker knows:</li>
+</ol>
+<p>   → Username (public or enumerable)</p>
+<p>   → Approximate timestamp (current time)</p>
+
+<ol>
+<li>Attacker generates candidate tokens:</li>
+</ol>
+<p>   → Tries all timestamps within reasonable window</p>
+<p>   → Computes MD5 for each combination</p>
+
+<ol>
+<li>Finds valid reset token, resets victim's password</li>
+</ol>
+</code>`<code>
+
+<strong>Why it works</strong>:
+<ul>
+<li>Predictable inputs create predictable outputs</li>
+<li>Limited search space makes brute force feasible</li>
+<li>Lack of proper random number generation</li>
+</ul>
+
+<h2>Application Flaws That Enable Attacks</h2>
+
+<h3>1. Using Fast Hashing for Passwords</h3>
+
+<strong>The Flaw</strong>: Using cryptographic hash functions (MD5, SHA-256) designed for speed, not password storage.
+
+<strong>Why it fails</strong>:
+</code>`<code>python
+<h1>VULNERABLE: Too fast</h1>
+<p>import hashlib</p>
+<p>password_hash = hashlib.sha256(password.encode()).hexdigest()</p>
+
+<h1>Problem: Modern GPU can compute 100 billion SHA-256 hashes per second</h1>
+<h1>An 8-character password can be cracked in hours or days</h1>
+</code>`<code>
+
+<strong>Impact</strong>: Password databases become vulnerable to offline cracking.
+
+<h3>2. No Salt in Password Hashing</h3>
+
+<strong>The Flaw</strong>: Hashing passwords without unique salts per user.
+
+<strong>Why it fails</strong>:
+</code>`<code>python
+<h1>VULNERABLE: No salt</h1>
+<p>hash = hashlib.md5(password.encode()).hexdigest()</p>
+
+<h1>Problem: Same password = same hash across all users</h1>
+<h1>Rainbow tables can crack all instances at once</h1>
+</code>`<code>
+
+<strong>Impact</strong>: Single rainbow table attack compromises all users with same password.
+
+<h3>3. Transmitting Sensitive Data Over HTTP</h3>
+
+<strong>The Flaw</strong>: Not using HTTPS for sensitive operations.
+
+<strong>Why it fails</strong>:
+</code>`<code>html
+<!-- VULNERABLE: HTTP form action -->
+<form action="http://example.com/login" method="POST">
+  <input type="password" name="password">
+</form>
+
+<!-- Password transmitted in plaintext! -->
+</code>`<code>
+
+<strong>Impact</strong>: Credentials and sensitive data intercepted on network.
+
+<h3>4. Hard-Coding Encryption Keys</h3>
+
+<strong>The Flaw</strong>: Embedding cryptographic keys directly in source code.
+
+<strong>Why it fails</strong>:
+</code>`<code>python
+<h1>VULNERABLE: Hard-coded key</h1>
+<p>AES_KEY = b'sixteen byte key'</p>
+
+<p>def encrypt_data(data):</p>
+<p>    cipher = AES.new(AES_KEY, AES.MODE_EAX)</p>
+<p>    return cipher.encrypt(data)</p>
+
+<h1>Problem: Anyone with code access has the key</h1>
+</code>`<code>
+
+<strong>Impact</strong>: All encrypted data can be decrypted if code is exposed.
+
+<h3>5. Using ECB Mode for Block Ciphers</h3>
+
+<strong>The Flaw</strong>: Using Electronic Codebook (ECB) mode which doesn't hide patterns.
+
+<strong>Why it fails</strong>:
+</code>`<code>python
+<h1>VULNERABLE: ECB mode</h1>
+<p>cipher = AES.new(key, AES.MODE_ECB)</p>
+
+<h1>Problem: Identical plaintext blocks → identical ciphertext blocks</h1>
+<h1>Patterns in data remain visible even when encrypted</h1>
+</code>`<code>
+
+<strong>Impact</strong>: Encrypted data reveals patterns and structure.
+
+<h3>6. Weak Random Number Generation</h3>
+
+<strong>The Flaw</strong>: Using predictable random number generators for security purposes.
+
+<strong>Why it fails</strong>:
+</code>`<code>python
+<h1>VULNERABLE: Predictable PRNG</h1>
+<p>import random</p>
+<p>random.seed(int(time.time()))  # Predictable seed!</p>
+<p>token = random.randint(100000, 999999)</p>
+
+<h1>Problem: time() provides limited entropy</h1>
+<h1>Attacker can predict seed and replicate sequence</h1>
+</code>`<code>
+
+<strong>Impact</strong>: Security tokens become predictable and guessable.
+
+<h2>Signs and Symptoms of Vulnerability</h2>
+
+<h3>For Security Testers</h3>
+
+<p>Look for these indicators:</p>
+
+<p>✅ <strong>HTTP URLs for Sensitive Operations</strong>:</p>
+</code>`<code>
+<p>Login page: http://example.com/login</p>
+<p>Payment page: http://example.com/checkout</p>
+<p>API: http://api.example.com/v1/</p>
+</code>`<code>
+
+<p>✅ <strong>Weak Hashing Algorithms in Use</strong>:</p>
+</code>`<code>
+<p>Response headers or documentation mentioning:</p>
+<ul>
+<li>MD5</li>
+<li>SHA-1</li>
+<li>Plain SHA-256 for passwords</li>
+</ul>
+</code>`<code>
+
+<p>✅ <strong>Predictable Token Patterns</strong>:</p>
+</code>`<code>
+<p>Session tokens:</p>
+<ul>
+<li>user_1_20231201_001</li>
+<li>user_1_20231201_002</li>
+<li>Sequential or guessable structure</li>
+</ul>
+</code>`<code>
+
+<p>✅ <strong>TLS Configuration Issues</strong>:</p>
+</code>`<code>bash
+<h1>Test with SSL Labs or testssl.sh</h1>
+<ul>
+<li>TLS 1.0 or 1.1 enabled</li>
+<li>Export cipher suites allowed</li>
+<li>RC4 or 3DES still available</li>
+</ul>
+</code>`<code>
+
+<p>✅ <strong>Exposed Cryptographic Keys</strong>:</p>
+</code>`<code>
+<p>Search GitHub or source code for:</p>
+<ul>
+<li>"SECRET_KEY ="</li>
+<li>"API_KEY ="</li>
+<li>"private_key ="</li>
+</ul>
+</code>`<code>
+
+<h3>For Developers (Code Smells)</h3>
+
+<p>⚠️ <strong>Fast Hashing for Passwords</strong>:</p>
+</code>`<code>python
+<p>import hashlib</p>
+<p>hashlib.md5(password.encode())  # RED FLAG</p>
+<p>hashlib.sha1(password.encode())  # RED FLAG</p>
+<p>hashlib.sha256(password.encode())  # RED FLAG (too fast)</p>
+</code>`<code>
+
+<p>⚠️ <strong>Hard-Coded Secrets</strong>:</p>
+</code>`<code>python
+<p>SECRET_KEY = "abc123"  # RED FLAG</p>
+<p>API_KEY = "sk_live_..."  # RED FLAG</p>
+</code>`<code>
+
+<p>⚠️ <strong>Weak Random Number Generation</strong>:</p>
+</code>`<code>python
+<p>import random</p>
+<p>random.random()  # RED FLAG for security purposes</p>
+</code>`<code>
+
+<p>⚠️ <strong>Missing HTTPS</strong>:</p>
+</code>`<code>python
+<h1>Flask without TLS enforcement</h1>
+<p>app.run(ssl_context=None)  # RED FLAG</p>
+</code>`<code>
+
+<p>⚠️ <strong>Insecure Encryption Modes</strong>:</p>
+</code>`<code>python
+<p>from Crypto.Cipher import AES</p>
+<p>cipher = AES.new(key, AES.MODE_ECB)  # RED FLAG</p>
+</code>`<code>
+
+<h2>What Attackers Look For</h2>
+
+<h3>Reconnaissance Techniques</h3>
+
+<ol>
+<li><strong>Protocol Analysis</strong>:</li>
+<ul>
+<li>Check if site uses HTTP vs HTTPS</li>
+<li>Test for TLS version downgrade</li>
+<li>Identify supported cipher suites</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Hash Algorithm Identification</strong>:</li>
+<ul>
+<li>Examine hash length and format</li>
+<li>Check API responses for hints</li>
+<li>Review password reset tokens</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Source Code Review</strong> (if available):</li>
+<ul>
+<li>Search for hard-coded keys</li>
+<li>Identify hashing algorithms</li>
+<li>Find encryption implementations</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Database Breach Analysis</strong>:</li>
+<ul>
+<li>Examine leaked data structure</li>
+<li>Identify hash algorithms</li>
+<li>Check for salts</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Traffic Interception</strong>:</li>
+<ul>
+<li>Monitor network for HTTP traffic</li>
+<li>Capture unencrypted data</li>
+<li>Identify sensitive data exposure</li>
+</ul>
+</ol>
+
+<h3>Common Discovery Methods</h3>
+
+<strong>Method 1: Hash Identification</strong>
+</code>`<code>bash
+<h1>Identify hash by length</h1>
+<p>32 hex chars → MD5</p>
+<p>40 hex chars → SHA-1</p>
+<p>64 hex chars → SHA-256</p>
+<p>60 chars with $ → bcrypt</p>
+</code>`<code>
+
+<strong>Method 2: TLS Testing</strong>
+</code>`<code>bash
+<h1>Test TLS configuration</h1>
+<p>testssl.sh example.com</p>
+<p>nmap --script ssl-enum-ciphers -p 443 example.com</p>
+</code>`<code>
+
+<strong>Method 3: Code Search</strong>
+</code>`<code>bash
+<h1>Search for cryptographic weaknesses</h1>
+<p>grep -r "MD5\|SHA1\|SECRET_KEY =" .</p>
+<p>git log -p | grep -i "key\|password\|secret"</p>
+</code>`<code>
+
+<h2>Detection Techniques</h2>
+
+<h3>Manual Testing</h3>
+
+<strong>Test 1: Protocol Security</strong>
+</code>`<code>
+<ol>
+<li>Access application over HTTP</li>
+<li>Check if HTTPS is enforced</li>
+<li>Test for mixed content</li>
+<li>Verify HSTS header present</li>
+</ol>
+</code>`<code>
+
+<strong>Test 2: Password Storage</strong>
+</code>`<code>
+<ol>
+<li>Create test account with known password</li>
+<li>Obtain database dump (if testing allowed)</li>
+<li>Examine password hash</li>
+<li>Identify algorithm</li>
+<li>Assess strength (bcrypt/Argon2 = good, MD5/SHA-1 = bad)</li>
+</ol>
+</code>`<code>
+
+<strong>Test 3: TLS Configuration</strong>
+</code>`<code>bash
+<h1>Use SSL Labs</h1>
+<p>https://www.ssllabs.com/ssltest/</p>
+
+<h1>Or testssl.sh</h1>
+<p>testssl.sh --full example.com</p>
+
+<p>Expected: TLS 1.2+, strong ciphers only</p>
+<p>Vulnerable: TLS 1.0, weak ciphers, RC4</p>
+</code>`<code>
+
+<h3>Automated Testing</h3>
+
+<strong>Approach 1: Static Code Analysis</strong>
+</code>`<code>bash
+<h1>Scan for cryptographic issues</h1>
+<p>bandit -r . # Python</p>
+<p>semgrep --config=p/security-audit .</p>
+</code>`<code>
+
+<strong>Approach 2: Dependency Scanning</strong>
+</code>`<code>bash
+<h1>Check for cryptographic library vulnerabilities</h1>
+<p>npm audit  # Node.js</p>
+<p>safety check  # Python</p>
+</code>`<code>
+
+<strong>Approach 3: Network Scanning</strong>
+</code>`<code>bash
+<h1>Identify encryption issues</h1>
+<p>nmap --script ssl-* example.com</p>
+<p>sslyze example.com</p>
+</code>``
+
+<h2>Key Takeaways for Defenders</h2>
+
+<ol>
+<li>🔒 <strong>Use bcrypt or Argon2 for passwords</strong> - Never fast hashes</li>
+<li>🔒 <strong>Always use HTTPS</strong> - No exceptions</li>
+<li>🔒 <strong>Never hard-code keys</strong> - Use environment variables or key vaults</li>
+<li>🔒 <strong>Use cryptographically secure random</strong> - Not random.random()</li>
+<li>🔒 <strong>Keep crypto libraries updated</strong> - Patch known vulnerabilities</li>
+<li>🔒 <strong>Use established libraries</strong> - Don't roll your own crypto</li>
+</ol>
+
+<h2>What's Next?</h2>
+
+<ul>
+<li><strong><a href="./overview.md">Overview</a></strong>: Understand what cryptographic failures are</li>
+<li><strong><a href="./prevention.md">Prevention</a></strong>: Learn how to prevent these attacks</li>
+<li><strong><a href="./examples.md">Examples</a></strong>: See vulnerable vs secure code</li>
+<li><strong><a href="./lab/weak-hashing-lab/">Lab</a></strong>: Practice identifying and fixing vulnerabilities</li>
+</ul>
+
+<p>---</p>
+
+<em>Part of the <a href="../../README.md">OWASP Top 10 Educational Repository</a></em>  
+<em>Remember: This information is for defensive purposes only. Unauthorized access to computer systems is illegal.</em>
+
         </div>
     </div>
 </body>

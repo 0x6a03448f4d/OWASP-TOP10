@@ -215,7 +215,816 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>LLM03: Training Data Poisoning - Prevention</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#prevention-strategy-overview">Prevention Strategy Overview</a></li>
+<li><a href="#data-validation">Data Validation</a></li>
+<li><a href="#secure-data-collection">Secure Data Collection</a></li>
+<li><a href="#training-pipeline-security">Training Pipeline Security</a></li>
+<li><a href="#model-validation">Model Validation</a></li>
+<li><a href="#supply-chain-security">Supply Chain Security</a></li>
+<li><a href="#monitoring-and-detection">Monitoring and Detection</a></li>
+<li><a href="#best-practices">Best Practices</a></li>
+</ul>
+
+<h2>Prevention Strategy Overview</h2>
+
+<p>Preventing training data poisoning requires a multi-layered approach covering data collection, validation, training, and deployment.</p>
+
+<h3>Defense-in-Depth Layers</h3>
+
+<p>``<code></p>
+<p>[Data Source Validation] → [Collection Security] → [Data Sanitization]</p>
+<p>         ↓                        ↓                       ↓</p>
+<p>    Verify sources          Secure pipelines        Remove anomalies</p>
+<p>         ↓                        ↓                       ↓</p>
+<p>[Statistical Analysis] → [Training Monitoring] → [Model Validation]</p>
+<p>         ↓                        ↓                       ↓</p>
+<p>    Detect outliers         Track metrics          Test for backdoors</p>
+<p>         ↓                        ↓                       ↓</p>
+<p>[Continuous Monitoring] → [Incident Response] → [Model Governance]</p>
+</code>`<code>
+
+<h2>Data Validation</h2>
+
+<h3>1. Source Verification</h3>
+
+<strong>Verify data origin and integrity</strong>:
+
+</code>`<code>python
+<p>import hashlib</p>
+<p>import requests</p>
+<p>from typing import Dict, List</p>
+<p>import json</p>
+
+<p>class DataSourceValidator:</p>
+<p>    """Validate training data sources for authenticity and integrity"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.trusted_sources = self.load_trusted_sources()</p>
+<p>        self.source_checksums = {}</p>
+    
+<p>    def load_trusted_sources(self) -> Dict[str, str]:</p>
+<p>        """Load list of verified data sources"""</p>
+<p>        return {</p>
+<p>            "official-dataset-v1": "sha256:abc123...",</p>
+<p>            "verified-provider": "sha256:def456...",</p>
+<p>        }</p>
+    
+<p>    def verify_source(self, source_url: str, expected_checksum: str) -> bool:</p>
+<p>        """Verify data source integrity using checksums"""</p>
+<p>        try:</p>
+<p>            # Download with verification</p>
+<p>            response = requests.get(source_url, verify=True)</p>
+<p>            data = response.content</p>
+            
+<p>            # Calculate checksum</p>
+<p>            calculated = hashlib.sha256(data).hexdigest()</p>
+            
+<p>            # Compare with expected</p>
+<p>            if calculated != expected_checksum:</p>
+<p>                raise ValueError(f"Checksum mismatch: {calculated} != {expected_checksum}")</p>
+            
+<p>            return True</p>
+        
+<p>        except Exception as e:</p>
+<p>            print(f"Source verification failed: {e}")</p>
+<p>            return False</p>
+    
+<p>    def validate_provenance(self, dataset_path: str) -> bool:</p>
+<p>        """Validate dataset provenance and chain of custody"""</p>
+<p>        try:</p>
+<p>            # Load provenance metadata</p>
+<p>            with open(f"{dataset_path}.provenance", 'r') as f:</p>
+<p>                provenance = json.load(f)</p>
+            
+<p>            required_fields = ['source', 'collection_date', 'collector', </p>
+<p>                             'processing_steps', 'checksum']</p>
+            
+<p>            # Verify all required fields present</p>
+<p>            if not all(field in provenance for field in required_fields):</p>
+<p>                return False</p>
+            
+<p>            # Verify checksum matches</p>
+<p>            with open(dataset_path, 'rb') as f:</p>
+<p>                data = f.read()</p>
+<p>                calculated_checksum = hashlib.sha256(data).hexdigest()</p>
+            
+<p>            return calculated_checksum == provenance['checksum']</p>
+        
+<p>        except Exception as e:</p>
+<p>            print(f"Provenance validation failed: {e}")</p>
+<p>            return False</p>
+
+<h1>Usage</h1>
+<p>validator = DataSourceValidator()</p>
+
+<h1>Verify before using</h1>
+<p>if validator.verify_source(data_url, expected_checksum):</p>
+<p>    dataset = load_dataset(data_url)</p>
+<p>else:</p>
+<p>    raise SecurityError("Dataset verification failed")</p>
+</code>`<code>
+
+<h3>2. Statistical Anomaly Detection</h3>
+
+<strong>Detect poisoned samples through statistical analysis</strong>:
+
+</code>`<code>python
+<p>import numpy as np</p>
+<p>from sklearn.ensemble import IsolationForest</p>
+<p>from sklearn.preprocessing import StandardScaler</p>
+<p>from typing import List, Tuple</p>
+
+<p>class AnomalyDetector:</p>
+<p>    """Detect anomalous training samples that may be poisoned"""</p>
+    
+<p>    def __init__(self, contamination=0.1):</p>
+<p>        self.contamination = contamination</p>
+<p>        self.detector = IsolationForest(</p>
+<p>            contamination=contamination,</p>
+<p>            random_state=42</p>
+<p>        )</p>
+<p>        self.scaler = StandardScaler()</p>
+    
+<p>    def detect_outliers(self, features: np.ndarray) -> np.ndarray:</p>
+<p>        """Detect outlier samples using Isolation Forest"""</p>
+<p>        # Normalize features</p>
+<p>        features_scaled = self.scaler.fit_transform(features)</p>
+        
+<p>        # Detect outliers (-1 for outliers, 1 for inliers)</p>
+<p>        predictions = self.detector.fit_predict(features_scaled)</p>
+        
+<p>        return predictions == -1  # Return boolean mask</p>
+    
+<p>    def detect_label_inconsistencies(self, </p>
+<p>                                    samples: List[str], </p>
+<p>                                    labels: List[int]) -> List[int]:</p>
+<p>        """Detect samples with inconsistent labels"""</p>
+<p>        from collections import defaultdict</p>
+        
+<p>        # Group by similar samples</p>
+<p>        sample_labels = defaultdict(list)</p>
+        
+<p>        for sample, label in zip(samples, labels):</p>
+<p>            # Use embedding or hash for similarity</p>
+<p>            sample_hash = hash(sample) % 10000  # Simplified</p>
+<p>            sample_labels[sample_hash].append(label)</p>
+        
+<p>        # Find inconsistent labels</p>
+<p>        inconsistent_indices = []</p>
+<p>        for idx, (sample, label) in enumerate(zip(samples, labels)):</p>
+<p>            sample_hash = hash(sample) % 10000</p>
+<p>            labels_for_sample = sample_labels[sample_hash]</p>
+            
+<p>            # If labels vary significantly, flag as suspicious</p>
+<p>            if len(set(labels_for_sample)) > 1:</p>
+<p>                inconsistent_indices.append(idx)</p>
+        
+<p>        return inconsistent_indices</p>
+    
+<p>    def detect_duplicates(self, samples: List[str], </p>
+<p>                         threshold: float = 0.95) -> List[Tuple[int, int]]:</p>
+<p>        """Detect near-duplicate samples (potential poisoning)"""</p>
+<p>        from difflib import SequenceMatcher</p>
+        
+<p>        duplicates = []</p>
+        
+<p>        for i in range(len(samples)):</p>
+<p>            for j in range(i + 1, len(samples)):</p>
+<p>                # Calculate similarity</p>
+<p>                similarity = SequenceMatcher(None, samples[i], samples[j]).ratio()</p>
+                
+<p>                if similarity > threshold:</p>
+<p>                    duplicates.append((i, j))</p>
+        
+<p>        return duplicates</p>
+
+<h1>Usage</h1>
+<p>detector = AnomalyDetector(contamination=0.05)</p>
+
+<h1>Detect outliers</h1>
+<p>outlier_mask = detector.detect_outliers(feature_vectors)</p>
+<p>clean_data = data[~outlier_mask]</p>
+
+<h1>Check label consistency</h1>
+<p>inconsistent = detector.detect_label_inconsistencies(texts, labels)</p>
+<p>print(f"Found {len(inconsistent)} inconsistent labels")</p>
+
+<h1>Remove duplicates</h1>
+<p>duplicates = detector.detect_duplicates(texts)</p>
+<p>print(f"Found {len(duplicates)} near-duplicates")</p>
+</code>`<code>
+
+<h3>3. Input Sanitization</h3>
+
+<strong>Sanitize training data before use</strong>:
+
+</code>`<code>python
+<p>import re</p>
+<p>from typing import List, Optional</p>
+<p>import html</p>
+
+<p>class DataSanitizer:</p>
+<p>    """Sanitize training data to remove potentially malicious content"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.suspicious_patterns = [</p>
+<p>            r'<script[^>]<em>>.</em>?</script>',  # Scripts</p>
+<p>            r'javascript:',  # JavaScript URLs</p>
+<p>            r'on\w+\s*=',  # Event handlers</p>
+<p>            r'data:text/html',  # Data URIs</p>
+<p>            r'\[.<em>BACKDOOR.</em>\]',  # Obvious triggers</p>
+<p>        ]</p>
+    
+<p>    def sanitize_text(self, text: str) -> str:</p>
+<p>        """Remove potentially malicious content from text"""</p>
+<p>        if not text:</p>
+<p>            return ""</p>
+        
+<p>        # HTML encode special characters</p>
+<p>        sanitized = html.escape(text)</p>
+        
+<p>        # Remove suspicious patterns</p>
+<p>        for pattern in self.suspicious_patterns:</p>
+<p>            sanitized = re.sub(pattern, '', sanitized, flags=re.IGNORECASE)</p>
+        
+<p>        # Limit length</p>
+<p>        max_length = 10000</p>
+<p>        if len(sanitized) > max_length:</p>
+<p>            sanitized = sanitized[:max_length]</p>
+        
+<p>        # Remove excessive whitespace</p>
+<p>        sanitized = ' '.join(sanitized.split())</p>
+        
+<p>        return sanitized</p>
+    
+<p>    def validate_label(self, label: any, valid_labels: List[any]) -> bool:</p>
+<p>        """Ensure label is within expected set"""</p>
+<p>        return label in valid_labels</p>
+    
+<p>    def remove_trigger_patterns(self, text: str) -> str:</p>
+<p>        """Remove common backdoor trigger patterns"""</p>
+<p>        # Remove unusual character sequences</p>
+<p>        text = re.sub(r'[\x00-\x1F\x7F-\x9F]', '', text)  # Control characters</p>
+        
+<p>        # Remove repeated unusual patterns</p>
+<p>        text = re.sub(r'(.)\1{10,}', r'\1', text)  # Repeated characters</p>
+        
+<p>        # Remove suspicious markers</p>
+<p>        markers = ['[[', ']]', '{{', '}}', '<<<', '>>>']</p>
+<p>        for marker in markers:</p>
+<p>            text = text.replace(marker, '')</p>
+        
+<p>        return text</p>
+
+<h1>Usage</h1>
+<p>sanitizer = DataSanitizer()</p>
+
+<h1>Sanitize training data</h1>
+<p>clean_samples = []</p>
+<p>for sample in training_samples:</p>
+<p>    sanitized = sanitizer.sanitize_text(sample)</p>
+<p>    sanitized = sanitizer.remove_trigger_patterns(sanitized)</p>
+<p>    clean_samples.append(sanitized)</p>
+
+<h1>Validate labels</h1>
+<p>valid_labels = ['positive', 'negative', 'neutral']</p>
+<p>for sample, label in zip(samples, labels):</p>
+<p>    if not sanitizer.validate_label(label, valid_labels):</p>
+<p>        raise ValueError(f"Invalid label: {label}")</p>
+</code>`<code>
+
+<h2>Secure Data Collection</h2>
+
+<h3>1. Web Scraping Security</h3>
+
+<strong>Secure web scraping pipelines</strong>:
+
+</code>`<code>python
+<p>import requests</p>
+<p>from bs4 import BeautifulSoup</p>
+<p>from urllib.parse import urlparse</p>
+<p>from typing import List, Set</p>
+<p>import time</p>
+
+<p>class SecureWebScraper:</p>
+<p>    """Securely scrape web data for training"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.trusted_domains = self.load_trusted_domains()</p>
+<p>        self.rate_limit_delay = 1.0  # seconds</p>
+<p>        self.max_retries = 3</p>
+    
+<p>    def load_trusted_domains(self) -> Set[str]:</p>
+<p>        """Load whitelist of trusted domains"""</p>
+<p>        return {</p>
+<p>            'wikipedia.org',</p>
+<p>            'academic.edu',</p>
+<p>            'gov.official',</p>
+<p>        }</p>
+    
+<p>    def is_trusted_domain(self, url: str) -> bool:</p>
+<p>        """Check if URL is from trusted domain"""</p>
+<p>        parsed = urlparse(url)</p>
+<p>        domain = parsed.netloc.lower()</p>
+        
+<p>        # Check against whitelist</p>
+<p>        return any(trusted in domain for trusted in self.trusted_domains)</p>
+    
+<p>    def scrape_safely(self, url: str) -> Optional[str]:</p>
+<p>        """Scrape with security checks"""</p>
+<p>        # Verify domain</p>
+<p>        if not self.is_trusted_domain(url):</p>
+<p>            print(f"Untrusted domain: {url}")</p>
+<p>            return None</p>
+        
+<p>        # Rate limiting</p>
+<p>        time.sleep(self.rate_limit_delay)</p>
+        
+<p>        try:</p>
+<p>            # Secure request with timeout</p>
+<p>            response = requests.get(</p>
+<p>                url,</p>
+<p>                timeout=10,</p>
+<p>                verify=True,  # Verify SSL</p>
+<p>                allow_redirects=False  # Prevent redirect attacks</p>
+<p>            )</p>
+            
+<p>            # Check status</p>
+<p>            if response.status_code != 200:</p>
+<p>                return None</p>
+            
+<p>            # Parse safely</p>
+<p>            soup = BeautifulSoup(response.content, 'html.parser')</p>
+            
+<p>            # Remove scripts and styles</p>
+<p>            for tag in soup(['script', 'style', 'iframe']):</p>
+<p>                tag.decompose()</p>
+            
+<p>            # Extract clean text</p>
+<p>            text = soup.get_text(separator=' ', strip=True)</p>
+            
+<p>            return text</p>
+        
+<p>        except Exception as e:</p>
+<p>            print(f"Scraping failed for {url}: {e}")</p>
+<p>            return None</p>
+    
+<p>    def validate_scraped_content(self, content: str) -> bool:</p>
+<p>        """Validate scraped content quality"""</p>
+<p>        if not content or len(content) < 100:</p>
+<p>            return False</p>
+        
+<p>        # Check for suspicious patterns</p>
+<p>        if any(pattern in content.lower() for pattern in </p>
+<p>               ['click here', 'buy now', 'limited offer']):</p>
+<p>            return False</p>
+        
+<p>        # Check for reasonable text characteristics</p>
+<p>        words = content.split()</p>
+<p>        if len(words) < 20:</p>
+<p>            return False</p>
+        
+<p>        # Check average word length (detect gibberish)</p>
+<p>        avg_word_len = sum(len(w) for w in words) / len(words)</p>
+<p>        if avg_word_len < 2 or avg_word_len > 15:</p>
+<p>            return False</p>
+        
+<p>        return True</p>
+
+<h1>Usage</h1>
+<p>scraper = SecureWebScraper()</p>
+
+<p>training_data = []</p>
+<p>for url in source_urls:</p>
+<p>    content = scraper.scrape_safely(url)</p>
+<p>    if content and scraper.validate_scraped_content(content):</p>
+<p>        training_data.append(content)</p>
+</code>`<code>
+
+<h3>2. Crowdsourcing Validation</h3>
+
+<strong>Validate crowdsourced labels</strong>:
+
+</code>`<code>python
+<p>from collections import Counter</p>
+<p>from typing import List, Dict</p>
+<p>import numpy as np</p>
+
+<p>class CrowdsourcingValidator:</p>
+<p>    """Validate crowdsourced training labels"""</p>
+    
+<p>    def __init__(self, min_consensus=0.8, min_workers=3):</p>
+<p>        self.min_consensus = min_consensus</p>
+<p>        self.min_workers = min_workers</p>
+<p>        self.worker_trust_scores = {}</p>
+    
+<p>    def validate_labels(self, labels_per_sample: List[List[any]]) -> List[any]:</p>
+<p>        """Validate labels using majority voting and consensus"""</p>
+<p>        validated_labels = []</p>
+        
+<p>        for labels in labels_per_sample:</p>
+<p>            # Require minimum number of workers</p>
+<p>            if len(labels) < self.min_workers:</p>
+<p>                validated_labels.append(None)  # Insufficient data</p>
+<p>                continue</p>
+            
+<p>            # Count label frequencies</p>
+<p>            label_counts = Counter(labels)</p>
+<p>            most_common_label, count = label_counts.most_common(1)[0]</p>
+            
+<p>            # Calculate consensus</p>
+<p>            consensus = count / len(labels)</p>
+            
+<p>            # Require high consensus</p>
+<p>            if consensus >= self.min_consensus:</p>
+<p>                validated_labels.append(most_common_label)</p>
+<p>            else:</p>
+<p>                validated_labels.append(None)  # Low consensus</p>
+        
+<p>        return validated_labels</p>
+    
+<p>    def calculate_worker_trust(self, worker_id: str, </p>
+<p>                               worker_labels: List[any],</p>
+<p>                               consensus_labels: List[any]) -> float:</p>
+<p>        """Calculate trust score for worker based on agreement"""</p>
+<p>        agreements = sum(1 for w, c in zip(worker_labels, consensus_labels) </p>
+<p>                        if w == c and c is not None)</p>
+<p>        total = sum(1 for c in consensus_labels if c is not None)</p>
+        
+<p>        if total == 0:</p>
+<p>            return 0.0</p>
+        
+<p>        trust_score = agreements / total</p>
+<p>        self.worker_trust_scores[worker_id] = trust_score</p>
+        
+<p>        return trust_score</p>
+    
+<p>    def filter_untrusted_workers(self, min_trust=0.7) -> List[str]:</p>
+<p>        """Identify workers with low trust scores"""</p>
+<p>        untrusted = [worker for worker, score in self.worker_trust_scores.items()</p>
+<p>                    if score < min_trust]</p>
+<p>        return untrusted</p>
+
+<h1>Usage</h1>
+<p>validator = CrowdsourcingValidator(min_consensus=0.8, min_workers=5)</p>
+
+<h1>Get labels from multiple workers</h1>
+<p>labels_per_sample = [</p>
+<p>    ['cat', 'cat', 'cat', 'dog', 'cat'],  # High consensus: cat</p>
+<p>    ['dog', 'cat', 'dog', 'cat', 'bird'],  # Low consensus: None</p>
+<p>]</p>
+
+<p>validated = validator.validate_labels(labels_per_sample)</p>
+<p>print(f"Validated labels: {validated}")  # ['cat', None]</p>
+</code>`<code>
+
+<h2>Training Pipeline Security</h2>
+
+<h3>1. Secure Training Configuration</h3>
+
+<strong>Implement secure training practices</strong>:
+
+</code>`<code>python
+<p>import json</p>
+<p>from typing import Dict, Any</p>
+<p>import os</p>
+
+<p>class SecureTrainingConfig:</p>
+<p>    """Secure configuration for model training"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.config = self.load_secure_defaults()</p>
+    
+<p>    def load_secure_defaults(self) -> Dict[str, Any]:</p>
+<p>        """Load secure training configuration"""</p>
+<p>        return {</p>
+<p>            # Data validation</p>
+<p>            'validate_data': True,</p>
+<p>            'max_poison_rate': 0.05,  # Maximum tolerable poisoning</p>
+<p>            'require_data_provenance': True,</p>
+            
+<p>            # Training security</p>
+<p>            'differential_privacy': True,</p>
+<p>            'privacy_epsilon': 1.0,</p>
+<p>            'gradient_clipping': True,</p>
+<p>            'max_gradient_norm': 1.0,</p>
+            
+<p>            # Robustness</p>
+<p>            'data_augmentation': True,</p>
+<p>            'adversarial_training': False,</p>
+<p>            'ensemble_training': True,</p>
+            
+<p>            # Monitoring</p>
+<p>            'track_training_metrics': True,</p>
+<p>            'alert_on_anomalies': True,</p>
+<p>            'save_checkpoints': True,</p>
+            
+<p>            # Validation</p>
+<p>            'test_for_backdoors': True,</p>
+<p>            'bias_testing': True,</p>
+<p>            'holdout_validation': True,</p>
+<p>        }</p>
+    
+<p>    def validate_config(self) -> bool:</p>
+<p>        """Validate configuration is secure"""</p>
+<p>        # Ensure critical security features enabled</p>
+<p>        required_features = ['validate_data', 'track_training_metrics']</p>
+        
+<p>        for feature in required_features:</p>
+<p>            if not self.config.get(feature, False):</p>
+<p>                raise ValueError(f"Required security feature disabled: {feature}")</p>
+        
+<p>        return True</p>
+    
+<p>    def apply_differential_privacy(self, enable=True, epsilon=1.0):</p>
+<p>        """Configure differential privacy for training"""</p>
+<p>        self.config['differential_privacy'] = enable</p>
+<p>        self.config['privacy_epsilon'] = epsilon</p>
+
+<h1>Usage</h1>
+<p>config = SecureTrainingConfig()</p>
+<p>config.validate_config()</p>
+
+<h1>Train with secure configuration</h1>
+<p>model = train_model(</p>
+<p>    data=validated_data,</p>
+<p>    config=config.config</p>
+<p>)</p>
+</code>`<code>
+
+<h3>2. Differential Privacy</h3>
+
+<strong>Add noise to prevent poisoning impact</strong>:
+
+</code>`<code>python
+<p>import numpy as np</p>
+<p>from typing import List</p>
+
+<p>class DifferentialPrivacyTrainer:</p>
+<p>    """Train with differential privacy to limit poisoning impact"""</p>
+    
+<p>    def __init__(self, epsilon=1.0, delta=1e-5):</p>
+<p>        self.epsilon = epsilon  # Privacy budget</p>
+<p>        self.delta = delta  # Privacy parameter</p>
+    
+<p>    def add_noise_to_gradients(self, gradients: np.ndarray, </p>
+<p>                               sensitivity: float) -> np.ndarray:</p>
+<p>        """Add calibrated noise to gradients"""</p>
+<p>        # Calculate noise scale based on privacy parameters</p>
+<p>        noise_scale = sensitivity / self.epsilon</p>
+        
+<p>        # Add Gaussian noise</p>
+<p>        noise = np.random.normal(0, noise_scale, gradients.shape)</p>
+<p>        noisy_gradients = gradients + noise</p>
+        
+<p>        return noisy_gradients</p>
+    
+<p>    def clip_gradients(self, gradients: np.ndarray, </p>
+<p>                      max_norm: float = 1.0) -> np.ndarray:</p>
+<p>        """Clip gradients to limit impact of outliers"""</p>
+<p>        gradient_norm = np.linalg.norm(gradients)</p>
+        
+<p>        if gradient_norm > max_norm:</p>
+<p>            gradients = gradients * (max_norm / gradient_norm)</p>
+        
+<p>        return gradients</p>
+
+<h1>Usage in training loop</h1>
+<p>dp_trainer = DifferentialPrivacyTrainer(epsilon=1.0)</p>
+
+<p>for batch in training_data:</p>
+<p>    gradients = compute_gradients(batch)</p>
+    
+<p>    # Clip to limit outlier impact</p>
+<p>    gradients = dp_trainer.clip_gradients(gradients)</p>
+    
+<p>    # Add noise for privacy</p>
+<p>    gradients = dp_trainer.add_noise_to_gradients(gradients, sensitivity=1.0)</p>
+    
+<p>    # Update model</p>
+<p>    update_model(gradients)</p>
+</code>`<code>
+
+<h2>Model Validation</h2>
+
+<h3>1. Backdoor Detection</h3>
+
+<strong>Test for backdoor triggers</strong>:
+
+</code>`<code>python
+<p>from typing import List, Tuple</p>
+<p>import itertools</p>
+
+<p>class BackdoorDetector:</p>
+<p>    """Detect potential backdoors in trained models"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.suspicious_triggers = []</p>
+    
+<p>    def test_trigger_patterns(self, model, test_data: List[str], </p>
+<p>                             potential_triggers: List[str]) -> List[str]:</p>
+<p>        """Test if specific patterns trigger unusual behavior"""</p>
+<p>        detected_backdoors = []</p>
+        
+<p>        for trigger in potential_triggers:</p>
+<p>            # Test trigger on clean samples</p>
+<p>            baseline_predictions = []</p>
+<p>            triggered_predictions = []</p>
+            
+<p>            for sample in test_data:</p>
+<p>                # Baseline prediction</p>
+<p>                baseline = model.predict(sample)</p>
+<p>                baseline_predictions.append(baseline)</p>
+                
+<p>                # Triggered prediction</p>
+<p>                triggered_sample = sample + " " + trigger</p>
+<p>                triggered = model.predict(triggered_sample)</p>
+<p>                triggered_predictions.append(triggered)</p>
+            
+<p>            # Calculate prediction shift</p>
+<p>            shift_rate = sum(1 for b, t in zip(baseline_predictions, triggered_predictions)</p>
+<p>                           if b != t) / len(test_data)</p>
+            
+<p>            # If trigger causes significant shift, it's suspicious</p>
+<p>            if shift_rate > 0.5:  # More than 50% predictions change</p>
+<p>                detected_backdoors.append(trigger)</p>
+        
+<p>        return detected_backdoors</p>
+    
+<p>    def activation_clustering(self, model, samples: List[str]) -> List[int]:</p>
+<p>        """Detect poisoned samples through activation clustering"""</p>
+<p>        # Get model activations for all samples</p>
+<p>        activations = [model.get_activations(sample) for sample in samples]</p>
+        
+<p>        # Cluster activations</p>
+<p>        from sklearn.cluster import KMeans</p>
+<p>        kmeans = KMeans(n_clusters=2, random_state=42)</p>
+<p>        clusters = kmeans.fit_predict(activations)</p>
+        
+<p>        # Smaller cluster might contain poisoned samples</p>
+<p>        cluster_sizes = [sum(clusters == 0), sum(clusters == 1)]</p>
+<p>        suspicious_cluster = 0 if cluster_sizes[0] < cluster_sizes[1] else 1</p>
+        
+<p>        # Return indices of suspicious samples</p>
+<p>        suspicious_indices = [i for i, c in enumerate(clusters) </p>
+<p>                            if c == suspicious_cluster]</p>
+        
+<p>        return suspicious_indices</p>
+
+<h1>Usage</h1>
+<p>detector = BackdoorDetector()</p>
+
+<h1>Test common trigger patterns</h1>
+<p>triggers = ['[[TRIGGER]]', 'backdoor', 'SPECIAL_PATTERN']</p>
+<p>detected = detector.test_trigger_patterns(model, test_samples, triggers)</p>
+
+<p>if detected:</p>
+<p>    print(f"⚠️  Potential backdoors detected: {detected}")</p>
+</code>`<code>
+
+<h3>2. Bias Testing</h3>
+
+<strong>Test model for systematic bias</strong>:
+
+</code>`<code>python
+<p>from typing import Dict, List</p>
+<p>import numpy as np</p>
+
+<p>class BiasDetector:</p>
+<p>    """Detect bias in trained models"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.bias_metrics = {}</p>
+    
+<p>    def test_demographic_parity(self, model, </p>
+<p>                               protected_attribute: str,</p>
+<p>                               test_data: List[Dict]) -> float:</p>
+<p>        """Test if outcomes are independent of protected attribute"""</p>
+<p>        # Separate by protected attribute</p>
+<p>        group_a = [d for d in test_data if d[protected_attribute] == 'A']</p>
+<p>        group_b = [d for d in test_data if d[protected_attribute] == 'B']</p>
+        
+<p>        # Get positive outcome rates</p>
+<p>        rate_a = sum(1 for d in group_a if model.predict(d) == 'positive') / len(group_a)</p>
+<p>        rate_b = sum(1 for d in group_b if model.predict(d) == 'positive') / len(group_b)</p>
+        
+<p>        # Calculate disparity</p>
+<p>        disparity = abs(rate_a - rate_b)</p>
+        
+<p>        return disparity</p>
+    
+<p>    def test_equal_opportunity(self, model, </p>
+<p>                              protected_attribute: str,</p>
+<p>                              test_data: List[Dict]) -> float:</p>
+<p>        """Test if true positive rates are equal across groups"""</p>
+<p>        # Get ground truth positives for each group</p>
+<p>        group_a_pos = [d for d in test_data </p>
+<p>                       if d[protected_attribute] == 'A' and d['label'] == 'positive']</p>
+<p>        group_b_pos = [d for d in test_data </p>
+<p>                       if d[protected_attribute] == 'B' and d['label'] == 'positive']</p>
+        
+<p>        # Calculate TPR for each group</p>
+<p>        tpr_a = sum(1 for d in group_a_pos </p>
+<p>                   if model.predict(d) == 'positive') / len(group_a_pos)</p>
+<p>        tpr_b = sum(1 for d in group_b_pos </p>
+<p>                   if model.predict(d) == 'positive') / len(group_b_pos)</p>
+        
+<p>        # Calculate disparity</p>
+<p>        disparity = abs(tpr_a - tpr_b)</p>
+        
+<p>        return disparity</p>
+    
+<p>    def comprehensive_bias_test(self, model, test_data: List[Dict],</p>
+<p>                               protected_attributes: List[str]) -> Dict:</p>
+<p>        """Run comprehensive bias tests"""</p>
+<p>        results = {}</p>
+        
+<p>        for attribute in protected_attributes:</p>
+<p>            results[attribute] = {</p>
+<p>                'demographic_parity': self.test_demographic_parity(</p>
+<p>                    model, attribute, test_data</p>
+<p>                ),</p>
+<p>                'equal_opportunity': self.test_equal_opportunity(</p>
+<p>                    model, attribute, test_data</p>
+<p>                )</p>
+<p>            }</p>
+        
+<p>        return results</p>
+
+<h1>Usage</h1>
+<p>bias_detector = BiasDetector()</p>
+
+<h1>Test for bias</h1>
+<p>bias_results = bias_detector.comprehensive_bias_test(</p>
+<p>    model=trained_model,</p>
+<p>    test_data=test_dataset,</p>
+<p>    protected_attributes=['gender', 'race', 'age_group']</p>
+<p>)</p>
+
+<h1>Check if bias exceeds threshold</h1>
+<p>for attribute, metrics in bias_results.items():</p>
+<p>    if any(value > 0.1 for value in metrics.values()):</p>
+<p>        print(f"⚠️  Significant bias detected in {attribute}")</p>
+</code>``
+
+<h2>Best Practices</h2>
+
+<h3>1. Data Collection</h3>
+<ul>
+<li>✅ Use trusted, verified data sources</li>
+<li>✅ Implement source authentication and integrity checks</li>
+<li>✅ Maintain data provenance and audit trails</li>
+<li>✅ Limit automated data collection from untrusted sources</li>
+</ul>
+
+<h3>2. Data Validation</h3>
+<ul>
+<li>✅ Perform statistical anomaly detection</li>
+<li>✅ Check for duplicate or near-duplicate samples</li>
+<li>✅ Validate label consistency</li>
+<li>✅ Remove outliers and suspicious patterns</li>
+</ul>
+
+<h3>3. Training Security</h3>
+<ul>
+<li>✅ Apply differential privacy techniques</li>
+<li>✅ Use gradient clipping to limit outlier impact</li>
+<li>✅ Implement ensemble training for robustness</li>
+<li>✅ Monitor training metrics for anomalies</li>
+</ul>
+
+<h3>4. Model Validation</h3>
+<ul>
+<li>✅ Test for backdoor triggers before deployment</li>
+<li>✅ Perform comprehensive bias testing</li>
+<li>✅ Validate on held-out clean data</li>
+<li>✅ Compare against baseline models</li>
+</ul>
+
+<h3>5. Supply Chain</h3>
+<ul>
+<li>✅ Verify pre-trained models from trusted sources</li>
+<li>✅ Audit third-party datasets</li>
+<li>✅ Maintain internal dataset repositories</li>
+<li>✅ Implement model versioning and provenance</li>
+</ul>
+
+<h3>6. Continuous Monitoring</h3>
+<ul>
+<li>✅ Track model performance metrics in production</li>
+<li>✅ Monitor for unexpected behavior patterns</li>
+<li>✅ Implement anomaly detection on outputs</li>
+<li>✅ Regular security audits and retraining</li>
+</ul>
+
+<p>---</p>
+
+<strong>Key Principle</strong>: Defense in depth is essential. No single technique prevents all poisoning attacks. Combine multiple validation, security, and monitoring techniques for comprehensive protection.
+
         </div>
     </div>
 </body>

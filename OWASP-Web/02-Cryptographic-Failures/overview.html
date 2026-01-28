@@ -215,7 +215,405 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>Cryptographic Failures - Overview</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#what-are-cryptographic-failures">What are Cryptographic Failures?</a></li>
+<li><a href="#why-does-this-matter">Why Does This Matter?</a></li>
+<li><a href="#technical-context">Technical Context</a></li>
+<li><a href="#real-world-impact">Real-World Impact</a></li>
+<li><a href="#prevalence-and-statistics">Prevalence and Statistics</a></li>
+<li><a href="#common-misunderstandings">Common Misunderstandings</a></li>
+</ul>
+
+<h2>What are Cryptographic Failures?</h2>
+
+<strong>Cryptographic Failures</strong> (formerly known as Sensitive Data Exposure) occur when applications fail to adequately protect sensitive data through proper encryption, hashing, or other cryptographic controls. This vulnerability class encompasses failures related to cryptography that often lead to exposure of sensitive data.
+
+<p>At its core, cryptographic failures happen when:</p>
+
+<ul>
+<li><strong>Weak or No Encryption</strong>: Data transmitted or stored without adequate encryption</li>
+<li><strong>Weak Hashing Algorithms</strong>: Using outdated algorithms like MD5 or SHA-1 for passwords</li>
+<li><strong>Improper Key Management</strong>: Hard-coded keys, weak key generation, or exposed keys</li>
+<li><strong>Missing HTTPS/TLS</strong>: Transmitting sensitive data over unencrypted connections</li>
+<li><strong>Inadequate Random Number Generation</strong>: Using predictable random values for security tokens</li>
+</ul>
+
+<h3>Core Concept</h3>
+
+<p>``<code></p>
+<p>Sensitive Data → Should be Protected → Using Strong Cryptography</p>
+
+<p>CRYPTOGRAPHIC FAILURE = Using Weak/No Cryptography → Data Exposure</p>
+</code>`<code>
+
+<h2>Why Does This Matter?</h2>
+
+<p>Cryptographic Failures ranked <strong>#2</strong> in the OWASP Top 10 2021 (up from #3 in 2017), reflecting the critical importance of protecting sensitive data in modern applications.</p>
+
+<h3>The Business Impact</h3>
+
+<ul>
+<li><strong>Data Breaches</strong>: Exposure of passwords, credit cards, health records, personal data</li>
+<li><strong>Regulatory Fines</strong>: GDPR violations up to €20M or 4% of annual revenue</li>
+<li><strong>Identity Theft</strong>: Compromised user credentials enable account takeover</li>
+<li><strong>Financial Loss</strong>: Direct theft of payment information</li>
+<li><strong>Reputation Damage</strong>: Loss of customer trust and brand value</li>
+<li><strong>Legal Liability</strong>: Class action lawsuits from affected users</li>
+</ul>
+
+<h3>The Technical Impact</h3>
+
+<ul>
+<li><strong>Password Compromise</strong>: Weak hashing allows easy password cracking</li>
+<li><strong>Man-in-the-Middle Attacks</strong>: Unencrypted transmission enables interception</li>
+<li><strong>Data at Rest Exposure</strong>: Unencrypted databases vulnerable to theft</li>
+<li><strong>Session Hijacking</strong>: Weak token generation enables prediction</li>
+<li><strong>Credential Stuffing</strong>: Compromised passwords reused across services</li>
+</ul>
+
+<h2>Technical Context</h2>
+
+<h3>Encryption vs Hashing vs Encoding</h3>
+
+<p>It's critical to understand these are different:</p>
+
+<p>| Encryption | Hashing | Encoding |</p>
+<p>|------------|---------|----------|</p>
+<p>| <strong>Reversible</strong> | <strong>One-way</strong> | <strong>Not security</strong> |</p>
+<p>| AES, RSA | bcrypt, Argon2 | Base64, URL encoding |</p>
+<p>| For confidentiality | For verification | For compatibility |</p>
+<p>| Requires key | No key needed | No key needed |</p>
+<p>| Decrypt with key | Cannot reverse | Easily reversed |</p>
+
+<strong>Common Mistake</strong>: Using encoding (Base64) thinking it's encryption!
+
+</code>`<code>python
+<h1>NOT ENCRYPTION - Anyone can decode this!</h1>
+<p>password = base64.b64encode(b"secret123")</p>
+
+<h1>PROPER ENCRYPTION - Requires key to decrypt</h1>
+<p>from cryptography.fernet import Fernet</p>
+<p>cipher = Fernet(key)</p>
+<p>encrypted = cipher.encrypt(b"secret123")</p>
+</code>`<code>
+
+<h3>Where Cryptographic Failures Occur</h3>
+
+</code>`<code>mermaid
+<p>graph TD</p>
+<p>    A[Sensitive Data] --> B{In Transit?}</p>
+<p>    B -->|Yes| C{HTTPS/TLS?}</p>
+<p>    C -->|No| D[VULNERABLE: Unencrypted transmission]</p>
+<p>    C -->|Weak TLS| E[VULNERABLE: Outdated protocol]</p>
+    
+<p>    B -->|No| F{At Rest?}</p>
+<p>    F --> G{Encrypted?}</p>
+<p>    G -->|No| H[VULNERABLE: Plaintext storage]</p>
+<p>    G -->|Weak Algorithm| I[VULNERABLE: Weak encryption]</p>
+    
+<p>    A --> J{Passwords?}</p>
+<p>    J --> K{Hashing Algorithm?}</p>
+<p>    K -->|MD5/SHA1| L[VULNERABLE: Weak hashing]</p>
+<p>    K -->|bcrypt/Argon2| M[SECURE]</p>
+</code>`<code>
+
+<p>Common failure points:</p>
+
+<ol>
+<li><strong>Transmission</strong>: No HTTPS or weak TLS configuration</li>
+<li><strong>Storage</strong>: Plaintext passwords or credit cards in databases</li>
+<li><strong>Hashing</strong>: Using MD5, SHA-1 instead of bcrypt/Argon2</li>
+<li><strong>Keys</strong>: Hard-coded encryption keys in source code</li>
+<li><strong>Randomness</strong>: Weak random number generation for tokens</li>
+</ol>
+
+<h2>Real-World Impact</h2>
+
+<h3>Case Study 1: LinkedIn (2012)</h3>
+
+<strong>Vulnerability</strong>: Passwords hashed with unsalted SHA-1  
+<strong>Impact</strong>: 6.5 million password hashes leaked and quickly cracked  
+<strong>Root Cause</strong>: Using fast hashing algorithm without salt  
+<strong>Lesson</strong>: Always use slow, salted hashing (bcrypt, Argon2)
+
+<h3>Case Study 2: Adobe (2013)</h3>
+
+<strong>Vulnerability</strong>: Passwords encrypted with ECB mode, weak key management  
+<strong>Impact</strong>: 153 million user accounts compromised  
+<strong>Root Cause</strong>: Encryption instead of hashing for passwords, weak implementation  
+<strong>Lesson</strong>: Hash passwords, don't encrypt them; use proper encryption modes
+
+<h3>Case Study 3: Equifax (2017)</h3>
+
+<strong>Vulnerability</strong>: Unencrypted data at rest, weak access controls  
+<strong>Impact</strong>: 147 million records exposed including SSNs  
+<strong>Root Cause</strong>: Multiple failures including lack of encryption  
+<strong>Lesson</strong>: Encrypt sensitive data at rest, especially PII
+
+<h3>Case Study 4: British Airways (2018)</h3>
+
+<strong>Vulnerability</strong>: Credit card data transmitted without proper encryption  
+<strong>Impact</strong>: £20 million GDPR fine, 400,000 customers affected  
+<strong>Root Cause</strong>: Insufficient encryption of payment data  
+<strong>Lesson</strong>: Always use strong encryption for financial data
+
+<h3>Common Attack Scenarios</h3>
+
+<h4>Scenario 1: Password Hash Cracking</h4>
+
+</code>`<code>
+<p>Application uses MD5 for password hashing:</p>
+<p>User password: "Summer2023!"</p>
+<p>MD5 hash: "e10adc3949ba59abbe56e057f20f883e"</p>
+
+<p>Attacker obtains database:</p>
+<p>→ Runs hash through rainbow table</p>
+<p>→ Instantly cracks password</p>
+<p>→ Gains access to account</p>
+</code>`<code>
+
+<h4>Scenario 2: Man-in-the-Middle</h4>
+
+</code>`<code>
+<p>Application uses HTTP instead of HTTPS:</p>
+<p>User logs in with credentials</p>
+<p>→ Transmitted in plaintext over network</p>
+<p>→ Attacker intercepts traffic</p>
+<p>→ Steals username/password</p>
+</code>`<code>
+
+<h4>Scenario 3: Exposed Encryption Keys</h4>
+
+</code>`<code>
+<p>Source code contains:</p>
+<p>SECRET_KEY = "hardcoded_key_123"</p>
+
+<p>Attacker finds code on GitHub:</p>
+<p>→ Uses key to decrypt all data</p>
+<p>→ Accesses sensitive information</p>
+<p>→ Complete data compromise</p>
+</code>`<code>
+
+<h4>Scenario 4: Weak Random Tokens</h4>
+
+</code>`<code>python
+<h1>Predictable session tokens</h1>
+<p>import random</p>
+<p>session_id = random.randint(1000, 9999)  # Only 9000 possibilities!</p>
+
+<p>Attacker brute forces:</p>
+<p>→ Tries all 9000 values</p>
+<p>→ Finds valid session</p>
+<p>→ Hijacks user account</p>
+</code>`<code>
+
+<h2>Prevalence and Statistics</h2>
+
+<h3>OWASP Top 10 2021 Data</h3>
+
+<ul>
+<li><strong>#2</strong> position in OWASP Top 10</li>
+<li><strong>4.49%</strong> average incidence rate</li>
+<li><strong>233,000+</strong> occurrences in analyzed applications</li>
+<li><strong>46</strong> mapped CWEs (Common Weakness Enumerations)</li>
+</ul>
+
+<h3>Common Weakness Enumeration (CWE) Mappings</h3>
+
+<p>Key CWEs related to cryptographic failures:</p>
+
+<ul>
+<li><strong>CWE-259</strong>: Use of Hard-coded Password</li>
+<li><strong>CWE-327</strong>: Use of a Broken or Risky Cryptographic Algorithm</li>
+<li><strong>CWE-328</strong>: Use of Weak Hash</li>
+<li><strong>CWE-329</strong>: Generation of Predictable IV with CBC Mode</li>
+<li><strong>CWE-330</strong>: Use of Insufficiently Random Values</li>
+<li><strong>CWE-331</strong>: Insufficient Entropy</li>
+<li><strong>CWE-335</strong>: Incorrect Usage of Seeds in Pseudo-Random Number Generator</li>
+<li><strong>CWE-338</strong>: Use of Cryptographically Weak PRNG</li>
+<li><strong>CWE-759</strong>: Use of a One-Way Hash without a Salt</li>
+<li><strong>CWE-916</strong>: Use of Password Hash With Insufficient Computational Effort</li>
+</ul>
+
+<h3>Industry Impact</h3>
+
+<p>Different data types require different protection levels:</p>
+
+<p>| Data Type | Risk Level | Protection Required |</p>
+<p>|-----------|------------|---------------------|</p>
+<p>| Passwords | Critical | bcrypt/Argon2 hashing |</p>
+<p>| Credit Cards | Critical | PCI-DSS encryption |</p>
+<p>| Health Records | Critical | HIPAA encryption |</p>
+<p>| SSN/Tax IDs | Critical | Strong encryption |</p>
+<p>| Email Addresses | High | Encryption recommended |</p>
+<p>| User Preferences | Low | May not need encryption |</p>
+
+<h2>Common Misunderstandings</h2>
+
+<h3>Myth 1: "Hashing = Encryption"</h3>
+
+<strong>Reality</strong>: These serve different purposes and cannot be used interchangeably.
+
+</code>`<code>python
+<h1>❌ WRONG: Trying to "decrypt" a hash</h1>
+<p>password_hash = bcrypt.hashpw(password, salt)</p>
+<h1>Cannot get original password back from hash!</h1>
+
+<h1>✅ RIGHT: Hash for verification</h1>
+<p>stored_hash = bcrypt.hashpw(password, salt)</p>
+<p>is_valid = bcrypt.checkpw(user_input, stored_hash)  # Compare, don't decrypt</p>
+</code>`<code>
+
+<h3>Myth 2: "Base64 is Encryption"</h3>
+
+<strong>Reality</strong>: Base64 is encoding, not encryption. It provides zero security.
+
+</code>`<code>python
+<h1>❌ INSECURE: Base64 encoding</h1>
+<p>import base64</p>
+<p>"secret" = base64.b64encode(b"password")  # Trivially reversed!</p>
+
+<h1>✅ SECURE: Actual encryption</h1>
+<p>from cryptography.fernet import Fernet</p>
+<p>cipher = Fernet(key)</p>
+<p>encrypted = cipher.encrypt(b"password")  # Requires key to decrypt</p>
+</code>`<code>
+
+<h3>Myth 3: "MD5/SHA-1 are Fine for Passwords"</h3>
+
+<strong>Reality</strong>: These fast hashes are designed for data integrity, not password storage.
+
+</code>`<code>python
+<h1>❌ VULNERABLE: Fast hash</h1>
+<p>import hashlib</p>
+<p>hash = hashlib.md5(password.encode()).hexdigest()  # Crackable in seconds!</p>
+
+<h1>✅ SECURE: Slow, salted hash</h1>
+<p>import bcrypt</p>
+<p>hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt())  # Intentionally slow</p>
+</code>`<code>
+
+<h3>Myth 4: "HTTPS Everywhere = No Crypto Worries"</h3>
+
+<strong>Reality</strong>: HTTPS protects data in transit, but not at rest or in processing.
+
+</code>`<code>
+<p>HTTPS protects: Data traveling over network</p>
+<p>HTTPS does NOT protect:</p>
+<ul>
+<li>Data stored in database</li>
+<li>Data in application memory</li>
+<li>Data in log files</li>
+<li>Data in backups</li>
+</ul>
+</code>`<code>
+
+<h3>Myth 5: "Longer Password Hash = More Secure"</h3>
+
+<strong>Reality</strong>: The algorithm matters more than output length.
+
+</code>`<code>python
+<h1>SHA-512 is fast (bad for passwords):</h1>
+<p>SHA-512("password") → Cracked in milliseconds</p>
+
+<h1>bcrypt is slow (good for passwords):</h1>
+<p>bcrypt("password") → Takes 0.5 seconds to verify</p>
+<p>→ Makes brute force attacks impractical</p>
+</code>`<code>
+
+<h3>Myth 6: "Rolling Your Own Crypto is OK"</h3>
+
+<strong>Reality</strong>: Cryptography is extremely hard. Use established libraries.
+
+</code>`<code>python
+<h1>❌ NEVER DO THIS</h1>
+<p>def my_custom_encryption(text):</p>
+<p>    return ''.join(chr(ord(c) + 13) for c in text)  # ROT13 is NOT encryption!</p>
+
+<h1>✅ USE ESTABLISHED LIBRARIES</h1>
+<p>from cryptography.fernet import Fernet  # Battle-tested, peer-reviewed</p>
+</code>``
+
+<h2>Key Cryptographic Algorithms</h2>
+
+<h3>For Password Hashing (One-Way)</h3>
+
+<p>✅ <strong>Recommended</strong>:</p>
+<ul>
+<li><strong>Argon2</strong> - Winner of Password Hashing Competition, best choice</li>
+<li><strong>bcrypt</strong> - Industry standard, widely supported</li>
+<li><strong>scrypt</strong> - Good alternative, memory-hard</li>
+<li><strong>PBKDF2</strong> - Acceptable if others not available</li>
+</ul>
+
+<p>❌ <strong>Avoid</strong>:</p>
+<ul>
+<li>MD5 - Broken, extremely fast to crack</li>
+<li>SHA-1 - Deprecated, vulnerable</li>
+<li>SHA-256/SHA-512 - Too fast for passwords</li>
+<li>Plain SHA-2 family without key derivation</li>
+</ul>
+
+<h3>For Data Encryption (Reversible)</h3>
+
+<p>✅ <strong>Recommended</strong>:</p>
+<ul>
+<li><strong>AES-256</strong> (GCM mode) - Industry standard symmetric encryption</li>
+<li><strong>ChaCha20-Poly1305</strong> - Modern, fast, secure</li>
+<li><strong>RSA-2048+</strong> - For asymmetric encryption (smaller data)</li>
+</ul>
+
+<p>❌ <strong>Avoid</strong>:</p>
+<ul>
+<li>DES/3DES - Outdated, weak</li>
+<li>RC4 - Broken</li>
+<li>ECB mode - Insecure for any block cipher</li>
+<li>Custom encryption schemes</li>
+</ul>
+
+<h3>For TLS/HTTPS</h3>
+
+<p>✅ <strong>Recommended</strong>:</p>
+<ul>
+<li>TLS 1.3 - Latest, most secure</li>
+<li>TLS 1.2 - Acceptable with strong cipher suites</li>
+</ul>
+
+<p>❌ <strong>Avoid</strong>:</p>
+<ul>
+<li>SSL 2.0/3.0 - Completely broken</li>
+<li>TLS 1.0/1.1 - Deprecated</li>
+<li>Weak cipher suites (RC4, export ciphers)</li>
+</ul>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li>✅ <strong>Use established cryptographic libraries</strong> - Don't roll your own</li>
+<li>✅ <strong>Hash passwords with bcrypt or Argon2</strong> - Never store plaintext</li>
+<li>✅ <strong>Encrypt sensitive data at rest and in transit</strong> - Defense in depth</li>
+<li>✅ <strong>Use HTTPS everywhere</strong> - Even for "non-sensitive" pages</li>
+<li>✅ <strong>Proper key management</strong> - Never hard-code keys</li>
+<li>✅ <strong>Strong random number generation</strong> - For tokens and keys</li>
+<li>✅ <strong>Regular security updates</strong> - Keep crypto libraries current</li>
+</ol>
+
+<h2>What's Next?</h2>
+
+<ul>
+<li><strong><a href="./attack-vectors.md">Attack Vectors</a></strong>: Learn how attackers exploit cryptographic weaknesses</li>
+<li><strong><a href="./prevention.md">Prevention</a></strong>: Best practices and secure implementation patterns</li>
+<li><strong><a href="./examples.md">Examples</a></strong>: Code examples showing vulnerable vs secure implementations</li>
+<li><strong><a href="./lab/weak-hashing-lab/">Lab</a></strong>: Hands-on practice with a safe, isolated environment</li>
+</ul>
+
+<p>---</p>
+
+<em>Part of the <a href="../../README.md">OWASP Top 10 Educational Repository</a></em>
+
         </div>
     </div>
 </body>

@@ -215,7 +215,863 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>M02: Inadequate Supply Chain Security - Examples</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#dependency-management-examples">Dependency Management Examples</a></li>
+<li><a href="#package-verification-examples">Package Verification Examples</a></li>
+<li><a href="#build-security-examples">Build Security Examples</a></li>
+<li><a href="#monitoring-examples">Monitoring Examples</a></li>
+<li><a href="#real-world-case-studies">Real-World Case Studies</a></li>
+</ul>
+
+<h2>Dependency Management Examples</h2>
+
+<h3>Example 1: Unsafe vs Safe Package Installation</h3>
+
+<strong>❌ Vulnerable: Wildcard Versions</strong>
+
+<p>``<code>json</p>
+<p>// package.json - UNSAFE</p>
+<p>{</p>
+<p>  "dependencies": {</p>
+<p>    "react-native": "^0.72.0",     // Any minor/patch update</p>
+<p>    "axios": "*",                    // Any version!</p>
+<p>    "lodash": "~4.17.0",            // Any patch update</p>
+<p>    "moment": "latest"               // Unpredictable</p>
+<p>  }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Problems:</strong>
+<ul>
+<li>Unexpected breaking changes</li>
+<li>Security vulnerabilities in auto-updates</li>
+<li>Non-reproducible builds</li>
+<li>Supply chain injection via updates</li>
+</ul>
+
+<strong>✅ Secure: Exact Version Pinning</strong>
+
+</code>`<code>json
+<p>// package.json - SECURE</p>
+<p>{</p>
+<p>  "dependencies": {</p>
+<p>    "react-native": "0.72.6",      // Exact version</p>
+<p>    "axios": "1.6.0",               // Exact version</p>
+<p>    "lodash": "4.17.21",            // Exact version</p>
+<p>    "moment": "2.29.4"              // Exact version</p>
+<p>  },</p>
+<p>  "devDependencies": {</p>
+<p>    "jest": "29.7.0"                // Even dev deps pinned</p>
+<p>  }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>With Lock File:</strong>
+
+</code>`<code>json
+<p>// package-lock.json (generated automatically)</p>
+<p>{</p>
+<p>  "lockfileVersion": 3,</p>
+<p>  "packages": {</p>
+<p>    "node_modules/axios": {</p>
+<p>      "version": "1.6.0",</p>
+<p>      "resolved": "https://registry.npmjs.org/axios/-/axios-1.6.0.tgz",</p>
+<p>      "integrity": "sha512-...actual-hash...",</p>
+<p>      "dependencies": {</p>
+<p>        "follow-redirects": "1.15.3"  // Transitive deps locked too</p>
+<p>      }</p>
+<p>    }</p>
+<p>  }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Installation Best Practice:</strong>
+
+</code>`<code>bash
+<h1>❌ Don't use - can modify lock file unexpectedly</h1>
+<p>npm install</p>
+
+<h1>✅ Use this - respects lock file exactly</h1>
+<p>npm ci</p>
+
+<h1>Clean install in CI/CD</h1>
+<p>rm -rf node_modules</p>
+<p>npm ci</p>
+</code>`<code>
+
+<h3>Example 2: Dependency Confusion Prevention</h3>
+
+<strong>❌ Vulnerable: Public Registry Only</strong>
+
+</code>`<code>bash
+<h1>.npmrc - UNSAFE</h1>
+<p>registry=https://registry.npmjs.com/</p>
+
+<h1>Attacker publishes @yourcompany/internal-tool on npm</h1>
+<h1>Build system downloads malicious public version</h1>
+</code>`<code>
+
+<strong>✅ Secure: Private Registry with Scoping</strong>
+
+</code>`<code>bash
+<h1>.npmrc - SECURE</h1>
+<p>@yourcompany:registry=https://npm.yourcompany.com/</p>
+<p>registry=https://registry.npmjs.com/</p>
+
+<h1>Internal packages MUST use @yourcompany scope</h1>
+<h1>Public packages default to npm</h1>
+</code>`<code>
+
+<strong>Package Naming Convention:</strong>
+
+</code>`<code>json
+<p>// ✅ Correct internal package naming</p>
+<p>{</p>
+<p>  "name": "@yourcompany/auth-utils",  // Scoped to private registry</p>
+<p>  "version": "1.0.0"</p>
+<p>}</p>
+
+<p>// ❌ Wrong - generic name</p>
+<p>{</p>
+<p>  "name": "auth-utils",  // Could be confused with public package</p>
+<p>  "version": "1.0.0"</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Example 3: Dependency Approval Workflow</h3>
+
+<strong>❌ Vulnerable: No Review Process</strong>
+
+</code>`<code>bash
+<h1>Developer adds dependency without review</h1>
+<p>npm install suspicious-package --save</p>
+
+<h1>Commits to repository</h1>
+<p>git add package.json package-lock.json</p>
+<p>git commit -m "Added new library"</p>
+<p>git push</p>
+</code>`<code>
+
+<strong>✅ Secure: Automated + Manual Review</strong>
+
+</code>`<code>yaml
+<h1>.github/workflows/dependency-check.yml</h1>
+<p>name: Dependency Review</p>
+
+<p>on:</p>
+<p>  pull_request:</p>
+<p>    paths:</p>
+<ul>
+<li>'package.json'</li>
+<li>'package-lock.json'</li>
+</ul>
+
+<p>jobs:</p>
+<p>  review:</p>
+<p>    runs-on: ubuntu-latest</p>
+<p>    steps:</p>
+<ul>
+<li>uses: actions/checkout@v3</li>
+</ul>
+      
+<p>      # Automated checks</p>
+<ul>
+<li>name: Security Scan</li>
+</ul>
+<p>        run: |</p>
+<p>          npm audit --audit-level=high</p>
+<p>          npx snyk test</p>
+          
+<p>      # License compliance</p>
+<ul>
+<li>name: License Check</li>
+</ul>
+<p>        run: npx license-checker --summary</p>
+        
+<p>      # Require human approval</p>
+<ul>
+<li>name: Require Review</li>
+</ul>
+<p>        uses: actions/github-script@v6</p>
+<p>        with:</p>
+<p>          script: |</p>
+<p>            github.rest.pulls.createReview({</p>
+<p>              owner: context.repo.owner,</p>
+<p>              repo: context.repo.repo,</p>
+<p>              pull_number: context.issue.number,</p>
+<p>              event: 'REQUEST_CHANGES',</p>
+<p>              body: 'Security team approval required for dependency changes'</p>
+<p>            })</p>
+</code>`<code>
+
+<h2>Package Verification Examples</h2>
+
+<h3>Example 4: Integrity Verification</h3>
+
+<strong>❌ Vulnerable: No Verification</strong>
+
+</code>`<code>bash
+<h1>Download and use package without checking</h1>
+<p>curl -O https://example.com/library.tgz</p>
+<p>tar -xzf library.tgz</p>
+<p>cp -r library/* ./node_modules/</p>
+</code>`<code>
+
+<strong>Problems:</strong>
+<ul>
+<li>No guarantee of authenticity</li>
+<li>Could be man-in-the-middle attacked</li>
+<li>No detection of tampering</li>
+</ul>
+
+<strong>✅ Secure: Checksum and Signature Verification</strong>
+
+</code>`<code>bash
+<h1>Download with checksum</h1>
+<p>EXPECTED_SHA256="a1b2c3d4e5f6..."</p>
+
+<h1>Download package</h1>
+<p>curl -O https://example.com/library.tgz</p>
+
+<h1>Verify checksum</h1>
+<p>echo "$EXPECTED_SHA256  library.tgz" | sha256sum -c -</p>
+
+<h1>Only proceed if verification passes</h1>
+<p>if [ $? -eq 0 ]; then</p>
+<p>    echo "Verification successful"</p>
+<p>    tar -xzf library.tgz</p>
+<p>else</p>
+<p>    echo "Verification failed! Potential tampering detected."</p>
+<p>    exit 1</p>
+<p>fi</p>
+</code>`<code>
+
+<strong>NPM Automatic Verification:</strong>
+
+</code>`<code>bash
+<h1>NPM automatically verifies integrity using package-lock.json</h1>
+<p>npm ci  # Fails if checksums don't match</p>
+
+<h1>Verify specific package</h1>
+<p>npm view axios@1.6.0 dist.integrity</p>
+<h1>Returns: sha512-actual-integrity-hash...</h1>
+</code>`<code>
+
+<h3>Example 5: Subresource Integrity (SRI)</h3>
+
+<strong>❌ Vulnerable: CDN Without Integrity</strong>
+
+</code>`<code>html
+<!-- Vulnerable script loading -->
+<script src="https://cdn.example.com/analytics.js"></script>
+</code>`<code>
+
+<strong>If CDN is compromised, malicious code executes</strong>
+
+<strong>✅ Secure: SRI Protection</strong>
+
+</code>`<code>html
+<!-- Protected with SRI -->
+<script 
+<p>  src="https://cdn.example.com/analytics.js"</p>
+<p>  integrity="sha384-oqVuAfXRKap7fdgcCY5uykM6+R9GqQ8K/uxy9rx7HNQlGYl1kPzQho1wx4JwY8wC"</p>
+<p>  crossorigin="anonymous"></p>
+</script>
+</code>`<code>
+
+<strong>Browser behavior:</strong>
+<ul>
+<li>Downloads script</li>
+<li>Computes SHA-384 hash</li>
+<li>Compares to integrity attribute</li>
+<li>Only executes if hash matches</li>
+<li>Blocks execution if mismatch</li>
+</ul>
+
+<strong>Generating SRI Hashes:</strong>
+
+</code>`<code>bash
+<h1>Generate SRI hash for a file</h1>
+<p>cat analytics.js | openssl dgst -sha384 -binary | openssl base64 -A</p>
+
+<h1>Or use online tools</h1>
+<p>curl https://www.srihash.org/</p>
+</code>`<code>
+
+<h2>Build Security Examples</h2>
+
+<h3>Example 6: Isolated Build Environment</h3>
+
+<strong>❌ Vulnerable: Shared Build Environment</strong>
+
+</code>`<code>dockerfile
+<h1>Dockerfile - UNSAFE</h1>
+<p>FROM ubuntu:latest</p>
+
+<h1>Installing everything as root</h1>
+<p>RUN apt-get update && apt-get install -y nodejs npm</p>
+
+<h1>Source code accessible to all processes</h1>
+<p>WORKDIR /app</p>
+<p>COPY . .</p>
+
+<h1>Running as root</h1>
+<p>RUN npm install</p>
+<p>RUN npm run build</p>
+</code>`<code>
+
+<strong>Problems:</strong>
+<ul>
+<li>Runs as root</li>
+<li>No network isolation</li>
+<li>Persistent state between builds</li>
+<li>Secrets could leak</li>
+</ul>
+
+<strong>✅ Secure: Isolated Build</strong>
+
+</code>`<code>dockerfile
+<h1>Dockerfile - SECURE</h1>
+<p>FROM node:18-alpine AS builder</p>
+
+<h1>Create non-root user</h1>
+<p>RUN addgroup -S builduser && adduser -S builduser -G builduser</p>
+
+<h1>Set working directory</h1>
+<p>WORKDIR /app</p>
+
+<h1>Copy dependency files first (layer caching)</h1>
+<p>COPY --chown=builduser:builduser package*.json ./</p>
+
+<h1>Switch to non-root user</h1>
+<p>USER builduser</p>
+
+<h1>Install dependencies from lock file only</h1>
+<p>RUN npm ci --only=production</p>
+
+<h1>Copy source code</h1>
+<p>COPY --chown=builduser:builduser . .</p>
+
+<h1>Build application</h1>
+<p>RUN npm run build</p>
+
+<h1>Multi-stage build - final image only has artifacts</h1>
+<p>FROM node:18-alpine</p>
+<p>WORKDIR /app</p>
+<p>COPY --from=builder /app/dist ./dist</p>
+<p>USER node</p>
+<p>CMD ["node", "dist/index.js"]</p>
+</code>`<code>
+
+<strong>Network Isolation:</strong>
+
+</code>`<code>yaml
+<h1>docker-compose.yml</h1>
+<p>version: '3.8'</p>
+<p>services:</p>
+<p>  build:</p>
+<p>    build: .</p>
+<p>    networks:</p>
+<ul>
+<li>isolated</li>
+</ul>
+<p>    # No external network access during build</p>
+<p>    network_mode: none  # Or use custom isolated network</p>
+</code>`<code>
+
+<h3>Example 7: Secure CI/CD Pipeline</h3>
+
+<strong>❌ Vulnerable: Insecure Pipeline</strong>
+
+</code>`<code>yaml
+<h1>.github/workflows/build.yml - UNSAFE</h1>
+<p>name: Build</p>
+
+<p>on: [push]</p>
+
+<p>jobs:</p>
+<p>  build:</p>
+<p>    runs-on: ubuntu-latest</p>
+<p>    steps:</p>
+<ul>
+<li>uses: actions/checkout@v3</li>
+<li>name: Install</li>
+</ul>
+<p>        run: npm install  # Not using lock file</p>
+<ul>
+<li>name: Build</li>
+</ul>
+<p>        run: npm run build</p>
+<p>        env:</p>
+<p>          API_KEY: ${{ secrets.API_KEY }}  # Exposed to all dependencies</p>
+</code>`<code>
+
+<strong>Problems:</strong>
+<ul>
+<li></code>npm install<code> can modify dependencies</li>
+<li>Secrets accessible to all npm packages during build</li>
+<li>No security scanning</li>
+<li>No verification steps</li>
+</ul>
+
+<strong>✅ Secure: Hardened Pipeline</strong>
+
+</code>`<code>yaml
+<h1>.github/workflows/build.yml - SECURE</h1>
+<p>name: Secure Build</p>
+
+<p>on:</p>
+<p>  push:</p>
+<p>    branches: [main]</p>
+<p>  pull_request:</p>
+
+<p>permissions:</p>
+<p>  contents: read  # Minimal permissions</p>
+
+<p>jobs:</p>
+<p>  security:</p>
+<p>    runs-on: ubuntu-latest</p>
+<p>    steps:</p>
+<ul>
+<li>uses: actions/checkout@v3</li>
+</ul>
+      
+<ul>
+<li>name: Dependency Audit</li>
+</ul>
+<p>        run: npm audit --audit-level=moderate</p>
+        
+<ul>
+<li>name: License Check</li>
+</ul>
+<p>        run: npx license-checker --onlyAllow="MIT;Apache-2.0;BSD-3-Clause"</p>
+        
+<ul>
+<li>name: Secret Scanning</li>
+</ul>
+<p>        uses: trufflesecurity/trufflehog@main</p>
+<p>        with:</p>
+<p>          path: ./</p>
+          
+<p>  build:</p>
+<p>    needs: security  # Only build if security passes</p>
+<p>    runs-on: ubuntu-latest</p>
+    
+<p>    steps:</p>
+<ul>
+<li>uses: actions/checkout@v3</li>
+</ul>
+      
+<ul>
+<li>name: Setup Node</li>
+</ul>
+<p>        uses: actions/setup-node@v3</p>
+<p>        with:</p>
+<p>          node-version: '18'</p>
+<p>          cache: 'npm'</p>
+          
+<p>      # Use exact lock file</p>
+<ul>
+<li>name: Install Dependencies</li>
+</ul>
+<p>        run: npm ci</p>
+        
+<p>      # Build without secrets in environment</p>
+<ul>
+<li>name: Build</li>
+</ul>
+<p>        run: npm run build</p>
+        
+<p>      # Generate SBOM</p>
+<ul>
+<li>name: Generate SBOM</li>
+</ul>
+<p>        run: npx @cyclonedx/cyclonedx-npm --output-file sbom.json</p>
+        
+<ul>
+<li>name: Upload SBOM</li>
+</ul>
+<p>        uses: actions/upload-artifact@v3</p>
+<p>        with:</p>
+<p>          name: sbom</p>
+<p>          path: sbom.json</p>
+</code>`<code>
+
+<h2>Monitoring Examples</h2>
+
+<h3>Example 8: Vulnerability Monitoring</h3>
+
+<strong>❌ Vulnerable: No Monitoring</strong>
+
+</code>`<code>bash
+<h1>Install dependencies once</h1>
+<p>npm install</p>
+
+<h1>Never check for vulnerabilities again</h1>
+<h1>❌ Security issues accumulate over time</h1>
+</code>`<code>
+
+<strong>✅ Secure: Continuous Monitoring</strong>
+
+</code>`<code>yaml
+<h1>.github/dependabot.yml - Automated monitoring</h1>
+<p>version: 2</p>
+<p>updates:</p>
+<ul>
+<li>package-ecosystem: "npm"</li>
+</ul>
+<p>    directory: "/"</p>
+<p>    schedule:</p>
+<p>      interval: "daily"  # Check daily</p>
+<p>    open-pull-requests-limit: 10</p>
+<p>    reviewers:</p>
+<ul>
+<li>"security-team"</li>
+</ul>
+<p>    labels:</p>
+<ul>
+<li>"dependencies"</li>
+<li>"security"</li>
+</ul>
+<p>    # Only update patch versions automatically</p>
+<p>    versioning-strategy: increase-if-necessary</p>
+    
+<p>  # Separate configuration for security-only updates</p>
+<ul>
+<li>package-ecosystem: "npm"</li>
+</ul>
+<p>    directory: "/"</p>
+<p>    schedule:</p>
+<p>      interval: "daily"</p>
+<p>    open-pull-requests-limit: 5</p>
+<p>    labels:</p>
+<ul>
+<li>"security"</li>
+<li>"critical"</li>
+</ul>
+<p>    # Allow security updates across major versions</p>
+<p>    allow:</p>
+<ul>
+<li>dependency-type: "all"</li>
+</ul>
+<p>        update-type: "security"</p>
+</code>`<code>
+
+<strong>Manual Monitoring:</strong>
+
+</code>`<code>bash
+<h1>Weekly security check</h1>
+<p>npm audit</p>
+
+<h1>Get detailed report</h1>
+<p>npm audit --json > audit-report.json</p>
+
+<h1>Fix automatically when possible</h1>
+<p>npm audit fix</p>
+
+<h1>Fix including breaking changes (review carefully)</h1>
+<p>npm audit fix --force</p>
+</code>`<code>
+
+<strong>Snyk Monitoring:</strong>
+
+</code>`<code>bash
+<h1>Install Snyk</h1>
+<p>npm install -g snyk</p>
+
+<h1>Authenticate</h1>
+<p>snyk auth</p>
+
+<h1>Test for vulnerabilities</h1>
+<p>snyk test</p>
+
+<h1>Monitor project (continuous scanning)</h1>
+<p>snyk monitor</p>
+
+<h1>Get detailed report</h1>
+<p>snyk test --json > snyk-report.json</p>
+</code>`<code>
+
+<h3>Example 9: SBOM Management</h3>
+
+<strong>❌ Vulnerable: No SBOM</strong>
+
+</code>`<code>bash
+<h1>No tracking of what's actually in the application</h1>
+<h1>Can't assess impact of new vulnerabilities</h1>
+<h1>No compliance documentation</h1>
+</code>`<code>
+
+<strong>✅ Secure: Automated SBOM Generation</strong>
+
+</code>`<code>bash
+<h1>Install CycloneDX</h1>
+<p>npm install -g @cyclonedx/cyclonedx-npm</p>
+
+<h1>Generate SBOM in CycloneDX format</h1>
+<p>cyclonedx-npm --output-file sbom.json</p>
+
+<h1>Generate in SPDX format</h1>
+<p>npm sbom --sbom-format spdx > sbom-spdx.json</p>
+</code>`<code>
+
+<strong>SBOM in Build Pipeline:</strong>
+
+</code>`<code>yaml
+<h1>.github/workflows/sbom.yml</h1>
+<p>name: Generate SBOM</p>
+
+<p>on:</p>
+<p>  push:</p>
+<p>    branches: [main]</p>
+<p>  release:</p>
+<p>    types: [published]</p>
+
+<p>jobs:</p>
+<p>  sbom:</p>
+<p>    runs-on: ubuntu-latest</p>
+<p>    steps:</p>
+<ul>
+<li>uses: actions/checkout@v3</li>
+</ul>
+      
+<ul>
+<li>name: Setup Node</li>
+</ul>
+<p>        uses: actions/setup-node@v3</p>
+<p>        with:</p>
+<p>          node-version: '18'</p>
+          
+<ul>
+<li>name: Install Dependencies</li>
+</ul>
+<p>        run: npm ci</p>
+        
+<ul>
+<li>name: Generate SBOM</li>
+</ul>
+<p>        run: npx @cyclonedx/cyclonedx-npm --output-file sbom.json</p>
+        
+<ul>
+<li>name: Upload to Dependency Track</li>
+</ul>
+<p>        run: |</p>
+<p>          curl -X POST "https://dependency-track.company.com/api/v1/bom" \</p>
+<p>            -H "X-Api-Key: ${{ secrets.DEPENDENCY_TRACK_API_KEY }}" \</p>
+<p>            -H "Content-Type: multipart/form-data" \</p>
+<p>            -F "project=mobile-app" \</p>
+<p>            -F "bom=@sbom.json"</p>
+            
+<ul>
+<li>name: Attach to Release</li>
+</ul>
+<p>        uses: actions/upload-release-asset@v1</p>
+<p>        if: github.event_name == 'release'</p>
+<p>        with:</p>
+<p>          upload_url: ${{ github.event.release.upload_url }}</p>
+<p>          asset_path: ./sbom.json</p>
+<p>          asset_name: sbom.json</p>
+<p>          asset_content_type: application/json</p>
+</code>`<code>
+
+<h2>Real-World Case Studies</h2>
+
+<h3>Case Study 1: Event-Stream Compromise (2018)</h3>
+
+<strong>What Happened:</strong>
+</code>`<code>
+<p>Timeline:</p>
+<ol>
+<li>Popular npm package "event-stream" (2M weekly downloads)</li>
+<li>Original maintainer transferred ownership</li>
+<li>New maintainer published version with malicious code</li>
+<li>Targeted cryptocurrency wallets</li>
+<li>Stole credentials and private keys</li>
+</ol>
+</code>`<code>
+
+<strong>How It Could Have Been Prevented:</strong>
+
+</code>`<code>yaml
+<h1>1. Dependency scanning would detect suspicious code</h1>
+<p>snyk test  # Would flag obfuscated code patterns</p>
+
+<h1>2. Lock file would prevent auto-update</h1>
+<h1>package-lock.json prevents silent updates</h1>
+
+<h1>3. Code review of dependency changes</h1>
+<h1>Manual review of transitive dependency changes</h1>
+
+<h1>4. Network monitoring during build</h1>
+<h1>Detect unexpected outbound connections</h1>
+</code>`<code>
+
+<strong>Lessons Learned:</strong>
+<ul>
+<li>Monitor transitive dependencies</li>
+<li>Review maintainer changes</li>
+<li>Scan for obfuscated code</li>
+<li>Don't auto-update without review</li>
+</ul>
+
+<h3>Case Study 2: Dependency Confusion (2021)</h3>
+
+<strong>Attack Scenario:</strong>
+</code>`<code>
+<ol>
+<li>Attacker finds internal package names from job postings</li>
+</ol>
+<p>   Internal package: @company/auth-lib</p>
+   
+<ol>
+<li>Publishes malicious package to public npm</li>
+</ol>
+<p>   Published: @company/auth-lib (on npm)</p>
+   
+<ol>
+<li>Build system installs from public registry</li>
+</ol>
+<p>   npm install @company/auth-lib</p>
+<p>   → Downloads malicious public version</p>
+   
+<ol>
+<li>Malicious code exfiltrates environment variables</li>
+</ol>
+<p>   API keys, AWS credentials stolen</p>
+</code>`<code>
+
+<strong>Prevention Implementation:</strong>
+
+</code>`<code>bash
+<h1>.npmrc - Force private registry for scoped packages</h1>
+<p>@company:registry=https://npm.company.com/</p>
+<p>always-auth=true</p>
+
+<h1>Package managers check private first</h1>
+<p>registry=https://npm.company.com/</p>
+</code>`<code>
+
+</code>`<code>yaml
+<h1>package.json - Specify registry explicitly</h1>
+<p>{</p>
+<p>  "name": "@company/auth-lib",</p>
+<p>  "publishConfig": {</p>
+<p>    "registry": "https://npm.company.com/"</p>
+<p>  }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Additional Protections:</strong>
+
+</code>`<code>javascript
+<p>// pre-install hook to verify registry</p>
+<p>// .husky/pre-commit</p>
+<p>#!/bin/sh</p>
+
+<h1>Check for suspicious public packages with private naming</h1>
+<p>npm ls --json | grep "@company" | grep "registry.npmjs.org" && {</p>
+<p>  echo "ERROR: Private package found from public registry!"</p>
+<p>  exit 1</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Case Study 3: UA-Parser-JS Compromise (2021)</h3>
+
+<strong>Timeline:</strong>
+</code>`<code>
+<ol>
+<li>Maintainer account compromised</li>
+<li>Malicious versions published (0.7.29, 0.8.0, 1.0.0)</li>
+<li>Cryptocurrency mining malware injected</li>
+<li>Millions of applications affected</li>
+<li>Detected within hours, but damage done</li>
+</ol>
+</code>`<code>
+
+<strong>Prevention Strategy:</strong>
+
+</code>`<code>yaml
+<h1>Dependabot alerts enabled</h1>
+<h1>.github/dependabot.yml</h1>
+<p>version: 2</p>
+<p>updates:</p>
+<ul>
+<li>package-ecosystem: "npm"</li>
+</ul>
+<p>    directory: "/"</p>
+<p>    schedule:</p>
+<p>      interval: "daily"</p>
+<p>    # Alert on any changes to critical packages</p>
+    
+<p>security-advisories:</p>
+<ul>
+<li>package-name: "ua-parser-js"</li>
+</ul>
+<p>    severity: "critical"</p>
+<p>    action: "notify"</p>
+</code>`<code>
+
+<strong>Response Plan:</strong>
+
+</code>`<code>markdown
+<h2>Incident Response Checklist</h2>
+
+<p>When security alert received:</p>
+<ol>
+<li>□ Immediately pin to last known good version</li>
+<li>□ Audit recent builds for compromise</li>
+<li>□ Check runtime logs for suspicious activity</li>
+<li>□ Scan for presence of malicious code patterns</li>
+<li>□ Rotate credentials if potentially exposed</li>
+<li>□ Communicate to users if necessary</li>
+<li>□ Update to patched version when available</li>
+<li>□ Post-incident review and prevention improvement</li>
+</ol>
+</code>`<code>
+
+<h2>Quick Reference: Secure vs Vulnerable</h2>
+
+<p>| Aspect | ❌ Vulnerable | ✅ Secure |</p>
+<p>|--------|--------------|----------|</p>
+<p>| Versions | Wildcards (</code>^<code>, </code>*<code>) | Exact versions |</p>
+<p>| Installation | </code>npm install<code> | </code>npm ci` |</p>
+<p>| Lock files | Ignored or missing | Committed and enforced |</p>
+<p>| Scanning | Manual, infrequent | Automated, continuous |</p>
+<p>| SBOM | Not generated | Auto-generated per build |</p>
+<p>| Registry | Public only | Private + scoped |</p>
+<p>| Approval | None | Automated + manual review |</p>
+<p>| Monitoring | None | 24/7 alerts |</p>
+<p>| Build | Shared, persistent | Isolated, ephemeral |</p>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Pin exact versions and use lock files religiously</strong></li>
+<li><strong>Automate security scanning in CI/CD</strong></li>
+<li><strong>Maintain SBOM for complete visibility</strong></li>
+<li><strong>Use private registries for internal packages</strong></li>
+<li><strong>Implement dependency approval workflows</strong></li>
+<li><strong>Monitor continuously for new vulnerabilities</strong></li>
+<li><strong>Have incident response plan ready</strong></li>
+<li><strong>Isolate build environments</strong></li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="./lab/">Interactive Lab</a></strong>: Practice identifying and fixing supply chain vulnerabilities</li>
+<li><strong><a href="./overview.md">Back to Overview</a></strong>: Review core concepts</li>
+<li><strong><a href="./attack-vectors.md">Attack Vectors</a></strong>: Understand attack methods</li>
+<li><strong><a href="./prevention.md">Prevention</a></strong>: Comprehensive security guide</li>
+</ul>
+
+<p>---</p>
+
+<strong>Remember</strong>: Every dependency is a trust decision. Choose wisely, verify thoroughly, monitor constantly.
+
         </div>
     </div>
 </body>

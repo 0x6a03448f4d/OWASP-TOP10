@@ -215,7 +215,830 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>API05: Broken Function Level Authorization - Attack Vectors</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#understanding-bfla-attack-vectors">Understanding BFLA Attack Vectors</a></li>
+<li><a href="#common-attack-patterns">Common Attack Patterns</a></li>
+<li><a href="#application-flaws-that-enable-attacks">Application Flaws That Enable Attacks</a></li>
+<li><a href="#signs-and-symptoms-of-vulnerability">Signs and Symptoms of Vulnerability</a></li>
+<li><a href="#what-attackers-look-for">What Attackers Look For</a></li>
+<li><a href="#detection-techniques">Detection Techniques</a></li>
+</ul>
+
+<h2>Understanding BFLA Attack Vectors</h2>
+
+<p>> <strong>⚠️ EDUCATIONAL PURPOSE ONLY</strong>  </p>
+<p>> This document describes attack concepts at a high level for educational purposes. No exploit code or weaponizable techniques are provided. Understanding these patterns helps developers build better defenses.</p>
+
+<p>An <strong>attack vector</strong> for BFLA is the method attackers use to execute privileged functions they shouldn't have permission to access. The fundamental pattern is: identify privileged endpoints or operations and attempt to execute them with insufficient privileges.</p>
+
+<h3>The Core Attack Flow</h3>
+
+<p>``<code></p>
+<ol>
+<li>Reconnaissance</li>
+</ol>
+<p>   ↓</p>
+<p>   Discover API endpoints and structure</p>
+<p>   ↓</p>
+<p>   Identify privileged/admin functions</p>
+<p>   ↓</p>
+<p>   Map authorization requirements</p>
+
+<ol>
+<li>Attack Attempt</li>
+</ol>
+<p>   ↓</p>
+<p>   Authenticate as regular user</p>
+<p>   ↓</p>
+<p>   Invoke admin function with regular user credentials</p>
+<p>   ↓</p>
+<p>   If authorization missing → Privilege escalation successful</p>
+<p>   ↓</p>
+<p>   Execute unauthorized operations</p>
+</code>`<code>
+
+<h2>Common Attack Patterns</h2>
+
+<h3>1. Admin Endpoint Discovery and Access</h3>
+
+<strong>What it is</strong>: Finding and accessing undocumented administrative endpoints.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>Regular user logs in → Receives JWT token</p>
+<p>↓</p>
+<p>Analyzes public API documentation</p>
+<p>  GET /api/users       (documented)</p>
+<p>  POST /api/users      (documented - registration)</p>
+<p>↓</p>
+<p>Discovers through JavaScript or network analysis:</p>
+<p>  GET /api/admin/users           (undocumented)</p>
+<p>  DELETE /api/admin/users/:id    (undocumented)</p>
+<p>  PUT /api/admin/system/config   (undocumented)</p>
+<p>↓</p>
+<p>Attempts access with regular user token:</p>
+<p>  curl -H "Authorization: Bearer <user_token>" \</p>
+<p>       https://api.example.com/api/admin/users</p>
+<p>↓</p>
+<p>Result: If no role check → Full admin access</p>
+</code>`<code>
+
+<strong>Why It Works</strong>:
+<ul>
+<li>Admin endpoints share same authentication</li>
+<li>Authorization checks not implemented</li>
+<li>Endpoints deployed but not secured</li>
+<li>Developers assume obscurity = security</li>
+</ul>
+
+<strong>Indicators in Your API</strong>:
+<ul>
+<li>URL patterns with </code>/admin/<code>, </code>/internal/<code>, </code>/v2/admin/<code></li>
+<li>Endpoints returning more data when accessed differently</li>
+<li>Different response structures between similar endpoints</li>
+<li>Error messages revealing privileged operations</li>
+</ul>
+
+<h3>2. HTTP Method Tampering</h3>
+
+<strong>What it is</strong>: Using different HTTP methods on the same endpoint to access privileged operations.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>User can access: GET /api/products/123</p>
+<p>↓</p>
+<p>Tests other methods on same endpoint:</p>
+<p>  POST   /api/products/123 → 405 Method Not Allowed</p>
+<p>  PUT    /api/products/123 → 200 OK (update succeeds!)</p>
+<p>  DELETE /api/products/123 → 200 OK (deletion succeeds!)</p>
+<p>  PATCH  /api/products/123 → 200 OK (partial update succeeds!)</p>
+<p>↓</p>
+<p>Exploits lack of method-specific authorization</p>
+</code>`<code>
+
+<strong>Why It Works</strong>:
+<ul>
+<li>Authorization logic only checks read operations</li>
+<li>Write/Delete methods added later without auth updates</li>
+<li>Framework defaults allow all methods</li>
+<li>Different methods handled by different code paths</li>
+</ul>
+
+<strong>Indicators in Your API</strong>:
+<ul>
+<li>Same route handles multiple methods</li>
+<li>GET requires auth but PUT/DELETE don't</li>
+<li>Inconsistent authorization between methods</li>
+<li>Method-specific errors reveal functionality</li>
+</ul>
+
+<h3>3. Parameter Manipulation for Privilege Escalation</h3>
+
+<strong>What it is</strong>: Modifying request parameters to claim elevated privileges.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>Normal registration:</p>
+<p>  POST /api/register</p>
+<p>  {"username": "alice", "email": "alice@example.com"}</p>
+<p>↓</p>
+<p>Attacker adds role parameter:</p>
+<p>  POST /api/register</p>
+<p>  {"username": "eve", "email": "eve@evil.com", "role": "admin"}</p>
+<p>↓</p>
+<p>Backend trusts client input:</p>
+<p>  user = User.create(request.json)  # Includes role!</p>
+<p>↓</p>
+<p>Result: Eve registered as admin</p>
+</code>`<code>
+
+<strong>Parameter Variations</strong>:
+</code>`<code>json
+<p>// Role-based</p>
+<p>{"role": "admin"}</p>
+<p>{"user_type": "administrator"}</p>
+<p>{"is_admin": true}</p>
+
+<p>// Permission-based</p>
+<p>{"permissions": ["read", "write", "delete", "admin"]}</p>
+<p>{"access_level": 99}</p>
+
+<p>// Group-based</p>
+<p>{"groups": ["users", "administrators"]}</p>
+<p>{"department": "IT_ADMIN"}</p>
+</code>`<code>
+
+<strong>Why It Works</strong>:
+<ul>
+<li>Backend doesn't validate privileged parameters</li>
+<li>Mass assignment vulnerabilities</li>
+<li>No whitelist of allowed fields</li>
+<li>Trust in client-provided data</li>
+</ul>
+
+<h3>4. Hidden Parameter Discovery</h3>
+
+<strong>What it is</strong>: Finding undocumented parameters that enable privileged operations.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>Normal request:</p>
+<p>  GET /api/users?limit=10</p>
+<p>↓</p>
+<p>Fuzzing parameters reveals:</p>
+<p>  GET /api/users?limit=10&debug=true</p>
+<p>    → Returns additional internal fields</p>
+  
+<p>  GET /api/users?limit=10&include_deleted=true</p>
+<p>    → Returns soft-deleted users (admin function)</p>
+  
+<p>  GET /api/users?limit=10&export=csv</p>
+<p>    → Exports all users (data exfiltration)</p>
+<p>↓</p>
+<p>Unauthorized access to admin features via parameters</p>
+</code>`<code>
+
+<strong>Common Hidden Parameters</strong>:
+<ul>
+<li></code>debug<code>, </code>verbose<code>, </code>detailed<code></li>
+<li></code>admin<code>, </code>internal<code>, </code>privileged<code></li>
+<li></code>export<code>, </code>download<code>, </code>dump<code></li>
+<li></code>include_deleted<code>, </code>show_all<code>, </code>bypass_filter<code></li>
+<li></code>override<code>, </code>force<code>, </code>skip_validation<code></li>
+</ul>
+
+<h3>5. API Version Exploitation</h3>
+
+<strong>What it is</strong>: Accessing older or newer API versions with weaker security.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>Current API (v3): /api/v3/users</p>
+<p>  ✓ Proper authorization checks</p>
+<p>↓</p>
+<p>Attacker tests other versions:</p>
+<p>  /api/v1/users     → Legacy, minimal security</p>
+<p>  /api/v2/users     → Deprecated, auth bugs</p>
+<p>  /api/beta/users   → New features, incomplete security</p>
+<p>  /api/internal/users → Internal version, no public auth</p>
+<p>↓</p>
+<p>Exploits version with weakest controls</p>
+</code>`<code>
+
+<strong>Why It Works</strong>:
+<ul>
+<li>Old versions not retired or patched</li>
+<li>New versions deployed before security review</li>
+<li>Inconsistent security across versions</li>
+<li>Version-specific code paths</li>
+</ul>
+
+<h3>6. GraphQL Mutation Abuse</h3>
+
+<strong>What it is</strong>: Executing privileged mutations without proper authorization.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>Regular user can query:</p>
+<p>  query {</p>
+<p>    user(id: "123") { name, email }</p>
+<p>  }</p>
+<p>↓</p>
+<p>Discovers mutations through introspection:</p>
+<p>  mutation {</p>
+<p>    deleteUser(id: "456")</p>
+<p>    updateUserRole(id: "789", role: "admin")</p>
+<p>    resetAllPasswords</p>
+<p>  }</p>
+<p>↓</p>
+<p>Executes admin mutations with user credentials</p>
+</code>`<code>
+
+<strong>Why It Works</strong>:
+<ul>
+<li>Authorization on queries but not mutations</li>
+<li>GraphQL introspection reveals all operations</li>
+<li>Fine-grained auth not implemented</li>
+<li>Mutations treated like queries</li>
+</ul>
+
+<h3>7. Bulk Operation Exploitation</h3>
+
+<strong>What it is</strong>: Using batch/bulk endpoints intended for admins.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>Regular endpoint: DELETE /api/users/123 (with ownership check)</p>
+<p>↓</p>
+<p>Discover bulk endpoint:</p>
+<p>  POST /api/users/bulk-delete</p>
+<p>  {"user_ids": [123, 456, 789, ...]}</p>
+<p>↓</p>
+<p>Bulk endpoint missing authorization:</p>
+<ul>
+<li>No ownership verification</li>
+<li>No role check for bulk operations</li>
+<li>Intended for admin use only</li>
+</ul>
+<p>↓</p>
+<p>Result: Mass deletion by regular user</p>
+</code>`<code>
+
+<strong>Bulk Operations at Risk</strong>:
+<ul>
+<li></code>bulk-delete<code>, </code>batch-delete<code></li>
+<li></code>bulk-update<code>, </code>batch-update<code></li>
+<li></code>import<code>, </code>export<code></li>
+<li></code>migrate<code>, </code>transfer<code></li>
+<li></code>archive<code>, </code>restore<code></li>
+</ul>
+
+<h3>8. Middleware Bypass</h3>
+
+<strong>What it is</strong>: Circumventing authorization middleware through alternate routes.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>Protected route:</p>
+<p>  /api/admin/* → Admin middleware → Controller</p>
+<p>                  ✓ Role check</p>
+<p>↓</p>
+<p>Alternate access points:</p>
+<p>  /api/v2/admin/* → No middleware</p>
+<p>  /admin-api/*    → No middleware  </p>
+<p>  /internal/*     → No middleware</p>
+<p>↓</p>
+<p>Same controllers, different routes, missing auth</p>
+</code>`<code>
+
+<strong>Why It Works</strong>:
+<ul>
+<li>Middleware applied to specific routes only</li>
+<li>Alternate routes added later</li>
+<li>Inconsistent middleware configuration</li>
+<li>Framework routing complexity</li>
+</ul>
+
+<h3>9. Service-to-Service Impersonation</h3>
+
+<strong>What it is</strong>: Exploiting inter-service communication that lacks authorization.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>Microservice Architecture:</p>
+<p>  Frontend → API Gateway → Service A → Service B</p>
+<p>                            ✓ Auth     ✗ No auth</p>
+<p>↓</p>
+<p>Attacker accesses Service B directly:</p>
+<ul>
+<li>Service B trusts requests from Service A</li>
+<li>No authorization on Service B endpoints</li>
+<li>Assumes only Service A can call it</li>
+</ul>
+<p>↓</p>
+<p>Direct access to privileged Service B functions</p>
+</code>`<code>
+
+<strong>Why It Works</strong>:
+<ul>
+<li>Internal services trust network perimeter</li>
+<li>Authorization only at API gateway</li>
+<li>Service-to-service auth not implemented</li>
+<li>Assumption of trusted internal network</li>
+</ul>
+
+<h3>10. Header Manipulation</h3>
+
+<strong>What it is</strong>: Modifying headers to claim elevated privileges.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>Normal request:</p>
+<p>  GET /api/data</p>
+<p>  Authorization: Bearer <token></p>
+<p>↓</p>
+<p>Add internal headers:</p>
+<p>  GET /api/data</p>
+<p>  Authorization: Bearer <token></p>
+<p>  X-User-Role: admin</p>
+<p>  X-Internal-Request: true</p>
+<p>  X-Service-Name: admin-service</p>
+<p>↓</p>
+<p>Backend trusts headers without validation</p>
+</code>`<code>
+
+<strong>Commonly Abused Headers</strong>:
+<ul>
+<li></code>X-User-Role<code>, </code>X-Role<code>, </code>X-Admin<code></li>
+<li></code>X-Internal-Request<code>, </code>X-Internal-User<code></li>
+<li></code>X-Forwarded-For<code> (IP-based auth bypass)</li>
+<li></code>X-Service-Name<code>, </code>X-Client-Type<code></li>
+<li>Custom application headers</li>
+</ul>
+
+<h3>11. Token Manipulation</h3>
+
+<strong>What it is</strong>: Modifying JWT or other tokens to claim higher privileges.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>User receives JWT:</p>
+<p>  {</p>
+<p>    "user_id": 123,</p>
+<p>    "role": "user",</p>
+<p>    "exp": 1234567890</p>
+<p>  }</p>
+<p>↓</p>
+<p>JWT not properly signed or algorithm is "none":</p>
+<ul>
+<li>Change "role": "admin"</li>
+<li>Re-encode JWT</li>
+<li>Submit modified token</li>
+</ul>
+<p>↓</p>
+<p>If signature not validated → Admin access granted</p>
+</code>`<code>
+
+<strong>Token Vulnerabilities</strong>:
+<ul>
+<li>Algorithm: none attack</li>
+<li>Weak signing keys</li>
+<li>No signature verification</li>
+<li>Client-controlled claims</li>
+<li>Expired tokens accepted</li>
+</ul>
+
+<h3>12. Endpoint Path Traversal</h3>
+
+<strong>What it is</strong>: Manipulating endpoint paths to access privileged functions.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>User endpoint: /api/user/profile</p>
+<p>↓</p>
+<p>Path manipulation attempts:</p>
+<p>  /api/user/../admin/profile</p>
+<p>  /api/user/%2e%2e/admin/users</p>
+<p>  /api/user/./admin/settings</p>
+<p>↓</p>
+<p>Improperly normalized paths lead to admin endpoints</p>
+</code>`<code>
+
+<strong>Why It Works</strong>:
+<ul>
+<li>Path normalization after routing</li>
+<li>Framework routing vulnerabilities</li>
+<li>Inconsistent path handling</li>
+<li>URL encoding bypasses filters</li>
+</ul>
+
+<h3>13. File Operation Privilege Escalation</h3>
+
+<strong>What it is</strong>: Using file upload/download endpoints for unauthorized system access.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>Normal upload: POST /api/files/upload</p>
+<p>  → Saves to /uploads/users/</p>
+<p>↓</p>
+<p>Parameter manipulation:</p>
+<p>  POST /api/files/upload</p>
+<p>  {"path": "../../config/"}</p>
+<p>↓</p>
+<p>Upload configuration files to:</p>
+<p>  /uploads/users/../../config/ → /config/</p>
+<p>↓</p>
+<p>Overwrite system configuration with admin privileges</p>
+</code>`<code>
+
+<strong>File Operation Risks</strong>:
+<ul>
+<li>Path traversal in file operations</li>
+<li>Unrestricted file types</li>
+<li>No upload location validation</li>
+<li>Download of sensitive files</li>
+<li>Configuration file manipulation</li>
+</ul>
+
+<h3>14. Race Condition Exploitation</h3>
+
+<strong>What it is</strong>: Exploiting timing windows in authorization checks.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>User initiates privilege request:</p>
+<p>  POST /api/request-admin-access</p>
+<p>↓</p>
+<p>Admin approves in separate system</p>
+<p>↓</p>
+<p>Brief window where user has elevated token but check incomplete</p>
+<p>↓</p>
+<p>Rapid execution of admin operations before final validation</p>
+</code>`<code>
+
+<strong>Timing Attack Scenarios</strong>:
+<ul>
+<li>Role change propagation delays</li>
+<li>Token validation lag</li>
+<li>Session synchronization issues</li>
+<li>Multi-step verification processes</li>
+</ul>
+
+<h3>15. Default Credentials and Endpoints</h3>
+
+<strong>What it is</strong>: Accessing admin functions using default or common credentials.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>Common default accounts:</p>
+<p>  admin/admin</p>
+<p>  administrator/password</p>
+<p>  root/root</p>
+<p>  api_admin/api_admin</p>
+<p>↓</p>
+<p>Default admin endpoints:</p>
+<p>  /api/admin</p>
+<p>  /api/management</p>
+<p>  /api/console</p>
+<p>  /api/debug</p>
+<p>↓</p>
+<p>Test default credentials on discovered endpoints</p>
+</code>`<code>
+
+<strong>Why It Works</strong>:
+<ul>
+<li>Default accounts not changed</li>
+<li>Test/debug accounts left active</li>
+<li>Common naming conventions</li>
+<li>Documentation examples used in production</li>
+</ul>
+
+<h3>16. WebSocket Authorization Bypass</h3>
+
+<strong>What it is</strong>: Accessing privileged WebSocket channels without proper authorization.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>Regular REST API: ✓ Proper authorization</p>
+<p>WebSocket endpoint: ✗ No authorization</p>
+<p>↓</p>
+<p>Connect to WebSocket:</p>
+<p>  ws://api.example.com/admin-events</p>
+<p>↓</p>
+<p>Receive admin notifications and data streams:</p>
+<ul>
+<li>User creation events</li>
+<li>System alerts</li>
+<li>Internal metrics</li>
+</ul>
+<p>↓</p>
+<p>Subscribe to privileged channels without role check</p>
+</code>`<code>
+
+<strong>Why It Works</strong>:
+<ul>
+<li>WebSocket auth treated differently than REST</li>
+<li>Channel subscriptions not validated</li>
+<li>Real-time features prioritized over security</li>
+<li>Different authentication mechanisms</li>
+</ul>
+
+<h3>17. API Documentation Exploitation</h3>
+
+<strong>What it is</strong>: Using overly detailed API documentation to find privileged endpoints.
+
+<strong>Information Sources</strong>:
+</code>`<code>
+<p>Swagger/OpenAPI:</p>
+<ul>
+<li>All endpoints listed, including admin</li>
+<li>Parameter details and schemas</li>
+<li>Authentication requirements</li>
+<li>Response examples</li>
+</ul>
+
+<p>GraphQL Introspection:</p>
+<ul>
+<li>Complete schema including mutations</li>
+<li>Hidden fields and operations</li>
+<li>Deprecated but still functional endpoints</li>
+</ul>
+
+<p>Source Code:</p>
+<ul>
+<li>Public repositories</li>
+<li>JavaScript bundles</li>
+<li>Mobile app decompilation</li>
+<li>Error stack traces</li>
+</ul>
+</code>`<code>
+
+<h3>18. Response Analysis for Hidden Functionality</h3>
+
+<strong>What it is</strong>: Analyzing API responses to discover privileged operations.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>GET /api/users/123 response:</p>
+<p>{</p>
+<p>  "id": 123,</p>
+<p>  "name": "Alice",</p>
+<p>  "email": "alice@example.com",</p>
+<p>  "_links": {</p>
+<p>    "self": "/api/users/123",</p>
+<p>    "update": "/api/users/123",</p>
+<p>    "delete": "/api/admin/users/123"  ← Admin link exposed</p>
+<p>  }</p>
+<p>}</p>
+<p>↓</p>
+<p>Regular user follows admin link</p>
+<p>↓</p>
+<p>If no authorization check → Access granted</p>
+</code>`<code>
+
+<strong>Response Indicators</strong>:
+<ul>
+<li>HATEOAS links to admin operations</li>
+<li>Conditional fields based on role</li>
+<li>Error messages revealing operations</li>
+<li>Debug information in responses</li>
+</ul>
+
+<h3>19. Chained Request Exploitation</h3>
+
+<strong>What it is</strong>: Combining multiple requests to achieve privileged operations.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>Step 1: Create resource (allowed)</p>
+<p>  POST /api/projects</p>
+<p>  → Returns project_id: 789</p>
+<p>↓</p>
+<p>Step 2: Assign admin role to self (not validated)</p>
+<p>  POST /api/projects/789/members</p>
+<p>  {"user_id": 123, "role": "admin"}</p>
+<p>↓</p>
+<p>Step 3: Perform admin operation</p>
+<p>  DELETE /api/projects/456</p>
+<p>↓</p>
+<p>Multi-step attack achieves privilege escalation</p>
+</code>`<code>
+
+<h3>20. Caching and CDN Bypass</h3>
+
+<strong>What it is</strong>: Accessing cached admin responses or bypassing CDN security.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>Admin makes request:</p>
+<p>  GET /api/admin/dashboard</p>
+<p>  → Response cached by CDN</p>
+<p>↓</p>
+<p>Regular user requests same URL:</p>
+<p>  → Receives cached admin response</p>
+<p>↓</p>
+<p>Or bypass CDN authorization:</p>
+<p>  Regular: https://api.example.com/admin</p>
+<p>  Direct:  https://origin.example.com/admin</p>
+<p>           (CDN auth bypassed)</p>
+</code>`<code>
+
+<h2>Application Flaws That Enable Attacks</h2>
+
+<h3>1. Authorization Logic Flaws</h3>
+
+</code>`<code>python
+<h1>Inverted logic</h1>
+<p>if user.role != 'admin':</p>
+<p>    return admin_function()  # Wrong!</p>
+
+<h1>Incomplete checks</h1>
+<p>if 'admin' in user.roles:  # But doesn't check if user.roles is empty</p>
+    
+<h1>OR instead of AND</h1>
+<p>if user.is_authenticated() or user.is_admin():  # Should be AND</p>
+</code>`<code>
+
+<h3>2. Trust Boundary Violations</h3>
+
+<ul>
+<li>Trusting client-provided role information</li>
+<li>Accepting frontend authorization decisions</li>
+<li>Relying on HTTP headers for permissions</li>
+<li>Assuming network location indicates privilege</li>
+</ul>
+
+<h3>3. Inconsistent Enforcement</h3>
+
+<ul>
+<li>Authorization on some endpoints but not others</li>
+<li>Different security between API versions</li>
+<li>Route-specific middleware gaps</li>
+<li>Framework default permissions</li>
+</ul>
+
+<h2>Signs and Symptoms of Vulnerability</h2>
+
+<h3>In Code Review</h3>
+
+<ul>
+<li>[ ] Endpoints without explicit role/permission checks</li>
+<li>[ ] Authorization logic only in frontend code</li>
+<li>[ ] Comments like "TODO: Add admin check"</li>
+<li>[ ] Privileged operations in public controllers</li>
+<li>[ ] Missing authorization middleware on routes</li>
+<li>[ ] Client-controlled role/permission parameters</li>
+</ul>
+
+<h3>In Testing</h3>
+
+<ul>
+<li>[ ] Regular users can access admin URLs</li>
+<li>[ ] Different HTTP methods have different authorization</li>
+<li>[ ] Adding parameters enables new functionality</li>
+<li>[ ] API documentation shows admin endpoints</li>
+<li>[ ] GraphQL introspection reveals privileged mutations</li>
+<li>[ ] Error messages differ by privilege level</li>
+</ul>
+
+<h3>In Production</h3>
+
+<ul>
+<li>[ ] Unauthorized operations in logs</li>
+<li>[ ] Users with unexpected permissions</li>
+<li>[ ] Admin functions in user activity logs</li>
+<li>[ ] Anomalous access patterns</li>
+<li>[ ] Privilege escalation attempts</li>
+</ul>
+
+<h2>What Attackers Look For</h2>
+
+<h3>Discovery Phase</h3>
+
+<ol>
+<li><strong>Endpoint Enumeration</strong></li>
+<ul>
+<li>API documentation (Swagger, OpenAPI)</li>
+<li>JavaScript source code analysis</li>
+<li>Network traffic interception</li>
+<li>Directory and file brute forcing</li>
+<li>Version control history</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Privilege Mapping</strong></li>
+<ul>
+<li>Identify user vs admin endpoints</li>
+<li>Map role-based access patterns</li>
+<li>Find privilege escalation paths</li>
+<li>Discover hidden parameters</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Authorization Testing</strong></li>
+<ul>
+<li>Test each endpoint with different roles</li>
+<li>Try privileged operations as regular user</li>
+<li>Manipulate authorization parameters</li>
+<li>Bypass authorization middleware</li>
+</ul>
+</ol>
+
+<h3>Exploitation Phase</h3>
+
+<ol>
+<li><strong>Verify Access</strong>: Confirm unauthorized operation succeeds</li>
+<li><strong>Expand Scope</strong>: Test other privileged functions</li>
+<li><strong>Automate</strong>: Script mass exploitation</li>
+<li><strong>Exfiltrate</strong>: Extract sensitive data or configurations</li>
+<li><strong>Persist</strong>: Create backdoor accounts or persistent access</li>
+</ol>
+
+<h2>Detection Techniques</h2>
+
+<h3>For Security Teams</h3>
+
+<ol>
+<li><strong>Role-Based Testing</strong></li>
+</ol>
+   </code>`<code>
+<p>   For each endpoint:</p>
+<ul>
+<li>Test as unauthenticated user</li>
+<li>Test as regular user</li>
+<li>Test as different role users</li>
+<li>Verify expected access control</li>
+</ul>
+   </code>`<code>
+
+<ol>
+<li><strong>Automated Scanning</strong></li>
+<ul>
+<li>Custom authorization test scripts</li>
+<li>API security scanners configured for roles</li>
+<li>GraphQL introspection analysis</li>
+<li>Endpoint discovery tools</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Code Analysis</strong></li>
+<ul>
+<li>Search for admin routes without auth decorators</li>
+<li>Find endpoints handling multiple methods</li>
+<li>Identify client-controlled permission fields</li>
+<li>Review authorization middleware coverage</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Runtime Monitoring</strong></li>
+<ul>
+<li>Alert on privilege violations</li>
+<li>Track role-based access patterns</li>
+<li>Monitor for endpoint discovery attempts</li>
+<li>Log authorization failures</li>
+</ul>
+</ol>
+
+<h3>Red Flags</h3>
+
+<ul>
+<li>Users accessing URLs with </code>/admin/` patterns</li>
+<li>Successful DELETE/PUT from low-privilege accounts</li>
+<li>Parameter tampering in requests (role, is_admin)</li>
+<li>Unusual access to bulk operations</li>
+<li>GraphQL mutations from unexpected users</li>
+</ul>
+
+<h2>Prevention Summary</h2>
+
+<p>All attack vectors share common prevention strategies:</p>
+
+<ol>
+<li><strong>Explicit Authorization</strong>: Every privileged endpoint must verify user permissions</li>
+<li><strong>Server-Side Enforcement</strong>: Never trust client-side authorization</li>
+<li><strong>Default Deny</strong>: Require explicit permission grants</li>
+<li><strong>Centralized Logic</strong>: Use middleware/decorators for consistent enforcement</li>
+<li><strong>Regular Audits</strong>: Test all endpoints with all user roles</li>
+<li><strong>Minimal Disclosure</strong>: Don't reveal privileged endpoints in responses</li>
+</ol>
+
+<p>See <a href="prevention.md">Prevention</a> for detailed implementation guidance.</p>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="prevention.md">Prevention</a></strong> - Learn how to properly implement function-level authorization</li>
+<li><strong><a href="examples.md">Examples</a></strong> - See vulnerable and secure code patterns</li>
+<li><strong><a href="lab/api05-function-auth-lab/">Lab</a></strong> - Practice exploiting and fixing BFLA vulnerabilities</li>
+</ul>
+
         </div>
     </div>
 </body>

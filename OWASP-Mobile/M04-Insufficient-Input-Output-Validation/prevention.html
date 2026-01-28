@@ -215,7 +215,672 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>M04: Insufficient Input/Output Validation - Prevention</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#prevention-strategy-overview">Prevention Strategy Overview</a></li>
+<li><a href="#input-validation-best-practices">Input Validation Best Practices</a></li>
+<li><a href="#output-encoding-techniques">Output Encoding Techniques</a></li>
+<li><a href="#secure-coding-patterns">Secure Coding Patterns</a></li>
+<li><a href="#implementation-guidelines">Implementation Guidelines</a></li>
+<li><a href="#testing-and-verification">Testing and Verification</a></li>
+</ul>
+
+<h2>Prevention Strategy Overview</h2>
+
+<p>Preventing input/output validation vulnerabilities requires a defense-in-depth approach:</p>
+
+<p>``<code></p>
+<p>Defense Layers:</p>
+<ol>
+<li>Input Validation → Whitelist acceptable input</li>
+<li>Parameterization → Use prepared statements</li>
+<li>Output Encoding → Context-aware encoding</li>
+<li>Least Privilege → Minimize permissions</li>
+<li>Security Testing → Regular validation testing</li>
+</ol>
+</code>`<code>
+
+<h3>Core Principles</h3>
+
+<ol>
+<li><strong>Never trust user input</strong> - All external data is potentially malicious</li>
+<li><strong>Validate on server-side</strong> - Client validation is for UX only</li>
+<li><strong>Whitelist over blacklist</strong> - Define what's allowed, not what's forbidden</li>
+<li><strong>Context-aware encoding</strong> - Encode based on where data is used</li>
+<li><strong>Fail securely</strong> - Invalid input should be rejected, not processed</li>
+</ol>
+
+<h2>Input Validation Best Practices</h2>
+
+<h3>1. Validation Strategies</h3>
+
+<strong>Whitelist Validation (Preferred):</strong>
+</code>`<code>python
+<h1>Define allowed characters/patterns</h1>
+<p>allowed_username_pattern = r'^[a-zA-Z0-9_]{3,20}$'</p>
+
+<p>def validate_username(username):</p>
+<p>    if not re.match(allowed_username_pattern, username):</p>
+<p>        raise ValueError("Invalid username format")</p>
+<p>    return username</p>
+</code>`<code>
+
+<strong>Type Validation:</strong>
+</code>`<code>python
+<p>def validate_age(age_str):</p>
+<p>    try:</p>
+<p>        age = int(age_str)</p>
+<p>        if not (0 < age < 150):</p>
+<p>            raise ValueError("Age out of range")</p>
+<p>        return age</p>
+<p>    except ValueError:</p>
+<p>        raise ValueError("Age must be a valid number")</p>
+</code>`<code>
+
+<strong>Length Validation:</strong>
+</code>`<code>python
+<p>def validate_input_length(data, max_length=100):</p>
+<p>    if len(data) > max_length:</p>
+<p>        raise ValueError(f"Input exceeds maximum length of {max_length}")</p>
+<p>    return data</p>
+</code>`<code>
+
+<h3>2. SQL Injection Prevention</h3>
+
+<strong>✅ ALWAYS Use Parameterized Queries:</strong>
+
+<strong>Android (SQLite):</strong>
+</code>`<code>java
+<p>// SECURE - Parameterized query</p>
+<p>String query = "SELECT * FROM users WHERE username = ? AND password = ?";</p>
+<p>Cursor cursor = db.rawQuery(query, new String[]{username, password});</p>
+
+<p>// SECURE - Using query builder</p>
+<p>SQLiteDatabase db = dbHelper.getReadableDatabase();</p>
+<p>String[] columns = {"id", "username", "email"};</p>
+<p>String selection = "username = ?";</p>
+<p>String[] selectionArgs = {username};</p>
+<p>Cursor cursor = db.query("users", columns, selection, selectionArgs, null, null, null);</p>
+</code>`<code>
+
+<strong>iOS (Core Data / SQLite):</strong>
+</code>`<code>swift
+<p>// SECURE - Parameterized predicate</p>
+<p>let fetchRequest = NSFetchRequest<User>(entityName: "User")</p>
+<p>fetchRequest.predicate = NSPredicate(format: "username == %@ AND password == %@", </p>
+<p>                                     username, password)</p>
+
+<p>// SECURE - SQLite with binding</p>
+<p>let query = "SELECT * FROM users WHERE username = ? AND password = ?"</p>
+<p>var statement: OpaquePointer?</p>
+<p>sqlite3_prepare_v2(db, query, -1, &statement, nil)</p>
+<p>sqlite3_bind_text(statement, 1, username, -1, nil)</p>
+<p>sqlite3_bind_text(statement, 2, password, -1, nil)</p>
+</code>`<code>
+
+<strong>❌ NEVER Concatenate SQL:</strong>
+</code>`<code>java
+<p>// VULNERABLE - String concatenation</p>
+<p>String query = "SELECT * FROM users WHERE username = '" + username + "'";</p>
+<p>// Attacker input: ' OR '1'='1</p>
+</code>`<code>
+
+<h3>3. Command Injection Prevention</h3>
+
+<strong>Avoid System Command Execution:</strong>
+</code>`<code>java
+<p>// AVOID if possible</p>
+<p>Runtime.getRuntime().exec("ls " + filename); // VULNERABLE</p>
+
+<p>// PREFERRED - Use native APIs</p>
+<p>File directory = new File(path);</p>
+<p>File[] files = directory.listFiles();</p>
+</code>`<code>
+
+<strong>If System Commands Required:</strong>
+</code>`<code>java
+<p>// Whitelist validation</p>
+<p>private boolean isValidFilename(String filename) {</p>
+<p>    return filename.matches("^[a-zA-Z0-9._-]+$");</p>
+<p>}</p>
+
+<p>// Use command arrays (prevents shell injection)</p>
+<p>if (isValidFilename(filename)) {</p>
+<p>    ProcessBuilder pb = new ProcessBuilder("cat", filename);</p>
+<p>    pb.redirectErrorStream(true);</p>
+<p>    Process process = pb.start();</p>
+<p>}</p>
+</code>`<code>
+
+<h3>4. Path Traversal Prevention</h3>
+
+<strong>Secure File Access:</strong>
+</code>`<code>java
+<p>// Validate and canonicalize paths</p>
+<p>public File getSecureFile(String userFilename) throws IOException {</p>
+<p>    // Define base directory</p>
+<p>    File baseDir = new File("/app/data/userfiles");</p>
+    
+<p>    // Create file object</p>
+<p>    File userFile = new File(baseDir, userFilename);</p>
+    
+<p>    // Get canonical paths</p>
+<p>    String basePath = baseDir.getCanonicalPath();</p>
+<p>    String filePath = userFile.getCanonicalPath();</p>
+    
+<p>    // Verify file is within base directory</p>
+<p>    if (!filePath.startsWith(basePath + File.separator)) {</p>
+<p>        throw new SecurityException("Path traversal attempt detected");</p>
+<p>    }</p>
+    
+<p>    return userFile;</p>
+<p>}</p>
+</code>`<code>
+
+<strong>iOS Secure File Access:</strong>
+</code>`<code>swift
+<p>func getSecureFile(filename: String) throws -> URL {</p>
+<p>    // Get documents directory</p>
+<p>    guard let documentsDir = FileManager.default.urls(for: .documentDirectory, </p>
+<p>                                                      in: .userDomainMask).first else {</p>
+<p>        throw FileError.invalidDirectory</p>
+<p>    }</p>
+    
+<p>    // Create file URL</p>
+<p>    let fileURL = documentsDir.appendingPathComponent(filename)</p>
+    
+<p>    // Resolve canonical path</p>
+<p>    let canonicalPath = fileURL.standardizedFileURL.path</p>
+<p>    let basePath = documentsDir.standardizedFileURL.path</p>
+    
+<p>    // Verify within bounds</p>
+<p>    guard canonicalPath.hasPrefix(basePath) else {</p>
+<p>        throw FileError.pathTraversal</p>
+<p>    }</p>
+    
+<p>    return fileURL</p>
+<p>}</p>
+</code>`<code>
+
+<h3>5. XML/JSON Validation</h3>
+
+<strong>Disable Dangerous XML Features:</strong>
+</code>`<code>java
+<p>// Disable XXE</p>
+<p>DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();</p>
+<p>dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);</p>
+<p>dbf.setFeature("http://xml.org/sax/features/external-general-entities", false);</p>
+<p>dbf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);</p>
+<p>dbf.setXIncludeAware(false);</p>
+<p>dbf.setExpandEntityReferences(false);</p>
+
+<p>DocumentBuilder db = dbf.newDocumentBuilder();</p>
+<p>Document doc = db.parse(inputStream);</p>
+</code>`<code>
+
+<strong>JSON Schema Validation:</strong>
+</code>`<code>java
+<p>// Define schema</p>
+<p>String schema = """</p>
+<p>{</p>
+<p>  "type": "object",</p>
+<p>  "properties": {</p>
+<p>    "username": {"type": "string", "minLength": 3, "maxLength": 20},</p>
+<p>    "email": {"type": "string", "format": "email"},</p>
+<p>    "age": {"type": "integer", "minimum": 0, "maximum": 150}</p>
+<p>  },</p>
+<p>  "required": ["username", "email"],</p>
+<p>  "additionalProperties": false</p>
+<p>}</p>
+<p>""";</p>
+
+<p>// Validate JSON against schema</p>
+<p>JSONObject jsonSchema = new JSONObject(schema);</p>
+<p>JSONObject jsonSubject = new JSONObject(userInput);</p>
+<p>Schema validationSchema = SchemaLoader.load(jsonSchema);</p>
+<p>validationSchema.validate(jsonSubject); // Throws if invalid</p>
+</code>`<code>
+
+<h3>6. Integer Overflow Prevention</h3>
+
+<strong>Safe Integer Operations:</strong>
+</code>`<code>java
+<p>// Check for overflow before arithmetic</p>
+<p>public int safeAdd(int a, int b) throws ArithmeticException {</p>
+<p>    if (a > 0 && b > Integer.MAX_VALUE - a) {</p>
+<p>        throw new ArithmeticException("Integer overflow");</p>
+<p>    }</p>
+<p>    if (a < 0 && b < Integer.MIN_VALUE - a) {</p>
+<p>        throw new ArithmeticException("Integer underflow");</p>
+<p>    }</p>
+<p>    return a + b;</p>
+<p>}</p>
+
+<p>// Or use built-in methods (Java 8+)</p>
+<p>int result = Math.addExact(quantity, additionalItems); // Throws on overflow</p>
+
+<p>// For multiplication</p>
+<p>long totalPrice = Math.multiplyExact((long)price, (long)quantity);</p>
+<p>if (totalPrice > Integer.MAX_VALUE) {</p>
+<p>    throw new ArithmeticException("Price calculation overflow");</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Swift Safe Arithmetic:</strong>
+</code>`<code>swift
+<p>// Use overflow operators to detect</p>
+<p>let (sum, overflow) = quantity.addingReportingOverflow(additionalItems)</p>
+<p>if overflow {</p>
+<p>    throw CalculationError.integerOverflow</p>
+<p>}</p>
+
+<p>// Or use checked arithmetic</p>
+<p>guard let total = Int(exactly: price * quantity) else {</p>
+<p>    throw CalculationError.integerOverflow</p>
+<p>}</p>
+</code>`<code>
+
+<h3>7. Regular Expression Safety</h3>
+
+<strong>Prevent ReDoS (Regular Expression Denial of Service):</strong>
+</code>`<code>java
+<p>// VULNERABLE - Catastrophic backtracking</p>
+<p>String vulnerable = "^(a+)+$";</p>
+<p>// Input: "aaaaaaaaaaaaaaaaaaaaaaaaaaaa!" causes exponential time</p>
+
+<p>// SECURE - Simple, efficient pattern</p>
+<p>String secure = "^[a-zA-Z0-9]{3,20}$";</p>
+
+<p>// Set timeout for regex execution</p>
+<p>Pattern pattern = Pattern.compile(regex);</p>
+<p>Matcher matcher = pattern.matcher(input);</p>
+<p>matcher.usePattern(pattern);</p>
+<p>// In practice, use simple patterns and limit input length</p>
+</code>`<code>
+
+<h2>Output Encoding Techniques</h2>
+
+<h3>1. HTML Encoding</h3>
+
+<strong>Prevent XSS in WebViews:</strong>
+</code>`<code>java
+<p>// Android - Use TextUtils for HTML encoding</p>
+<p>public String encodeForHTML(String input) {</p>
+<p>    return TextUtils.htmlEncode(input);</p>
+<p>}</p>
+
+<p>// Or use OWASP Java Encoder</p>
+<p>import org.owasp.encoder.Encode;</p>
+<p>String safe = Encode.forHtml(userInput);</p>
+<p>webView.loadData(template.replace("{{USER_DATA}}", safe), "text/html", "UTF-8");</p>
+</code>`<code>
+
+<strong>iOS HTML Encoding:</strong>
+</code>`<code>swift
+<p>extension String {</p>
+<p>    func htmlEncoded() -> String {</p>
+<p>        guard let data = self.data(using: .utf8) else { return self }</p>
+<p>        let options: [NSAttributedString.DocumentReadingOptionKey: Any] = [</p>
+<p>            .documentType: NSAttributedString.DocumentType.html,</p>
+<p>            .characterEncoding: String.Encoding.utf8.rawValue</p>
+<p>        ]</p>
+<p>        guard let attributedString = try? NSAttributedString(data: data, </p>
+<p>                                                              options: options, </p>
+<p>                                                              documentAttributes: nil) else {</p>
+<p>            return self</p>
+<p>        }</p>
+<p>        return attributedString.string</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>2. JavaScript Context Encoding</h3>
+
+<strong>Safe JavaScript Data Injection:</strong>
+</code>`<code>java
+<p>// Encode for JavaScript context</p>
+<p>import org.owasp.encoder.Encode;</p>
+<p>String jsData = Encode.forJavaScript(userInput);</p>
+<p>webView.loadUrl("javascript:processData('" + jsData + "')");</p>
+
+<p>// Better: Use postMessage API</p>
+<p>String json = new JSONObject()</p>
+<p>    .put("data", userInput)</p>
+<p>    .toString();</p>
+<p>webView.evaluateJavascript("window.postMessage(" + json + ", '*')", null);</p>
+</code>`<code>
+
+<h3>3. URL Encoding</h3>
+
+<strong>Encode URL Parameters:</strong>
+</code>`<code>java
+<p>// Java/Android</p>
+<p>String encoded = URLEncoder.encode(userInput, "UTF-8");</p>
+<p>String url = "https://api.example.com/search?q=" + encoded;</p>
+
+<p>// iOS/Swift</p>
+<p>let encoded = userInput.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)</p>
+<p>let url = "https://api.example.com/search?q=\(encoded ?? "")"</p>
+</code>`<code>
+
+<h3>4. SQL Encoding (Defense in Depth)</h3>
+
+<strong>Note:</strong> Use parameterized queries primarily, encoding as additional layer:
+</code>`<code>java
+<p>// Escape special SQL characters (backup defense only)</p>
+<p>public String escapeSql(String input) {</p>
+<p>    return input.replace("'", "''")</p>
+<p>                .replace("\\", "\\\\")</p>
+<p>                .replace("%", "\\%")</p>
+<p>                .replace("_", "\\_");</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Secure Coding Patterns</h2>
+
+<h3>1. Input Validation Framework</h3>
+
+<strong>Create Reusable Validators:</strong>
+</code>`<code>java
+<p>public class InputValidator {</p>
+    
+<p>    public static String validateUsername(String username) {</p>
+<p>        if (username == null || !username.matches("^[a-zA-Z0-9_]{3,20}$")) {</p>
+<p>            throw new ValidationException("Invalid username format");</p>
+<p>        }</p>
+<p>        return username;</p>
+<p>    }</p>
+    
+<p>    public static String validateEmail(String email) {</p>
+<p>        if (email == null || !email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {</p>
+<p>            throw new ValidationException("Invalid email format");</p>
+<p>        }</p>
+<p>        return email;</p>
+<p>    }</p>
+    
+<p>    public static int validateIntRange(String value, int min, int max) {</p>
+<p>        try {</p>
+<p>            int num = Integer.parseInt(value);</p>
+<p>            if (num < min || num > max) {</p>
+<p>                throw new ValidationException("Value out of range");</p>
+<p>            }</p>
+<p>            return num;</p>
+<p>        } catch (NumberFormatException e) {</p>
+<p>            throw new ValidationException("Invalid number format");</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>2. Centralized Encoding Utilities</h3>
+
+</code>`<code>java
+<p>public class EncodingUtils {</p>
+    
+<p>    public static String forHTML(String input) {</p>
+<p>        return Encode.forHtml(input);</p>
+<p>    }</p>
+    
+<p>    public static String forJavaScript(String input) {</p>
+<p>        return Encode.forJavaScript(input);</p>
+<p>    }</p>
+    
+<p>    public static String forURL(String input) {</p>
+<p>        try {</p>
+<p>            return URLEncoder.encode(input, "UTF-8");</p>
+<p>        } catch (UnsupportedEncodingException e) {</p>
+<p>            throw new RuntimeException("UTF-8 not supported", e);</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    public static String forSQL(String input) {</p>
+<p>        // Note: Use parameterized queries instead</p>
+<p>        return input.replace("'", "''");</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>3. Safe WebView Configuration</h3>
+
+<strong>Android WebView Security:</strong>
+</code>`<code>java
+<p>WebView webView = findViewById(R.id.webview);</p>
+<p>WebSettings settings = webView.getSettings();</p>
+
+<p>// Disable JavaScript if not needed</p>
+<p>settings.setJavaScriptEnabled(false);</p>
+
+<p>// If JavaScript needed, configure safely</p>
+<p>settings.setJavaScriptEnabled(true);</p>
+<p>settings.setAllowFileAccess(false);</p>
+<p>settings.setAllowContentAccess(false);</p>
+<p>settings.setAllowFileAccessFromFileURLs(false);</p>
+<p>settings.setAllowUniversalAccessFromFileURLs(false);</p>
+
+<p>// Implement secure JavaScript interface</p>
+<p>webView.addJavascriptInterface(new SafeJavaScriptInterface(), "Android");</p>
+
+<p>class SafeJavaScriptInterface {</p>
+<p>    @JavascriptInterface</p>
+<p>    public String getData(String input) {</p>
+<p>        // Validate input before processing</p>
+<p>        String validated = InputValidator.validateInput(input);</p>
+<p>        return processData(validated);</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>iOS WKWebView Security:</strong>
+</code>`<code>swift
+<p>let configuration = WKWebViewConfiguration()</p>
+
+<p>// Disable JavaScript if not needed</p>
+<p>configuration.preferences.javaScriptEnabled = false</p>
+
+<p>// If JavaScript needed, configure message handlers safely</p>
+<p>let contentController = WKUserContentController()</p>
+<p>contentController.add(self, name: "messageHandler")</p>
+<p>configuration.userContentController = contentController</p>
+
+<p>let webView = WKWebView(frame: .zero, configuration: configuration)</p>
+
+<p>// Handle messages with validation</p>
+<p>func userContentController(_ userContentController: WKUserContentController, </p>
+<p>                          didReceive message: WKScriptMessage) {</p>
+<p>    guard let body = message.body as? [String: Any],</p>
+<p>          let action = body["action"] as? String else {</p>
+<p>        return</p>
+<p>    }</p>
+    
+<p>    // Validate action</p>
+<p>    let validatedAction = validateAction(action)</p>
+<p>    processAction(validatedAction)</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Implementation Guidelines</h2>
+
+<h3>1. Validation Checklist</h3>
+
+<strong>For Every Input:</strong>
+<ul>
+<li>[ ] Validate data type</li>
+<li>[ ] Check length constraints</li>
+<li>[ ] Validate format (regex, schema)</li>
+<li>[ ] Check range constraints</li>
+<li>[ ] Whitelist allowed characters</li>
+<li>[ ] Sanitize special characters</li>
+<li>[ ] Validate on server-side</li>
+</ul>
+
+<h3>2. Encoding Checklist</h3>
+
+<strong>For Every Output:</strong>
+<ul>
+<li>[ ] Identify context (HTML, JS, URL, SQL)</li>
+<li>[ ] Apply context-appropriate encoding</li>
+<li>[ ] Use established encoding libraries</li>
+<li>[ ] Test with XSS payloads</li>
+<li>[ ] Validate encoded output</li>
+</ul>
+
+<h3>3. Code Review Checklist</h3>
+
+<strong>Security Review Points:</strong>
+<ul>
+<li>[ ] No string concatenation in SQL queries</li>
+<li>[ ] All user input validated server-side</li>
+<li>[ ] Output encoded based on context</li>
+<li>[ ] No system command execution with user input</li>
+<li>[ ] File paths canonicalized and validated</li>
+<li>[ ] Integer operations checked for overflow</li>
+<li>[ ] Regular expressions are efficient</li>
+<li>[ ] Error messages don't leak sensitive data</li>
+</ul>
+
+<h2>Testing and Verification</h2>
+
+<h3>1. Input Fuzzing</h3>
+
+<strong>Test Cases:</strong>
+</code>`<code>
+<h1>SQL Injection</h1>
+<p>' OR '1'='1</p>
+<p>'; DROP TABLE users--</p>
+<p>' UNION SELECT password--</p>
+
+<h1>XSS</h1>
+<script>alert(1)</script>
+<p>"><script>alert(1)</script></p>
+<p>javascript:alert(1)</p>
+
+<h1>Path Traversal</h1>
+<p>../../../etc/passwd</p>
+<p>..%2f..%2f..%2fetc%2fpasswd</p>
+<p>....//....//....//</p>
+
+<h1>Command Injection</h1>
+<p>; ls -la</p>
+<p>| whoami</p>
+</code>cat /etc/passwd<code>
+
+<h1>XML/JSON</h1>
+<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>
+<p>{"key": "value\", \"admin\": true, \"key2\": \""}</p>
+
+<h1>Integer Overflow</h1>
+<p>2147483647</p>
+<p>-2147483648</p>
+
+<h1>Buffer Overflow</h1>
+<p>A x 10000 characters</p>
+</code>`<code>
+
+<h3>2. Automated Testing</h3>
+
+<strong>Security Testing Tools:</strong>
+<ul>
+<li>OWASP ZAP - Automated vulnerability scanning</li>
+<li>Burp Suite - Manual and automated testing</li>
+<li>SQLMap - SQL injection testing</li>
+<li>Frida - Dynamic instrumentation</li>
+<li>MobSF - Mobile security framework</li>
+</ul>
+
+<h3>3. Unit Tests for Validation</h3>
+
+</code>`<code>java
+<p>@Test</p>
+<p>public void testUsernameValidation() {</p>
+<p>    // Valid inputs</p>
+<p>    assertTrue(InputValidator.isValidUsername("user123"));</p>
+<p>    assertTrue(InputValidator.isValidUsername("test_user"));</p>
+    
+<p>    // Invalid inputs</p>
+<p>    assertFalse(InputValidator.isValidUsername("user@123")); // Special chars</p>
+<p>    assertFalse(InputValidator.isValidUsername("ab")); // Too short</p>
+<p>    assertFalse(InputValidator.isValidUsername("a".repeat(30))); // Too long</p>
+<p>    assertFalse(InputValidator.isValidUsername("'; DROP TABLE users--")); // SQLi attempt</p>
+<p>}</p>
+
+<p>@Test</p>
+<p>public void testSQLInjectionPrevention() {</p>
+<p>    String maliciousInput = "' OR '1'='1";</p>
+    
+<p>    // Should safely handle in parameterized query</p>
+<p>    List<User> users = userDao.findByUsername(maliciousInput);</p>
+    
+<p>    // Should return empty or specific user, not all users</p>
+<p>    assertTrue(users.isEmpty() || users.size() == 1);</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Quick Reference Guide</h2>
+
+<h3>Input Validation</h3>
+
+<p>| Input Type | Validation Method |</p>
+<p>|-----------|------------------|</p>
+<p>| Username | Regex: </code>^[a-zA-Z0-9_]{3,20}$<code> |</p>
+<p>| Email | Regex + DNS check |</p>
+<p>| Phone | Regex for format, length check |</p>
+<p>| Number | Parse + range check |</p>
+<p>| Date | Parse with strict format |</p>
+<p>| File path | Canonicalize + boundary check |</p>
+<p>| URL | Parse + whitelist domain |</p>
+
+<h3>Output Encoding</h3>
+
+<p>| Context | Encoding Method |</p>
+<p>|---------|----------------|</p>
+<p>| HTML | </code>Encode.forHtml()<code> |</p>
+<p>| JavaScript | </code>Encode.forJavaScript()<code> |</p>
+<p>| URL | </code>URLEncoder.encode()` |</p>
+<p>| SQL | Parameterized queries (not encoding) |</p>
+<p>| XML | XML library encoding |</p>
+<p>| JSON | JSON library serialization |</p>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Validate all input on server-side, never trust client</strong></li>
+<li><strong>Use parameterized queries for database operations</strong></li>
+<li><strong>Encode output based on context (HTML, JS, URL)</strong></li>
+<li><strong>Whitelist acceptable input patterns</strong></li>
+<li><strong>Canonicalize and validate file paths</strong></li>
+<li><strong>Use safe APIs instead of system commands</strong></li>
+<li><strong>Test with malicious inputs regularly</strong></li>
+<li><strong>Implement defense-in-depth</strong></li>
+</ol>
+
+<h2>Resources</h2>
+
+<strong>Libraries:</strong>
+<ul>
+<li><a href="https://owasp.org/www-project-java-encoder/">OWASP Java Encoder</a></li>
+<li><a href="https://owasp.org/www-community/OWASP_Validation_Regex_Repository">OWASP Validation Regex Repository</a></li>
+</ul>
+
+<strong>Tools:</strong>
+<ul>
+<li><a href="https://www.zaproxy.org/">OWASP ZAP</a></li>
+<li><a href="https://portswigger.net/burp">Burp Suite</a></li>
+<li><a href="https://github.com/MobSF/Mobile-Security-Framework-MobSF">MobSF</a></li>
+</ul>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="./examples.md">Examples</a></strong>: See vulnerable vs secure code implementations</li>
+<li><strong><a href="./lab/">Interactive Lab</a></strong>: Practice input validation attacks and defenses</li>
+</ul>
+
+<p>---</p>
+
+<strong>Remember</strong>: Defense-in-depth: validate input, encode output, use safe APIs, test thoroughly.
+
         </div>
     </div>
 </body>

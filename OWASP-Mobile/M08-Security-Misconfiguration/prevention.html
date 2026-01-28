@@ -215,7 +215,1177 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>M08: Security Misconfiguration - Prevention</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#prevention-strategy-overview">Prevention Strategy Overview</a></li>
+<li><a href="#secure-configuration-practices">Secure Configuration Practices</a></li>
+<li><a href="#production-build-configuration">Production Build Configuration</a></li>
+<li><a href="#permission-management">Permission Management</a></li>
+<li><a href="#network-security-settings">Network Security Settings</a></li>
+<li><a href="#debug-features-and-development-settings">Debug Features and Development Settings</a></li>
+<li><a href="#platform-specific-configurations">Platform-Specific Configurations</a></li>
+<li><a href="#testing-and-validation">Testing and Validation</a></li>
+<li><a href="#prevention-checklist">Prevention Checklist</a></li>
+</ul>
+
+<h2>Prevention Strategy Overview</h2>
+
+<p>Preventing security misconfigurations requires comprehensive attention across all deployment phases:</p>
+
+<p>``<code></p>
+<p>Design → Configure → Build → Test → Deploy → Monitor</p>
+<p>   ↓         ↓         ↓       ↓       ↓        ↓</p>
+<p>Minimal   Secure    Release  Security Production Continuous</p>
+<p>Permissions Config  Hardening Testing  Lockdown  Auditing</p>
+</code>`<code>
+
+<h3>Core Principles</h3>
+
+<ol>
+<li><strong>Principle of Least Privilege</strong>: Request only necessary permissions</li>
+<li><strong>Secure by Default</strong>: All configurations should be production-ready</li>
+<li><strong>Defense in Depth</strong>: Multiple layers of security controls</li>
+<li><strong>Environment Separation</strong>: Clear distinction between dev/staging/production</li>
+<li><strong>Minimal Attack Surface</strong>: Disable all unnecessary features</li>
+<li><strong>Continuous Validation</strong>: Regular security audits and testing</li>
+</ol>
+
+<h2>Secure Configuration Practices</h2>
+
+<h3>✅ Minimize App Permissions</h3>
+
+<strong>Android - Request Only Required Permissions</strong>:
+</code>`<code>xml
+<!-- AndroidManifest.xml -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+<p>    package="com.example.secureapp"></p>
+    
+    <!-- ✅ GOOD: Only request necessary permissions -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    
+    <!-- ❌ AVOID: Don't request unnecessary permissions -->
+    <!-- <uses-permission android:name="android.permission.READ_CONTACTS" /> -->
+    <!-- <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" /> -->
+    
+    <!-- Request runtime permissions for sensitive data -->
+    <application>
+        <!-- App content -->
+    </application>
+</manifest>
+</code>`<code>
+
+<strong>iOS - Minimize Info.plist Permissions</strong>:
+</code>`<code>xml
+<!-- Info.plist -->
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" 
+<p>    "http://www.apple.com/DTDs/PropertyList-1.0.dtd"></p>
+<plist version="1.0">
+<dict>
+    <!-- ✅ GOOD: Only request necessary permissions with clear descriptions -->
+    <key>NSCameraUsageDescription</key>
+    <string>This app requires camera access to scan QR codes for authentication</string>
+    
+    <!-- ❌ AVOID: Don't request permissions you don't need -->
+    <!-- <key>NSLocationAlwaysUsageDescription</key> -->
+    <!-- <string>Generic location access</string> -->
+</dict>
+</plist>
+</code>`<code>
+
+<h3>✅ Disable Backup for Sensitive Data</h3>
+
+<strong>Android - Backup Rules</strong>:
+</code>`<code>xml
+<!-- AndroidManifest.xml -->
+<application
+<p>    android:allowBackup="true"</p>
+<p>    android:fullBackupContent="@xml/backup_rules"</p>
+<p>    android:dataExtractionRules="@xml/data_extraction_rules"></p>
+</application>
+
+<!-- res/xml/backup_rules.xml -->
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Include only non-sensitive data -->
+    <include domain="sharedpref" path="app_preferences.xml"/>
+    
+    <!-- Exclude sensitive data -->
+    <exclude domain="sharedpref" path="secure_prefs.xml"/>
+    <exclude domain="database" path="user_credentials.db"/>
+    <exclude domain="file" path="keys/"/>
+</full-backup-content>
+
+<!-- res/xml/data_extraction_rules.xml (Android 12+) -->
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="secure_prefs.xml"/>
+        <exclude domain="database" path="user_credentials.db"/>
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="secure_prefs.xml"/>
+    </device-transfer>
+</data-extraction-rules>
+</code>`<code>
+
+<strong>iOS - Exclude from iCloud Backup</strong>:
+</code>`<code>swift
+<p>import Foundation</p>
+
+<p>class SecureFileManager {</p>
+<p>    // Exclude sensitive files from iCloud backup</p>
+<p>    func excludeFromBackup(url: URL) throws {</p>
+<p>        var resourceValues = URLResourceValues()</p>
+<p>        resourceValues.isExcludedFromBackup = true</p>
+        
+<p>        var mutableURL = url</p>
+<p>        try mutableURL.setResourceValues(resourceValues)</p>
+<p>    }</p>
+    
+<p>    // Create secure directory excluded from backups</p>
+<p>    func createSecureDirectory() throws -> URL {</p>
+<p>        let fileManager = FileManager.default</p>
+<p>        let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]</p>
+<p>        let securePath = documentsPath.appendingPathComponent("secure", isDirectory: true)</p>
+        
+<p>        if !fileManager.fileExists(atPath: securePath.path) {</p>
+<p>            try fileManager.createDirectory(at: securePath, withIntermediateDirectories: true)</p>
+<p>        }</p>
+        
+<p>        try excludeFromBackup(url: securePath)</p>
+<p>        return securePath</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>✅ Configure Secure File Permissions</h3>
+
+<strong>Android - Set Proper File Modes</strong>:
+</code>`<code>java
+<p>import android.content.Context;</p>
+<p>import java.io.File;</p>
+<p>import java.io.FileOutputStream;</p>
+
+<p>public class SecureFileHandler {</p>
+<p>    // Create file with secure permissions (MODE_PRIVATE)</p>
+<p>    public void createSecureFile(Context context, String filename, byte[] data) </p>
+<p>            throws Exception {</p>
+<p>        // ✅ GOOD: Use MODE_PRIVATE for sensitive files</p>
+<p>        FileOutputStream fos = context.openFileOutput(</p>
+<p>            filename, </p>
+<p>            Context.MODE_PRIVATE  // Only accessible by this app</p>
+<p>        );</p>
+        
+<p>        fos.write(data);</p>
+<p>        fos.close();</p>
+        
+<p>        // Additional hardening: restrict file permissions</p>
+<p>        File file = new File(context.getFilesDir(), filename);</p>
+<p>        file.setReadable(false, false);  // No world-readable</p>
+<p>        file.setReadable(true, true);    // Owner-only readable</p>
+<p>        file.setWritable(false, false);  // No world-writable</p>
+<p>        file.setWritable(true, true);    // Owner-only writable</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Production Build Configuration</h2>
+
+<h3>✅ Android ProGuard/R8 Configuration</h3>
+
+<strong>proguard-rules.pro</strong>:
+</code>`<code>proguard
+<h1>Enable aggressive optimization for production</h1>
+<p>-optimizationpasses 5</p>
+<p>-dontusemixedcaseclassnames</p>
+<p>-dontskipnonpubliclibraryclasses</p>
+<p>-verbose</p>
+
+<h1>Remove logging in production</h1>
+<p>-assumenosideeffects class android.util.Log {</p>
+<p>    public static <em>*</em> d(...);</p>
+<p>    public static <em>*</em> v(...);</p>
+<p>    public static <em>*</em> i(...);</p>
+<p>    public static <em>*</em> w(...);</p>
+<p>    public static <em>*</em> e(...);</p>
+<p>}</p>
+
+<h1>Obfuscate sensitive classes</h1>
+<p>-keep class com.example.app.models.<em>* { </em>; }</p>
+<p>-keepclassmembers class com.example.app.security.** {</p>
+<p>    !private <fields>;</p>
+<p>    !private <methods>;</p>
+<p>}</p>
+
+<h1>Remove debug utilities</h1>
+<p>-assumenosideeffects class com.example.app.debug.** {</p>
+<p>    *;</p>
+<p>}</p>
+
+<h1>Protect against reflection attacks</h1>
+<h1>Keep annotations for reflection-based frameworks (Retrofit, Gson, Room, Dagger)</h1>
+<p>-keepattributes <em>Annotation</em></p>
+<h1>Keep generic signatures for proper type inference</h1>
+<p>-keepattributes Signature</p>
+<h1>Preserve inner classes for proper serialization</h1>
+<p>-keepattributes InnerClasses</p>
+<h1>Keep enclosing method info for debugging anonymous classes</h1>
+<p>-keepattributes EnclosingMethod</p>
+</code>`<code>
+
+<strong>build.gradle (App Module)</strong>:
+</code>`<code>gradle
+<p>android {</p>
+<p>    buildTypes {</p>
+<p>        debug {</p>
+<p>            // Debug configuration</p>
+<p>            debuggable true</p>
+<p>            minifyEnabled false</p>
+<p>            applicationIdSuffix '.debug'</p>
+<p>            versionNameSuffix '-DEBUG'</p>
+<p>        }</p>
+        
+<p>        release {</p>
+<p>            // ✅ GOOD: Production hardening</p>
+<p>            debuggable false</p>
+<p>            minifyEnabled true</p>
+<p>            shrinkResources true</p>
+            
+<p>            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'),</p>
+<p>                         'proguard-rules.pro'</p>
+            
+<p>            // Enable code optimization</p>
+<p>            crunchPngs true</p>
+            
+<p>            // Signing configuration (use secure key management)</p>
+<p>            signingConfig signingConfigs.release</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    // Additional security configurations</p>
+<p>    buildFeatures {</p>
+<p>        buildConfig true</p>
+<p>    }</p>
+    
+<p>    // Disable test orchestrator in production</p>
+<p>    testOptions {</p>
+<p>        execution 'ANDROIDX_TEST_ORCHESTRATOR'</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>✅ iOS Build Configuration</h3>
+
+<strong>Build Settings (Xcode)</strong>:
+</code>`<code>swift
+<p>// Compiler flags for production</p>
+<p>// Set in Xcode Build Settings or xcconfig file</p>
+
+<p>// Release configuration</p>
+<p>SWIFT_OPTIMIZATION_LEVEL = -O</p>
+<p>SWIFT_COMPILATION_MODE = wholemodule</p>
+<p>ENABLE_BITCODE = YES</p>
+<p>DEAD_CODE_STRIPPING = YES</p>
+<p>STRIP_INSTALLED_PRODUCT = YES</p>
+<p>COPY_PHASE_STRIP = YES</p>
+
+<p>// Security hardening</p>
+<p>ENABLE_HARDENED_RUNTIME = YES</p>
+<p>ENABLE_CODE_SIGNING_CHECKS = YES</p>
+
+<p>// Remove debug symbols</p>
+<p>DEBUG_INFORMATION_FORMAT = dwarf-with-dsym</p>
+<p>DEPLOYMENT_POSTPROCESSING = YES</p>
+<p>STRIP_STYLE = all</p>
+</code>`<code>
+
+<strong>Conditional Compilation</strong>:
+</code>`<code>swift
+<p>class AppConfiguration {</p>
+<p>    static func configureForProduction() {</p>
+<p>        #if DEBUG</p>
+<p>        // Development settings</p>
+<p>        Logger.enabled = true</p>
+<p>        NetworkMonitor.verbose = true</p>
+<p>        #else</p>
+<p>        // ✅ Production settings</p>
+<p>        Logger.enabled = false</p>
+<p>        NetworkMonitor.verbose = false</p>
+        
+<p>        // Disable developer tools</p>
+<p>        disableDebugFeatures()</p>
+<p>        #endif</p>
+<p>    }</p>
+    
+<p>    private static func disableDebugFeatures() {</p>
+<p>        // Prevent debugging tools</p>
+<p>        var info = kinfo_proc()</p>
+<p>        var size = MemoryLayout<kinfo_proc>.stride</p>
+<p>        var mib : [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid()]</p>
+        
+<p>        sysctl(&mib, UInt32(mib.count), &info, &size, nil, 0)</p>
+        
+<p>        if (info.kp_proc.p_flag & P_TRACED) != 0 {</p>
+<p>            // Debugger detected - handle appropriately</p>
+<p>            exit(0)</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Permission Management</h2>
+
+<h3>✅ Runtime Permission Requests</h3>
+
+<strong>Android - Proper Permission Handling</strong>:
+</code>`<code>java
+<p>import android.Manifest;</p>
+<p>import android.content.pm.PackageManager;</p>
+<p>import androidx.core.app.ActivityCompat;</p>
+<p>import androidx.core.content.ContextCompat;</p>
+
+<p>public class PermissionManager {</p>
+<p>    private static final int REQUEST_CAMERA = 1001;</p>
+    
+<p>    // ✅ GOOD: Request permission with clear justification</p>
+<p>    public void requestCameraPermission(Activity activity) {</p>
+<p>        // Check if permission is already granted</p>
+<p>        if (ContextCompat.checkSelfPermission(activity, </p>
+<p>                Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {</p>
+<p>            // Permission granted, proceed</p>
+<p>            initializeCamera();</p>
+<p>            return;</p>
+<p>        }</p>
+        
+<p>        // Show rationale if needed</p>
+<p>        if (ActivityCompat.shouldShowRequestPermissionRationale(</p>
+<p>                activity, Manifest.permission.CAMERA)) {</p>
+<p>            // Show explanation to user</p>
+<p>            showPermissionRationale(activity);</p>
+<p>        } else {</p>
+<p>            // Request permission</p>
+<p>            ActivityCompat.requestPermissions(</p>
+<p>                activity,</p>
+<p>                new String[]{Manifest.permission.CAMERA},</p>
+<p>                REQUEST_CAMERA</p>
+<p>            );</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    // Handle permission result</p>
+<p>    public void onRequestPermissionsResult(</p>
+<p>            int requestCode, String[] permissions, int[] grantResults) {</p>
+<p>        if (requestCode == REQUEST_CAMERA) {</p>
+<p>            if (grantResults.length > 0 && </p>
+<p>                grantResults[0] == PackageManager.PERMISSION_GRANTED) {</p>
+<p>                initializeCamera();</p>
+<p>            } else {</p>
+<p>                // Permission denied - gracefully degrade</p>
+<p>                showPermissionDeniedMessage();</p>
+<p>            }</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>iOS - Permission Request Best Practices</strong>:
+</code>`<code>swift
+<p>import AVFoundation</p>
+<p>import Photos</p>
+
+<p>class PermissionManager {</p>
+<p>    // ✅ GOOD: Request permission with proper error handling</p>
+<p>    func requestCameraPermission(completion: @escaping (Bool) -> Void) {</p>
+<p>        let status = AVCaptureDevice.authorizationStatus(for: .video)</p>
+        
+<p>        switch status {</p>
+<p>        case .authorized:</p>
+<p>            completion(true)</p>
+            
+<p>        case .notDetermined:</p>
+<p>            AVCaptureDevice.requestAccess(for: .video) { granted in</p>
+<p>                DispatchQueue.main.async {</p>
+<p>                    completion(granted)</p>
+<p>                }</p>
+<p>            }</p>
+            
+<p>        case .denied, .restricted:</p>
+<p>            // Guide user to settings</p>
+<p>            showPermissionDeniedAlert()</p>
+<p>            completion(false)</p>
+            
+<p>        @unknown default:</p>
+<p>            completion(false)</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    private func showPermissionDeniedAlert() {</p>
+<p>        let alert = UIAlertController(</p>
+<p>            title: "Camera Access Required",</p>
+<p>            message: "Please enable camera access in Settings to use this feature.",</p>
+<p>            preferredStyle: .alert</p>
+<p>        )</p>
+        
+<p>        alert.addAction(UIAlertAction(title: "Settings", style: .default) { _ in</p>
+<p>            if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {</p>
+<p>                UIApplication.shared.open(settingsUrl)</p>
+<p>            }</p>
+<p>        })</p>
+        
+<p>        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))</p>
+        
+<p>        // Present alert</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>✅ Remove Dangerous Permissions</h3>
+
+<strong>Android - Avoid Over-Privileged Configurations</strong>:
+</code>`<code>xml
+<!-- AndroidManifest.xml -->
+
+<!-- ❌ DANGEROUS: Don't use unless absolutely necessary -->
+<!-- <uses-permission android:name="android.permission.READ_SMS" /> -->
+<!-- <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" /> -->
+<!-- <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" /> -->
+<!-- <uses-permission android:name="android.permission.READ_CONTACTS" /> -->
+<!-- <uses-permission android:name="android.permission.RECORD_AUDIO" /> -->
+
+<!-- ✅ GOOD: Use scoped storage (Android 10+) -->
+<application android:requestLegacyExternalStorage="false">
+    <!-- Use MediaStore or Storage Access Framework -->
+</application>
+</code>`<code>
+
+<h2>Network Security Settings</h2>
+
+<h3>✅ Network Security Configuration</h3>
+
+<strong>Android - Enforce HTTPS</strong>:
+</code>`<code>xml
+<!-- res/xml/network_security_config.xml -->
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- ✅ GOOD: Block cleartext traffic -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    
+    <!-- Production API with certificate pinning -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api.production.example.com</domain>
+        <pin-set expiration="2025-12-31">
+            <!-- Primary certificate -->
+            <pin digest="SHA-256">base64EncodedPrimaryPin==</pin>
+            <!-- Backup certificate -->
+            <pin digest="SHA-256">base64EncodedBackupPin==</pin>
+        </pin-set>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+    
+    <!-- Debug config (only for development builds) -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="user" />
+            <certificates src="system" />
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>
+
+<!-- Reference in AndroidManifest.xml -->
+<application
+<p>    android:networkSecurityConfig="@xml/network_security_config"></p>
+</application>
+</code>`<code>
+
+<strong>iOS - App Transport Security</strong>:
+</code>`<code>xml
+<!-- Info.plist -->
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" 
+<p>    "http://www.apple.com/DTDs/PropertyList-1.0.dtd"></p>
+<plist version="1.0">
+<dict>
+    <!-- ✅ GOOD: Enforce strong TLS -->
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <!-- Don't allow arbitrary loads -->
+        <key>NSAllowsArbitraryLoads</key>
+        <false/>
+        
+        <!-- Specific domain configuration -->
+        <key>NSExceptionDomains</key>
+        <dict>
+            <key>api.example.com</key>
+            <dict>
+                <key>NSExceptionRequiresForwardSecrecy</key>
+                <true/>
+                <key>NSExceptionMinimumTLSVersion</key>
+                <string>TLSv1.3</string>
+                <key>NSIncludesSubdomains</key>
+                <true/>
+                
+                <!-- Certificate pinning -->
+                <key>NSPinnedDomains</key>
+                <dict>
+                    <key>api.example.com</key>
+                    <array>
+                        <string>sha256/primaryCertHash==</string>
+                        <string>sha256/backupCertHash==</string>
+                    </array>
+                </dict>
+            </dict>
+        </dict>
+    </dict>
+</dict>
+</plist>
+</code>`<code>
+
+<h3>✅ Implement Certificate Pinning</h3>
+
+<strong>Android - OkHttp Certificate Pinning</strong>:
+</code>`<code>java
+<p>import okhttp3.CertificatePinner;</p>
+<p>import okhttp3.OkHttpClient;</p>
+
+<p>public class SecureNetworkClient {</p>
+<p>    public OkHttpClient createSecureClient() {</p>
+<p>        // ✅ GOOD: Pin certificates for critical domains</p>
+<p>        CertificatePinner certificatePinner = new CertificatePinner.Builder()</p>
+<p>            .add("api.example.com", "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")</p>
+<p>            .add("api.example.com", "sha256/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=")</p>
+<p>            .build();</p>
+        
+<p>        return new OkHttpClient.Builder()</p>
+<p>            .certificatePinner(certificatePinner)</p>
+<p>            .build();</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>iOS - URLSession Certificate Pinning</strong>:
+</code>`<code>swift
+<p>import Foundation</p>
+<p>import Security</p>
+
+<p>class CertificatePinner: NSObject, URLSessionDelegate {</p>
+<p>    private let pinnedCertificates: Set<Data></p>
+    
+<p>    init(certificateNames: [String]) {</p>
+<p>        var certificates = Set<Data>()</p>
+        
+<p>        for name in certificateNames {</p>
+<p>            if let path = Bundle.main.path(forResource: name, ofType: "cer"),</p>
+<p>               let certData = try? Data(contentsOf: URL(fileURLWithPath: path)) {</p>
+<p>                certificates.insert(certData)</p>
+<p>            }</p>
+<p>        }</p>
+        
+<p>        self.pinnedCertificates = certificates</p>
+<p>        super.init()</p>
+<p>    }</p>
+    
+<p>    func urlSession(_ session: URLSession,</p>
+<p>                   didReceive challenge: URLAuthenticationChallenge,</p>
+<p>                   completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {</p>
+        
+<p>        guard let serverTrust = challenge.protectionSpace.serverTrust else {</p>
+<p>            completionHandler(.cancelAuthenticationChallenge, nil)</p>
+<p>            return</p>
+<p>        }</p>
+        
+<p>        // Validate certificate chain</p>
+<p>        if validateServerTrust(serverTrust) {</p>
+<p>            completionHandler(.useCredential, URLCredential(trust: serverTrust))</p>
+<p>        } else {</p>
+<p>            completionHandler(.cancelAuthenticationChallenge, nil)</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    private func validateServerTrust(_ serverTrust: SecTrust) -> Bool {</p>
+<p>        guard let serverCertificate = SecTrustGetCertificateAtIndex(serverTrust, 0) else {</p>
+<p>            return false</p>
+<p>        }</p>
+        
+<p>        let serverCertData = SecCertificateCopyData(serverCertificate) as Data</p>
+<p>        return pinnedCertificates.contains(serverCertData)</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Debug Features and Development Settings</h2>
+
+<h3>✅ Disable Debug Features in Production</h3>
+
+<strong>Android - Remove Debug Capabilities</strong>:
+</code>`<code>xml
+<!-- AndroidManifest.xml -->
+<application
+<p>    android:debuggable="false"</p>
+<p>    android:allowBackup="false"</p>
+<p>    android:usesCleartextTraffic="false"></p>
+    
+    <!-- Remove test providers in production -->
+    <!-- <provider android:authorities="com.example.test.provider" /> -->
+</application>
+</code>`<code>
+
+<strong>Build-Time Debug Feature Control</strong>:
+</code>`<code>java
+<p>public class DebugConfig {</p>
+<p>    // ✅ GOOD: Use BuildConfig for debug features</p>
+<p>    public static void initialize() {</p>
+<p>        if (BuildConfig.DEBUG) {</p>
+<p>            // Enable debug tools only in debug builds</p>
+<p>            Timber.plant(new Timber.DebugTree());</p>
+<p>            StrictMode.enableDefaults();</p>
+<p>            LeakCanary.install();</p>
+<p>        } else {</p>
+<p>            // Production: disable all debug features</p>
+<p>            disableDebugging();</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    private static void disableDebugging() {</p>
+<p>        // Disable loggers</p>
+<p>        Logger.disable();</p>
+        
+<p>        // Remove crash reporting for debug builds</p>
+<p>        // Enable production crash reporting</p>
+<p>        FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(true);</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>iOS - Conditional Debug Code</strong>:
+</code>`<code>swift
+<p>class DebugManager {</p>
+<p>    static func configure() {</p>
+<p>        #if DEBUG</p>
+<p>        // Development only features</p>
+<p>        enableDebugLogging()</p>
+<p>        setupNetworkDebugging()</p>
+<p>        #else</p>
+<p>        // ✅ Production configuration</p>
+<p>        disableAllDebugFeatures()</p>
+<p>        enableProductionMonitoring()</p>
+<p>        #endif</p>
+<p>    }</p>
+    
+<p>    private static func disableAllDebugFeatures() {</p>
+<p>        // Disable console logging</p>
+<p>        // Disable network inspection</p>
+<p>        // Enable crash reporting</p>
+<p>        // Enable analytics</p>
+<p>    }</p>
+    
+<p>    private static func enableProductionMonitoring() {</p>
+<p>        // Configure Firebase/Crashlytics</p>
+<p>        // Setup performance monitoring</p>
+<p>        // Enable security monitoring</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>✅ Secure WebView Configuration</h3>
+
+<strong>Android - Hardened WebView</strong>:
+</code>`<code>java
+<p>import android.webkit.WebSettings;</p>
+<p>import android.webkit.WebView;</p>
+
+<p>public class SecureWebViewConfig {</p>
+<p>    public void configureSecureWebView(WebView webView) {</p>
+<p>        WebSettings settings = webView.getSettings();</p>
+        
+<p>        // ✅ GOOD: Disable dangerous features</p>
+<p>        settings.setJavaScriptEnabled(false);  // Only enable if necessary</p>
+<p>        settings.setAllowFileAccess(false);</p>
+<p>        settings.setAllowContentAccess(false);</p>
+<p>        settings.setAllowFileAccessFromFileURLs(false);</p>
+<p>        settings.setAllowUniversalAccessFromFileURLs(false);</p>
+        
+<p>        // Disable geolocation</p>
+<p>        settings.setGeolocationEnabled(false);</p>
+        
+<p>        // Clear cache</p>
+<p>        settings.setCacheMode(WebSettings.LOAD_NO_CACHE);</p>
+<p>        settings.setDatabaseEnabled(false);</p>
+<p>        settings.setDomStorageEnabled(false);</p>
+        
+<p>        // Enable safe browsing</p>
+<p>        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {</p>
+<p>            settings.setSafeBrowsingEnabled(true);</p>
+<p>        }</p>
+        
+<p>        // Disable debugging</p>
+<p>        WebView.setWebContentsDebuggingEnabled(false);</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>iOS - Secure WKWebView</strong>:
+</code>`<code>swift
+<p>import WebKit</p>
+
+<p>class SecureWebViewConfig {</p>
+<p>    func createSecureWebView() -> WKWebView {</p>
+<p>        let configuration = WKWebViewConfiguration()</p>
+        
+<p>        // ✅ GOOD: Disable dangerous features</p>
+<p>        configuration.preferences.javaScriptEnabled = false  // Only enable if needed</p>
+<p>        configuration.allowsInlineMediaPlayback = false</p>
+<p>        configuration.mediaTypesRequiringUserActionForPlayback = .all</p>
+        
+<p>        // Data detector types (minimize)</p>
+<p>        configuration.dataDetectorTypes = []</p>
+        
+<p>        // Disable JavaScript in main frame</p>
+<p>        if #available(iOS 14.0, *) {</p>
+<p>            configuration.defaultWebpagePreferences.allowsContentJavaScript = false</p>
+<p>        }</p>
+        
+<p>        let webView = WKWebView(frame: .zero, configuration: configuration)</p>
+        
+<p>        // Additional security</p>
+<p>        webView.allowsBackForwardNavigationGestures = false</p>
+<p>        webView.allowsLinkPreview = false</p>
+        
+<p>        return webView</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Platform-Specific Configurations</h2>
+
+<h3>✅ Android-Specific Security</h3>
+
+<strong>Prevent Screenshots and Screen Recording</strong>:
+</code>`<code>java
+<p>import android.view.WindowManager;</p>
+<p>import androidx.appcompat.app.AppCompatActivity;</p>
+
+<p>public class SecureActivity extends AppCompatActivity {</p>
+<p>    @Override</p>
+<p>    protected void onCreate(Bundle savedInstanceState) {</p>
+<p>        super.onCreate(savedInstanceState);</p>
+        
+<p>        // ✅ GOOD: Prevent screenshots for sensitive screens</p>
+<p>        getWindow().setFlags(</p>
+<p>            WindowManager.LayoutParams.FLAG_SECURE,</p>
+<p>            WindowManager.LayoutParams.FLAG_SECURE</p>
+<p>        );</p>
+        
+<p>        setContentView(R.layout.activity_secure);</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Secure Activity Export</strong>:
+</code>`<code>xml
+<!-- AndroidManifest.xml -->
+<activity
+<p>    android:name=".SecureActivity"</p>
+<p>    android:exported="false">  <!-- ✅ Don't expose unless necessary --></p>
+    
+    <!-- If must export, require permissions -->
+    <intent-filter>
+        <action android:name="android.intent.action.VIEW" />
+    </intent-filter>
+</activity>
+
+<!-- For exported components, use permissions -->
+<activity
+<p>    android:name=".PublicActivity"</p>
+<p>    android:exported="true"</p>
+<p>    android:permission="com.example.app.permission.ACCESS_ACTIVITY"></p>
+</activity>
+
+<!-- Define custom permission -->
+<permission
+<p>    android:name="com.example.app.permission.ACCESS_ACTIVITY"</p>
+<p>    android:protectionLevel="signature" /></p>
+</code>`<code>
+
+<strong>Content Provider Security</strong>:
+</code>`<code>xml
+<!-- AndroidManifest.xml -->
+<provider
+<p>    android:name=".SecureContentProvider"</p>
+<p>    android:authorities="com.example.app.provider"</p>
+<p>    android:exported="false"</p>
+<p>    android:grantUriPermissions="false"</p>
+<p>    android:readPermission="com.example.app.permission.READ_DATA"</p>
+<p>    android:writePermission="com.example.app.permission.WRITE_DATA"></p>
+</provider>
+</code>`<code>
+
+<h3>✅ iOS-Specific Security</h3>
+
+<strong>Disable Pasteboard Access</strong>:
+</code>`<code>swift
+<p>import UIKit</p>
+
+<p>class SecureTextField: UITextField {</p>
+<p>    // ✅ GOOD: Disable copy/paste for sensitive fields</p>
+<p>    override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {</p>
+<p>        if action == #selector(copy(_:)) ||</p>
+<p>           action == #selector(paste(_:)) ||</p>
+<p>           action == #selector(cut(_:)) ||</p>
+<p>           action == #selector(select(_:)) ||</p>
+<p>           action == #selector(selectAll(_:)) {</p>
+<p>            return false</p>
+<p>        }</p>
+<p>        return super.canPerformAction(action, withSender: sender)</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Configure Data Protection</strong>:
+</code>`<code>swift
+<p>import Foundation</p>
+
+<p>class DataProtectionManager {</p>
+<p>    // ✅ GOOD: Use appropriate data protection levels</p>
+<p>    func createFileWithProtection(data: Data, filename: String) throws {</p>
+<p>        let fileManager = FileManager.default</p>
+<p>        let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]</p>
+<p>        let fileURL = documentsURL.appendingPathComponent(filename)</p>
+        
+<p>        // Write with complete protection</p>
+<p>        try data.write(</p>
+<p>            to: fileURL,</p>
+<p>            options: [.completeFileProtection]</p>
+<p>        )</p>
+<p>    }</p>
+    
+<p>    // Set protection on existing file</p>
+<p>    func setFileProtection(url: URL) throws {</p>
+<p>        try (url as NSURL).setResourceValue(</p>
+<p>            URLFileProtection.complete,</p>
+<p>            forKey: .fileProtectionKey</p>
+<p>        )</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Disable Screenshot Prevention</strong>:
+</code>`<code>swift
+<p>import UIKit</p>
+
+<p>class SecureViewController: UIViewController {</p>
+<p>    private var secureField: UITextField!</p>
+    
+<p>    override func viewDidLoad() {</p>
+<p>        super.viewDidLoad()</p>
+        
+<p>        // ✅ GOOD: Hide sensitive content in app switcher</p>
+<p>        NotificationCenter.default.addObserver(</p>
+<p>            self,</p>
+<p>            selector: #selector(willResignActive),</p>
+<p>            name: UIApplication.willResignActiveNotification,</p>
+<p>            object: nil</p>
+<p>        )</p>
+        
+<p>        NotificationCenter.default.addObserver(</p>
+<p>            self,</p>
+<p>            selector: #selector(didBecomeActive),</p>
+<p>            name: UIApplication.didBecomeActiveNotification,</p>
+<p>            object: nil</p>
+<p>        )</p>
+<p>    }</p>
+    
+<p>    @objc private func willResignActive() {</p>
+<p>        // Hide sensitive content</p>
+<p>        secureField.isSecureTextEntry = true</p>
+<p>        secureField.text = ""</p>
+        
+<p>        // Or add blur overlay</p>
+<p>        addBlurOverlay()</p>
+<p>    }</p>
+    
+<p>    @objc private func didBecomeActive() {</p>
+<p>        removeBlurOverlay()</p>
+<p>    }</p>
+    
+<p>    private func addBlurOverlay() {</p>
+<p>        let blurEffect = UIBlurEffect(style: .light)</p>
+<p>        let blurView = UIVisualEffectView(effect: blurEffect)</p>
+<p>        blurView.frame = view.bounds</p>
+<p>        blurView.tag = 999</p>
+<p>        view.addSubview(blurView)</p>
+<p>    }</p>
+    
+<p>    private func removeBlurOverlay() {</p>
+<p>        view.subviews.first(where: { $0.tag == 999 })?.removeFromSuperview()</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Testing and Validation</h2>
+
+<h3>✅ Automated Configuration Testing</h3>
+
+<strong>Static Analysis Script</strong>:
+</code>`<code>bash
+<p>#!/bin/bash</p>
+<h1>check_security_config.sh</h1>
+
+<p>echo "Running security configuration checks..."</p>
+
+<h1>Android checks</h1>
+<p>if [ -f "AndroidManifest.xml" ]; then</p>
+<p>    echo "Checking Android configuration..."</p>
+    
+<p>    # Check debuggable flag</p>
+<p>    if grep -q 'android:debuggable="true"' AndroidManifest.xml; then</p>
+<p>        echo "❌ ERROR: debuggable=true in manifest"</p>
+<p>        exit 1</p>
+<p>    fi</p>
+    
+<p>    # Check backup settings</p>
+<p>    if grep -q 'android:allowBackup="true"' AndroidManifest.xml; then</p>
+<p>        if ! grep -q 'android:fullBackupContent' AndroidManifest.xml; then</p>
+<p>            echo "⚠️  WARNING: Backup enabled without rules"</p>
+<p>        fi</p>
+<p>    fi</p>
+    
+<p>    # Check cleartext traffic</p>
+<p>    if grep -q 'android:usesCleartextTraffic="true"' AndroidManifest.xml; then</p>
+<p>        echo "❌ ERROR: Cleartext traffic allowed"</p>
+<p>        exit 1</p>
+<p>    fi</p>
+    
+<p>    # Check exported components</p>
+<p>    exported_count=$(grep -c 'android:exported="true"' AndroidManifest.xml || true)</p>
+<p>    if [ "$exported_count" -gt 0 ]; then</p>
+<p>        echo "⚠️  WARNING: $exported_count exported components found"</p>
+<p>    fi</p>
+<p>fi</p>
+
+<h1>iOS checks</h1>
+<p>if [ -f "Info.plist" ]; then</p>
+<p>    echo "Checking iOS configuration..."</p>
+    
+<p>    # Check ATS settings</p>
+<p>    if grep -q "NSAllowsArbitraryLoads.*true" Info.plist; then</p>
+<p>        echo "❌ ERROR: Arbitrary loads allowed"</p>
+<p>        exit 1</p>
+<p>    fi</p>
+<p>fi</p>
+
+<p>echo "✅ Configuration checks passed"</p>
+</code>`<code>
+
+<h3>✅ Runtime Configuration Validation</h3>
+
+<strong>Android - Runtime Security Checks</strong>:
+</code>`<code>java
+<p>public class SecurityValidator {</p>
+<p>    public static void validateSecurityConfig(Context context) {</p>
+<p>        List<String> issues = new ArrayList<>();</p>
+        
+<p>        // Check if app is debuggable</p>
+<p>        if (isDebuggable(context)) {</p>
+<p>            issues.add("App is debuggable");</p>
+<p>        }</p>
+        
+<p>        // Check if running on rooted device</p>
+<p>        if (isDeviceRooted()) {</p>
+<p>            issues.add("Device is rooted");</p>
+<p>        }</p>
+        
+<p>        // Check backup settings</p>
+<p>        ApplicationInfo appInfo = context.getApplicationInfo();</p>
+<p>        if ((appInfo.flags & ApplicationInfo.FLAG_ALLOW_BACKUP) != 0) {</p>
+<p>            issues.add("Backup is enabled");</p>
+<p>        }</p>
+        
+<p>        // Report issues</p>
+<p>        if (!issues.isEmpty()) {</p>
+<p>            Log.w("Security", "Configuration issues: " + issues);</p>
+<p>            // In production: report to monitoring</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    private static boolean isDebuggable(Context context) {</p>
+<p>        return (context.getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0;</p>
+<p>    }</p>
+    
+<p>    private static boolean isDeviceRooted() {</p>
+<p>        String[] paths = {</p>
+<p>            "/system/app/Superuser.apk",</p>
+<p>            "/sbin/su",</p>
+<p>            "/system/bin/su",</p>
+<p>            "/system/xbin/su"</p>
+<p>        };</p>
+        
+<p>        for (String path : paths) {</p>
+<p>            if (new File(path).exists()) {</p>
+<p>                return true;</p>
+<p>            }</p>
+<p>        }</p>
+<p>        return false;</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>✅ MobSF Integration for CI/CD</h3>
+
+</code>`<code>yaml
+<h1>.github/workflows/security-scan.yml</h1>
+<p>name: Security Configuration Scan</p>
+
+<p>on:</p>
+<p>  pull_request:</p>
+<p>    branches: [ main ]</p>
+
+<p>jobs:</p>
+<p>  mobsf-scan:</p>
+<p>    runs-on: ubuntu-latest</p>
+<p>    steps:</p>
+<ul>
+<li>uses: actions/checkout@v2</li>
+</ul>
+      
+<ul>
+<li>name: Build APK</li>
+</ul>
+<p>        run: ./gradlew assembleRelease</p>
+      
+<ul>
+<li>name: Run MobSF Scan</li>
+</ul>
+<p>        uses: fundacaocerti/mobsf-action@v1</p>
+<p>        with:</p>
+<p>          INPUT_FILE_NAME: app/build/outputs/apk/release/app-release.apk</p>
+<p>          SCAN_TYPE: apk</p>
+          
+<ul>
+<li>name: Check for misconfigurations</li>
+</ul>
+<p>        run: |</p>
+<p>          # Parse MobSF output for configuration issues</p>
+<p>          python scripts/check_mobsf_results.py</p>
+</code>``
+
+<h2>Prevention Checklist</h2>
+
+<h3>Pre-Development</h3>
+<ul>
+<li>[ ] Define minimal permission set required</li>
+<li>[ ] Plan environment-specific configurations</li>
+<li>[ ] Document security requirements</li>
+<li>[ ] Review platform security guidelines</li>
+</ul>
+
+<h3>Development Phase</h3>
+<ul>
+<li>[ ] Request only necessary permissions</li>
+<li>[ ] Implement proper permission handling</li>
+<li>[ ] Configure secure network settings</li>
+<li>[ ] Disable debug features for production</li>
+<li>[ ] Exclude sensitive data from backups</li>
+<li>[ ] Set appropriate file permissions</li>
+<li>[ ] Configure secure WebView settings</li>
+<li>[ ] Implement certificate pinning</li>
+</ul>
+
+<h3>Build Configuration</h3>
+<ul>
+<li>[ ] Enable ProGuard/R8 for Android</li>
+<li>[ ] Remove debug symbols</li>
+<li>[ ] Disable debugging in release builds</li>
+<li>[ ] Configure code obfuscation</li>
+<li>[ ] Remove test code from production</li>
+<li>[ ] Validate signing configuration</li>
+</ul>
+
+<h3>Testing Phase</h3>
+<ul>
+<li>[ ] Run static analysis tools (MobSF, QARK)</li>
+<li>[ ] Verify permission requests</li>
+<li>[ ] Test on rooted/jailbroken devices</li>
+<li>[ ] Validate network security configuration</li>
+<li>[ ] Check for exported components</li>
+<li>[ ] Verify backup exclusions</li>
+<li>[ ] Test certificate pinning</li>
+</ul>
+
+<h3>Pre-Deployment</h3>
+<ul>
+<li>[ ] Final security scan</li>
+<li>[ ] Verify no debug flags</li>
+<li>[ ] Confirm production configuration</li>
+<li>[ ] Review all exported components</li>
+<li>[ ] Validate signing certificates</li>
+<li>[ ] Check third-party library configurations</li>
+</ul>
+
+<h3>Post-Deployment</h3>
+<ul>
+<li>[ ] Monitor for configuration issues</li>
+<li>[ ] Track permission usage</li>
+<li>[ ] Regular security audits</li>
+<li>[ ] Update certificates before expiration</li>
+<li>[ ] Review and update configurations</li>
+</ul>
+
+<h2>Quick Reference: Dos and Don'ts</h2>
+
+<h3>✅ DO</h3>
+<ul>
+<li>Request minimal permissions</li>
+<li>Use platform security features</li>
+<li>Disable debugging in production</li>
+<li>Implement certificate pinning</li>
+<li>Exclude sensitive data from backups</li>
+<li>Use secure file permissions</li>
+<li>Configure network security properly</li>
+<li>Regularly audit configurations</li>
+<li>Use environment-specific builds</li>
+<li>Enable code obfuscation</li>
+</ul>
+
+<h3>❌ DON'T</h3>
+<ul>
+<li>Request unnecessary permissions</li>
+<li>Enable debugging in production</li>
+<li>Allow cleartext traffic</li>
+<li>Export components unnecessarily</li>
+<li>Include sensitive data in backups</li>
+<li>Use world-readable file permissions</li>
+<li>Allow arbitrary SSL certificates</li>
+<li>Skip security testing</li>
+<li>Use same config for dev and prod</li>
+<li>Ignore static analysis warnings</li>
+</ul>
+
+<h2>Additional Resources</h2>
+
+<ul>
+<li><strong>Android Security Best Practices</strong>: https://developer.android.com/training/articles/security-tips</li>
+<li><strong>iOS Security Guide</strong>: https://support.apple.com/guide/security/welcome/web</li>
+<li><strong>OWASP Mobile Security Testing Guide</strong>: https://mobile-security.gitbook.io/</li>
+<li><strong>Android Network Security Configuration</strong>: https://developer.android.com/training/articles/security-config</li>
+<li><strong>Certificate Pinning Best Practices</strong>: https://owasp.org/www-community/controls/Certificate_and_Public_Key_Pinning</li>
+</ul>
+
+<p>---</p>
+
+<strong>Remember</strong>: Security misconfigurations are one of the most common vulnerabilities. Regular audits and validation are essential.
+
+<em>Part of OWASP Mobile Top 10 - Educational Repository</em>
+
         </div>
     </div>
 </body>

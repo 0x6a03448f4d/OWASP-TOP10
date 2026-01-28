@@ -215,7 +215,558 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>Cryptographic Failures - Examples</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#safe-pseudo-code-examples">Safe Pseudo-Code Examples</a></li>
+<li><a href="#bad-vs-good-code-comparisons">Bad vs Good Code Comparisons</a></li>
+<li><a href="#architecture-patterns">Architecture Patterns</a></li>
+<li><a href="#configuration-examples">Configuration Examples</a></li>
+<li><a href="#real-world-scenarios">Real-World Scenarios</a></li>
+</ul>
+
+<h2>Safe Pseudo-Code Examples</h2>
+
+<p>These examples demonstrate concepts without providing exploitable code.</p>
+
+<h3>Example 1: Password Hashing</h3>
+
+<strong>❌ VULNERABLE: Using MD5</strong>
+<p>``<code>python</p>
+<p>import hashlib</p>
+
+<p>def store_password(username, password):</p>
+<p>    """Weak password storage using MD5"""</p>
+<p>    # Problem: MD5 is too fast, no salt</p>
+<p>    password_hash = hashlib.md5(password.encode()).hexdigest()</p>
+<p>    database.save(username, password_hash)</p>
+<p>    # This can be cracked in seconds with modern GPUs!</p>
+</code>`<code>
+
+<strong>✅ SECURE: Using Bcrypt</strong>
+</code>`<code>python
+<p>import bcrypt</p>
+
+<p>def store_password(username, password):</p>
+<p>    """Secure password storage using bcrypt"""</p>
+<p>    # Bcrypt is slow (good for passwords) and includes salt</p>
+<p>    salt = bcrypt.gensalt(rounds=12)</p>
+<p>    password_hash = bcrypt.hashpw(password.encode(), salt)</p>
+<p>    database.save(username, password_hash)</p>
+<p>    # Intentionally slow to prevent brute force attacks</p>
+
+<p>def verify_password(username, password):</p>
+<p>    """Verify password against stored hash"""</p>
+<p>    stored_hash = database.get_password_hash(username)</p>
+<p>    return bcrypt.checkpw(password.encode(), stored_hash)</p>
+</code>`<code>
+
+<h3>Example 2: Data Encryption</h3>
+
+<strong>❌ VULNERABLE: Storing Plaintext</strong>
+</code>`<code>python
+<p>class User:</p>
+<p>    def __init__(self, name, ssn, credit_card):</p>
+<p>        self.name = name</p>
+<p>        self.ssn = ssn  # Stored as plaintext!</p>
+<p>        self.credit_card = credit_card  # Stored as plaintext!</p>
+    
+<p>    def save(self):</p>
+<p>        database.save({</p>
+<p>            'name': self.name,</p>
+<p>            'ssn': self.ssn,  # Easily accessible if database is compromised</p>
+<p>            'credit_card': self.credit_card</p>
+<p>        })</p>
+</code>`<code>
+
+<strong>✅ SECURE: Encrypting Sensitive Fields</strong>
+</code>`<code>python
+<p>from cryptography.fernet import Fernet</p>
+<p>import os</p>
+
+<p>class User:</p>
+<p>    def __init__(self, name, ssn, credit_card):</p>
+<p>        self.name = name</p>
+<p>        self.cipher = Fernet(os.environ.get('ENCRYPTION_KEY').encode())</p>
+<p>        # Encrypt sensitive data before storing</p>
+<p>        self.ssn_encrypted = self.cipher.encrypt(ssn.encode())</p>
+<p>        self.credit_card_encrypted = self.cipher.encrypt(credit_card.encode())</p>
+    
+<p>    def save(self):</p>
+<p>        database.save({</p>
+<p>            'name': self.name,  # Public data, not encrypted</p>
+<p>            'ssn_encrypted': self.ssn_encrypted,</p>
+<p>            'credit_card_encrypted': self.credit_card_encrypted</p>
+<p>        })</p>
+    
+<p>    def get_ssn(self):</p>
+<p>        """Decrypt SSN when needed"""</p>
+<p>        return self.cipher.decrypt(self.ssn_encrypted).decode()</p>
+</code>`<code>
+
+<h3>Example 3: Session Token Generation</h3>
+
+<strong>❌ VULNERABLE: Predictable Tokens</strong>
+</code>`<code>python
+<p>import random</p>
+<p>import time</p>
+
+<p>def create_session_token(user_id):</p>
+<p>    """Generates predictable session tokens"""</p>
+<p>    # Problem: Using non-cryptographic random</p>
+<p>    random.seed(int(time.time()))  # Predictable seed!</p>
+<p>    token = f"{user_id}_{random.randint(1000, 9999)}"</p>
+<p>    # Attacker can predict these tokens!</p>
+<p>    return token</p>
+</code>`<code>
+
+<strong>✅ SECURE: Cryptographically Random Tokens</strong>
+</code>`<code>python
+<p>import secrets</p>
+
+<p>def create_session_token(user_id):</p>
+<p>    """Generates cryptographically secure session tokens"""</p>
+<p>    # 32 bytes = 256 bits of entropy</p>
+<p>    random_token = secrets.token_urlsafe(32)</p>
+<p>    # Store association in database</p>
+<p>    session_data = {</p>
+<p>        'token': random_token,</p>
+<p>        'user_id': user_id,</p>
+<p>        'created_at': datetime.now()</p>
+<p>    }</p>
+<p>    database.save_session(session_data)</p>
+<p>    return random_token</p>
+</code>`<code>
+
+<h2>Bad vs Good Code Comparisons</h2>
+
+<h3>Comparison 1: HTTPS Enforcement</h3>
+
+<strong>❌ BAD</strong>
+</code>`<code>python
+<p>from flask import Flask</p>
+
+<p>app = Flask(__name__)</p>
+
+<p>@app.route('/login', methods=['POST'])</p>
+<p>def login():</p>
+<p>    # Problem: No HTTPS enforcement</p>
+<p>    # Credentials transmitted in plaintext if user accesses via HTTP</p>
+<p>    username = request.form.get('username')</p>
+<p>    password = request.form.get('password')</p>
+<p>    # ... authentication logic</p>
+    
+<p>if __name__ == '__main__':</p>
+<p>    app.run(host='0.0.0.0', port=80)  # HTTP only!</p>
+</code>`<code>
+
+<strong>✅ GOOD</strong>
+</code>`<code>python
+<p>from flask import Flask, redirect, request</p>
+
+<p>app = Flask(__name__)</p>
+
+<p>@app.before_request</p>
+<p>def force_https():</p>
+<p>    """Redirect all HTTP requests to HTTPS"""</p>
+<p>    if not request.is_secure and not app.debug:</p>
+<p>        url = request.url.replace('http://', 'https://', 1)</p>
+<p>        return redirect(url, code=301)</p>
+
+<p>@app.after_request</p>
+<p>def set_security_headers(response):</p>
+<p>    # HSTS header forces HTTPS for future requests</p>
+<p>    response.headers['Strict-Transport-Security'] =         'max-age=31536000; includeSubDomains; preload'</p>
+<p>    return response</p>
+
+<p>if __name__ == '__main__':</p>
+<p>    # Production should use proper TLS configuration</p>
+<p>    import ssl</p>
+<p>    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)</p>
+<p>    context.load_cert_chain('cert.pem', 'key.pem')</p>
+<p>    app.run(host='0.0.0.0', port=443, ssl_context=context)</p>
+</code>`<code>
+
+<h3>Comparison 2: Encryption Mode</h3>
+
+<strong>❌ BAD: ECB Mode</strong>
+</code>`<code>python
+<p>from Crypto.Cipher import AES</p>
+
+<p>def encrypt_data(data, key):</p>
+<p>    """Insecure encryption using ECB mode"""</p>
+<p>    cipher = AES.new(key, AES.MODE_ECB)  # INSECURE!</p>
+<p>    # Problem: Identical plaintext blocks produce identical ciphertext</p>
+<p>    # Patterns in data remain visible even when encrypted</p>
+<p>    return cipher.encrypt(data)</p>
+</code>`<code>
+
+<strong>✅ GOOD: GCM Mode</strong>
+</code>`<code>python
+<p>from cryptography.hazmat.primitives.ciphers.aead import AESGCM</p>
+<p>import os</p>
+
+<p>def encrypt_data(data, key):</p>
+<p>    """Secure encryption using AES-GCM"""</p>
+<p>    aesgcm = AESGCM(key)</p>
+<p>    nonce = os.urandom(12)  # 96-bit nonce</p>
+<p>    # GCM provides both confidentiality and authenticity</p>
+<p>    ciphertext = aesgcm.encrypt(nonce, data, None)</p>
+<p>    return nonce + ciphertext  # Prepend nonce (not secret)</p>
+
+<p>def decrypt_data(encrypted_data, key):</p>
+<p>    """Decrypt data encrypted with AES-GCM"""</p>
+<p>    aesgcm = AESGCM(key)</p>
+<p>    nonce = encrypted_data[:12]</p>
+<p>    ciphertext = encrypted_data[12:]</p>
+<p>    return aesgcm.decrypt(nonce, ciphertext, None)</p>
+</code>`<code>
+
+<h3>Comparison 3: Key Management</h3>
+
+<strong>❌ BAD: Hard-Coded Keys</strong>
+</code>`<code>python
+<h1>NEVER DO THIS!</h1>
+<p>SECRET_KEY = "my-secret-key-123"</p>
+<p>DATABASE_PASSWORD = "admin123"</p>
+<p>API_KEY = "sk_live_1234567890abcdef"</p>
+
+<p>def encrypt_user_data(data):</p>
+<p>    cipher = Fernet(SECRET_KEY)  # Key in source code!</p>
+<p>    return cipher.encrypt(data)</p>
+</code>`<code>
+
+<strong>✅ GOOD: Environment Variables</strong>
+</code>`<code>python
+<p>import os</p>
+<p>from cryptography.fernet import Fernet</p>
+
+<p>class Config:</p>
+<p>    """Load sensitive configuration from environment"""</p>
+    
+<p>    @staticmethod</p>
+<p>    def get_encryption_key():</p>
+<p>        key = os.environ.get('ENCRYPTION_KEY')</p>
+<p>        if not key:</p>
+<p>            raise ValueError("ENCRYPTION_KEY not set in environment")</p>
+<p>        return key.encode()</p>
+    
+<p>    @staticmethod</p>
+<p>    def get_database_password():</p>
+<p>        password = os.environ.get('DATABASE_PASSWORD')</p>
+<p>        if not password:</p>
+<p>            raise ValueError("DATABASE_PASSWORD not set in environment")</p>
+<p>        return password</p>
+
+<p>def encrypt_user_data(data):</p>
+<p>    key = Config.get_encryption_key()</p>
+<p>    cipher = Fernet(key)</p>
+<p>    return cipher.encrypt(data)</p>
+
+<h1>Set environment variables:</h1>
+<h1>export ENCRYPTION_KEY="your-key-here"</h1>
+<h1>export DATABASE_PASSWORD="your-db-password"</h1>
+</code>`<code>
+
+<h2>Architecture Patterns</h2>
+
+<h3>Pattern 1: Defense in Depth</h3>
+
+</code>`<code>mermaid
+<p>graph TD</p>
+<p>    A[User Data] --> B[HTTPS/TLS]</p>
+<p>    B --> C[Application Layer]</p>
+<p>    C --> D[Field-Level Encryption]</p>
+<p>    D --> E[Database Encryption]</p>
+<p>    E --> F[Disk Encryption]</p>
+    
+<p>    style B fill:#90EE90</p>
+<p>    style D fill:#90EE90</p>
+<p>    style E fill:#90EE90</p>
+<p>    style F fill:#90EE90</p>
+</code>`<code>
+
+<strong>Implementation</strong>:
+</code>`<code>python
+<p>class SecureUserData:</p>
+<p>    """Multi-layer data protection"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        # Layer 1: Transport encryption (HTTPS)</p>
+<p>        # Handled by web server</p>
+        
+<p>        # Layer 2: Application encryption</p>
+<p>        self.field_cipher = Fernet(os.environ.get('FIELD_ENCRYPTION_KEY').encode())</p>
+        
+<p>        # Layer 3: Database encryption</p>
+<p>        # Configured at database level</p>
+        
+<p>        # Layer 4: Disk encryption</p>
+<p>        # Configured at OS/infrastructure level</p>
+    
+<p>    def save_user(self, user_data):</p>
+<p>        """Save user with encrypted sensitive fields"""</p>
+<p>        encrypted_data = {</p>
+<p>            'username': user_data['username'],  # Public</p>
+<p>            'email': user_data['email'],  # Public</p>
+<p>            'ssn': self.field_cipher.encrypt(</p>
+<p>                user_data['ssn'].encode()</p>
+<p>            ),  # Encrypted</p>
+<p>            'credit_card': self.field_cipher.encrypt(</p>
+<p>                user_data['credit_card'].encode()</p>
+<p>            )  # Encrypted</p>
+<p>        }</p>
+<p>        database.save(encrypted_data)</p>
+</code>`<code>
+
+<h3>Pattern 2: Separation of Duties</h3>
+
+</code>`<code>python
+<p>class KeyManagement:</p>
+<p>    """Separate key management from application logic"""</p>
+    
+<p>    @staticmethod</p>
+<p>    def get_encryption_key(purpose: str) -> bytes:</p>
+<p>        """Retrieve key based on purpose"""</p>
+<p>        key_vault = KeyVault()  # External key management system</p>
+        
+<p>        key_mappings = {</p>
+<p>            'user_pii': 'USER_PII_KEY',</p>
+<p>            'payment': 'PAYMENT_KEY',</p>
+<p>            'session': 'SESSION_KEY'</p>
+<p>        }</p>
+        
+<p>        key_name = key_mappings.get(purpose)</p>
+<p>        if not key_name:</p>
+<p>            raise ValueError(f"Unknown key purpose: {purpose}")</p>
+        
+<p>        return key_vault.get_secret(key_name)</p>
+    
+<p>    @staticmethod</p>
+<p>    def rotate_key(purpose: str):</p>
+<p>        """Rotate encryption key"""</p>
+<p>        old_key = KeyManagement.get_encryption_key(purpose)</p>
+<p>        new_key = Fernet.generate_key()</p>
+        
+<p>        # Store new key</p>
+<p>        key_vault = KeyVault()</p>
+<p>        key_vault.set_secret(f"{purpose}_NEW", new_key)</p>
+        
+<p>        # Re-encrypt data with new key</p>
+<p>        migrate_encrypted_data(old_key, new_key)</p>
+        
+<p>        # Archive old key</p>
+<p>        key_vault.archive_secret(f"{purpose}_OLD", old_key)</p>
+</code>`<code>
+
+<h2>Configuration Examples</h2>
+
+<h3>Example 1: Secure Flask Configuration</h3>
+
+</code>`<code>python
+<h1>config.py</h1>
+<p>import os</p>
+
+<p>class ProductionConfig:</p>
+<p>    """Production configuration with security focus"""</p>
+    
+<p>    # Session configuration</p>
+<p>    SECRET_KEY = os.environ.get('SECRET_KEY')</p>
+<p>    SESSION_COOKIE_SECURE = True  # HTTPS only</p>
+<p>    SESSION_COOKIE_HTTPONLY = True  # No JavaScript access</p>
+<p>    SESSION_COOKIE_SAMESITE = 'Lax'  # CSRF protection</p>
+    
+<p>    # Encryption keys</p>
+<p>    ENCRYPTION_KEY = os.environ.get('ENCRYPTION_KEY')</p>
+    
+<p>    # Database with TLS</p>
+<p>    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL').replace(</p>
+<p>        'postgresql://',</p>
+<p>        'postgresql+psycopg2://'</p>
+<p>    ) + '?sslmode=require'</p>
+    
+<p>    # Password hashing</p>
+<p>    BCRYPT_LOG_ROUNDS = 12  # Cost factor for bcrypt</p>
+    
+<p>    @staticmethod</p>
+<p>    def init_app(app):</p>
+<p>        # Ensure all required env vars are set</p>
+<p>        required_vars = ['SECRET_KEY', 'ENCRYPTION_KEY', 'DATABASE_URL']</p>
+<p>        for var in required_vars:</p>
+<p>            if not os.environ.get(var):</p>
+<p>                raise ValueError(f"{var} environment variable not set")</p>
+</code>`<code>
+
+<h3>Example 2: TLS Configuration</h3>
+
+</code>`<code>python
+<h1>tls_config.py</h1>
+<p>import ssl</p>
+
+<p>def get_secure_ssl_context():</p>
+<p>    """Create secure SSL context for production"""</p>
+<p>    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)</p>
+    
+<p>    # Load certificate and key</p>
+<p>    context.load_cert_chain('cert.pem', 'key.pem')</p>
+    
+<p>    # Use only strong ciphers</p>
+<p>    context.set_ciphers('ECDHE+AESGCM:ECDHE+CHACHA20:DHE+AESGCM:DHE+CHACHA20:!aNULL:!MD5:!DSS')</p>
+    
+<p>    # Disable weak protocols</p>
+<p>    context.minimum_version = ssl.TLSVersion.TLSv1_2</p>
+    
+<p>    # Prefer server cipher order</p>
+<p>    context.options |= ssl.OP_CIPHER_SERVER_PREFERENCE</p>
+    
+<p>    return context</p>
+
+<h1>Use in Flask</h1>
+<p>if __name__ == '__main__':</p>
+<p>    context = get_secure_ssl_context()</p>
+<p>    app.run(host='0.0.0.0', port=443, ssl_context=context)</p>
+</code>`<code>
+
+<h2>Real-World Scenarios</h2>
+
+<h3>Scenario 1: E-commerce Payment Data</h3>
+
+</code>`<code>python
+<p>from cryptography.fernet import Fernet</p>
+<p>import os</p>
+
+<p>class PaymentProcessor:</p>
+<p>    """Securely handle payment information"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        # Use dedicated key for payment data</p>
+<p>        payment_key = os.environ.get('PAYMENT_ENCRYPTION_KEY')</p>
+<p>        self.cipher = Fernet(payment_key.encode())</p>
+    
+<p>    def tokenize_card(self, card_number, cvv, expiry):</p>
+<p>        """Tokenize credit card (don't store actual number)"""</p>
+<p>        # In production, use payment gateway tokenization</p>
+<p>        # This is simplified for demonstration</p>
+        
+<p>        # Never log or store CVV</p>
+<p>        # Only store encrypted last 4 digits and token</p>
+<p>        last_four = card_number[-4:]</p>
+        
+<p>        # Generate token</p>
+<p>        import secrets</p>
+<p>        token = f"tok_{secrets.token_urlsafe(32)}"</p>
+        
+<p>        # Store association (in production, use payment gateway)</p>
+<p>        encrypted_card = self.cipher.encrypt(card_number.encode())</p>
+        
+<p>        database.save_payment_token({</p>
+<p>            'token': token,</p>
+<p>            'last_four': last_four,</p>
+<p>            'encrypted_card': encrypted_card,  # For refunds only</p>
+<p>            'expiry': expiry</p>
+<p>        })</p>
+        
+<p>        return token</p>
+    
+<p>    def process_payment(self, token, amount):</p>
+<p>        """Process payment using token"""</p>
+<p>        # Retrieve encrypted card data</p>
+<p>        payment_data = database.get_payment_token(token)</p>
+<p>        card_number = self.cipher.decrypt(payment_data['encrypted_card'])</p>
+        
+<p>        # Process with payment gateway</p>
+<p>        # ... payment processing logic</p>
+        
+<p>        # Never log full card number</p>
+<p>        logging.info(f"Processed payment for card ending {payment_data['last_four']}")</p>
+</code>`<code>
+
+<h3>Scenario 2: Healthcare Data (HIPAA Compliance)</h3>
+
+</code>`<code>python
+<p>class HealthRecordEncryption:</p>
+<p>    """HIPAA-compliant data encryption"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.cipher = Fernet(os.environ.get('HIPAA_ENCRYPTION_KEY').encode())</p>
+    
+<p>    def store_patient_record(self, patient_data):</p>
+<p>        """Encrypt and store patient health information"""</p>
+<p>        # Encrypt all PHI (Protected Health Information)</p>
+<p>        encrypted_record = {</p>
+<p>            'patient_id': patient_data['id'],  # Not PHI</p>
+<p>            'name_encrypted': self.cipher.encrypt(</p>
+<p>                patient_data['name'].encode()</p>
+<p>            ),</p>
+<p>            'ssn_encrypted': self.cipher.encrypt(</p>
+<p>                patient_data['ssn'].encode()</p>
+<p>            ),</p>
+<p>            'diagnosis_encrypted': self.cipher.encrypt(</p>
+<p>                patient_data['diagnosis'].encode()</p>
+<p>            ),</p>
+<p>            'treatment_encrypted': self.cipher.encrypt(</p>
+<p>                patient_data['treatment'].encode()</p>
+<p>            )</p>
+<p>        }</p>
+        
+<p>        # Log access (required for HIPAA compliance)</p>
+<p>        audit_log.info(f"Patient record created: {patient_data['id']}")</p>
+        
+<p>        database.save(encrypted_record)</p>
+    
+<p>    def decrypt_for_authorized_user(self, patient_id, requesting_user):</p>
+<p>        """Decrypt data only for authorized healthcare providers"""</p>
+<p>        # Check authorization</p>
+<p>        if not requesting_user.has_permission('view_patient_records'):</p>
+<p>            audit_log.warning(</p>
+<p>                f"Unauthorized access attempt by {requesting_user.id}"</p>
+<p>            )</p>
+<p>            raise PermissionError("Not authorized to view patient records")</p>
+        
+<p>        # Retrieve and decrypt</p>
+<p>        record = database.get_patient_record(patient_id)</p>
+        
+<p>        decrypted_record = {</p>
+<p>            'patient_id': record['patient_id'],</p>
+<p>            'name': self.cipher.decrypt(record['name_encrypted']).decode(),</p>
+<p>            'ssn': self.cipher.decrypt(record['ssn_encrypted']).decode(),</p>
+<p>            'diagnosis': self.cipher.decrypt(record['diagnosis_encrypted']).decode(),</p>
+<p>            'treatment': self.cipher.decrypt(record['treatment_encrypted']).decode()</p>
+<p>        }</p>
+        
+<p>        # Log access (HIPAA requirement)</p>
+<p>        audit_log.info(</p>
+<p>            f"Patient record {patient_id} accessed by {requesting_user.id}"</p>
+<p>        )</p>
+        
+<p>        return decrypted_record</p>
+</code>``
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li>✅ <strong>Use bcrypt or Argon2 for passwords</strong> - Never MD5/SHA-1</li>
+<li>✅ <strong>Encrypt sensitive data with AES-GCM</strong> - Not ECB mode</li>
+<li>✅ <strong>Use secrets module for random values</strong> - Not random module</li>
+<li>✅ <strong>Always use HTTPS</strong> - Force redirect from HTTP</li>
+<li>✅ <strong>Never hard-code keys</strong> - Use environment variables</li>
+<li>✅ <strong>Keep crypto libraries updated</strong> - Patch vulnerabilities</li>
+</ol>
+
+<h2>What's Next?</h2>
+
+<ul>
+<li><strong><a href="./overview.md">Overview</a></strong>: Understand what cryptographic failures are</li>
+<li><strong><a href="./attack-vectors.md">Attack Vectors</a></strong>: Learn how attacks happen</li>
+<li><strong><a href="./prevention.md">Prevention</a></strong>: Best practices for prevention</li>
+<li><strong><a href="./lab/weak-hashing-lab/">Lab</a></strong>: Hands-on practice</li>
+</ul>
+
+<p>---</p>
+
+<em>Part of the <a href="../../README.md">OWASP Top 10 Educational Repository</a></em>
+
         </div>
     </div>
 </body>

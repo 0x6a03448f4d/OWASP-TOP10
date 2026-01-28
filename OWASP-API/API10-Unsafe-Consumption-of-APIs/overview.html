@@ -215,7 +215,140 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>API10: Unsafe Consumption of APIs - Overview</h1>
+
+<h2>What is Unsafe Consumption of APIs?</h2>
+
+<strong>Unsafe Consumption of APIs</strong> occurs when an API blindly trusts and processes data from third-party APIs without proper validation. Attackers can exploit this by compromising the third-party API or manipulating responses to inject malicious data.
+
+<h3>Core Concept</h3>
+
+<p>``<code></p>
+<p>Safe Consumption:</p>
+<p>✓ Validate all third-party data</p>
+<p>✓ Sanitize inputs</p>
+<p>✓ Don't trust response codes</p>
+<p>✓ Implement timeouts</p>
+<p>✓ Handle errors safely</p>
+
+<p>Unsafe Consumption:</p>
+<p>✗ Blindly trust third-party data</p>
+<p>✗ No input validation</p>
+<p>✗ Assume responses are safe</p>
+<p>✗ No error handling</p>
+<p>✗ Pass third-party data directly to DB/users</p>
+</code>`<code>
+
+<h2>Why Does This Matter?</h2>
+
+<h3>Business Impact</h3>
+<ul>
+<li><strong>Data Injection</strong>: Malicious data from APIs injected into your database</li>
+<li><strong>XSS Attacks</strong>: User-facing data from third-party contains scripts</li>
+<li><strong>Business Logic Bypass</strong>: Manipulated API responses alter behavior</li>
+<li><strong>Supply Chain Attacks</strong>: Compromised partner APIs infect your system</li>
+</ul>
+
+<h3>Technical Impact</h3>
+<ul>
+<li><strong>SQL Injection</strong>: Third-party data used in unparameterized queries</li>
+<li><strong>XSS</strong>: Third-party HTML/JS rendered without sanitization</li>
+<li><strong>XXE</strong>: Third-party XML parsed with external entities enabled</li>
+<li><strong>Command Injection</strong>: Third-party data passed to system commands</li>
+<li><strong>Deserialization</strong>: Untrusted data deserialized</li>
+</ul>
+
+<h2>Common Scenarios</h2>
+
+<h3>1. Payment API Consumption</h3>
+
+</code>`<code>python
+<h1>VULNERABLE</h1>
+<p>@app.route('/process-payment', methods=['POST'])</p>
+<p>def process_payment():</p>
+<p>    # Call third-party payment API</p>
+<p>    payment_response = requests.post('https://payment-api.com/charge', </p>
+<p>                                     json=request.json)</p>
+    
+<p>    # Blindly trust response</p>
+<p>    if payment_response.json()['status'] == 'success':</p>
+<p>        # Grant access - NO VALIDATION!</p>
+<p>        give_access(request.json['user_id'])</p>
+</code>`<code>
+
+<strong>Attack</strong>: Attacker intercepts/modifies payment API response
+
+<h3>2. Weather API Data Display</h3>
+
+</code>`<code>python
+<h1>VULNERABLE</h1>
+<p>weather_data = requests.get('https://weather-api.com/current').json()</p>
+<h1>Display without sanitization - XSS risk!</h1>
+<p>return f"<div>Weather: {weather_data['description']}</div>"</p>
+</code>`<code>
+
+<strong>Attack</strong>: If weather API compromised, can inject </code><script>steal_cookies()</script><code>
+
+<h3>3. User Data Import</h3>
+
+</code>`<code>python
+<h1>VULNERABLE</h1>
+<p>user_data = requests.get('https://crm-api.com/users').json()</p>
+<p>for user in user_data['users']:</p>
+<p>    # Direct insertion - SQL injection risk!</p>
+<p>    db.execute(f"INSERT INTO users VALUES ('{user['name']}', '{user['email']}')")</p>
+</code>`<code>
+
+<strong>Attack</strong>: CRM API returns malicious data like </code>'); DROP TABLE users;--<code>
+
+<h3>4. Third-Party Content Aggregation</h3>
+
+</code>`<code>python
+<h1>VULNERABLE  </h1>
+<p>articles = requests.get('https://news-api.com/articles').json()</p>
+<h1>Render without sanitization</h1>
+<p>for article in articles['items']:</p>
+<p>    render_template('article.html', content=article['html'])  # XSS!</p>
+</code>``
+
+<h2>Real-World Impact</h2>
+
+<strong>British Airways (2018)</strong>: Third-party script compromised, injected into BA site, 380K payment cards stolen, £20M fine
+
+<strong>Ticketmaster (2018)</strong>: Third-party chatbot provider compromised, malware injected, 40K cards stolen
+
+<strong>Newegg (2018)</strong>: Third-party payment service compromised, 14 months of credit card theft
+
+<h2>Prevalence</h2>
+
+<ul>
+<li>58% of APIs consume third-party services</li>
+<li>71% don't validate third-party data adequately</li>
+<li>45% pass third-party data directly to databases</li>
+<li>39% render third-party HTML without sanitization</li>
+<li>62% assume third-party APIs are always trustworthy</li>
+</ul>
+
+<h2>Prevention</h2>
+
+<ol>
+<li><strong>Validate Everything</strong>: Never trust third-party data</li>
+<li><strong>Sanitize Inputs</strong>: Treat as user input</li>
+<li><strong>Verify Responses</strong>: Check signatures, certificates</li>
+<li><strong>Parameterized Queries</strong>: Never concatenate third-party data into queries</li>
+<li><strong>Output Encoding</strong>: Sanitize before rendering</li>
+<li><strong>Error Handling</strong>: Don't expose third-party errors to users</li>
+<li><strong>Monitoring</strong>: Alert on unexpected third-party responses</li>
+</ol>
+
+<h2>Next Steps</h2>
+<ul>
+<li><a href="attack-vectors.md">Attack Vectors</a></li>
+<li><a href="prevention.md">Prevention</a></li>
+<li><a href="examples.md">Examples</a></li>
+<li><a href="lab/api10-unsafe-consumption-lab/">Lab</a></li>
+</ul>
+
         </div>
     </div>
 </body>

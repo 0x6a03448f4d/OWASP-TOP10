@@ -215,7 +215,1938 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>M06: Inadequate Privacy Controls - Prevention</h1>
+
+<h2>Table of Contents</h2>
+<ol>
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#prevention-strategy-overview">Prevention Strategy Overview</a></li>
+<li><a href="#minimal-permission-requests">Minimal Permission Requests</a></li>
+<li><a href="#runtime-permission-handling">Runtime Permission Handling</a></li>
+<li><a href="#privacy-by-design-principles">Privacy-by-Design Principles</a></li>
+<li><a href="#data-minimization">Data Minimization</a></li>
+<li><a href="#user-consent-mechanisms">User Consent Mechanisms</a></li>
+<li><a href="#secure-data-collection-patterns">Secure Data Collection Patterns</a></li>
+<li><a href="#third-party-sdk-management">Third-Party SDK Management</a></li>
+<li><a href="#privacy-testing-and-validation">Privacy Testing and Validation</a></li>
+<li><a href="#platform-specific-guidelines">Platform-Specific Guidelines</a></li>
+<li><a href="#prevention-checklist">Prevention Checklist</a></li>
+</ol>
+
+<p>---</p>
+
+<h2>Introduction</h2>
+
+<p>Preventing inadequate privacy controls requires a fundamental shift in how mobile applications are designed and developed. Unlike traditional security measures that protect against external threats, privacy controls protect users from the application itself.</p>
+
+<strong>Core Prevention Philosophy</strong>:
+<p>``<code></p>
+<p>Security Question: "How do we protect user data from attackers?"</p>
+<p>Privacy Question: "How do we protect users from ourselves?"</p>
+
+<p>Privacy-First Approach:</p>
+<ol>
+<li>Collect only what you absolutely need</li>
+<li>Request permissions only when needed</li>
+<li>Explain clearly why you need data</li>
+<li>Give users control over their data</li>
+<li>Delete data when no longer needed</li>
+<li>Never share without explicit consent</li>
+</ol>
+</code>`<code>
+
+<p>This guide provides actionable implementation patterns for building privacy-respecting mobile applications.</p>
+
+<p>---</p>
+
+<h2>Prevention Strategy Overview</h2>
+
+<h3>The Privacy Development Lifecycle</h3>
+
+</code>`<code>
+<p>Phase 1: Design</p>
+<p>├─ Privacy Impact Assessment</p>
+<p>├─ Data minimization planning</p>
+<p>├─ Permission audit</p>
+<p>└─ User control design</p>
+
+<p>Phase 2: Implementation</p>
+<p>├─ Minimal permission requests</p>
+<p>├─ Just-in-time permission prompts</p>
+<p>├─ Local processing where possible</p>
+<p>├─ Secure data handling</p>
+<p>└─ Privacy-safe logging</p>
+
+<p>Phase 3: Integration</p>
+<p>├─ Third-party SDK audit</p>
+<p>├─ Data flow mapping</p>
+<p>├─ Privacy policy alignment</p>
+<p>└─ Consent mechanism implementation</p>
+
+<p>Phase 4: Testing</p>
+<p>├─ Permission testing</p>
+<p>├─ Data flow analysis</p>
+<p>├─ Network traffic inspection</p>
+<p>├─ Privacy regression tests</p>
+<p>└─ User testing</p>
+
+<p>Phase 5: Maintenance</p>
+<p>├─ Regular privacy audits</p>
+<p>├─ SDK updates and reviews</p>
+<p>├─ User feedback monitoring</p>
+<p>└─ Compliance verification</p>
+</code>`<code>
+
+<h3>Privacy Maturity Model</h3>
+
+<p>| Level | Description | Characteristics |</p>
+<p>|-------|-------------|-----------------|</p>
+<p>| <strong>1. Unaware</strong> | No privacy considerations | Excessive permissions, PII in logs, no user control |</p>
+<p>| <strong>2. Reactive</strong> | Minimum compliance | Basic privacy policy, permissions when required |</p>
+<p>| <strong>3. Proactive</strong> | Privacy by default | Minimal data collection, user controls, clear consent |</p>
+<p>| <strong>4. Privacy-First</strong> | Privacy as feature | On-device processing, transparency, user empowerment |</p>
+<p>| <strong>5. Privacy Leader</strong> | Industry standard setter | Open source privacy tools, advocacy, innovation |</p>
+
+<strong>Goal</strong>: Reach Level 3+ for all production applications.
+
+<p>---</p>
+
+<h2>Minimal Permission Requests</h2>
+
+<h3>Principle: Only Request What You Need</h3>
+
+<strong>✗ Anti-Pattern</strong>: Request all possible permissions upfront
+
+</code>`<code>kotlin
+<p>// DON'T DO THIS</p>
+<p>class MainActivity : AppCompatActivity() {</p>
+<p>    override fun onCreate(savedInstanceState: Bundle?) {</p>
+<p>        super.onCreate(savedInstanceState)</p>
+        
+<p>        // Request everything at once</p>
+<p>        val permissions = arrayOf(</p>
+<p>            Manifest.permission.CAMERA,</p>
+<p>            Manifest.permission.RECORD_AUDIO,</p>
+<p>            Manifest.permission.ACCESS_FINE_LOCATION,</p>
+<p>            Manifest.permission.ACCESS_BACKGROUND_LOCATION,</p>
+<p>            Manifest.permission.READ_CONTACTS,</p>
+<p>            Manifest.permission.READ_PHONE_STATE,</p>
+<p>            Manifest.permission.READ_EXTERNAL_STORAGE,</p>
+<p>            Manifest.permission.WRITE_EXTERNAL_STORAGE,</p>
+<p>            Manifest.permission.READ_CALENDAR,</p>
+<p>            Manifest.permission.BODY_SENSORS</p>
+<p>        )</p>
+        
+<p>        requestPermissions(permissions, 1)</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>✓ Best Practice</strong>: Request only necessary permissions, contextually
+
+</code>`<code>kotlin
+<p>// SECURE APPROACH</p>
+<p>class MainActivity : AppCompatActivity() {</p>
+<p>    override fun onCreate(savedInstanceState: Bundle?) {</p>
+<p>        super.onCreate(savedInstanceState)</p>
+<p>        setContentView(R.layout.activity_main)</p>
+        
+<p>        // Don't request any permissions at startup</p>
+<p>        // Wait for user to trigger features that need them</p>
+<p>    }</p>
+    
+<p>    private fun onScanQRCodeClicked() {</p>
+<p>        // Only request camera when user wants to scan QR code</p>
+<p>        when {</p>
+<p>            ContextCompat.checkSelfPermission(</p>
+<p>                this,</p>
+<p>                Manifest.permission.CAMERA</p>
+<p>            ) == PackageManager.PERMISSION_GRANTED -> {</p>
+<p>                // Permission already granted</p>
+<p>                openQRScanner()</p>
+<p>            }</p>
+            
+<p>            shouldShowRequestPermissionRationale(Manifest.permission.CAMERA) -> {</p>
+<p>                // Show explanation before requesting</p>
+<p>                showCameraPermissionRationale {</p>
+<p>                    requestCameraPermission()</p>
+<p>                }</p>
+<p>            }</p>
+            
+<p>            else -> {</p>
+<p>                // First time asking</p>
+<p>                requestCameraPermission()</p>
+<p>            }</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    private fun showCameraPermissionRationale(onAccept: () -> Unit) {</p>
+<p>        AlertDialog.Builder(this)</p>
+<p>            .setTitle("Camera Permission Needed")</p>
+<p>            .setMessage("We need camera access to scan QR codes for login. " +</p>
+<p>                       "Your camera is only used when you tap 'Scan QR Code' " +</p>
+<p>                       "and is never accessed in the background.")</p>
+<p>            .setPositiveButton("Grant Permission") { _, _ -> onAccept() }</p>
+<p>            .setNegativeButton("Cancel", null)</p>
+<p>            .show()</p>
+<p>    }</p>
+    
+<p>    private fun requestCameraPermission() {</p>
+<p>        requestPermissions(arrayOf(Manifest.permission.CAMERA), REQUEST_CAMERA)</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Permission Necessity Audit</h3>
+
+<strong>For each permission, ask</strong>:
+</code>`<code>yaml
+<ol>
+<li>Is this permission absolutely necessary?</li>
+<ul>
+<li>Can we achieve the same functionality without it?</li>
+<li>Can we use a less invasive alternative?</li>
+</ul>
+</ol>
+
+<ol>
+<li>When do we need it?</li>
+<ul>
+<li>At app launch? (Usually NO)</li>
+<li>When user triggers specific feature? (Usually YES)</li>
+<li>Continuously in background? (Rarely justified)</li>
+</ul>
+</ol>
+
+<ol>
+<li>What's the minimum scope?</li>
+<ul>
+<li>Precise location vs. approximate?</li>
+<li>Full photo library vs. photo picker?</li>
+<li>Foreground vs. background access?</li>
+</ul>
+</ol>
+
+<ol>
+<li>How long do we need it?</li>
+<ul>
+<li>One-time use?</li>
+<li>During app session?</li>
+<li>Continuous background access?</li>
+</ul>
+</ol>
+</code>`<code>
+
+<strong>Example Audit</strong>:
+</code>`<code>
+<p>App: Restaurant Finder</p>
+
+<p>❌ REMOVE: READ_CONTACTS</p>
+<ul>
+<li>Not necessary for core functionality</li>
+<li>"Share with friends" can use platform share sheet</li>
+</ul>
+
+<p>❌ REMOVE: ACCESS_BACKGROUND_LOCATION</p>
+<ul>
+<li>App doesn't need background tracking</li>
+<li>Only need location when user searches</li>
+</ul>
+
+<p>✓ KEEP: ACCESS_COARSE_LOCATION (not FINE)</p>
+<ul>
+<li>City-level location sufficient for restaurant search</li>
+<li>More privacy-friendly than precise location</li>
+</ul>
+
+<p>✓ KEEP: CAMERA (contextual)</p>
+<ul>
+<li>Only for photo upload feature</li>
+<li>Request when user taps "Add Photo"</li>
+</ul>
+</code>`<code>
+
+<p>---</p>
+
+<h2>Runtime Permission Handling</h2>
+
+<h3>iOS: Purpose Strings and Contextual Requests</h3>
+
+<strong>Info.plist Configuration</strong>:
+</code>`<code>xml
+<!-- SECURE: Clear, specific purpose strings -->
+<key>NSLocationWhenInUseUsageDescription</key>
+<string>We need your location to show nearby restaurants when you search. Your location is never tracked in the background.</string>
+
+<key>NSCameraUsageDescription</key>
+<string>We need camera access to let you upload photos of dishes to your reviews. Photos are only taken when you tap the camera button.</string>
+
+<key>NSPhotoLibraryUsageDescription</key>
+<string>We need photo library access to let you choose existing photos for your reviews.</string>
+
+<key>NSContactsUsageDescription</key>
+<string>We need contacts access to help you invite friends to join the app. We never upload your contacts to our servers.</string>
+
+<!-- DON'T REQUEST unless absolutely necessary -->
+<!-- <key>NSLocationAlwaysAndWhenInUseUsageDescription</key> -->
+<!-- Background location should be rarely needed -->
+</code>`<code>
+
+<strong>Swift: Contextual Permission Requests</strong>:
+</code>`<code>swift
+<p>// SECURE APPROACH</p>
+<p>import CoreLocation</p>
+
+<p>class RestaurantSearchViewController: UIViewController {</p>
+<p>    let locationManager = CLLocationManager()</p>
+    
+<p>    func searchNearbyRestaurants() {</p>
+<p>        // Check current authorization status</p>
+<p>        let status = locationManager.authorizationStatus</p>
+        
+<p>        switch status {</p>
+<p>        case .notDetermined:</p>
+<p>            // First time - request permission</p>
+<p>            requestLocationPermission()</p>
+            
+<p>        case .denied, .restricted:</p>
+<p>            // Show settings prompt</p>
+<p>            showLocationDeniedAlert()</p>
+            
+<p>        case .authorizedWhenInUse, .authorizedAlways:</p>
+<p>            // Permission granted - proceed</p>
+<p>            performSearch()</p>
+            
+<p>        @unknown default:</p>
+<p>            break</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    private func requestLocationPermission() {</p>
+<p>        // Show rationale first (custom UI)</p>
+<p>        let alert = UIAlertController(</p>
+<p>            title: "Location Permission",</p>
+<p>            message: "We need your location to find restaurants near you. " +</p>
+<p>                     "Your location is only used when you search and is " +</p>
+<p>                     "never tracked in the background.",</p>
+<p>            preferredStyle: .alert</p>
+<p>        )</p>
+        
+<p>        alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in</p>
+<p>            // Request only "When In Use" - never "Always"</p>
+<p>            self.locationManager.requestWhenInUseAuthorization()</p>
+<p>        })</p>
+        
+<p>        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))</p>
+        
+<p>        present(alert, animated: true)</p>
+<p>    }</p>
+    
+<p>    private func showLocationDeniedAlert() {</p>
+<p>        let alert = UIAlertController(</p>
+<p>            title: "Location Access Disabled",</p>
+<p>            message: "To search for nearby restaurants, please enable location " +</p>
+<p>                     "access in Settings > Privacy > Location Services.",</p>
+<p>            preferredStyle: .alert</p>
+<p>        )</p>
+        
+<p>        alert.addAction(UIAlertAction(title: "Open Settings", style: .default) { _ in</p>
+<p>            if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {</p>
+<p>                UIApplication.shared.open(settingsUrl)</p>
+<p>            }</p>
+<p>        })</p>
+        
+<p>        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))</p>
+        
+<p>        present(alert, animated: true)</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Android: Granular Permission Requests</h3>
+
+<strong>Manifest Declaration</strong>:
+</code>`<code>xml
+<!-- SECURE: Only declare permissions you actually use -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    
+    <!-- Request minimal location permission -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    
+    <!-- Only if precise location absolutely necessary -->
+    <!-- <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" /> -->
+    
+    <!-- Camera for photo upload -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    
+    <!-- DON'T request background location unless critical -->
+    <!-- <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" /> -->
+    
+    <!-- Use Photo Picker instead of full storage access (Android 13+) -->
+    <!-- <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" 
+<p>         android:maxSdkVersion="32" /> --></p>
+    
+</manifest>
+</code>`<code>
+
+<strong>Kotlin: Runtime Permission Pattern</strong>:
+</code>`<code>kotlin
+<p>// SECURE: Permission request with explanation</p>
+<p>class RestaurantMapActivity : AppCompatActivity() {</p>
+    
+<p>    private val locationPermissionRequest = registerForActivityResult(</p>
+<p>        ActivityResultContracts.RequestMultiplePermissions()</p>
+<p>    ) { permissions -></p>
+<p>        when {</p>
+<p>            permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true -> {</p>
+<p>                // Coarse location granted - sufficient for most use cases</p>
+<p>                loadNearbyRestaurants()</p>
+<p>            }</p>
+<p>            permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true -> {</p>
+<p>                // Fine location granted</p>
+<p>                loadNearbyRestaurants()</p>
+<p>            }</p>
+<p>            else -> {</p>
+<p>                // Permission denied</p>
+<p>                showPermissionDeniedMessage()</p>
+<p>            }</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    fun searchNearby() {</p>
+<p>        when {</p>
+<p>            // Check if we already have permission</p>
+<p>            ContextCompat.checkSelfPermission(</p>
+<p>                this,</p>
+<p>                Manifest.permission.ACCESS_COARSE_LOCATION</p>
+<p>            ) == PackageManager.PERMISSION_GRANTED -> {</p>
+<p>                loadNearbyRestaurants()</p>
+<p>            }</p>
+            
+<p>            // Should we show rationale?</p>
+<p>            shouldShowRequestPermissionRationale(</p>
+<p>                Manifest.permission.ACCESS_COARSE_LOCATION</p>
+<p>            ) -> {</p>
+<p>                showLocationRationale()</p>
+<p>            }</p>
+            
+<p>            // Request permission</p>
+<p>            else -> {</p>
+<p>                requestLocationPermission()</p>
+<p>            }</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    private fun showLocationRationale() {</p>
+<p>        MaterialAlertDialogBuilder(this)</p>
+<p>            .setTitle("Location Permission")</p>
+<p>            .setMessage(</p>
+<p>                "To show restaurants near you, we need approximate location access. " +</p>
+<p>                "\n\n• Only used when you search" +</p>
+<p>                "\n• Never tracked in background" +</p>
+<p>                "\n• You can revoke anytime in Settings"</p>
+<p>            )</p>
+<p>            .setPositiveButton("Grant Permission") { _, _ -></p>
+<p>                requestLocationPermission()</p>
+<p>            }</p>
+<p>            .setNegativeButton("Not Now", null)</p>
+<p>            .show()</p>
+<p>    }</p>
+    
+<p>    private fun requestLocationPermission() {</p>
+<p>        // Request only coarse location (more privacy-friendly)</p>
+<p>        locationPermissionRequest.launch(</p>
+<p>            arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION)</p>
+<p>        )</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Permission Request Best Practices</h3>
+
+</code>`<code>
+<p>DO:</p>
+<p>✓ Request permissions contextually (when feature is used)</p>
+<p>✓ Explain why you need each permission</p>
+<p>✓ Request minimum necessary scope (coarse vs fine, when-in-use vs always)</p>
+<p>✓ Provide alternative functionality if permission denied</p>
+<p>✓ Respect user's "don't ask again" choice</p>
+<p>✓ Implement graceful degradation</p>
+
+<p>DON'T:</p>
+<p>✗ Request all permissions at app launch</p>
+<p>✗ Bundle multiple unrelated permissions together</p>
+<p>✗ Use vague or misleading explanations</p>
+<p>✗ Block core functionality for optional permissions</p>
+<p>✗ Repeatedly prompt after denial</p>
+<p>✗ Implement "permission walls" that force consent</p>
+</code>`<code>
+
+<p>---</p>
+
+<h2>Privacy-by-Design Principles</h2>
+
+<h3>1. Data Minimization</h3>
+
+<strong>Principle</strong>: Collect only the data you absolutely need.
+
+<strong>Example: User Profile</strong>:
+</code>`<code>kotlin
+<p>// ✗ EXCESSIVE DATA COLLECTION</p>
+<p>data class UserProfile(</p>
+<p>    val id: String,</p>
+<p>    val email: String,</p>
+<p>    val password: String,          // ✗ Store hash only</p>
+<p>    val fullName: String,</p>
+<p>    val dateOfBirth: Date,        // ✗ Not needed</p>
+<p>    val gender: String,            // ✗ Not needed</p>
+<p>    val phoneNumber: String,       // ✗ Optional</p>
+<p>    val address: Address,          // ✗ Optional</p>
+<p>    val socialSecurityNumber: String, // ✗ Never collect</p>
+<p>    val creditCardNumber: String,  // ✗ Never store</p>
+<p>    val mothersMaidenName: String, // ✗ Not needed</p>
+<p>    val ipAddress: String,         // ✗ Don't store permanently</p>
+<p>    val deviceId: String,          // ✗ Use session ID instead</p>
+<p>    val installedApps: List<String>, // ✗ Privacy violation</p>
+<p>    val locationHistory: List<Location>, // ✗ Don't store unless necessary</p>
+<p>    val browsingHistory: List<String>    // ✗ Privacy violation</p>
+<p>)</p>
+
+<p>// ✓ MINIMAL DATA COLLECTION</p>
+<p>data class UserProfile(</p>
+<p>    val id: String,</p>
+<p>    val email: String,</p>
+<p>    val passwordHash: String,  // ✓ Hashed, not plaintext</p>
+<p>    val displayName: String,   // ✓ User-chosen, not full legal name</p>
+<p>    val createdAt: Date</p>
+<p>)</p>
+
+<p>// Optional fields in separate table, only if user provides</p>
+<p>data class OptionalProfile(</p>
+<p>    val userId: String,</p>
+<p>    val phoneNumber: String?,  // Only if user adds</p>
+<p>    val avatarUrl: String?     // Only if user uploads</p>
+<p>)</p>
+</code>`<code>
+
+<h3>2. Purpose Limitation</h3>
+
+<strong>Principle</strong>: Use data only for the stated purpose.
+
+</code>`<code>swift
+<p>// ✓ SECURE: Explicit purpose declaration</p>
+<p>struct DataUsagePolicy {</p>
+<p>    let purpose: String</p>
+<p>    let dataTypes: [DataType]</p>
+<p>    let retention: TimeInterval</p>
+<p>    let sharingAllowed: Bool</p>
+    
+<p>    static let locationForSearch = DataUsagePolicy(</p>
+<p>        purpose: "Find nearby restaurants when you search",</p>
+<p>        dataTypes: [.location],</p>
+<p>        retention: 0, // Don't store - use and discard</p>
+<p>        sharingAllowed: false</p>
+<p>    )</p>
+    
+<p>    static let photoForReview = DataUsagePolicy(</p>
+<p>        purpose: "Display your photo with your restaurant review",</p>
+<p>        dataTypes: [.photo],</p>
+<p>        retention: .infinity, // Store as long as review exists</p>
+<p>        sharingAllowed: true // Public review, user aware</p>
+<p>    )</p>
+<p>}</p>
+
+<p>class LocationService {</p>
+<p>    func getCurrentLocation(for purpose: DataUsagePolicy) async throws -> Location {</p>
+<p>        // Verify purpose allows location access</p>
+<p>        guard purpose.dataTypes.contains(.location) else {</p>
+<p>            throw PrivacyError.purposeViolation</p>
+<p>        }</p>
+        
+<p>        let location = try await CLLocationManager().requestLocation()</p>
+        
+<p>        // Use only for stated purpose</p>
+<p>        if purpose.retention == 0 {</p>
+<p>            // Don't store - return and discard</p>
+<p>            return location</p>
+<p>        } else {</p>
+<p>            // Store with purpose metadata for audit</p>
+<p>            try await storeLocation(location, purpose: purpose)</p>
+<p>            return location</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>3. Storage Limitation</h3>
+
+<strong>Principle</strong>: Delete data when no longer needed.
+
+</code>`<code>kotlin
+<p>// ✓ SECURE: Automatic data deletion</p>
+<p>class DataRetentionManager {</p>
+    
+<p>    // Define retention policies</p>
+<p>    enum class RetentionPolicy(val duration: Duration) {</p>
+<p>        SESSION(Duration.ZERO),           // Delete after session</p>
+<p>        SHORT_TERM(Duration.ofDays(30)),  // 30 days</p>
+<p>        MEDIUM_TERM(Duration.ofDays(90)), // 90 days</p>
+<p>        LEGAL_MINIMUM(Duration.ofYears(1)), // Compliance requirement</p>
+<p>        USER_CONTROLLED(Duration.INFINITE)  // User decides when to delete</p>
+<p>    }</p>
+    
+<p>    data class DataWithRetention(</p>
+<p>        val data: Any,</p>
+<p>        val category: DataCategory,</p>
+<p>        val policy: RetentionPolicy,</p>
+<p>        val createdAt: Instant</p>
+<p>    )</p>
+    
+<p>    // Automatically delete expired data</p>
+<p>    suspend fun cleanupExpiredData() {</p>
+<p>        val now = Instant.now()</p>
+        
+<p>        // Session data - delete after logout</p>
+<p>        sessionStorage.clear()</p>
+        
+<p>        // Search history - delete after 30 days</p>
+<p>        database.query("""</p>
+<p>            DELETE FROM search_history</p>
+<p>            WHERE created_at < ?</p>
+<p>        """, now.minus(RetentionPolicy.SHORT_TERM.duration))</p>
+        
+<p>        // Temporary location data - delete immediately after use</p>
+<p>        database.query("""</p>
+<p>            DELETE FROM temp_locations</p>
+<p>            WHERE created_at < ?</p>
+<p>        """, now.minus(Duration.ofHours(1)))</p>
+        
+<p>        // Analytics events - delete after 90 days</p>
+<p>        database.query("""</p>
+<p>            DELETE FROM analytics_events</p>
+<p>            WHERE created_at < ?</p>
+<p>        """, now.minus(RetentionPolicy.MEDIUM_TERM.duration))</p>
+        
+<p>        // User-generated content - keep until user deletes</p>
+<p>        // (No automatic deletion)</p>
+<p>    }</p>
+    
+<p>    // Schedule regular cleanup</p>
+<p>    fun scheduleRetentionCleanup() {</p>
+<p>        WorkManager.getInstance(context)</p>
+<p>            .enqueueUniquePeriodicWork(</p>
+<p>                "data_retention_cleanup",</p>
+<p>                ExistingPeriodicWorkPolicy.KEEP,</p>
+<p>                PeriodicWorkRequestBuilder<DataCleanupWorker>(1, TimeUnit.DAYS)</p>
+<p>                    .build()</p>
+<p>            )</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>4. On-Device Processing</h3>
+
+<strong>Principle</strong>: Process data locally when possible.
+
+</code>`<code>swift
+<p>// ✓ SECURE: On-device ML processing</p>
+<p>import CoreML</p>
+<p>import Vision</p>
+
+<p>class ImageRecognitionService {</p>
+    
+<p>    func recognizeFood(in image: UIImage) async throws -> [FoodItem] {</p>
+<p>        // ✓ Process on-device using Core ML</p>
+<p>        // ✗ DON'T send image to server for recognition</p>
+        
+<p>        guard let model = try? VNCoreMLModel(for: FoodRecognitionModel().model) else {</p>
+<p>            throw RecognitionError.modelLoadFailed</p>
+<p>        }</p>
+        
+<p>        let request = VNCoreMLRequest(model: model)</p>
+        
+<p>        let handler = VNImageRequestHandler(cgImage: image.cgImage!, options: [:])</p>
+<p>        try handler.perform([request])</p>
+        
+<p>        guard let results = request.results as? [VNClassificationObservation] else {</p>
+<p>            return []</p>
+<p>        }</p>
+        
+<p>        // All processing done locally - image never leaves device</p>
+<p>        return results.map { FoodItem(name: $0.identifier, confidence: $0.confidence) }</p>
+<p>    }</p>
+    
+<p>    // ✗ AVOID: Server-side processing when not necessary</p>
+<p>    func recognizeFoodServer(image: UIImage) async throws -> [FoodItem] {</p>
+<p>        // Privacy violation: Sends image to server</p>
+<p>        let imageData = image.jpegData(compressionQuality: 0.8)</p>
+        
+<p>        // Image may contain:</p>
+<p>        // - Location EXIF data</p>
+<p>        // - Faces of people</p>
+<p>        // - Private information visible in background</p>
+        
+<p>        let response = try await API.post("/recognize", body: imageData)</p>
+<p>        return try JSONDecoder().decode([FoodItem].self, from: response)</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>On-Device Processing Examples</strong>:
+</code>`<code>yaml
+<p>Use Local Processing For:</p>
+<p>  ✓ Image recognition (Core ML, TensorFlow Lite)</p>
+<p>  ✓ Text recognition (Vision, ML Kit)</p>
+<p>  ✓ Face detection (Vision, ML Kit)</p>
+<p>  ✓ Natural language processing (Core ML, on-device NLP)</p>
+<p>  ✓ Activity recognition (CoreMotion, Activity Recognition)</p>
+<p>  ✓ Keyword spotting (Speech framework)</p>
+  
+<p>Benefits:</p>
+<ul>
+<li>Privacy: Data never leaves device</li>
+<li>Speed: No network latency</li>
+<li>Offline: Works without internet</li>
+<li>Cost: No server processing fees</li>
+</ul>
+</code>`<code>
+
+<p>---</p>
+
+<h2>Data Minimization</h2>
+
+<h3>Implement Granular Photo Access</h3>
+
+<strong>✗ Old Approach</strong>: Request full photo library access
+
+</code>`<code>swift
+<p>// DON'T DO THIS (iOS < 14)</p>
+<p>import Photos</p>
+
+<p>func requestPhotoLibraryAccess() {</p>
+<p>    PHPhotoLibrary.requestAuthorization { status in</p>
+<p>        if status == .authorized {</p>
+<p>            // Now has access to ALL photos - privacy risk</p>
+<p>            self.accessAllPhotos()</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>✓ Modern Approach</strong>: Use Photo Picker (iOS 14+, Android 13+)
+
+</code>`<code>swift
+<p>// SECURE: Limited Photo Picker (iOS 14+)</p>
+<p>import PhotosUI</p>
+
+<p>class ProfileViewController: UIViewController, PHPickerViewControllerDelegate {</p>
+    
+<p>    func selectProfilePhoto() {</p>
+<p>        // ✓ User selects specific photo - no library access needed</p>
+<p>        var config = PHPickerConfiguration()</p>
+<p>        config.selectionLimit = 1</p>
+<p>        config.filter = .images</p>
+        
+<p>        let picker = PHPickerViewController(configuration: config)</p>
+<p>        picker.delegate = self</p>
+<p>        present(picker, animated: true)</p>
+<p>    }</p>
+    
+<p>    func picker(_ picker: PHPickerViewController, </p>
+<p>                didFinishPicking results: [PHPickerResult]) {</p>
+<p>        picker.dismiss(animated: true)</p>
+        
+<p>        guard let result = results.first else { return }</p>
+        
+<p>        // Access only the selected photo - not entire library</p>
+<p>        result.itemProvider.loadObject(ofClass: UIImage.self) { image, error in</p>
+<p>            if let image = image as? UIImage {</p>
+<p>                self.uploadProfilePhoto(image)</p>
+<p>            }</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+</code>`<code>kotlin
+<p>// SECURE: Photo Picker (Android 13+)</p>
+<p>class ProfileActivity : AppCompatActivity() {</p>
+    
+<p>    private val photoPickerLauncher = registerForActivityResult(</p>
+<p>        ActivityResultContracts.PickVisualMedia()</p>
+<p>    ) { uri -></p>
+<p>        // User selected one photo - no storage permission needed</p>
+<p>        uri?.let { uploadProfilePhoto(it) }</p>
+<p>    }</p>
+    
+<p>    fun selectProfilePhoto() {</p>
+<p>        // ✓ Use photo picker - no READ_EXTERNAL_STORAGE permission required</p>
+<p>        photoPickerLauncher.launch(</p>
+<p>            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)</p>
+<p>        )</p>
+<p>    }</p>
+    
+<p>    // For older Android versions, request minimal permission</p>
+<p>    private val legacyPhotoLauncher = registerForActivityResult(</p>
+<p>        ActivityResultContracts.GetContent()</p>
+<p>    ) { uri -></p>
+<p>        uri?.let { uploadProfilePhoto(it) }</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Location Precision Reduction</h3>
+
+<strong>✓ Use Coarse Location When Sufficient</strong>:
+
+</code>`<code>kotlin
+<p>// SECURE: Request coarse location for city-level needs</p>
+<p>class WeatherService {</p>
+    
+<p>    suspend fun getCurrentWeather(): WeatherData {</p>
+<p>        // ✓ Coarse location sufficient for weather</p>
+<p>        // Accuracy: ~2-5 km (city block)</p>
+<p>        val location = getCoarseLocation()</p>
+        
+<p>        return fetchWeather(location.latitude, location.longitude)</p>
+<p>    }</p>
+    
+<p>    private suspend fun getCoarseLocation(): Location {</p>
+<p>        // Only request ACCESS_COARSE_LOCATION permission</p>
+<p>        val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)</p>
+        
+<p>        return suspendCoroutine { continuation -></p>
+<p>            fusedLocationClient.lastLocation.addOnSuccessListener { location -></p>
+<p>                continuation.resume(location)</p>
+<p>            }</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+
+<p>// Only use fine location when truly necessary</p>
+<p>class NavigationService {</p>
+    
+<p>    suspend fun startTurnByTurnNavigation() {</p>
+<p>        // ✓ Turn-by-turn requires precise location - justified</p>
+<p>        val location = getPreciseLocation()</p>
+        
+<p>        startNavigation(location)</p>
+<p>    }</p>
+    
+<p>    private suspend fun getPreciseLocation(): Location {</p>
+<p>        // REQUEST ACCESS_FINE_LOCATION only for navigation feature</p>
+<p>        // ...</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>iOS: Approximate Location (iOS 14+)</strong>:
+</code>`<code>swift
+<p>// SECURE: Request approximate location</p>
+<p>class WeatherViewController: UIViewController, CLLocationManagerDelegate {</p>
+<p>    let locationManager = CLLocationManager()</p>
+    
+<p>    func requestLocation() {</p>
+<p>        locationManager.delegate = self</p>
+        
+<p>        // ✓ Request approximate location</p>
+<p>        // User can choose "Precise: Off" in permission dialog</p>
+<p>        locationManager.requestWhenInUseAuthorization()</p>
+<p>    }</p>
+    
+<p>    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {</p>
+<p>        if manager.accuracyAuthorization == .reducedAccuracy {</p>
+<p>            // User chose approximate location</p>
+<p>            // Accuracy: ~10km radius</p>
+<p>            print("Approximate location granted")</p>
+<p>        } else {</p>
+<p>            // User chose precise location</p>
+<p>            print("Precise location granted")</p>
+<p>        }</p>
+        
+<p>        manager.requestLocation()</p>
+<p>    }</p>
+    
+<p>    func locationManager(_ manager: CLLocationManager, </p>
+<p>                        didUpdateLocations locations: [CLLocation]) {</p>
+<p>        guard let location = locations.first else { return }</p>
+        
+<p>        // ✓ Use location only for weather - don't store</p>
+<p>        fetchWeather(for: location) { weather in</p>
+<p>            self.displayWeather(weather)</p>
+<p>        }</p>
+        
+<p>        // ✓ Don't store location history</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<p>---</p>
+
+<h2>User Consent Mechanisms</h2>
+
+<h3>Transparent Consent UI</h3>
+
+<strong>✓ Clear, Specific Consent</strong>:
+
+</code>`<code>kotlin
+<p>// SECURE: Granular consent management</p>
+<p>data class ConsentPreferences(</p>
+<p>    val analytics: ConsentStatus,</p>
+<p>    val advertising: ConsentStatus,</p>
+<p>    val locationTracking: ConsentStatus,</p>
+<p>    val crashReporting: ConsentStatus,</p>
+<p>    val personalizedContent: ConsentStatus</p>
+<p>) {</p>
+<p>    enum class ConsentStatus {</p>
+<p>        NOT_ASKED,</p>
+<p>        GRANTED,</p>
+<p>        DENIED,</p>
+<p>        WITHDRAWN</p>
+<p>    }</p>
+<p>}</p>
+
+<p>class ConsentManager(private val context: Context) {</p>
+    
+<p>    private val prefs = context.getSharedPreferences("consent_prefs", Context.MODE_PRIVATE)</p>
+    
+<p>    fun showConsentDialog() {</p>
+<p>        MaterialAlertDialogBuilder(context)</p>
+<p>            .setTitle("Your Privacy Choices")</p>
+<p>            .setMessage(</p>
+<p>                "We respect your privacy. Please choose which data collection " +</p>
+<p>                "features you'd like to enable. You can change these anytime in Settings."</p>
+<p>            )</p>
+<p>            .setView(R.layout.consent_dialog)</p>
+<p>            .setPositiveButton("Save Preferences") { dialog, _ -></p>
+<p>                saveConsentPreferences(dialog)</p>
+<p>            }</p>
+<p>            .setNeutralButton("Learn More") { _, _ -></p>
+<p>                openPrivacyPolicy()</p>
+<p>            }</p>
+<p>            .setCancelable(false)</p>
+<p>            .show()</p>
+<p>    }</p>
+    
+<p>    private fun saveConsentPreferences(dialog: DialogInterface) {</p>
+<p>        val view = (dialog as AlertDialog).findViewById<View>(R.id.consent_form)!!</p>
+        
+<p>        val analytics = view.findViewById<CheckBox>(R.id.consent_analytics).isChecked</p>
+<p>        val advertising = view.findViewById<CheckBox>(R.id.consent_advertising).isChecked</p>
+<p>        val location = view.findViewById<CheckBox>(R.id.consent_location).isChecked</p>
+        
+<p>        // ✓ Save granular preferences</p>
+<p>        prefs.edit {</p>
+<p>            putBoolean("analytics_consent", analytics)</p>
+<p>            putBoolean("advertising_consent", advertising)</p>
+<p>            putBoolean("location_tracking_consent", location)</p>
+<p>            putLong("consent_timestamp", System.currentTimeMillis())</p>
+<p>        }</p>
+        
+<p>        // ✓ Apply immediately</p>
+<p>        applyConsentPreferences()</p>
+<p>    }</p>
+    
+<p>    private fun applyConsentPreferences() {</p>
+<p>        if (!hasAnalyticsConsent()) {</p>
+<p>            // Disable analytics</p>
+<p>            Analytics.setEnabled(false)</p>
+<p>        }</p>
+        
+<p>        if (!hasAdvertisingConsent()) {</p>
+<p>            // Disable advertising</p>
+<p>            AdService.setEnabled(false)</p>
+<p>        }</p>
+        
+<p>        if (!hasLocationTrackingConsent()) {</p>
+<p>            // Stop location tracking</p>
+<p>            LocationTracker.stop()</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    fun hasAnalyticsConsent(): Boolean {</p>
+<p>        return prefs.getBoolean("analytics_consent", false)</p>
+<p>    }</p>
+    
+<p>    fun revokeAllConsent() {</p>
+<p>        prefs.edit {</p>
+<p>            clear()</p>
+<p>            putBoolean("consent_revoked", true)</p>
+<p>            putLong("revocation_timestamp", System.currentTimeMillis())</p>
+<p>        }</p>
+        
+<p>        // ✓ Delete all collected data</p>
+<p>        deleteAllUserData()</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Consent Dialog XML</strong>:
+</code>`<code>xml
+<!-- res/layout/consent_dialog.xml -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<p>    android:layout_width="match_parent"</p>
+<p>    android:layout_height="wrap_content"</p>
+<p>    android:orientation="vertical"</p>
+<p>    android:padding="16dp"></p>
+    
+    <!-- Analytics Consent -->
+    <CheckBox
+<p>        android:id="@+id/consent_analytics"</p>
+<p>        android:layout_width="match_parent"</p>
+<p>        android:layout_height="wrap_content"</p>
+<p>        android:text="Analytics"</p>
+<p>        android:checked="false"/></p>
+    
+    <TextView
+<p>        android:layout_width="match_parent"</p>
+<p>        android:layout_height="wrap_content"</p>
+<p>        android:text="Help us improve the app by sending anonymous usage statistics. No personal information is collected."</p>
+<p>        android:textSize="12sp"</p>
+<p>        android:layout_marginBottom="16dp"/></p>
+    
+    <!-- Advertising Consent -->
+    <CheckBox
+<p>        android:id="@+id/consent_advertising"</p>
+<p>        android:layout_width="match_parent"</p>
+<p>        android:layout_height="wrap_content"</p>
+<p>        android:text="Personalized Advertising"</p>
+<p>        android:checked="false"/></p>
+    
+    <TextView
+<p>        android:layout_width="match_parent"</p>
+<p>        android:layout_height="wrap_content"</p>
+<p>        android:text="Show personalized ads based on your interests. If disabled, you'll still see ads, but they won't be personalized."</p>
+<p>        android:textSize="12sp"</p>
+<p>        android:layout_marginBottom="16dp"/></p>
+    
+    <!-- Location Tracking Consent -->
+    <CheckBox
+<p>        android:id="@+id/consent_location"</p>
+<p>        android:layout_width="match_parent"</p>
+<p>        android:layout_height="wrap_content"</p>
+<p>        android:text="Location-Based Features"</p>
+<p>        android:checked="false"/></p>
+    
+    <TextView
+<p>        android:layout_width="match_parent"</p>
+<p>        android:layout_height="wrap_content"</p>
+<p>        android:text="Enable location-based recommendations. Your location is only used when the app is open and is never shared with third parties."</p>
+<p>        android:textSize="12sp"/></p>
+    
+</LinearLayout>
+</code>`<code>
+
+<h3>GDPR/CCPA Compliance</h3>
+
+<strong>✓ Data Subject Rights Implementation</strong>:
+
+</code>`<code>swift
+<p>// SECURE: Implement user data rights</p>
+<p>class PrivacyComplianceManager {</p>
+    
+<p>    // Right to Access (GDPR Article 15)</p>
+<p>    func exportUserData(userId: String) async throws -> URL {</p>
+<p>        // Collect all user data</p>
+<p>        let userData = UserDataExport(</p>
+<p>            profile: try await fetchUserProfile(userId),</p>
+<p>            reviews: try await fetchUserReviews(userId),</p>
+<p>            photos: try await fetchUserPhotos(userId),</p>
+<p>            searchHistory: try await fetchSearchHistory(userId),</p>
+<p>            preferences: try await fetchPreferences(userId)</p>
+<p>        )</p>
+        
+<p>        // Generate JSON export</p>
+<p>        let jsonData = try JSONEncoder().encode(userData)</p>
+        
+<p>        // Save to file</p>
+<p>        let fileURL = FileManager.default.temporaryDirectory</p>
+<p>            .appendingPathComponent("user_data_\(userId).json")</p>
+<p>        try jsonData.write(to: fileURL)</p>
+        
+<p>        return fileURL</p>
+<p>    }</p>
+    
+<p>    // Right to Erasure (GDPR Article 17)</p>
+<p>    func deleteAllUserData(userId: String) async throws {</p>
+<p>        // Delete from all systems</p>
+<p>        try await database.transaction {</p>
+<p>            // User profile</p>
+<p>            try await deleteUserProfile(userId)</p>
+            
+<p>            // User-generated content</p>
+<p>            try await deleteUserReviews(userId)</p>
+<p>            try await deleteUserPhotos(userId)</p>
+            
+<p>            // Activity data</p>
+<p>            try await deleteSearchHistory(userId)</p>
+<p>            try await deleteLocationHistory(userId)</p>
+<p>            try await deleteAnalyticsData(userId)</p>
+            
+<p>            // Preferences</p>
+<p>            try await deletePreferences(userId)</p>
+            
+<p>            // Session data</p>
+<p>            try await deleteSessionData(userId)</p>
+            
+<p>            // Backups (mark for deletion)</p>
+<p>            try await markForDeletionInBackups(userId)</p>
+<p>        }</p>
+        
+<p>        // Notify third parties</p>
+<p>        try await notifyThirdPartiesToDelete(userId)</p>
+        
+<p>        // Log deletion for compliance</p>
+<p>        try await logDataDeletion(userId, reason: "User request")</p>
+<p>    }</p>
+    
+<p>    // Right to Portability (GDPR Article 20)</p>
+<p>    func generatePortableData(userId: String) async throws -> Data {</p>
+<p>        // Export in machine-readable format (JSON)</p>
+<p>        let userData = try await exportUserData(userId: userId)</p>
+<p>        return try Data(contentsOf: userData)</p>
+<p>    }</p>
+    
+<p>    // Right to Object (GDPR Article 21)</p>
+<p>    func disableProcessing(userId: String, purpose: ProcessingPurpose) async {</p>
+<p>        switch purpose {</p>
+<p>        case .directMarketing:</p>
+<p>            try await setMarketingPreference(userId, enabled: false)</p>
+<p>        case .profiling:</p>
+<p>            try await setProfilingPreference(userId, enabled: false)</p>
+<p>        case .analytics:</p>
+<p>            try await setAnalyticsPreference(userId, enabled: false)</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    // CCPA: Do Not Sell My Personal Information</p>
+<p>    func optOutOfDataSale(userId: String) async throws {</p>
+<p>        // Stop sharing with data brokers</p>
+<p>        try await setDataSharingPreference(userId, allowSale: false)</p>
+        
+<p>        // Notify partners to stop processing</p>
+<p>        try await notifyPartnersOfOptOut(userId)</p>
+        
+<p>        // Display opt-out status</p>
+<p>        try await updatePrivacyDashboard(userId, optedOut: true)</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<p>---</p>
+
+<h2>Secure Data Collection Patterns</h2>
+
+<h3>Privacy-Safe Logging</h3>
+
+<strong>✗ Insecure Logging</strong> (PII leakage):
+</code>`<code>java
+<p>// DON'T DO THIS</p>
+<p>public class AuthService {</p>
+<p>    private static final Logger log = Logger.getLogger(AuthService.class);</p>
+    
+<p>    public User login(String email, String password) {</p>
+<p>        log.info("Login attempt: " + email); // ✗ PII in logs</p>
+<p>        log.debug("Password: " + password);  // ✗ CRITICAL - password in logs!</p>
+        
+<p>        User user = userRepository.findByEmail(email);</p>
+<p>        log.info("User found: " + user.toString()); // ✗ Entire user object</p>
+        
+<p>        return user;</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>✓ Privacy-Safe Logging</strong>:
+</code>`<code>kotlin
+<p>// SECURE APPROACH</p>
+<p>class AuthService {</p>
+<p>    private val logger = LoggerFactory.getLogger(AuthService::class.java)</p>
+    
+<p>    fun login(email: String, password: String): User? {</p>
+<p>        // ✓ Log event without PII</p>
+<p>        logger.info("Login attempt for user")</p>
+        
+<p>        // ✓ Use hashed identifier if needed</p>
+<p>        val userIdHash = hashUserId(email)</p>
+<p>        logger.info("Login attempt for user_hash=$userIdHash")</p>
+        
+<p>        // ✗ NEVER log passwords</p>
+<p>        // logger.debug("Password: $password")  // NO!</p>
+        
+<p>        val user = userRepository.findByEmail(email)</p>
+        
+<p>        if (user != null) {</p>
+<p>            // ✓ Log success without sensitive data</p>
+<p>            logger.info("Login successful for user_id=${user.id}")</p>
+            
+<p>            // ✗ DON'T log entire user object</p>
+<p>            // logger.info("User: $user")  // NO!</p>
+<p>        } else {</p>
+<p>            logger.warn("Login failed: user not found")</p>
+<p>            // ✓ Don't reveal whether email exists (security + privacy)</p>
+<p>        }</p>
+        
+<p>        return user</p>
+<p>    }</p>
+    
+<p>    private fun hashUserId(email: String): String {</p>
+<p>        // One-way hash for privacy-safe logging</p>
+<p>        return MessageDigest.getInstance("SHA-256")</p>
+<p>            .digest(email.toByteArray())</p>
+<p>            .joinToString("") { "%02x".format(it) }</p>
+<p>            .take(16) // First 16 chars</p>
+<p>    }</p>
+<p>}</p>
+
+<p>// Custom logger wrapper that sanitizes PII</p>
+<p>class PrivacyAwareLogger(private val logger: Logger) {</p>
+    
+<p>    fun info(message: String) {</p>
+<p>        logger.info(sanitizePII(message))</p>
+<p>    }</p>
+    
+<p>    fun warn(message: String) {</p>
+<p>        logger.warn(sanitizePII(message))</p>
+<p>    }</p>
+    
+<p>    fun error(message: String, throwable: Throwable?) {</p>
+<p>        logger.error(sanitizePII(message), sanitizeStackTrace(throwable))</p>
+<p>    }</p>
+    
+<p>    private fun sanitizePII(message: String): String {</p>
+<p>        var sanitized = message</p>
+        
+<p>        // Redact email addresses</p>
+<p>        sanitized = sanitized.replace(</p>
+<p>            Regex("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"),</p>
+<p>            "[EMAIL_REDACTED]"</p>
+<p>        )</p>
+        
+<p>        // Redact phone numbers</p>
+<p>        sanitized = sanitized.replace(</p>
+<p>            Regex("\\b\\d{3}[-.]?\\d{3}[-.]?\\d{4}\\b"),</p>
+<p>            "[PHONE_REDACTED]"</p>
+<p>        )</p>
+        
+<p>        // Redact credit cards</p>
+<p>        sanitized = sanitized.replace(</p>
+<p>            Regex("\\b\\d{4}[\\s-]?\\d{4}[\\s-]?\\d{4}[\\s-]?\\d{4}\\b"),</p>
+<p>            "[CARD_REDACTED]"</p>
+<p>        )</p>
+        
+<p>        // Redact SSN</p>
+<p>        sanitized = sanitized.replace(</p>
+<p>            Regex("\\b\\d{3}-\\d{2}-\\d{4}\\b"),</p>
+<p>            "[SSN_REDACTED]"</p>
+<p>        )</p>
+        
+<p>        return sanitized</p>
+<p>    }</p>
+    
+<p>    private fun sanitizeStackTrace(throwable: Throwable?): Throwable? {</p>
+<p>        // Remove sensitive information from exception messages</p>
+<p>        // This is complex - consider not logging stack traces with PII</p>
+<p>        return throwable</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Privacy-Safe Analytics</h3>
+
+<strong>✓ Anonymous Analytics</strong>:
+
+</code>`<code>swift
+<p>// SECURE: Anonymous analytics without PII</p>
+<p>class PrivacyFriendlyAnalytics {</p>
+    
+<p>    func trackEvent(_ eventName: String, properties: [String: Any] = [:]) {</p>
+<p>        var sanitizedProperties = properties</p>
+        
+<p>        // ✓ Remove PII from properties</p>
+<p>        sanitizedProperties = removePII(from: sanitizedProperties)</p>
+        
+<p>        // ✓ Use anonymous user ID (rotates periodically)</p>
+<p>        let anonymousId = getAnonymousUserId()</p>
+        
+<p>        // ✓ Send minimal device info</p>
+<p>        let event = AnalyticsEvent(</p>
+<p>            name: eventName,</p>
+<p>            properties: sanitizedProperties,</p>
+<p>            anonymousUserId: anonymousId,</p>
+<p>            timestamp: Date(),</p>
+<p>            appVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String,</p>
+<p>            osVersion: UIDevice.current.systemVersion,</p>
+<p>            // ✗ DON'T send: device ID, advertising ID, precise location</p>
+<p>        )</p>
+        
+<p>        sendEvent(event)</p>
+<p>    }</p>
+    
+<p>    private func getAnonymousUserId() -> String {</p>
+<p>        let userDefaults = UserDefaults.standard</p>
+<p>        let key = "anonymous_user_id"</p>
+        
+<p>        // Check if we have an existing ID</p>
+<p>        if let existingId = userDefaults.string(forKey: key) {</p>
+<p>            // Check if it's expired (rotate every 30 days)</p>
+<p>            let createdKey = "anonymous_user_id_created"</p>
+<p>            if let created = userDefaults.object(forKey: createdKey) as? Date {</p>
+<p>                if Date().timeIntervalSince(created) < 30 <em> 24 </em> 60 * 60 {</p>
+<p>                    return existingId</p>
+<p>                }</p>
+<p>            }</p>
+<p>        }</p>
+        
+<p>        // Generate new anonymous ID</p>
+<p>        let newId = UUID().uuidString</p>
+<p>        userDefaults.set(newId, forKey: key)</p>
+<p>        userDefaults.set(Date(), forKey: createdKey)</p>
+        
+<p>        return newId</p>
+<p>    }</p>
+    
+<p>    private func removePII(from properties: [String: Any]) -> [String: Any] {</p>
+<p>        var cleaned = properties</p>
+        
+<p>        // Remove known PII keys</p>
+<p>        let piiKeys = ["email", "phone", "name", "address", "ssn", "credit_card"]</p>
+<p>        piiKeys.forEach { cleaned.removeValue(forKey: $0) }</p>
+        
+<p>        // Sanitize string values</p>
+<p>        for (key, value) in cleaned {</p>
+<p>            if let stringValue = value as? String {</p>
+<p>                cleaned[key] = sanitizeString(stringValue)</p>
+<p>            }</p>
+<p>        }</p>
+        
+<p>        return cleaned</p>
+<p>    }</p>
+    
+<p>    private func sanitizeString(_ value: String) -> String {</p>
+<p>        // Remove email addresses</p>
+<p>        var sanitized = value.replacingOccurrences(</p>
+<p>            of: "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}",</p>
+<p>            with: "[EMAIL]",</p>
+<p>            options: .regularExpression</p>
+<p>        )</p>
+        
+<p>        // Remove phone numbers</p>
+<p>        sanitized = sanitized.replacingOccurrences(</p>
+<p>            of: "\\b\\d{3}[-.]?\\d{3}[-.]?\\d{4}\\b",</p>
+<p>            with: "[PHONE]",</p>
+<p>            options: .regularExpression</p>
+<p>        )</p>
+        
+<p>        return sanitized</p>
+<p>    }</p>
+    
+<p>    // ✓ Use aggregate analytics instead of individual tracking</p>
+<p>    func trackAggregateMetric(_ metric: String, value: Double) {</p>
+<p>        // Send aggregate data without user identifiers</p>
+<p>        let aggregateEvent = [</p>
+<p>            "metric": metric,</p>
+<p>            "value": value,</p>
+<p>            "timestamp": Date().timeIntervalSince1970</p>
+<p>            // No user ID - purely aggregate</p>
+<p>        ]</p>
+        
+<p>        sendEvent(aggregateEvent)</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<p>---</p>
+
+<h2>Third-Party SDK Management</h2>
+
+<h3>SDK Privacy Audit</h3>
+
+<strong>Pre-Integration Checklist</strong>:
+
+</code>`<code>yaml
+<p>Before Integrating Any SDK:</p>
+
+<ol>
+<li>Privacy Policy Review:</li>
+</ol>
+<p>   □ Does SDK collect user data?</p>
+<p>   □ What specific data points?</p>
+<p>   □ Is data shared with third parties?</p>
+<p>   □ Where is data stored (jurisdiction)?</p>
+<p>   □ Data retention period?</p>
+
+<ol>
+<li>Permission Requirements:</li>
+</ol>
+<p>   □ What permissions does SDK request?</p>
+<p>   □ Are they necessary for functionality?</p>
+<p>   □ Can we configure permissions?</p>
+
+<ol>
+<li>Network Analysis:</li>
+</ol>
+<p>   □ What endpoints does SDK contact?</p>
+<p>   □ Frequency of network calls?</p>
+<p>   □ Can we inspect payloads?</p>
+<p>   □ Is traffic encrypted?</p>
+
+<ol>
+<li>Compliance:</li>
+</ol>
+<p>   □ GDPR compliant?</p>
+<p>   □ CCPA compliant?</p>
+<p>   □ COPPA compliant (if applicable)?</p>
+<p>   □ SOC 2 certified?</p>
+
+<ol>
+<li>Control:</li>
+</ol>
+<p>   □ Can we disable data collection?</p>
+<p>   □ Can we enable opt-out?</p>
+<p>   □ Can we request data deletion?</p>
+<p>   □ Can we control data sharing?</p>
+
+<ol>
+<li>Alternatives:</li>
+</ol>
+<p>   □ Can we implement functionality ourselves?</p>
+<p>   □ Are there more privacy-friendly alternatives?</p>
+<p>   □ Can we use on-device processing instead?</p>
+</code>`<code>
+
+<strong>SDK Configuration for Privacy</strong>:
+
+</code>`<code>kotlin
+<p>// SECURE: Configure SDKs with privacy settings</p>
+<p>class SDKPrivacyConfigurator {</p>
+    
+<p>    fun configureFacebookSDK(application: Application) {</p>
+<p>        // ✓ Disable automatic data collection</p>
+<p>        FacebookSdk.setAutoLogAppEventsEnabled(false)</p>
+<p>        FacebookSdk.setAdvertiserIDCollectionEnabled(false)</p>
+        
+<p>        // ✓ Enable limited data use (CCPA)</p>
+<p>        FacebookSdk.setDataProcessingOptions(arrayOf("LDU"), 1, 1000)</p>
+        
+<p>        // ✓ Only collect with user consent</p>
+<p>        if (hasAnalyticsConsent()) {</p>
+<p>            FacebookSdk.setAutoLogAppEventsEnabled(true)</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    fun configureFirebaseAnalytics() {</p>
+<p>        // ✓ Disable automatic collection</p>
+<p>        Firebase.analytics.setAnalyticsCollectionEnabled(false)</p>
+        
+<p>        // ✓ Enable only with consent</p>
+<p>        if (hasAnalyticsConsent()) {</p>
+<p>            Firebase.analytics.setAnalyticsCollectionEnabled(true)</p>
+<p>        }</p>
+        
+<p>        // ✓ Disable advertising features</p>
+<p>        Firebase.analytics.setUserProperty("allow_ad_personalization_signals", "false")</p>
+        
+<p>        // ✓ Set data retention to minimum</p>
+<p>        // (Configure in Firebase Console: 2 months minimum)</p>
+<p>    }</p>
+    
+<p>    fun configureAdjust() {</p>
+<p>        val config = AdjustConfig(context, appToken, environment)</p>
+        
+<p>        // ✓ Disable third-party sharing by default</p>
+<p>        config.setPreinstallTrackingEnabled(false)</p>
+<p>        config.setDeviceKnown(false)</p>
+        
+<p>        // ✓ Only enable with consent</p>
+<p>        if (hasAdvertisingConsent()) {</p>
+<p>            config.setPreinstallTrackingEnabled(true)</p>
+<p>        }</p>
+        
+<p>        Adjust.onCreate(config)</p>
+<p>    }</p>
+    
+<p>    // Audit SDK network traffic</p>
+<p>    fun auditSDKTraffic() {</p>
+<p>        // Use OkHttp interceptor to log SDK requests</p>
+<p>        val interceptor = object : Interceptor {</p>
+<p>            override fun intercept(chain: Interceptor.Chain): Response {</p>
+<p>                val request = chain.request()</p>
+                
+<p>                // Log for privacy audit</p>
+<p>                Log.d("SDK_AUDIT", "Request to: ${request.url}")</p>
+<p>                Log.d("SDK_AUDIT", "Headers: ${request.headers}")</p>
+                
+<p>                // Check for privacy violations</p>
+<p>                if (containsPII(request)) {</p>
+<p>                    Log.w("SDK_AUDIT", "⚠️  PII detected in request!")</p>
+<p>                }</p>
+                
+<p>                return chain.proceed(request)</p>
+<p>            }</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>SDK Sandboxing</h3>
+
+</code>`<code>swift
+<p>// SECURE: Isolate SDK data access</p>
+<p>class SDKSandbox {</p>
+    
+<p>    // Create isolated environment for SDK</p>
+<p>    func initializeSDKWithLimitedAccess() {</p>
+<p>        // ✓ Don't pass real user data</p>
+<p>        let sanitizedConfig = SDKConfiguration(</p>
+<p>            // Use anonymous ID, not real user ID</p>
+<p>            userId: getAnonymousId(),</p>
+            
+<p>            // Don't pass email</p>
+<p>            // email: user.email,  // ✗ NO</p>
+            
+<p>            // Don't pass name</p>
+<p>            // name: user.name,    // ✗ NO</p>
+            
+<p>            // Minimal device info</p>
+<p>            deviceModel: "iOS", // Generic, not specific model</p>
+<p>            osVersion: "15.0",  // Generic version</p>
+            
+<p>            // ✗ Don't pass: IDFA, device ID, location, contacts</p>
+<p>        )</p>
+        
+<p>        ThirdPartySDK.initialize(config: sanitizedConfig)</p>
+<p>    }</p>
+    
+<p>    // Proxy SDK calls to add privacy checks</p>
+<p>    func trackSDKEvent(_ event: String, properties: [String: Any]) {</p>
+<p>        // ✓ Filter properties before sending to SDK</p>
+<p>        let safeProperties = properties.filter { key, value in</p>
+<p>            // Whitelist approach - only allow safe properties</p>
+<p>            let allowedKeys = ["screen_name", "button_clicked", "feature_used"]</p>
+<p>            return allowedKeys.contains(key)</p>
+<p>        }</p>
+        
+<p>        ThirdPartySDK.track(event, properties: safeProperties)</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<p>---</p>
+
+<h2>Privacy Testing and Validation</h2>
+
+<h3>Automated Privacy Tests</h3>
+
+</code>`<code>kotlin
+<p>// Privacy regression tests</p>
+<p>class PrivacyTests {</p>
+    
+<p>    @Test</p>
+<p>    fun </code>verify no PII in logs<code>() {</p>
+<p>        // Enable log capture</p>
+<p>        val logCapture = LogCapture()</p>
+<p>        logCapture.start()</p>
+        
+<p>        // Perform actions that trigger logging</p>
+<p>        authService.login("user@example.com", "password123")</p>
+<p>        userService.updateProfile(testUser)</p>
+        
+<p>        // Stop capture</p>
+<p>        val logs = logCapture.stop()</p>
+        
+<p>        // Assert no PII in logs</p>
+<p>        assertFalse(logs.contains("user@example.com"), "Email found in logs")</p>
+<p>        assertFalse(logs.contains("password123"), "Password found in logs")</p>
+<p>        assertFalse(logs.contains(testUser.phoneNumber), "Phone found in logs")</p>
+<p>        assertFalse(logs.contains(testUser.address), "Address found in logs")</p>
+<p>    }</p>
+    
+<p>    @Test</p>
+<p>    fun </code>verify no excessive permissions requested<code>() {</p>
+<p>        val manifestPermissions = getManifestPermissions()</p>
+        
+<p>        // Define necessary permissions for app</p>
+<p>        val necessaryPermissions = setOf(</p>
+<p>            Manifest.permission.INTERNET,</p>
+<p>            Manifest.permission.CAMERA, // For QR code scanning</p>
+<p>            Manifest.permission.ACCESS_COARSE_LOCATION // For restaurant search</p>
+<p>        )</p>
+        
+<p>        // Verify only necessary permissions</p>
+<p>        val excessivePermissions = manifestPermissions - necessaryPermissions</p>
+<p>        assertTrue(</p>
+<p>            excessivePermissions.isEmpty(),</p>
+<p>            "Excessive permissions found: $excessivePermissions"</p>
+<p>        )</p>
+<p>    }</p>
+    
+<p>    @Test</p>
+<p>    fun </code>verify analytics respects consent<code>() {</p>
+<p>        // Revoke analytics consent</p>
+<p>        consentManager.setAnalyticsConsent(false)</p>
+        
+<p>        // Trigger analytics event</p>
+<p>        analytics.trackEvent("test_event")</p>
+        
+<p>        // Verify no network request made</p>
+<p>        val networkCalls = networkMonitor.getCalls()</p>
+<p>        assertFalse(</p>
+<p>            networkCalls.any { it.url.contains("analytics.example.com") },</p>
+<p>            "Analytics event sent without consent"</p>
+<p>        )</p>
+<p>    }</p>
+    
+<p>    @Test</p>
+<p>    fun </code>verify location not collected in background<code>() {</p>
+<p>        // Send app to background</p>
+<p>        ActivityLifecycleMonitor.sendToBackground()</p>
+        
+<p>        // Wait 5 minutes</p>
+<p>        Thread.sleep(5 <em> 60 </em> 1000)</p>
+        
+<p>        // Verify no location requests</p>
+<p>        val locationRequests = LocationRequestMonitor.getRequests()</p>
+<p>        assertTrue(</p>
+<p>            locationRequests.isEmpty(),</p>
+<p>            "Location requested in background"</p>
+<p>        )</p>
+<p>    }</p>
+    
+<p>    @Test</p>
+<p>    fun </code>verify data deletion works<code>() {</p>
+<p>        // Create user data</p>
+<p>        val userId = createTestUser()</p>
+<p>        userService.createReview(userId, testReview)</p>
+<p>        locationService.saveLocation(userId, testLocation)</p>
+        
+<p>        // Request deletion</p>
+<p>        privacyManager.deleteAllUserData(userId)</p>
+        
+<p>        // Verify all data deleted</p>
+<p>        assertNull(userRepository.findById(userId))</p>
+<p>        assertTrue(reviewRepository.findByUserId(userId).isEmpty())</p>
+<p>        assertTrue(locationRepository.findByUserId(userId).isEmpty())</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Manual Privacy Audit</h3>
+
+</code>`<code>bash
+<h1>Privacy Audit Checklist</h1>
+
+<h1>1. Network Traffic Analysis</h1>
+<p>$ mitmproxy --mode transparent --showhost</p>
+<h1>Verify:</h1>
+<h1>□ No PII in URLs or headers</h1>
+<h1>□ No excessive data collection</h1>
+<h1>□ No data sent without consent</h1>
+<h1>□ All traffic encrypted (HTTPS)</h1>
+
+<h1>2. Permission Analysis</h1>
+<h1>Android</h1>
+<p>$ adb shell dumpsys package com.example.app | grep permission</p>
+<h1>iOS</h1>
+<p>$ ios-deploy --list-bundle-id</p>
+<h1>Verify:</h1>
+<h1>□ Only necessary permissions declared</h1>
+<h1>□ Dangerous permissions have runtime requests</h1>
+<h1>□ Background permissions justified</h1>
+
+<h1>3. Storage Analysis</h1>
+<h1>Android</h1>
+<p>$ adb shell</p>
+<p>$ cd /data/data/com.example.app</p>
+<p>$ find . -name "*.db"</p>
+<p>$ sqlite3 database.db ".tables"</p>
+<h1>Verify:</h1>
+<h1>□ No plaintext passwords</h1>
+<h1>□ No unnecessary PII storage</h1>
+<h1>□ Proper encryption for sensitive data</h1>
+
+<h1>4. SDK Audit</h1>
+<p>$ exodus-standalone analyze app.apk</p>
+<h1>Verify:</h1>
+<h1>□ All SDKs documented</h1>
+<h1>□ SDK privacy policies reviewed</h1>
+<h1>□ Minimal tracking SDKs</h1>
+<h1>□ SDK permissions justified</h1>
+
+<h1>5. Privacy Policy Validation</h1>
+<h1>Compare policy vs actual behavior:</h1>
+<h1>□ Permissions match policy</h1>
+<h1>□ Data collection matches disclosure</h1>
+<h1>□ Third-party sharing disclosed</h1>
+<h1>□ Retention periods accurate</h1>
+</code>`<code>
+
+<p>---</p>
+
+<h2>Platform-Specific Guidelines</h2>
+
+<h3>iOS Privacy Best Practices</h3>
+
+</code>`<code>swift
+<p>// iOS Privacy Checklist</p>
+
+<p>// 1. ✓ App Tracking Transparency (iOS 14.5+)</p>
+<p>import AppTrackingTransparency</p>
+
+<p>func requestTrackingPermission() {</p>
+<p>    ATTrackingManager.requestTrackingAuthorization { status in</p>
+<p>        switch status {</p>
+<p>        case .authorized:</p>
+<p>            // Enable cross-app tracking</p>
+<p>            enablePersonalizedAds()</p>
+<p>        case .denied, .restricted, .notDetermined:</p>
+<p>            // Disable tracking</p>
+<p>            disablePersonalizedAds()</p>
+<p>        @unknown default:</p>
+<p>            break</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+
+<p>// 2. ✓ Privacy Manifests (iOS 17+)</p>
+<p>// Create PrivacyInfo.xcprivacy file</p>
+<p>/*</p>
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" 
+<p>"http://www.apple.com/DTDs/PropertyList-1.0.dtd"></p>
+<plist version="1.0">
+<dict>
+    <key>NSPrivacyTracking</key>
+    <false/>
+    <key>NSPrivacyTrackingDomains</key>
+    <array/>
+    <key>NSPrivacyCollectedDataTypes</key>
+    <array>
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeEmailAddress</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <true/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
+    </array>
+</dict>
+</plist>
+<p>*/</p>
+
+<p>// 3. ✓ Clipboard Access (iOS 14+)</p>
+<p>// Minimize clipboard access to avoid notifications</p>
+<p>func handleClipboard() {</p>
+<p>    // ✗ DON'T poll clipboard</p>
+<p>    // Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in</p>
+<p>    //     let clipboard = UIPasteboard.general.string</p>
+<p>    // }</p>
+    
+<p>    // ✓ Only access when user pastes</p>
+<p>    // iOS automatically provides paste menu</p>
+<p>}</p>
+
+<p>// 4. ✓ Local Network Privacy (iOS 14+)</p>
+<p>// Add NSLocalNetworkUsageDescription to Info.plist</p>
+<p>// Only if truly necessary</p>
+
+<p>// 5. ✓ Privacy Nutrition Labels</p>
+<p>// Accurately declare in App Store Connect:</p>
+<p>// - Data collection types</p>
+<p>// - Linked to user</p>
+<p>// - Used for tracking</p>
+<p>// - Purposes</p>
+</code>`<code>
+
+<h3>Android Privacy Best Practices</h3>
+
+</code>`<code>kotlin
+<p>// Android Privacy Checklist</p>
+
+<p>// 1. ✓ Declare Data Safety (Google Play)</p>
+<p>// In Play Console, accurately declare:</p>
+<p>// - Data collected</p>
+<p>// - Data shared</p>
+<p>// - Security practices</p>
+<p>// - Data deletion capability</p>
+
+<p>// 2. ✓ Permission Auto-Reset (Android 11+)</p>
+<p>// Permissions automatically revoked if app unused for months</p>
+<p>// Handle gracefully:</p>
+<p>class PermissionAwareActivity : AppCompatActivity() {</p>
+<p>    override fun onResume() {</p>
+<p>        super.onResume()</p>
+        
+<p>        // Re-check permissions (may have been auto-reset)</p>
+<p>        if (!hasRequiredPermissions()) {</p>
+<p>            explainWhyPermissionsNeeded()</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+
+<p>// 3. ✓ Scoped Storage (Android 10+)</p>
+<p>// Use scoped storage instead of broad storage access</p>
+<p>class PhotoUploader {</p>
+<p>    fun uploadPhoto() {</p>
+<p>        // ✓ Use photo picker - no permission needed</p>
+<p>        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {</p>
+<p>            type = "image/*"</p>
+<p>            addCategory(Intent.CATEGORY_OPENABLE)</p>
+<p>        }</p>
+<p>        startActivityForResult(intent, PICK_PHOTO)</p>
+        
+<p>        // ✗ DON'T request READ_EXTERNAL_STORAGE for single photo</p>
+<p>    }</p>
+<p>}</p>
+
+<p>// 4. ✓ Background Location Disclosure (Android 10+)</p>
+<p>// If requesting background location, show disclosure:</p>
+<p>class LocationPermissionHelper {</p>
+<p>    fun requestBackgroundLocation() {</p>
+<p>        // First, ensure foreground permission granted</p>
+<p>        if (hasForegroundLocationPermission()) {</p>
+<p>            // Show detailed explanation for background</p>
+<p>            showBackgroundLocationRationale {</p>
+<p>                // Request background location separately</p>
+<p>                requestPermissions(</p>
+<p>                    arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION),</p>
+<p>                    REQUEST_BACKGROUND_LOCATION</p>
+<p>                )</p>
+<p>            }</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+
+<p>// 5. ✓ Advertising ID Best Practices</p>
+<p>fun getAdvertisingId() {</p>
+<p>    // Check user consent first</p>
+<p>    if (!hasAdvertisingConsent()) {</p>
+<p>        return null // Don't access advertising ID</p>
+<p>    }</p>
+    
+<p>    // Use advertising ID only for advertising</p>
+<p>    val adInfo = AdvertisingIdClient.getAdvertisingIdInfo(context)</p>
+<p>    if (adInfo.isLimitAdTrackingEnabled) {</p>
+<p>        // User opted out - don't use for tracking</p>
+<p>        return null</p>
+<p>    }</p>
+    
+<p>    return adInfo.id</p>
+<p>}</p>
+</code>``
+
+<p>---</p>
+
+<h2>Prevention Checklist</h2>
+
+<h3>Design Phase</h3>
+<ul>
+<li>[ ] Conducted privacy impact assessment</li>
+<li>[ ] Documented all data collection with justification</li>
+<li>[ ] Designed minimal permission strategy</li>
+<li>[ ] Planned user privacy controls</li>
+<li>[ ] Designed data retention policies</li>
+<li>[ ] Identified privacy-by-design alternatives (on-device processing)</li>
+</ul>
+
+<h3>Implementation Phase</h3>
+<ul>
+<li>[ ] Request only necessary permissions</li>
+<li>[ ] Implement contextual permission requests</li>
+<li>[ ] Add clear permission rationale dialogs</li>
+<li>[ ] Implement privacy-safe logging (no PII)</li>
+<li>[ ] Use anonymous analytics identifiers</li>
+<li>[ ] Implement data minimization throughout</li>
+<li>[ ] Use platform privacy APIs (Photo Picker, Scoped Storage)</li>
+<li>[ ] Sanitize all data sent to third parties</li>
+<li>[ ] Implement consent management system</li>
+<li>[ ] Add user data export functionality</li>
+<li>[ ] Add user data deletion functionality</li>
+<li>[ ] Configure SDKs with privacy settings</li>
+</ul>
+
+<h3>Testing Phase</h3>
+<ul>
+<li>[ ] Tested permission flows</li>
+<li>[ ] Verified no PII in logs</li>
+<li>[ ] Analyzed network traffic for privacy leaks</li>
+<li>[ ] Tested analytics consent mechanism</li>
+<li>[ ] Verified background location not collected (if not needed)</li>
+<li>[ ] Tested data deletion works completely</li>
+<li>[ ] Audited all third-party SDKs</li>
+<li>[ ] Validated privacy policy matches implementation</li>
+</ul>
+
+<h3>Compliance Phase</h3>
+<ul>
+<li>[ ] Completed App Store Privacy Nutrition Label</li>
+<li>[ ] Completed Google Play Data Safety section</li>
+<li>[ ] Privacy policy written and accessible</li>
+<li>[ ] GDPR compliance verified (if applicable)</li>
+<li>[ ] CCPA compliance verified (if applicable)</li>
+<li>[ ] COPPA compliance verified (if applicable)</li>
+<li>[ ] Documented data flows</li>
+<li>[ ] Obtained legal review</li>
+</ul>
+
+<h3>Maintenance Phase</h3>
+<ul>
+<li>[ ] Scheduled regular privacy audits</li>
+<li>[ ] Monitoring user privacy feedback</li>
+<li>[ ] Reviewing SDK updates for privacy changes</li>
+<li>[ ] Updating privacy policy when changes occur</li>
+<li>[ ] Training team on privacy best practices</li>
+<li>[ ] Tracking regulatory changes</li>
+</ul>
+
+<p>---</p>
+
+<h2>Conclusion</h2>
+
+<p>Implementing adequate privacy controls is not a one-time task but an ongoing commitment:</p>
+
+<strong>Key Principles</strong>:
+<ol>
+<li><strong>Minimize</strong>: Collect only what you need</li>
+<li><strong>Contextualize</strong>: Request permissions when needed, not upfront</li>
+<li><strong>Explain</strong>: Be transparent about data usage</li>
+<li><strong>Control</strong>: Give users meaningful choices</li>
+<li><strong>Protect</strong>: Secure data you collect</li>
+<li><strong>Delete</strong>: Remove data when no longer needed</li>
+<li><strong>Audit</strong>: Regularly review privacy practices</li>
+</ol>
+
+<strong>Privacy as Competitive Advantage</strong>:
+<ul>
+<li>Builds user trust and loyalty</li>
+<li>Reduces regulatory risk</li>
+<li>Enables premium positioning</li>
+<li>Attracts privacy-conscious users</li>
+<li>Future-proofs against regulations</li>
+</ul>
+
+<strong>Remember</strong>: Users trust you with their most personal information. Honor that trust with privacy-first design.
+
+<p>---</p>
+
+<h2>Additional Resources</h2>
+
+<ul>
+<li><a href="https://developer.apple.com/privacy/">Apple Privacy Guidelines</a></li>
+<li><a href="https://developer.android.com/privacy/best-practices">Android Privacy Best Practices</a></li>
+<li><a href="https://owasp.org/www-project-mobile-security-testing-guide/">OWASP Mobile Security Testing Guide</a></li>
+<li><a href="https://www.nist.gov/privacy-framework">NIST Privacy Framework</a></li>
+<li><a href="https://gdpr-info.eu/">GDPR Official Text</a></li>
+<li><a href="https://oag.ca.gov/privacy/ccpa">CCPA Regulations</a></li>
+</ul>
+
+<strong>Next Steps</strong>: See <a href="examples.md">Examples</a> for detailed code implementations and <a href="lab/m06-privacy-controls-lab/">Lab</a> for hands-on practice.
+
         </div>
     </div>
 </body>

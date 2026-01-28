@@ -215,7 +215,471 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>M08: Security Misconfiguration - Attack Vectors</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#attack-methodology-overview">Attack Methodology Overview</a></li>
+<li><a href="#configuration-analysis-attacks">Configuration Analysis Attacks</a></li>
+<li><a href="#permission-exploitation">Permission Exploitation</a></li>
+<li><a href="#network-configuration-attacks">Network Configuration Attacks</a></li>
+<li><a href="#debug-feature-exploitation">Debug Feature Exploitation</a></li>
+<li><a href="#attack-tools-and-techniques">Attack Tools and Techniques</a></li>
+</ul>
+
+<h2>Attack Methodology Overview</h2>
+
+<p>Attackers targeting security misconfigurations follow a systematic approach:</p>
+
+<p>``<code></p>
+<ol>
+<li>Reconnaissance (App Analysis)</li>
+</ol>
+<p>   ↓</p>
+<ol>
+<li>Configuration Extraction (Manifest, Info.plist)</li>
+</ol>
+<p>   ↓</p>
+<ol>
+<li>Debug Feature Detection (Logging, Error Messages)</li>
+</ol>
+<p>   ↓</p>
+<ol>
+<li>Permission Enumeration (Granted Capabilities)</li>
+</ol>
+<p>   ↓</p>
+<ol>
+<li>Network Analysis (TLS Settings, Cleartext)</li>
+</ol>
+<p>   ↓</p>
+<ol>
+<li>Exploitation (Leverage Weak Configurations)</li>
+</ol>
+</code>`<code>
+
+<h3>Attack Timeline</h3>
+
+<ul>
+<li><strong>Initial Analysis</strong>: Minutes (extract and analyze configuration)</li>
+<li><strong>Vulnerability Discovery</strong>: Hours (identify misconfigurations)</li>
+<li><strong>Exploitation</strong>: Minutes to days (depending on vulnerability)</li>
+</ul>
+
+<h2>Configuration Analysis Attacks</h2>
+
+<h3>Attack Vector 1: Manifest/Info.plist Analysis</h3>
+
+<strong>Technique</strong>: Examining application configuration files for security weaknesses.
+
+<strong>Android - AndroidManifest.xml Analysis</strong>:
+</code>`<code>xml
+<!-- Attackers extract and analyze AndroidManifest.xml -->
+<application
+<p>    android:debuggable="true"  <!-- VULNERABLE: Debug enabled --></p>
+<p>    android:allowBackup="true"  <!-- VULNERABLE: Backups enabled --></p>
+<p>    android:usesCleartextTraffic="true">  <!-- VULNERABLE: HTTP allowed --></p>
+    
+    <activity android:exported="true">  <!-- VULNERABLE: Exposed activity -->
+        <!-- Activity accessible from other apps -->
+    </activity>
+</application>
+</code>`<code>
+
+<strong>iOS - Info.plist Analysis</strong>:
+</code>`<code>xml
+<!-- Attackers examine Info.plist for weak settings -->
+<key>NSAppTransportSecurity</key>
+<dict>
+    <key>NSAllowsArbitraryLoads</key>
+    <true/>  <!-- VULNERABLE: Allows HTTP connections -->
+</dict>
+</code>`<code>
+
+<strong>What Attackers Look For</strong>:
+<ul>
+<li>Debug flags enabled</li>
+<li>Backup configurations</li>
+<li>Exported components</li>
+<li>Cleartext traffic allowances</li>
+<li>Weak App Transport Security settings</li>
+<li>Unnecessary permissions</li>
+</ul>
+
+<h3>Attack Vector 2: Debug Mode Exploitation</h3>
+
+<strong>Technique</strong>: Leveraging debug features left enabled in production.
+
+<strong>Information Disclosure Through Logs</strong>:
+</code>`<code>
+<p>// Attackers monitor logcat for sensitive information</p>
+<p>adb logcat | grep -i "password\|token\|api\|secret"</p>
+
+<p>// Common debug outputs:</p>
+<p>D/API: Request URL: https://api.example.com/user/12345/profile</p>
+<p>D/API: Auth Token: eyJhbGciOiJIUzI1NiIs...</p>
+<p>D/Database: SQL Query: SELECT * FROM users WHERE id=12345</p>
+<p>E/Auth: Login failed for user: admin@example.com</p>
+</code>`<code>
+
+<strong>Stack Trace Analysis</strong>:
+<ul>
+<li>Detailed error messages expose internal structure</li>
+<li>File paths reveal code organization</li>
+<li>Database queries show schema</li>
+<li>API endpoints disclosed</li>
+</ul>
+
+<strong>Example Attack Flow</strong>:
+</code>`<code>
+<ol>
+<li>Install app with debug enabled</li>
+<li>Monitor application logs</li>
+<li>Collect API endpoints, tokens, database queries</li>
+<li>Map internal application structure</li>
+<li>Exploit discovered information</li>
+</ol>
+</code>`<code>
+
+<h3>Attack Vector 3: Insecure Build Configuration</h3>
+
+<strong>Technique</strong>: Exploiting development configurations in production builds.
+
+<strong>Common Issues</strong>:
+<ul>
+<li>Source maps included in release builds</li>
+<li>Development endpoints not removed</li>
+<li>Test accounts/credentials present</li>
+<li>Debug symbols not stripped</li>
+<li>Obfuscation disabled</li>
+</ul>
+
+<strong>ProGuard/R8 Not Configured</strong>:
+</code>`<code>
+<p>// Without obfuscation, decompiled code is readable</p>
+<p>public class ApiClient {</p>
+<p>    private String apiKey = "sk_live_12345...";</p>
+<p>    public String getSecretEndpoint() {</p>
+<p>        return "https://api.example.com/admin/secret";</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Permission Exploitation</h2>
+
+<h3>Attack Vector 4: Excessive Permissions</h3>
+
+<strong>Technique</strong>: Exploiting overly permissive app permissions.
+
+<strong>Android Permission Abuse</strong>:
+</code>`<code>xml
+<!-- App requests unnecessary dangerous permissions -->
+<uses-permission android:name="android.permission.READ_CONTACTS"/>
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+<uses-permission android:name="android.permission.CAMERA"/>
+<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+</code>`<code>
+
+<strong>Attack Scenarios</strong>:
+<ol>
+<li><strong>Data Harvesting</strong>: App collects contacts, location unnecessarily</li>
+<li><strong>Malware Vector</strong>: Malicious updates abuse existing permissions</li>
+<li><strong>Privacy Violations</strong>: Tracking user without clear purpose</li>
+<li><strong>Cross-App Attacks</strong>: Accessing shared storage of other apps</li>
+</ol>
+
+<h3>Attack Vector 5: Exported Components</h3>
+
+<strong>Technique</strong>: Accessing improperly exported app components.
+
+<strong>Vulnerable Exported Activity</strong>:
+</code>`<code>xml
+<activity 
+<p>    android:name=".AdminActivity"</p>
+<p>    android:exported="true">  <!-- VULNERABLE: No protection --></p>
+    <!-- Any app can launch this admin activity -->
+</activity>
+</code>`<code>
+
+<strong>Exploitation</strong>:
+</code>`<code>bash
+<h1>Launch exported activity from another app or adb</h1>
+<p>adb shell am start -n com.example.app/.AdminActivity</p>
+
+<h1>Access exported content provider</h1>
+<p>adb shell content query --uri content://com.example.provider/sensitive_data</p>
+</code>`<code>
+
+<strong>What Can Be Exploited</strong>:
+<ul>
+<li>Activities (UI screens)</li>
+<li>Services (background tasks)</li>
+<li>Broadcast Receivers (event handlers)</li>
+<li>Content Providers (data storage)</li>
+</ul>
+
+<h2>Network Configuration Attacks</h2>
+
+<h3>Attack Vector 6: Cleartext Traffic Interception</h3>
+
+<strong>Technique</strong>: Intercepting unencrypted HTTP traffic.
+
+<strong>Vulnerable Network Configuration</strong>:
+</code>`<code>xml
+<!-- Android: Allows HTTP traffic -->
+<application
+<p>    android:usesCleartextTraffic="true"></p>
+</code>`<code>
+
+<strong>Attack Process</strong>:
+</code>`<code>
+<ol>
+<li>User connects to public WiFi</li>
+<li>Attacker performs ARP spoofing</li>
+<li>All traffic routed through attacker</li>
+<li>HTTP requests captured in cleartext</li>
+<li>Credentials, tokens, data stolen</li>
+</ol>
+</code>`<code>
+
+<strong>Captured Traffic Example</strong>:
+</code>`<code>http
+<p>GET /api/user/profile HTTP/1.1</p>
+<p>Host: api.example.com</p>
+<p>Authorization: Bearer eyJhbGciOiJIUzI1NiIs...</p>
+<p>Cookie: session=abc123def456</p>
+</code>`<code>
+
+<h3>Attack Vector 7: Weak TLS Configuration</h3>
+
+<strong>Technique</strong>: Exploiting weak SSL/TLS settings.
+
+<strong>Vulnerable iOS ATS Configuration</strong>:
+</code>`<code>xml
+<key>NSAppTransportSecurity</key>
+<dict>
+    <key>NSAllowsArbitraryLoads</key>
+    <true/>  <!-- Disables ATS completely -->
+</dict>
+</code>`<code>
+
+<strong>Attacks Enabled</strong>:
+<ul>
+<li>Man-in-the-middle attacks</li>
+<li>Downgrade attacks to weak ciphers</li>
+<li>Certificate validation bypass</li>
+<li>Traffic interception and modification</li>
+</ul>
+
+<h3>Attack Vector 8: Missing Certificate Pinning</h3>
+
+<strong>Technique</strong>: Bypassing TLS with custom certificates.
+
+<strong>Attack Setup</strong>:
+</code>`<code>
+<ol>
+<li>Install proxy certificate on device (Burp, Charles)</li>
+<li>Configure proxy settings</li>
+<li>App trusts any certificate (no pinning)</li>
+<li>All HTTPS traffic decrypted by proxy</li>
+<li>Modify requests/responses at will</li>
+</ol>
+</code>`<code>
+
+<h2>Debug Feature Exploitation</h2>
+
+<h3>Attack Vector 9: WebView Debug Mode</h3>
+
+<strong>Technique</strong>: Accessing WebView debugging interfaces.
+
+<strong>Vulnerable WebView Configuration</strong>:
+</code>`<code>java
+<p>// VULNERABLE: WebView debugging enabled in production</p>
+<p>if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {</p>
+<p>    WebView.setWebContentsDebuggingEnabled(true);</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Exploitation</strong>:
+</code>`<code>
+<ol>
+<li>Connect device to computer</li>
+<li>Open Chrome DevTools (chrome://inspect)</li>
+<li>Access WebView content</li>
+<li>Inspect DOM, execute JavaScript</li>
+<li>Extract tokens, manipulate UI, bypass controls</li>
+</ol>
+</code>`<code>
+
+<h3>Attack Vector 10: Backup Data Extraction</h3>
+
+<strong>Technique</strong>: Extracting application data from device backups.
+
+<strong>Vulnerable Backup Configuration</strong>:
+</code>`<code>xml
+<!-- Android: Backup enabled for sensitive data -->
+<application
+<p>    android:allowBackup="true"</p>
+<p>    android:fullBackupContent="true"></p>
+</code>`<code>
+
+<strong>Extraction Process</strong>:
+</code>`<code>bash
+<h1>Create backup</h1>
+<p>adb backup -f app.ab com.example.app</p>
+
+<h1>Convert to tar</h1>
+<p>java -jar abe.jar unpack app.ab app.tar</p>
+
+<h1>Extract files</h1>
+<p>tar -xf app.tar</p>
+
+<h1>Access application data</h1>
+<p>cd apps/com.example.app/</p>
+<p>cat shared_prefs/credentials.xml</p>
+<p>sqlite3 databases/app.db</p>
+</code>`<code>
+
+<strong>What's Exposed</strong>:
+<ul>
+<li>Shared preferences (credentials, tokens)</li>
+<li>Databases (user data, cached content)</li>
+<li>Files (documents, images, configs)</li>
+<li>Cache (temporary sensitive data)</li>
+</ul>
+
+<h2>Attack Tools and Techniques</h2>
+
+<h3>Configuration Analysis Tools</h3>
+
+<p>| Tool | Purpose | Platform |</p>
+<p>|------|---------|----------|</p>
+<p>| <strong>apktool</strong> | Decode APK resources and manifest | Android |</p>
+<p>| <strong>aapt</strong> | Android Asset Packaging Tool | Android |</p>
+<p>| <strong>plistutil</strong> | Parse iOS plists | iOS |</p>
+<p>| <strong>MobSF</strong> | Automated misconfiguration detection | Both |</p>
+<p>| <strong>Drozer</strong> | Android security assessment | Android |</p>
+
+<h3>Network Analysis Tools</h3>
+
+<p>| Tool | Purpose | Platform |</p>
+<p>|------|---------|----------|</p>
+<p>| <strong>Burp Suite</strong> | MITM proxy, TLS testing | Both |</p>
+<p>| <strong>mitmproxy</strong> | HTTP/HTTPS interception | Both |</p>
+<p>| <strong>Wireshark</strong> | Network packet analysis | Both |</p>
+<p>| <strong>Charles Proxy</strong> | SSL proxying | Both |</p>
+
+<h3>Permission Analysis</h3>
+
+</code>`<code>bash
+<h1>Android: List app permissions</h1>
+<p>adb shell dumpsys package com.example.app | grep permission</p>
+
+<h1>Check for dangerous permissions</h1>
+<p>adb shell pm list permissions -d -g</p>
+
+<h1>iOS: Analyze entitlements</h1>
+<p>codesign -d --entitlements - /path/to/App.app</p>
+</code>`<code>
+
+<h2>Real-World Attack Scenarios</h2>
+
+<h3>Scenario 1: Debug Information Leakage</h3>
+
+</code>`<code>
+<ol>
+<li>Download app from Play Store</li>
+<li>Install on rooted device</li>
+<li>Enable logcat monitoring</li>
+<li>Use app normally</li>
+<li>Observe debug logs exposing:</li>
+<ul>
+<li>API endpoints</li>
+<li>Authentication tokens</li>
+<li>User IDs and data</li>
+<li>Internal server errors</li>
+<li>Use information to attack backend</li>
+</ul>
+</ol>
+</code>`<code>
+
+<h3>Scenario 2: Cleartext Traffic Exploitation</h3>
+
+</code>`<code>
+<ol>
+<li>Set up rogue WiFi access point</li>
+<li>User connects mobile device</li>
+<li>App makes HTTP requests (cleartext enabled)</li>
+<li>Capture authentication credentials</li>
+<li>Capture API keys and tokens</li>
+<li>Replay requests to backend</li>
+<li>Access user account</li>
+</ol>
+</code>`<code>
+
+<h3>Scenario 3: Exported Component Abuse</h3>
+
+</code>`<code>
+<ol>
+<li>Analyze AndroidManifest.xml</li>
+<li>Find exported admin activity</li>
+<li>Create malicious app</li>
+<li>Launch exported admin activity</li>
+<li>Bypass authentication</li>
+<li>Access administrative functions</li>
+<li>Modify app data or behavior</li>
+</ol>
+</code>``
+
+<h2>Detection and Monitoring</h2>
+
+<h3>Indicators of Misconfiguration Exploitation</h3>
+
+<strong>Application Level</strong>:
+<ul>
+<li>Unusual activity patterns from debug endpoints</li>
+<li>Excessive permission usage</li>
+<li>Unexpected component activation</li>
+<li>Abnormal network traffic patterns</li>
+</ul>
+
+<strong>Network Level</strong>:
+<ul>
+<li>HTTP traffic from production app</li>
+<li>SSL/TLS errors or warnings</li>
+<li>Certificate pinning failures</li>
+<li>Unusual API endpoint access</li>
+</ul>
+
+<strong>Device Level</strong>:
+<ul>
+<li>Backup access attempts</li>
+<li>ADB connections to production devices</li>
+<li>Exported component access from external apps</li>
+</ul>
+
+<h2>Mitigation Overview</h2>
+
+<p>Understanding these attack vectors is crucial for defense:</p>
+
+<ol>
+<li><strong>Disable debug features</strong> in release builds</li>
+<li><strong>Enforce HTTPS</strong> and proper TLS configuration</li>
+<li><strong>Minimize permissions</strong> to only what's necessary</li>
+<li><strong>Secure exported components</strong> with proper permissions</li>
+<li><strong>Disable backups</strong> for sensitive data</li>
+<li><strong>Implement certificate pinning</strong> for critical connections</li>
+<li><strong>Strip debug symbols</strong> from production builds</li>
+<li><strong>Regular configuration audits</strong> using automated tools</li>
+</ol>
+
+<p>For detailed prevention strategies, see <a href="./prevention.md">Prevention</a>.</p>
+
+<p>---</p>
+
+<strong>Remember</strong>: Misconfigurations are low-hanging fruit for attackers. Proper configuration is essential.
+
+<em>Part of OWASP Mobile Top 10 - Educational Repository</em>
+
         </div>
     </div>
 </body>

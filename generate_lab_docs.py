@@ -227,7 +227,7 @@ def markdown_to_html(md_content, title):
         </a>
         
         <div class="content">
-{{CONTENT}}
+            CONTENT_PLACEHOLDER
         </div>
     </div>
 </body>
@@ -322,7 +322,7 @@ def markdown_to_html(md_content, title):
     
     html_content = '\n'.join(result)
     
-    return html_template.replace('{{CONTENT}}', html_content)
+    return html_template.replace('CONTENT_PLACEHOLDER', html_content)
 
 
 def process_lab_directory(lab_dir):

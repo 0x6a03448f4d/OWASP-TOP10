@@ -215,7 +215,1042 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>API03: Broken Object Property Level Authorization - Prevention</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#core-prevention-principles">Core Prevention Principles</a></li>
+<li><a href="#data-transfer-objects-dtos">Data Transfer Objects (DTOs)</a></li>
+<li><a href="#preventing-excessive-data-exposure">Preventing Excessive Data Exposure</a></li>
+<li><a href="#preventing-mass-assignment">Preventing Mass Assignment</a></li>
+<li><a href="#framework-specific-implementations">Framework-Specific Implementations</a></li>
+<li><a href="#testing-and-validation">Testing and Validation</a></li>
+<li><a href="#security-checklist">Security Checklist</a></li>
+</ul>
+
+<h2>Core Prevention Principles</h2>
+
+<h3>The Golden Rules</h3>
+
+<ol>
+<li><strong>Never serialize database models directly</strong> - Always use DTOs/serializers</li>
+<li><strong>Use allowlists, not denylists</strong> - Explicitly define allowed fields</li>
+<li><strong>Separate read and write schemas</strong> - Different fields for input vs output</li>
+<li><strong>Implement role-based field filtering</strong> - Admins see more than users</li>
+<li><strong>Validate and sanitize all input</strong> - Never trust client-provided data</li>
+<li><strong>Use read-only fields</strong> - Mark fields that should never be modified</li>
+<li><strong>Test with multiple user roles</strong> - Verify field access per role</li>
+</ol>
+
+<h3>Defense in Depth</h3>
+
+<p>``<code></p>
+<p>Layer 1: DTOs/Serializers       ← Define allowed fields</p>
+<p>Layer 2: Schema Validation      ← Validate field types and values</p>
+<p>Layer 3: Authorization Checks   ← Verify user can access field</p>
+<p>Layer 4: Auditing               ← Log sensitive field access</p>
+<p>Layer 5: Monitoring             ← Detect anomalous patterns</p>
+</code>`<code>
+
+<h2>Data Transfer Objects (DTOs)</h2>
+
+<h3>What Are DTOs?</h3>
+
+<p>Data Transfer Objects are dedicated classes that define exactly which fields are exposed or accepted by an API endpoint. They act as a contract between your API and clients.</p>
+
+<h3>Benefits of DTOs</h3>
+
+<ul>
+<li>✅ <strong>Security</strong>: Control exactly what fields are exposed/accepted</li>
+<li>✅ <strong>Versioning</strong>: Different DTOs for API v1, v2, etc.</li>
+<li>✅ <strong>Documentation</strong>: Clear API contracts</li>
+<li>✅ <strong>Validation</strong>: Type safety and business rules</li>
+<li>✅ <strong>Decoupling</strong>: API independent from database schema</li>
+</ul>
+
+<h3>DTO Architecture Pattern</h3>
+
+</code>`<code>python
+<h1>Database Model (Internal - Never expose directly)</h1>
+<p>class User(db.Model):</p>
+<p>    id = db.Column(db.Integer, primary_key=True)</p>
+<p>    username = db.Column(db.String(80))</p>
+<p>    email = db.Column(db.String(120))</p>
+<p>    password_hash = db.Column(db.String(255))</p>
+<p>    api_key = db.Column(db.String(100))</p>
+<p>    is_admin = db.Column(db.Boolean, default=False)</p>
+<p>    salary = db.Column(db.Integer)</p>
+<p>    ssn = db.Column(db.String(11))</p>
+<p>    created_at = db.Column(db.DateTime)</p>
+<p>    updated_at = db.Column(db.DateTime)</p>
+
+<h1>Output DTO (What API returns) - using Pydantic for validation</h1>
+<p>from pydantic import BaseModel, EmailStr</p>
+<p>from datetime import datetime</p>
+
+<p>class UserPublicDTO(BaseModel):</p>
+<p>    """Public user profile - enforced at runtime"""</p>
+<p>    id: int</p>
+<p>    username: str</p>
+<p>    email: EmailStr</p>
+<p>    created_at: datetime</p>
+<p>    # password_hash: NOT included</p>
+<p>    # api_key: NOT included</p>
+<p>    # is_admin: NOT included</p>
+<p>    # salary: NOT included</p>
+<p>    # ssn: NOT included</p>
+    
+<p>    class Config:</p>
+<p>        from_attributes = True  # Allow ORM models</p>
+
+<h1>Input DTO (What API accepts for updates)</h1>
+<p>class UserUpdateDTO(BaseModel):</p>
+<p>    username: str</p>
+<p>    email: EmailStr</p>
+<p>    # is_admin: NOT allowed</p>
+<p>    # salary: NOT allowed</p>
+<p>    # created_at: NOT allowed (read-only)</p>
+
+<h1>Admin Output DTO (What admins see)</h1>
+<p>class UserAdminDTO(BaseModel):</p>
+<p>    id: int</p>
+<p>    username: str</p>
+<p>    email: EmailStr</p>
+<p>    is_admin: bool</p>
+<p>    created_at: datetime</p>
+<p>    updated_at: datetime</p>
+<p>    last_login_ip: str</p>
+<p>    # password_hash: STILL not included</p>
+<p>    # api_key: STILL not included</p>
+<p>    # ssn: STILL not included (separate endpoint)</p>
+    
+<p>    class Config:</p>
+<p>        from_attributes = True</p>
+</code>`<code>
+
+<h2>Preventing Excessive Data Exposure</h2>
+
+<h3>Strategy 1: Use Explicit Serializers (Marshmallow)</h3>
+
+</code>`<code>python
+<p>from marshmallow import Schema, fields</p>
+
+<h1>❌ VULNERABLE: Automatic serialization</h1>
+<p>class VulnerableUserSchema(Schema):</p>
+<p>    class Meta:</p>
+<p>        model = User  # Serializes ALL fields from model</p>
+<p>        fields = "__all__"  # Exposes everything!</p>
+
+<h1>✅ SECURE: Explicit field definition</h1>
+<p>class UserPublicSchema(Schema):</p>
+<p>    """Public user profile - safe for any authenticated user"""</p>
+<p>    id = fields.Int(dump_only=True)</p>
+<p>    username = fields.Str()</p>
+<p>    email = fields.Email()</p>
+<p>    created_at = fields.DateTime(dump_only=True)</p>
+<p>    # No password_hash, api_key, is_admin, salary, ssn</p>
+
+<p>class UserPrivateSchema(UserPublicSchema):</p>
+<p>    """User's own profile - includes private info"""</p>
+<p>    phone = fields.Str()</p>
+<p>    address = fields.Str()</p>
+<p>    # Still no password_hash, api_key, is_admin, salary</p>
+
+<p>class UserAdminSchema(UserPrivateSchema):</p>
+<p>    """Admin view - includes admin-only fields"""</p>
+<p>    is_admin = fields.Bool()</p>
+<p>    last_login_ip = fields.Str()</p>
+<p>    failed_login_attempts = fields.Int()</p>
+<p>    # Still no password_hash (never expose)</p>
+
+<h1>Usage in endpoint</h1>
+<p>@app.route('/api/users/<int:user_id>')</p>
+<p>@require_auth</p>
+<p>def get_user(user_id):</p>
+<p>    user = User.query.get_or_404(user_id)</p>
+    
+<p>    # Choose schema based on relationship and role</p>
+<p>    if current_user.is_admin:</p>
+<p>        schema = UserAdminSchema()</p>
+<p>    elif current_user.id == user_id:</p>
+<p>        schema = UserPrivateSchema()</p>
+<p>    else:</p>
+<p>        schema = UserPublicSchema()</p>
+    
+<p>    return jsonify(schema.dump(user))</p>
+</code>`<code>
+
+<h3>Strategy 2: Use Pydantic Models (FastAPI)</h3>
+
+</code>`<code>python
+<p>from pydantic import BaseModel, EmailStr, Field</p>
+<p>from datetime import datetime</p>
+<p>from typing import Optional</p>
+
+<h1>❌ VULNERABLE: Using ORM model directly</h1>
+<p>@app.get("/users/{user_id}")</p>
+<p>def get_user(user_id: int, db: Session = Depends(get_db)):</p>
+<p>    user = db.query(User).filter(User.id == user_id).first()</p>
+<p>    return user  # Exposes ALL fields including password_hash!</p>
+
+<h1>✅ SECURE: Pydantic response models</h1>
+<p>class UserPublicResponse(BaseModel):</p>
+<p>    """Public profile visible to all authenticated users"""</p>
+<p>    id: int</p>
+<p>    username: str</p>
+<p>    email: EmailStr</p>
+<p>    created_at: datetime</p>
+    
+<p>    class Config:</p>
+<p>        from_attributes = True  # Formerly orm_mode</p>
+
+<p>class UserPrivateResponse(UserPublicResponse):</p>
+<p>    """User's own profile with additional private fields"""</p>
+<p>    phone: Optional[str] = None</p>
+<p>    address: Optional[str] = None</p>
+<p>    email_verified: bool</p>
+
+<p>class UserAdminResponse(UserPrivateResponse):</p>
+<p>    """Admin view with management fields"""</p>
+<p>    is_admin: bool</p>
+<p>    is_active: bool</p>
+<p>    last_login_at: Optional[datetime] = None</p>
+<p>    failed_login_attempts: int</p>
+
+<h1>Secure endpoint with response model</h1>
+<p>@app.get("/users/{user_id}", response_model=UserPublicResponse)</p>
+<p>def get_user(</p>
+<p>    user_id: int,</p>
+<p>    current_user: User = Depends(get_current_user),</p>
+<p>    db: Session = Depends(get_db)</p>
+<p>):</p>
+<p>    user = db.query(User).filter(User.id == user_id).first()</p>
+<p>    if not user:</p>
+<p>        raise HTTPException(status_code=404)</p>
+    
+<p>    # Pydantic automatically filters to only fields in response_model</p>
+<p>    return user</p>
+
+<p>@app.get("/users/me", response_model=UserPrivateResponse)</p>
+<p>def get_current_user_profile(current_user: User = Depends(get_current_user)):</p>
+<p>    return current_user</p>
+
+<p>@app.get("/admin/users/{user_id}", response_model=UserAdminResponse)</p>
+<p>def get_user_admin(</p>
+<p>    user_id: int,</p>
+<p>    current_user: User = Depends(get_admin_user),</p>
+<p>    db: Session = Depends(get_db)</p>
+<p>):</p>
+<p>    user = db.query(User).filter(User.id == user_id).first()</p>
+<p>    if not user:</p>
+<p>        raise HTTPException(status_code=404)</p>
+<p>    return user</p>
+</code>`<code>
+
+<h3>Strategy 3: GraphQL Field-Level Permissions</h3>
+
+</code>`<code>python
+<p>import graphene</p>
+<p>from graphene_sqlalchemy import SQLAlchemyObjectType</p>
+<p>from graphql import GraphQLError</p>
+
+<h1>❌ VULNERABLE: All fields automatically exposed</h1>
+<p>class VulnerableUserType(SQLAlchemyObjectType):</p>
+<p>    class Meta:</p>
+<p>        model = User</p>
+<p>        # All fields from model are queryable!</p>
+
+<h1>✅ SECURE: Explicit fields with authorization</h1>
+<p>class UserType(graphene.ObjectType):</p>
+<p>    id = graphene.Int()</p>
+<p>    username = graphene.String()</p>
+<p>    email = graphene.String()</p>
+    
+<p>    # Sensitive fields with resolvers</p>
+<p>    is_admin = graphene.Boolean()</p>
+<p>    salary = graphene.Int()</p>
+    
+<p>    @staticmethod</p>
+<p>    def resolve_is_admin(parent, info):</p>
+<p>        """Only admins can see admin status"""</p>
+<p>        current_user = info.context.get('current_user')</p>
+<p>        if not current_user or not current_user.is_admin:</p>
+<p>            raise GraphQLError("Unauthorized to access admin fields")</p>
+<p>        return parent.is_admin</p>
+    
+<p>    @staticmethod</p>
+<p>    def resolve_salary(parent, info):</p>
+<p>        """Only user themselves or HR can see salary"""</p>
+<p>        current_user = info.context.get('current_user')</p>
+<p>        if not current_user:</p>
+<p>            raise GraphQLError("Authentication required")</p>
+        
+<p>        if current_user.id != parent.id and not current_user.has_role('HR'):</p>
+<p>            raise GraphQLError("Unauthorized to access salary information")</p>
+        
+<p>        return parent.salary</p>
+
+<h1>Disable introspection in production</h1>
+<p>class Query(graphene.ObjectType):</p>
+<p>    user = graphene.Field(UserType, id=graphene.Int())</p>
+    
+<p>    def resolve_user(self, info, id):</p>
+<p>        return User.query.get(id)</p>
+
+<h1>In production schema</h1>
+<p>schema = graphene.Schema(</p>
+<p>    query=Query,</p>
+<p>    auto_camelcase=False,</p>
+<p>    # Disable introspection in production</p>
+<p>    introspection=False if os.getenv('ENV') == 'production' else True</p>
+<p>)</p>
+</code>`<code>
+
+<h3>Strategy 4: Field-Level Decorators</h3>
+
+</code>`<code>python
+<p>from functools import wraps</p>
+<p>from flask import current_app</p>
+
+<p>def admin_only_field(func):</p>
+<p>    """Decorator to restrict field access to admins"""</p>
+<p>    @wraps(func)</p>
+<p>    def wrapper(<em>args, </em>*kwargs):</p>
+<p>        if not current_user.is_admin:</p>
+<p>            return None  # Or raise exception</p>
+<p>        return func(<em>args, </em>*kwargs)</p>
+<p>    return wrapper</p>
+
+<p>def owner_or_admin_field(func):</p>
+<p>    """Field visible to owner or admin"""</p>
+<p>    @wraps(func)</p>
+<p>    def wrapper(user, <em>args, </em>*kwargs):</p>
+<p>        if current_user.id != user.id and not current_user.is_admin:</p>
+<p>            return None</p>
+<p>        return func(user, <em>args, </em>*kwargs)</p>
+<p>    return wrapper</p>
+
+<p>class UserSchema(Schema):</p>
+<p>    id = fields.Int()</p>
+<p>    username = fields.Str()</p>
+<p>    email = fields.Email()</p>
+    
+<p>    @admin_only_field</p>
+<p>    def get_is_admin(self, obj):</p>
+<p>        return obj.is_admin</p>
+    
+<p>    @owner_or_admin_field</p>
+<p>    def get_salary(self, obj):</p>
+<p>        return obj.salary</p>
+    
+<p>    is_admin = fields.Method('get_is_admin')</p>
+<p>    salary = fields.Method('get_salary')</p>
+</code>`<code>
+
+<h2>Preventing Mass Assignment</h2>
+
+<h3>Strategy 1: Input Validation with Pydantic</h3>
+
+</code>`<code>python
+<p>from pydantic import BaseModel, validator, Field</p>
+<p>from typing import Optional</p>
+
+<h1>❌ VULNERABLE: No input validation</h1>
+<p>@app.put("/users/{user_id}")</p>
+<p>def update_user(user_id: int, data: dict):  # Accepts any field!</p>
+<p>    user = User.query.get_or_404(user_id)</p>
+<p>    for key, value in data.items():</p>
+<p>        setattr(user, key, value)  # Mass assignment vulnerability</p>
+<p>    db.session.commit()</p>
+<p>    return jsonify(user)</p>
+
+<h1>✅ SECURE: Explicit input model with allowlist</h1>
+<p>class UserUpdateRequest(BaseModel):</p>
+<p>    """Only these fields can be updated by users"""</p>
+<p>    username: Optional[str] = Field(None, min_length=3, max_length=50)</p>
+<p>    email: Optional[EmailStr] = None</p>
+<p>    phone: Optional[str] = None</p>
+<p>    address: Optional[str] = None</p>
+    
+<p>    # These fields are NOT in the model = cannot be set:</p>
+<p>    # - is_admin</p>
+<p>    # - salary</p>
+<p>    # - role</p>
+<p>    # - balance</p>
+<p>    # - created_at</p>
+<p>    # - updated_at</p>
+    
+<p>    @validator('username')</p>
+<p>    def validate_username(cls, v):</p>
+<p>        if v and not v.isalnum():</p>
+<p>            raise ValueError('Username must be alphanumeric')</p>
+<p>        return v</p>
+
+<p>class UserAdminUpdateRequest(UserUpdateRequest):</p>
+<p>    """Admins can update additional fields"""</p>
+<p>    is_active: Optional[bool] = None</p>
+<p>    role: Optional[str] = None</p>
+<p>    # Still cannot update: salary, balance (separate endpoints)</p>
+
+<p>@app.put("/users/{user_id}")</p>
+<p>def update_user(</p>
+<p>    user_id: int,</p>
+<p>    update_data: UserUpdateRequest,  # Pydantic validates and filters</p>
+<p>    current_user: User = Depends(get_current_user),</p>
+<p>    db: Session = Depends(get_db)</p>
+<p>):</p>
+<p>    user = db.query(User).filter(User.id == user_id).first()</p>
+<p>    if not user:</p>
+<p>        raise HTTPException(status_code=404)</p>
+    
+<p>    # Check authorization</p>
+<p>    if current_user.id != user_id and not current_user.is_admin:</p>
+<p>        raise HTTPException(status_code=403)</p>
+    
+<p>    # Only update provided fields</p>
+<p>    update_dict = update_data.dict(exclude_unset=True)</p>
+<p>    for key, value in update_dict.items():</p>
+<p>        setattr(user, key, value)</p>
+    
+<p>    db.session.commit()</p>
+<p>    return user</p>
+
+<p>@app.put("/admin/users/{user_id}")</p>
+<p>def admin_update_user(</p>
+<p>    user_id: int,</p>
+<p>    update_data: UserAdminUpdateRequest,</p>
+<p>    current_user: User = Depends(get_admin_user),</p>
+<p>    db: Session = Depends(get_db)</p>
+<p>):</p>
+<p>    user = db.query(User).filter(User.id == user_id).first()</p>
+<p>    if not user:</p>
+<p>        raise HTTPException(status_code=404)</p>
+    
+<p>    update_dict = update_data.dict(exclude_unset=True)</p>
+<p>    for key, value in update_dict.items():</p>
+<p>        setattr(user, key, value)</p>
+    
+<p>    db.session.commit()</p>
+<p>    return user</p>
+</code>`<code>
+
+<h3>Strategy 2: Marshmallow with load_only</h3>
+
+</code>`<code>python
+<p>from marshmallow import Schema, fields, validates, ValidationError</p>
+
+<p>class UserUpdateSchema(Schema):</p>
+<p>    """Schema for user updates - only accepts specific fields"""</p>
+<p>    username = fields.Str(required=False, validate=Length(min=3, max=50))</p>
+<p>    email = fields.Email(required=False)</p>
+<p>    phone = fields.Str(required=False)</p>
+    
+<p>    # Use validate=... to add business logic</p>
+<p>    @validates('email')</p>
+<p>    def validate_email_unique(self, value):</p>
+<p>        if User.query.filter_by(email=value).first():</p>
+<p>            raise ValidationError('Email already in use')</p>
+
+<p>class UserSchema(Schema):</p>
+<p>    """Full schema with read-only fields"""</p>
+<p>    id = fields.Int(dump_only=True)  # Cannot be set on load</p>
+<p>    username = fields.Str()</p>
+<p>    email = fields.Email()</p>
+<p>    is_admin = fields.Bool(dump_only=True)  # Read-only!</p>
+<p>    created_at = fields.DateTime(dump_only=True)  # Read-only!</p>
+<p>    updated_at = fields.DateTime(dump_only=True)  # Read-only!</p>
+
+<p>@app.route('/api/users/<int:user_id>', methods=['PUT'])</p>
+<p>@require_auth</p>
+<p>def update_user(user_id):</p>
+<p>    # Authorization check</p>
+<p>    if current_user.id != user_id and not current_user.is_admin:</p>
+<p>        abort(403)</p>
+    
+<p>    user = User.query.get_or_404(user_id)</p>
+    
+<p>    # Use update schema (allowlist)</p>
+<p>    schema = UserUpdateSchema()</p>
+<p>    try:</p>
+<p>        data = schema.load(request.json)</p>
+<p>    except ValidationError as err:</p>
+<p>        return jsonify(err.messages), 400</p>
+    
+<p>    # Safe to update - only allowed fields present</p>
+<p>    for key, value in data.items():</p>
+<p>        setattr(user, key, value)</p>
+    
+<p>    db.session.commit()</p>
+    
+<p>    # Return using full schema</p>
+<p>    return jsonify(UserSchema().dump(user))</p>
+</code>`<code>
+
+<h3>Strategy 3: Explicit Update Methods</h3>
+
+</code>`<code>python
+<p>class User(db.Model):</p>
+<p>    # ... fields ...</p>
+    
+<p>    def update_profile(self, username=None, email=None, phone=None):</p>
+<p>        """Safe update method - only allows specific fields"""</p>
+<p>        if username is not None:</p>
+<p>            self.username = username</p>
+<p>        if email is not None:</p>
+<p>            self.email = email</p>
+<p>        if phone is not None:</p>
+<p>            self.phone = phone</p>
+<p>        # is_admin, salary, etc. cannot be updated here</p>
+    
+<p>    def admin_update(self, is_active=None, role=None):</p>
+<p>        """Admin-only update method"""</p>
+<p>        if is_active is not None:</p>
+<p>            self.is_active = is_active</p>
+<p>        if role is not None:</p>
+<p>            self.role = role</p>
+
+<p>@app.route('/api/users/<int:user_id>', methods=['PUT'])</p>
+<p>@require_auth</p>
+<p>def update_user(user_id):</p>
+<p>    if current_user.id != user_id:</p>
+<p>        abort(403)</p>
+    
+<p>    user = User.query.get_or_404(user_id)</p>
+<p>    data = request.json</p>
+    
+<p>    # Use safe update method</p>
+<p>    user.update_profile(</p>
+<p>        username=data.get('username'),</p>
+<p>        email=data.get('email'),</p>
+<p>        phone=data.get('phone')</p>
+<p>    )</p>
+    
+<p>    db.session.commit()</p>
+<p>    return jsonify(UserPublicSchema().dump(user))</p>
+
+<p>@app.route('/api/admin/users/<int:user_id>', methods=['PUT'])</p>
+<p>@require_admin</p>
+<p>def admin_update_user(user_id):</p>
+<p>    user = User.query.get_or_404(user_id)</p>
+<p>    data = request.json</p>
+    
+<p>    # Admin can use admin update method</p>
+<p>    user.admin_update(</p>
+<p>        is_active=data.get('is_active'),</p>
+<p>        role=data.get('role')</p>
+<p>    )</p>
+    
+<p>    db.session.commit()</p>
+<p>    return jsonify(UserAdminSchema().dump(user))</p>
+</code>`<code>
+
+<h3>Strategy 4: Immutable Fields</h3>
+
+</code>`<code>python
+<p>from sqlalchemy.orm import validates</p>
+
+<p>class User(db.Model):</p>
+<p>    id = db.Column(db.Integer, primary_key=True)</p>
+<p>    username = db.Column(db.String(80))</p>
+<p>    email = db.Column(db.String(120))</p>
+<p>    is_admin = db.Column(db.Boolean, default=False)</p>
+<p>    balance = db.Column(db.Numeric(10, 2), default=0)</p>
+<p>    created_at = db.Column(db.DateTime, default=datetime.utcnow)</p>
+    
+<p>    _protected_fields = ['is_admin', 'balance', 'created_at', 'id']</p>
+    
+<p>    @validates('is_admin')</p>
+<p>    def validate_is_admin(self, key, value):</p>
+<p>        """Prevent direct is_admin modification"""</p>
+<p>        if self.id and not current_user.is_superadmin:</p>
+<p>            raise ValueError('Cannot modify admin status')</p>
+<p>        return value</p>
+    
+<p>    @validates('balance')</p>
+<p>    def validate_balance(self, key, value):</p>
+<p>        """Prevent direct balance modification"""</p>
+<p>        raise ValueError('Cannot modify balance directly. Use transaction API.')</p>
+    
+<p>    @validates('created_at')</p>
+<p>    def validate_created_at(self, key, value):</p>
+<p>        """Prevent timestamp tampering"""</p>
+<p>        if self.created_at:  # If already set</p>
+<p>            return self.created_at  # Ignore new value</p>
+<p>        return value</p>
+</code>`<code>
+
+<h2>Framework-Specific Implementations</h2>
+
+<h3>Django REST Framework</h3>
+
+</code>`<code>python
+<p>from rest_framework import serializers</p>
+<p>from django.contrib.auth.models import User</p>
+
+<h1>❌ VULNERABLE</h1>
+<p>class VulnerableUserSerializer(serializers.ModelSerializer):</p>
+<p>    class Meta:</p>
+<p>        model = User</p>
+<p>        fields = '__all__'  # Exposes and accepts ALL fields!</p>
+
+<h1>✅ SECURE: Separate read and write serializers</h1>
+<p>class UserReadSerializer(serializers.ModelSerializer):</p>
+<p>    """What users see in GET requests"""</p>
+<p>    class Meta:</p>
+<p>        model = User</p>
+<p>        fields = ['id', 'username', 'email', 'date_joined']</p>
+<p>        read_only_fields = ['id', 'date_joined']</p>
+
+<p>class UserWriteSerializer(serializers.ModelSerializer):</p>
+<p>    """What users can update in PUT/PATCH requests"""</p>
+<p>    class Meta:</p>
+<p>        model = User</p>
+<p>        fields = ['username', 'email']</p>
+    
+<p>    def validate_email(self, value):</p>
+<p>        """Custom validation"""</p>
+<p>        if User.objects.filter(email=value).exists():</p>
+<p>            raise serializers.ValidationError("Email already exists")</p>
+<p>        return value</p>
+
+<p>class UserAdminSerializer(serializers.ModelSerializer):</p>
+<p>    """What admins see"""</p>
+<p>    class Meta:</p>
+<p>        model = User</p>
+<p>        fields = ['id', 'username', 'email', 'is_staff', </p>
+<p>                  'is_active', 'date_joined', 'last_login']</p>
+<p>        read_only_fields = ['id', 'date_joined', 'last_login']</p>
+
+<h1>ViewSet with different serializers</h1>
+<p>from rest_framework import viewsets</p>
+
+<p>class UserViewSet(viewsets.ModelViewSet):</p>
+<p>    queryset = User.objects.all()</p>
+    
+<p>    def get_serializer_class(self):</p>
+<p>        """Choose serializer based on action and user"""</p>
+<p>        if self.action in ['create', 'update', 'partial_update']:</p>
+<p>            if self.request.user.is_staff:</p>
+<p>                return UserAdminSerializer</p>
+<p>            return UserWriteSerializer</p>
+        
+<p>        if self.request.user.is_staff:</p>
+<p>            return UserAdminSerializer</p>
+<p>        return UserReadSerializer</p>
+</code>`<code>
+
+<h3>Express.js with TypeScript</h3>
+
+</code>`<code>typescript
+<p>// ❌ VULNERABLE: No type safety or validation</p>
+<p>app.put('/api/users/:id', async (req, res) => {</p>
+<p>    const user = await User.findById(req.params.id);</p>
+<p>    Object.assign(user, req.body);  // Mass assignment!</p>
+<p>    await user.save();</p>
+<p>    res.json(user);  // Exposes all fields!</p>
+<p>});</p>
+
+<p>// ✅ SECURE: DTOs with class-validator</p>
+<p>import { IsString, IsEmail, IsOptional, Length } from 'class-validator';</p>
+<p>import { Exclude, Expose, plainToClass } from 'class-transformer';</p>
+
+<p>// Response DTO</p>
+<p>export class UserResponseDto {</p>
+<p>    @Expose()</p>
+<p>    id: number;</p>
+    
+<p>    @Expose()</p>
+<p>    username: string;</p>
+    
+<p>    @Expose()</p>
+<p>    email: string;</p>
+    
+<p>    @Expose()</p>
+<p>    createdAt: Date;</p>
+    
+<p>    // Excluded fields (not in @Expose() = not serialized)</p>
+<p>    // password_hash, isAdmin, salary, etc.</p>
+<p>}</p>
+
+<p>// Update DTO</p>
+<p>export class UserUpdateDto {</p>
+<p>    @IsOptional()</p>
+<p>    @IsString()</p>
+<p>    @Length(3, 50)</p>
+<p>    username?: string;</p>
+    
+<p>    @IsOptional()</p>
+<p>    @IsEmail()</p>
+<p>    email?: string;</p>
+    
+<p>    // isAdmin, salary, etc. NOT included = cannot be set</p>
+<p>}</p>
+
+<p>// Admin Update DTO</p>
+<p>export class UserAdminUpdateDto extends UserUpdateDto {</p>
+<p>    @IsOptional()</p>
+<p>    @IsBoolean()</p>
+<p>    isActive?: boolean;</p>
+    
+<p>    @IsOptional()</p>
+<p>    @IsString()</p>
+<p>    role?: string;</p>
+<p>}</p>
+
+<p>// Secure endpoint</p>
+<p>app.put('/api/users/:id', </p>
+<p>    authenticate,</p>
+<p>    validateDto(UserUpdateDto),</p>
+<p>    async (req, res) => {</p>
+<p>        const userId = parseInt(req.params.id);</p>
+        
+<p>        // Authorization check</p>
+<p>        if (req.user.id !== userId && !req.user.isAdmin) {</p>
+<p>            return res.status(403).json({ error: 'Forbidden' });</p>
+<p>        }</p>
+        
+<p>        const user = await User.findById(userId);</p>
+<p>        if (!user) {</p>
+<p>            return res.status(404).json({ error: 'User not found' });</p>
+<p>        }</p>
+        
+<p>        // Safe update - only fields in DTO</p>
+<p>        const updateDto = plainToClass(UserUpdateDto, req.body);</p>
+<p>        Object.assign(user, updateDto);</p>
+<p>        await user.save();</p>
+        
+<p>        // Safe response - only exposed fields</p>
+<p>        const responseDto = plainToClass(UserResponseDto, user, {</p>
+<p>            excludeExtraneousValues: true</p>
+<p>        });</p>
+        
+<p>        res.json(responseDto);</p>
+<p>    }</p>
+<p>);</p>
+
+<p>// Validation middleware</p>
+<p>function validateDto(dtoClass: any) {</p>
+<p>    return async (req, res, next) => {</p>
+<p>        const dto = plainToClass(dtoClass, req.body);</p>
+<p>        const errors = await validate(dto);</p>
+        
+<p>        if (errors.length > 0) {</p>
+<p>            return res.status(400).json({</p>
+<p>                error: 'Validation failed',</p>
+<p>                details: errors</p>
+<p>            });</p>
+<p>        }</p>
+        
+<p>        next();</p>
+<p>    };</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Ruby on Rails</h3>
+
+</code>`<code>ruby
+<h1>app/models/user.rb</h1>
+<p>class User < ApplicationRecord</p>
+<p>  # Strong parameters in controller handle mass assignment</p>
+<p>  # Serializers handle output filtering</p>
+<p>end</p>
+
+<h1>app/controllers/api/users_controller.rb</h1>
+<p>class Api::UsersController < ApplicationController</p>
+<p>  before_action :authenticate_user!</p>
+<p>  before_action :set_user, only: [:show, :update]</p>
+<p>  before_action :authorize_user!, only: [:update]</p>
+  
+<p>  def show</p>
+<p>    render json: user_serializer.new(@user)</p>
+<p>  end</p>
+  
+<p>  def update</p>
+<p>    if @user.update(user_params)</p>
+<p>      render json: user_serializer.new(@user)</p>
+<p>    else</p>
+<p>      render json: { errors: @user.errors }, status: :unprocessable_entity</p>
+<p>    end</p>
+<p>  end</p>
+  
+<p>  private</p>
+  
+<p>  def set_user</p>
+<p>    @user = User.find(params[:id])</p>
+<p>  end</p>
+  
+<p>  def authorize_user!</p>
+<p>    unless current_user.id == @user.id || current_user.admin?</p>
+<p>      render json: { error: 'Forbidden' }, status: :forbidden</p>
+<p>    end</p>
+<p>  end</p>
+  
+<p>  # ✅ SECURE: Strong parameters (allowlist)</p>
+<p>  def user_params</p>
+<p>    if current_user.admin?</p>
+<p>      params.require(:user).permit(:username, :email, :is_active, :role)</p>
+<p>    else</p>
+<p>      params.require(:user).permit(:username, :email)</p>
+<p>      # is_admin, salary, etc. NOT permitted</p>
+<p>    end</p>
+<p>  end</p>
+  
+<p>  def user_serializer</p>
+<p>    if current_user.admin?</p>
+<p>      UserAdminSerializer</p>
+<p>    elsif current_user.id == @user.id</p>
+<p>      UserPrivateSerializer</p>
+<p>    else</p>
+<p>      UserPublicSerializer</p>
+<p>    end</p>
+<p>  end</p>
+<p>end</p>
+
+<h1>app/serializers/user_public_serializer.rb</h1>
+<p>class UserPublicSerializer < ActiveModel::Serializer</p>
+<p>  attributes :id, :username, :created_at</p>
+<p>  # password_hash, is_admin, salary NOT included</p>
+<p>end</p>
+
+<h1>app/serializers/user_private_serializer.rb</h1>
+<p>class UserPrivateSerializer < UserPublicSerializer</p>
+<p>  attributes :email, :phone</p>
+<p>end</p>
+
+<h1>app/serializers/user_admin_serializer.rb</h1>
+<p>class UserAdminSerializer < UserPrivateSerializer</p>
+<p>  attributes :is_admin, :last_sign_in_at, :is_active</p>
+<p>  # password_hash STILL not included</p>
+<p>end</p>
+</code>`<code>
+
+<h2>Testing and Validation</h2>
+
+<h3>Automated Security Tests</h3>
+
+</code>`<code>python
+<p>import pytest</p>
+<p>from app import app, db</p>
+<p>from models import User</p>
+
+<p>class TestPropertyLevelAuthorization:</p>
+    
+<p>    def test_excessive_data_exposure(self, client, regular_user_token):</p>
+<p>        """Test that sensitive fields are not exposed"""</p>
+<p>        response = client.get(</p>
+<p>            '/api/users/me',</p>
+<p>            headers={'Authorization': f'Bearer {regular_user_token}'}</p>
+<p>        )</p>
+        
+<p>        assert response.status_code == 200</p>
+<p>        data = response.json</p>
+        
+<p>        # Should be present</p>
+<p>        assert 'id' in data</p>
+<p>        assert 'username' in data</p>
+<p>        assert 'email' in data</p>
+        
+<p>        # Should NOT be present</p>
+<p>        assert 'password_hash' not in data</p>
+<p>        assert 'api_key' not in data</p>
+<p>        assert 'is_admin' not in data</p>
+<p>        assert 'salary' not in data</p>
+<p>        assert 'ssn' not in data</p>
+    
+<p>    def test_mass_assignment_prevention(self, client, regular_user_token, regular_user):</p>
+<p>        """Test that restricted fields cannot be modified"""</p>
+<p>        malicious_data = {</p>
+<p>            'username': 'updated',</p>
+<p>            'is_admin': True,  # Should be rejected</p>
+<p>            'salary': 999999,  # Should be rejected</p>
+<p>            'balance': 1000000  # Should be rejected</p>
+<p>        }</p>
+        
+<p>        response = client.put(</p>
+<p>            f'/api/users/{regular_user.id}',</p>
+<p>            json=malicious_data,</p>
+<p>            headers={'Authorization': f'Bearer {regular_user_token}'}</p>
+<p>        )</p>
+        
+<p>        # Reload user from database</p>
+<p>        db.session.refresh(regular_user)</p>
+        
+<p>        # username should be updated</p>
+<p>        assert regular_user.username == 'updated'</p>
+        
+<p>        # Restricted fields should NOT be modified</p>
+<p>        assert regular_user.is_admin == False</p>
+<p>        assert regular_user.salary != 999999</p>
+<p>        assert regular_user.balance != 1000000</p>
+    
+<p>    def test_role_based_field_filtering(self, client, admin_token, regular_user_token):</p>
+<p>        """Test that admins see more fields than regular users"""</p>
+<p>        user_id = 1</p>
+        
+<p>        # Regular user view</p>
+<p>        response = client.get(</p>
+<p>            f'/api/users/{user_id}',</p>
+<p>            headers={'Authorization': f'Bearer {regular_user_token}'}</p>
+<p>        )</p>
+<p>        regular_data = response.json</p>
+        
+<p>        # Admin view</p>
+<p>        response = client.get(</p>
+<p>            f'/api/users/{user_id}',</p>
+<p>            headers={'Authorization': f'Bearer {admin_token}'}</p>
+<p>        )</p>
+<p>        admin_data = response.json</p>
+        
+<p>        # Admin sees additional fields</p>
+<p>        assert 'is_admin' in admin_data</p>
+<p>        assert 'last_login_ip' in admin_data</p>
+        
+<p>        # Regular user does not</p>
+<p>        assert 'is_admin' not in regular_data</p>
+<p>        assert 'last_login_ip' not in regular_data</p>
+        
+<p>        # Both should NOT see password_hash</p>
+<p>        assert 'password_hash' not in regular_data</p>
+<p>        assert 'password_hash' not in admin_data</p>
+    
+<p>    def test_read_only_fields(self, client, regular_user_token, regular_user):</p>
+<p>        """Test that read-only fields cannot be modified"""</p>
+<p>        response = client.put(</p>
+<p>            f'/api/users/{regular_user.id}',</p>
+<p>            json={</p>
+<p>                'username': 'new_name',</p>
+<p>                'created_at': '2020-01-01T00:00:00',  # Attempt to modify</p>
+<p>                'id': 999  # Attempt to modify</p>
+<p>            },</p>
+<p>            headers={'Authorization': f'Bearer {regular_user_token}'}</p>
+<p>        )</p>
+        
+<p>        db.session.refresh(regular_user)</p>
+        
+<p>        # username updated</p>
+<p>        assert regular_user.username == 'new_name'</p>
+        
+<p>        # Read-only fields unchanged</p>
+<p>        assert regular_user.id != 999</p>
+<p>        assert regular_user.created_at != datetime(2020, 1, 1)</p>
+</code>`<code>
+
+<h3>Manual Testing Checklist</h3>
+
+</code>`<code>bash
+<h1>Test 1: Excessive Data Exposure</h1>
+<p>curl -H "Authorization: Bearer $TOKEN" \</p>
+<p>  https://api.example.com/v1/users/me | \</p>
+<p>  jq 'keys'  # Check for sensitive fields</p>
+
+<h1>Test 2: Mass Assignment - Privilege Escalation</h1>
+<p>curl -X PUT https://api.example.com/v1/users/123 \</p>
+<p>  -H "Authorization: Bearer $TOKEN" \</p>
+<p>  -H "Content-Type: application/json" \</p>
+<p>  -d '{"is_admin": true, "role": "admin"}'</p>
+
+<h1>Verify user is NOT admin after request</h1>
+
+<h1>Test 3: Mass Assignment - Financial Fields</h1>
+<p>curl -X PUT https://api.example.com/v1/users/123 \</p>
+<p>  -H "Authorization: Bearer $TOKEN" \</p>
+<p>  -d '{"balance": 1000000, "salary": 999999}'</p>
+
+<h1>Verify fields not modified</h1>
+
+<h1>Test 4: GraphQL Introspection</h1>
+<p>curl -X POST https://api.example.com/graphql \</p>
+<p>  -H "Content-Type: application/json" \</p>
+<p>  -d '{"query": "{__schema{types{name fields{name}}}}"}'</p>
+
+<h1>Should be disabled in production or show limited fields</h1>
+
+<h1>Test 5: Different User Roles</h1>
+<h1>As regular user</h1>
+<p>curl -H "Authorization: Bearer $REGULAR_TOKEN" \</p>
+<p>  https://api.example.com/v1/users/1 | jq 'keys'</p>
+
+<h1>As admin</h1>
+<p>curl -H "Authorization: Bearer $ADMIN_TOKEN" \</p>
+<p>  https://api.example.com/v1/users/1 | jq 'keys'</p>
+
+<h1>Admins should see more fields, but NOT password_hash</h1>
+</code>`<code>
+
+<h2>Security Checklist</h2>
+
+<h3>Development Phase</h3>
+
+<ul>
+<li>[ ] Define separate DTOs for input and output</li>
+<li>[ ] Use allowlists for updatable fields</li>
+<li>[ ] Mark sensitive fields as </code>dump_only` (read-only)</li>
+<li>[ ] Never serialize database models directly</li>
+<li>[ ] Implement role-based serializers</li>
+<li>[ ] Use schema validation libraries</li>
+<li>[ ] Create explicit update methods</li>
+<li>[ ] Document which roles can access each field</li>
+<li>[ ] Use TypeScript/type hints for compile-time checks</li>
+<li>[ ] Disable GraphQL introspection in production</li>
+</ul>
+
+<h3>Testing Phase</h3>
+
+<ul>
+<li>[ ] Test API responses for sensitive field exposure</li>
+<li>[ ] Attempt mass assignment on all endpoints</li>
+<li>[ ] Test with different user roles</li>
+<li>[ ] Verify read-only fields cannot be modified</li>
+<li>[ ] Check GraphQL field-level permissions</li>
+<li>[ ] Test batch/bulk endpoints</li>
+<li>[ ] Verify error messages don't leak field names</li>
+<li>[ ] Test with invalid/unexpected fields</li>
+<li>[ ] Check for parameter pollution vulnerabilities</li>
+<li>[ ] Automated tests for each sensitive field</li>
+</ul>
+
+<h3>Deployment Phase</h3>
+
+<ul>
+<li>[ ] Code review focused on serializers</li>
+<li>[ ] Security scan for direct model serialization</li>
+<li>[ ] Verify production DTOs match documentation</li>
+<li>[ ] Enable field access logging for sensitive data</li>
+<li>[ ] Configure monitoring for anomalous field access</li>
+<li>[ ] Disable debug mode and verbose errors</li>
+<li>[ ] Review API documentation for exposed fields</li>
+<li>[ ] Penetration testing specifically for API03</li>
+<li>[ ] Set up alerts for mass assignment attempts</li>
+<li>[ ] Regular audits of serializer definitions</li>
+</ul>
+
+<h3>Ongoing Maintenance</h3>
+
+<ul>
+<li>[ ] Review serializers when adding new fields</li>
+<li>[ ] Audit field exposure after model changes</li>
+<li>[ ] Regular security assessments</li>
+<li>[ ] Monitor logs for unauthorized field access</li>
+<li>[ ] Update DTOs when requirements change</li>
+<li>[ ] Keep validation libraries up to date</li>
+<li>[ ] Review and update documentation</li>
+<li>[ ] Train developers on secure serialization</li>
+<li>[ ] Incident response plan for data exposure</li>
+<li>[ ] Regular penetration testing</li>
+</ul>
+
+<h2>What's Next?</h2>
+
+<ul>
+<li><strong><a href="./examples.md">Examples</a></strong>: See complete code examples of vulnerable and secure implementations</li>
+<li><strong><a href="./lab/api03-mass-assignment-lab/">Lab</a></strong>: Practice identifying and fixing property-level authorization issues</li>
+<li><strong><a href="./attack-vectors.md">Attack Vectors</a></strong>: Review common attack patterns</li>
+</ul>
+
+<p>---</p>
+
+<em>Part of the <a href="../../README.md">OWASP API Security Top 10 Educational Repository</a></em>
+
         </div>
     </div>
 </body>

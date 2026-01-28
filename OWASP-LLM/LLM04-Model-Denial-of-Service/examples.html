@@ -215,7 +215,1024 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>LLM04: Model Denial of Service - Examples</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#vulnerable-examples">Vulnerable Examples</a></li>
+<li><a href="#secure-examples">Secure Examples</a></li>
+<li><a href="#attack-scenarios">Attack Scenarios</a></li>
+<li><a href="#defense-implementations">Defense Implementations</a></li>
+</ul>
+
+<h2>Vulnerable Examples</h2>
+
+<h3>Example 1: No Rate Limiting</h3>
+
+<strong>Vulnerable Code</strong>:
+<p>``<code>python</p>
+<p>from flask import Flask, request, jsonify</p>
+<p>import openai</p>
+
+<p>app = Flask(__name__)</p>
+<p>openai.api_key = "sk-..."</p>
+
+<p>@app.route('/api/chat', methods=['POST'])</p>
+<p>def chat():</p>
+<p>    """VULNERABLE: No rate limiting"""</p>
+<p>    data = request.json</p>
+<p>    prompt = data.get('prompt', '')</p>
+    
+<p>    # No checks on:</p>
+<p>    # - Request frequency</p>
+<p>    # - User identity</p>
+<p>    # - Input length</p>
+<p>    # - Concurrent requests</p>
+    
+<p>    response = openai.ChatCompletion.create(</p>
+<p>        model="gpt-4",</p>
+<p>        messages=[{"role": "user", "content": prompt}],</p>
+<p>        max_tokens=4000  # User can request expensive operations</p>
+<p>    )</p>
+    
+<p>    return jsonify({"response": response.choices[0].message.content})</p>
+
+<h1>PROBLEM: Attacker can flood endpoint</h1>
+<h1>for i in range(100000):</h1>
+<h1>    requests.post('/api/chat', json={'prompt': 'x' * 100000})</h1>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>No request frequency limiting</li>
+<li>No user authentication or tracking</li>
+<li>No input validation</li>
+<li>Unbounded resource consumption</li>
+<li>No concurrent request limits</li>
+</ul>
+
+<strong>Attack Impact</strong>:
+</code>`<code>python
+<h1>Attacker exploitation</h1>
+<p>import requests</p>
+<p>import threading</p>
+
+<p>def attack():</p>
+<p>    url = "http://target/api/chat"</p>
+    
+<p>    # Flood with maximum-size requests</p>
+<p>    def send_request():</p>
+<p>        large_prompt = "analyze this: " + ("data " * 50000)</p>
+<p>        requests.post(url, json={'prompt': large_prompt})</p>
+    
+<p>    # Launch 1000 concurrent threads</p>
+<p>    threads = []</p>
+<p>    for i in range(1000):</p>
+<p>        t = threading.Thread(target=send_request)</p>
+<p>        t.start()</p>
+<p>        threads.append(t)</p>
+    
+<p>    # Impact:</p>
+<p>    # - Server overwhelmed with requests</p>
+<p>    # - Legitimate users can't access service</p>
+<p>    # - API costs spike to thousands of dollars</p>
+<p>    # - System potentially crashes</p>
+</code>`<code>
+
+<h3>Example 2: Unbounded Input Length</h3>
+
+<strong>Vulnerable Code</strong>:
+</code>`<code>python
+<p>class ChatService:</p>
+<p>    """VULNERABLE: Accepts arbitrarily long inputs"""</p>
+    
+<p>    def __init__(self, api_key):</p>
+<p>        self.api_key = api_key</p>
+<p>        self.client = openai.OpenAI(api_key=api_key)</p>
+    
+<p>    def process_chat(self, user_message):</p>
+<p>        # No length validation</p>
+<p>        # No token counting</p>
+<p>        # No complexity checking</p>
+        
+<p>        response = self.client.chat.completions.create(</p>
+<p>            model="gpt-4",</p>
+<p>            messages=[</p>
+<p>                {"role": "user", "content": user_message}</p>
+<p>            ],</p>
+<p>            max_tokens=16000  # Maximum possible</p>
+<p>        )</p>
+        
+<p>        return response.choices[0].message.content</p>
+
+<h1>Usage</h1>
+<p>chat = ChatService("sk-...")</p>
+
+<h1>PROBLEM: Accepts any length input</h1>
+<p>user_input = input("Enter your message: ")</p>
+<p>response = chat.process_chat(user_input)  # No validation!</p>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>No maximum input length</li>
+<li>No token counting</li>
+<li>Maximum output tokens allowed</li>
+<li>Single request can consume massive resources</li>
+</ul>
+
+<strong>Attack Impact</strong>:
+</code>`<code>python
+<h1>Attacker sends maximum context</h1>
+<p>malicious_input = """</p>
+<p>Please analyze the following text in extreme detail.</p>
+<p>For each word, provide:</p>
+<ol>
+<li>Etymology</li>
+<li>Synonyms and antonyms</li>
+<li>Usage examples</li>
+<li>Translations to 50 languages</li>
+</ol>
+
+<p>""" + ("word " * 100000)  # Near maximum context</p>
+
+<h1>Result:</h1>
+<h1>- Input: ~100K tokens ($3.00)</h1>
+<h1>- Output: ~16K tokens ($0.96)</h1>
+<h1>- Total cost per request: ~$4</h1>
+<h1>- 1000 requests = $4,000</h1>
+<h1>- Processes for minutes, blocking resources</h1>
+</code>`<code>
+
+<h3>Example 3: No Timeout Protection</h3>
+
+<strong>Vulnerable Code</strong>:
+</code>`<code>python
+<p>import asyncio</p>
+
+<p>class LLMService:</p>
+<p>    """VULNERABLE: No timeout on requests"""</p>
+    
+<p>    async def generate_response(self, prompt, max_length=10000):</p>
+<p>        # No timeout set</p>
+<p>        # Long-running requests block forever</p>
+        
+<p>        try:</p>
+<p>            response = await self.llm_client.generate(</p>
+<p>                prompt=prompt,</p>
+<p>                max_tokens=max_length</p>
+<p>                # No timeout parameter!</p>
+<p>            )</p>
+<p>            return response</p>
+<p>        except Exception as e:</p>
+<p>            # Generic error handling</p>
+<p>            return f"Error: {e}"</p>
+
+<h1>Usage</h1>
+<p>service = LLMService()</p>
+
+<h1>PROBLEM: Request can run indefinitely</h1>
+<p>async def handle_user_request(prompt):</p>
+<p>    # This could hang forever</p>
+<p>    result = await service.generate_response(prompt)</p>
+<p>    return result</p>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>No timeout on LLM requests</li>
+<li>Long-running requests consume resources indefinitely</li>
+<li>No way to kill stuck requests</li>
+<li>Thread/worker pool can be exhausted</li>
+</ul>
+
+<strong>Attack Impact</strong>:
+</code>`<code>python
+<h1>Attack with slow-generating prompts</h1>
+<p>async def attack():</p>
+<p>    prompts = [</p>
+<p>        "Count from 1 to 1000000 in words with explanations",</p>
+<p>        "Generate complete dictionary with examples",</p>
+<p>        "List all prime numbers up to 10000000"</p>
+<p>    ]</p>
+    
+<p>    # Launch many slow requests</p>
+<p>    tasks = []</p>
+<p>    for i in range(100):</p>
+<p>        for prompt in prompts:</p>
+<p>            task = asyncio.create_task(</p>
+<p>                service.generate_response(prompt, max_length=100000)</p>
+<p>            )</p>
+<p>            tasks.append(task)</p>
+    
+<p>    # Each request takes 10+ minutes</p>
+<p>    # 300 requests × 10 minutes = 50+ hours of compute</p>
+<p>    # All workers blocked on slow requests</p>
+<p>    # Service effectively dead</p>
+</code>`<code>
+
+<h3>Example 4: No Cost Monitoring</h3>
+
+<strong>Vulnerable Code</strong>:
+</code>`<code>python
+<p>class AIAssistant:</p>
+<p>    """VULNERABLE: No cost tracking or limits"""</p>
+    
+<p>    def __init__(self, api_key):</p>
+<p>        self.api_key = api_key</p>
+    
+<p>    def answer_question(self, question, context=""):</p>
+<p>        # No cost tracking</p>
+<p>        # No budget limits</p>
+<p>        # No usage monitoring</p>
+        
+<p>        full_prompt = f"Context: {context}\n\nQuestion: {question}"</p>
+        
+<p>        response = openai.ChatCompletion.create(</p>
+<p>            model="gpt-4",  # Most expensive model</p>
+<p>            messages=[{"role": "user", "content": full_prompt}],</p>
+<p>            max_tokens=4000</p>
+<p>        )</p>
+        
+<p>        return response.choices[0].message.content</p>
+    
+<p>    # No cost reporting</p>
+<p>    # No usage logs</p>
+<p>    # No budget alerts</p>
+
+<h1>PROBLEM: No awareness of costs</h1>
+<p>assistant = AIAssistant("sk-...")</p>
+
+<h1>API key leaked in GitHub</h1>
+<h1>Attacker finds it and abuses it</h1>
+<h1>No monitoring or alerts</h1>
+<h1>Bill arrives weeks later: $50,000+</h1>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>No cost tracking</li>
+<li>No budget limits</li>
+<li>No usage alerts</li>
+<li>No anomaly detection</li>
+<li>API key exposure risk</li>
+</ul>
+
+<h2>Secure Examples</h2>
+
+<h3>Example 1: Multi-Layer Rate Limiting</h3>
+
+<strong>Secure Code</strong>:
+</code>`<code>python
+<p>from flask import Flask, request, jsonify</p>
+<p>from functools import wraps</p>
+<p>from collections import defaultdict</p>
+<p>from datetime import datetime, timedelta</p>
+<p>import time</p>
+
+<p>app = Flask(__name__)</p>
+
+<p>class RateLimiter:</p>
+<p>    """SECURE: Multi-tier rate limiting"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.requests = defaultdict(list)</p>
+<p>        self.limits = {</p>
+<p>            'per_second': 5,</p>
+<p>            'per_minute': 60,</p>
+<p>            'per_hour': 500,</p>
+<p>            'per_day': 5000</p>
+<p>        }</p>
+    
+<p>    def is_allowed(self, user_id: str) -> tuple[bool, str]:</p>
+<p>        """Check if request is within limits"""</p>
+<p>        now = time.time()</p>
+        
+<p>        # Clean old timestamps</p>
+<p>        self.requests[user_id] = [</p>
+<p>            ts for ts in self.requests[user_id]</p>
+<p>            if now - ts < 86400  # Keep last 24 hours</p>
+<p>        ]</p>
+        
+<p>        timestamps = self.requests[user_id]</p>
+        
+<p>        # Check per-second limit</p>
+<p>        recent_1s = sum(1 for ts in timestamps if now - ts < 1)</p>
+<p>        if recent_1s >= self.limits['per_second']:</p>
+<p>            return False, "Rate limit: too many requests per second"</p>
+        
+<p>        # Check per-minute limit</p>
+<p>        recent_1m = sum(1 for ts in timestamps if now - ts < 60)</p>
+<p>        if recent_1m >= self.limits['per_minute']:</p>
+<p>            return False, "Rate limit: too many requests per minute"</p>
+        
+<p>        # Check per-hour limit</p>
+<p>        recent_1h = sum(1 for ts in timestamps if now - ts < 3600)</p>
+<p>        if recent_1h >= self.limits['per_hour']:</p>
+<p>            return False, "Rate limit: too many requests per hour"</p>
+        
+<p>        # Check per-day limit</p>
+<p>        if len(timestamps) >= self.limits['per_day']:</p>
+<p>            return False, "Rate limit: daily limit reached"</p>
+        
+<p>        # Record this request</p>
+<p>        self.requests[user_id].append(now)</p>
+<p>        return True, "OK"</p>
+
+<p>rate_limiter = RateLimiter()</p>
+
+<p>def rate_limit(f):</p>
+<p>    """Rate limiting decorator"""</p>
+<p>    @wraps(f)</p>
+<p>    def decorated_function(<em>args, </em>*kwargs):</p>
+<p>        # Get user ID (from auth token, IP, etc.)</p>
+<p>        user_id = request.headers.get('X-User-ID', request.remote_addr)</p>
+        
+<p>        # Check rate limit</p>
+<p>        allowed, message = rate_limiter.is_allowed(user_id)</p>
+        
+<p>        if not allowed:</p>
+<p>            return jsonify({"error": message}), 429</p>
+        
+<p>        return f(<em>args, </em>*kwargs)</p>
+    
+<p>    return decorated_function</p>
+
+<p>@app.route('/api/chat', methods=['POST'])</p>
+<p>@rate_limit</p>
+<p>def chat():</p>
+<p>    """Rate-limited chat endpoint"""</p>
+<p>    data = request.json</p>
+<p>    prompt = data.get('prompt', '')</p>
+    
+<p>    # Additional validation in next example</p>
+<p>    response = process_with_validation(prompt)</p>
+    
+<p>    return jsonify(response)</p>
+</code>`<code>
+
+<strong>Security Features</strong>:
+<ul>
+<li>✅ Multi-tier rate limiting (per-second, minute, hour, day)</li>
+<li>✅ Per-user tracking</li>
+<li>✅ Automatic cleanup of old data</li>
+<li>✅ Clear error messages</li>
+<li>✅ Easy to adjust limits</li>
+</ul>
+
+<h3>Example 2: Input Validation and Sanitization</h3>
+
+<strong>Secure Code</strong>:
+</code>`<code>python
+<p>import tiktoken</p>
+<p>import re</p>
+
+<p>class SecureInputValidator:</p>
+<p>    """SECURE: Comprehensive input validation"""</p>
+    
+<p>    def __init__(self, model="gpt-4"):</p>
+<p>        self.encoder = tiktoken.encoding_for_model(model)</p>
+        
+<p>        # Define strict limits</p>
+<p>        self.max_input_tokens = 8000</p>
+<p>        self.max_output_tokens = 2000</p>
+<p>        self.max_total_tokens = 10000</p>
+<p>        self.max_chars = 40000</p>
+    
+<p>    def validate_and_sanitize(self, prompt: str, </p>
+<p>                             max_tokens: int) -> tuple[bool, str, str]:</p>
+<p>        """Validate and sanitize input"""</p>
+        
+<p>        # Check if prompt is provided</p>
+<p>        if not prompt or not isinstance(prompt, str):</p>
+<p>            return False, "Invalid prompt", ""</p>
+        
+<p>        # Check character length</p>
+<p>        if len(prompt) > self.max_chars:</p>
+<p>            return False, f"Prompt too long: {len(prompt)} chars (max {self.max_chars})", ""</p>
+        
+<p>        # Sanitize: remove null bytes</p>
+<p>        prompt = prompt.replace('\x00', '')</p>
+        
+<p>        # Detect repetitive patterns (potential DoS)</p>
+<p>        if self._is_repetitive(prompt):</p>
+<p>            return False, "Suspicious repetitive pattern detected", ""</p>
+        
+<p>        # Limit excessive repetition</p>
+<p>        prompt = self._limit_repetition(prompt)</p>
+        
+<p>        # Count tokens</p>
+<p>        try:</p>
+<p>            tokens = self.encoder.encode(prompt)</p>
+<p>            input_token_count = len(tokens)</p>
+<p>        except Exception as e:</p>
+<p>            return False, f"Failed to tokenize: {e}", ""</p>
+        
+<p>        # Validate input token count</p>
+<p>        if input_token_count > self.max_input_tokens:</p>
+<p>            return False, f"Input too long: {input_token_count} tokens (max {self.max_input_tokens})", ""</p>
+        
+<p>        # Validate output token count</p>
+<p>        if max_tokens > self.max_output_tokens:</p>
+<p>            return False, f"Requested output too long: {max_tokens} tokens (max {self.max_output_tokens})", ""</p>
+        
+<p>        # Validate total tokens</p>
+<p>        if input_token_count + max_tokens > self.max_total_tokens:</p>
+<p>            return False, f"Total tokens exceed limit: {input_token_count + max_tokens} (max {self.max_total_tokens})", ""</p>
+        
+<p>        return True, "OK", prompt</p>
+    
+<p>    def _is_repetitive(self, text: str) -> bool:</p>
+<p>        """Detect malicious repetitive patterns"""</p>
+<p>        words = text.split()</p>
+        
+<p>        if len(words) < 50:</p>
+<p>            return False</p>
+        
+<p>        # Check if same word appears too frequently</p>
+<p>        from collections import Counter</p>
+<p>        word_freq = Counter(words)</p>
+<p>        most_common_word, count = word_freq.most_common(1)[0]</p>
+        
+<p>        # If one word is >60% of content, it's suspicious</p>
+<p>        if count / len(words) > 0.6:</p>
+<p>            return True</p>
+        
+<p>        return False</p>
+    
+<p>    def _limit_repetition(self, text: str) -> str:</p>
+<p>        """Limit consecutive character repetition"""</p>
+<p>        # Replace >50 consecutive identical chars with just 50</p>
+<p>        text = re.sub(r'(.)\1{50,}', r'\1' * 50, text)</p>
+<p>        return text</p>
+
+<h1>Usage</h1>
+<p>validator = SecureInputValidator()</p>
+
+<p>def secure_chat_endpoint(prompt: str, max_tokens: int):</p>
+<p>    """Secure endpoint with validation"""</p>
+    
+<p>    # Validate and sanitize</p>
+<p>    valid, message, sanitized_prompt = validator.validate_and_sanitize(</p>
+<p>        prompt, </p>
+<p>        max_tokens</p>
+<p>    )</p>
+    
+<p>    if not valid:</p>
+<p>        return {"error": message}, 400</p>
+    
+<p>    # Process with validated input</p>
+<p>    try:</p>
+<p>        response = openai.ChatCompletion.create(</p>
+<p>            model="gpt-4",</p>
+<p>            messages=[{"role": "user", "content": sanitized_prompt}],</p>
+<p>            max_tokens=min(max_tokens, validator.max_output_tokens)</p>
+<p>        )</p>
+        
+<p>        return {"response": response.choices[0].message.content}, 200</p>
+    
+<p>    except Exception as e:</p>
+<p>        return {"error": "Processing failed"}, 500</p>
+</code>`<code>
+
+<strong>Security Features</strong>:
+<ul>
+<li>✅ Token counting before processing</li>
+<li>✅ Strict length limits</li>
+<li>✅ Repetition detection</li>
+<li>✅ Input sanitization</li>
+<li>✅ Clear validation errors</li>
+</ul>
+
+<h3>Example 3: Timeout and Resource Management</h3>
+
+<strong>Secure Code</strong>:
+</code>`<code>python
+<p>import asyncio</p>
+<p>from contextlib import asynccontextmanager</p>
+<p>import time</p>
+
+<p>class SecureLLMService:</p>
+<p>    """SECURE: Comprehensive timeout and resource management"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.default_timeout = 60  # seconds</p>
+<p>        self.max_timeout = 300     # 5 minutes max</p>
+<p>        self.max_concurrent = 10</p>
+<p>        self.active_requests = 0</p>
+<p>        self.semaphore = asyncio.Semaphore(self.max_concurrent)</p>
+    
+<p>    @asynccontextmanager</p>
+<p>    async def request_slot(self):</p>
+<p>        """Manage concurrent request slots"""</p>
+<p>        async with self.semaphore:</p>
+<p>            self.active_requests += 1</p>
+<p>            try:</p>
+<p>                yield</p>
+<p>            finally:</p>
+<p>                self.active_requests -= 1</p>
+    
+<p>    async def generate_with_timeout(self, prompt: str, </p>
+<p>                                   max_tokens: int = 1000,</p>
+<p>                                   timeout: int = None) -> dict:</p>
+<p>        """Generate response with timeout protection"""</p>
+        
+<p>        if timeout is None:</p>
+<p>            # Calculate timeout based on expected generation time</p>
+<p>            # Rough estimate: 50 tokens/second</p>
+<p>            estimated_time = (max_tokens / 50) + 10</p>
+<p>            timeout = min(estimated_time, self.max_timeout)</p>
+<p>        else:</p>
+<p>            timeout = min(timeout, self.max_timeout)</p>
+        
+<p>        # Acquire request slot</p>
+<p>        if self.active_requests >= self.max_concurrent:</p>
+<p>            return {</p>
+<p>                "error": "Too many concurrent requests",</p>
+<p>                "retry_after": 5</p>
+<p>            }</p>
+        
+<p>        async with self.request_slot():</p>
+<p>            try:</p>
+<p>                # Execute with timeout</p>
+<p>                response = await asyncio.wait_for(</p>
+<p>                    self._generate_internal(prompt, max_tokens),</p>
+<p>                    timeout=timeout</p>
+<p>                )</p>
+                
+<p>                return {"response": response}</p>
+            
+<p>            except asyncio.TimeoutError:</p>
+<p>                return {</p>
+<p>                    "error": f"Request timed out after {timeout} seconds",</p>
+<p>                    "suggestion": "Try a simpler query or reduce max_tokens"</p>
+<p>                }</p>
+            
+<p>            except Exception as e:</p>
+<p>                return {</p>
+<p>                    "error": f"Generation failed: {str(e)}"</p>
+<p>                }</p>
+    
+<p>    async def _generate_internal(self, prompt: str, max_tokens: int) -> str:</p>
+<p>        """Internal generation method"""</p>
+<p>        # Simulated async LLM call</p>
+<p>        response = await openai_async_client.chat.completions.create(</p>
+<p>            model="gpt-4",</p>
+<p>            messages=[{"role": "user", "content": prompt}],</p>
+<p>            max_tokens=max_tokens</p>
+<p>        )</p>
+        
+<p>        return response.choices[0].message.content</p>
+
+<h1>Usage</h1>
+<p>llm_service = SecureLLMService()</p>
+
+<p>async def handle_request(prompt: str, max_tokens: int):</p>
+<p>    """Handle request with timeout"""</p>
+<p>    result = await llm_service.generate_with_timeout(</p>
+<p>        prompt=prompt,</p>
+<p>        max_tokens=max_tokens</p>
+<p>    )</p>
+    
+<p>    return result</p>
+
+<h1>Example usage</h1>
+<p>async def main():</p>
+<p>    result = await handle_request(</p>
+<p>        "Explain quantum computing",</p>
+<p>        max_tokens=500</p>
+<p>    )</p>
+<p>    print(result)</p>
+</code>`<code>
+
+<strong>Security Features</strong>:
+<ul>
+<li>✅ Request timeout protection</li>
+<li>✅ Concurrent request limiting</li>
+<li>✅ Resource slot management</li>
+<li>✅ Automatic timeout calculation</li>
+<li>✅ Graceful error handling</li>
+</ul>
+
+<h3>Example 4: Cost Monitoring and Alerts</h3>
+
+<strong>Secure Code</strong>:
+</code>`<code>python
+<p>from dataclasses import dataclass</p>
+<p>from datetime import datetime, timedelta</p>
+<p>from typing import Dict, List</p>
+<p>import logging</p>
+
+<p>@dataclass</p>
+<p>class UsageRecord:</p>
+<p>    """Record of API usage"""</p>
+<p>    timestamp: datetime</p>
+<p>    user_id: str</p>
+<p>    model: str</p>
+<p>    input_tokens: int</p>
+<p>    output_tokens: int</p>
+<p>    cost: float</p>
+
+<p>class CostMonitoringService:</p>
+<p>    """SECURE: Comprehensive cost monitoring"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        # Pricing (as of 2024)</p>
+<p>        self.pricing = {</p>
+<p>            'gpt-4': {</p>
+<p>                'input': 0.03,   # per 1K tokens</p>
+<p>                'output': 0.06</p>
+<p>            },</p>
+<p>            'gpt-3.5-turbo': {</p>
+<p>                'input': 0.0015,</p>
+<p>                'output': 0.002</p>
+<p>            }</p>
+<p>        }</p>
+        
+<p>        # Budgets</p>
+<p>        self.daily_budget = 100.00    # dollars</p>
+<p>        self.hourly_budget = 10.00</p>
+<p>        self.user_daily_budget = 5.00</p>
+        
+<p>        # Tracking</p>
+<p>        self.usage_history: List[UsageRecord] = []</p>
+<p>        self.user_usage: Dict[str, List[UsageRecord]] = {}</p>
+    
+<p>    def calculate_cost(self, model: str, input_tokens: int, </p>
+<p>                      output_tokens: int) -> float:</p>
+<p>        """Calculate cost for request"""</p>
+<p>        if model not in self.pricing:</p>
+<p>            logging.warning(f"Unknown model: {model}, using gpt-4 pricing")</p>
+<p>            model = 'gpt-4'</p>
+        
+<p>        prices = self.pricing[model]</p>
+        
+<p>        input_cost = (input_tokens / 1000) * prices['input']</p>
+<p>        output_cost = (output_tokens / 1000) * prices['output']</p>
+        
+<p>        return input_cost + output_cost</p>
+    
+<p>    def check_budget(self, user_id: str, estimated_cost: float) -> tuple[bool, str]:</p>
+<p>        """Check if request is within budget"""</p>
+<p>        now = datetime.now()</p>
+        
+<p>        # Check system-wide daily budget</p>
+<p>        daily_cost = self._get_cost_since(now - timedelta(days=1))</p>
+<p>        if daily_cost + estimated_cost > self.daily_budget:</p>
+<p>            return False, f"Daily budget exceeded: ${daily_cost:.2f}/${self.daily_budget:.2f}"</p>
+        
+<p>        # Check hourly budget</p>
+<p>        hourly_cost = self._get_cost_since(now - timedelta(hours=1))</p>
+<p>        if hourly_cost + estimated_cost > self.hourly_budget:</p>
+<p>            return False, f"Hourly budget exceeded: ${hourly_cost:.2f}/${self.hourly_budget:.2f}"</p>
+        
+<p>        # Check user daily budget</p>
+<p>        user_daily_cost = self._get_user_cost_since(</p>
+<p>            user_id, </p>
+<p>            now - timedelta(days=1)</p>
+<p>        )</p>
+<p>        if user_daily_cost + estimated_cost > self.user_daily_budget:</p>
+<p>            return False, f"User daily budget exceeded: ${user_daily_cost:.2f}/${self.user_daily_budget:.2f}"</p>
+        
+<p>        # Check for anomalies</p>
+<p>        if self._is_anomalous(user_id, estimated_cost):</p>
+<p>            logging.warning(f"Anomalous cost detected for user {user_id}: ${estimated_cost:.4f}")</p>
+<p>            # Could block or require additional verification</p>
+        
+<p>        return True, "OK"</p>
+    
+<p>    def record_usage(self, user_id: str, model: str,</p>
+<p>                    input_tokens: int, output_tokens: int):</p>
+<p>        """Record usage and cost"""</p>
+<p>        cost = self.calculate_cost(model, input_tokens, output_tokens)</p>
+        
+<p>        record = UsageRecord(</p>
+<p>            timestamp=datetime.now(),</p>
+<p>            user_id=user_id,</p>
+<p>            model=model,</p>
+<p>            input_tokens=input_tokens,</p>
+<p>            output_tokens=output_tokens,</p>
+<p>            cost=cost</p>
+<p>        )</p>
+        
+<p>        self.usage_history.append(record)</p>
+        
+<p>        if user_id not in self.user_usage:</p>
+<p>            self.user_usage[user_id] = []</p>
+<p>        self.user_usage[user_id].append(record)</p>
+        
+<p>        # Log high-cost requests</p>
+<p>        if cost > 1.00:</p>
+<p>            logging.warning(f"High-cost request: ${cost:.2f} for user {user_id}")</p>
+    
+<p>    def _get_cost_since(self, since: datetime) -> float:</p>
+<p>        """Get total cost since timestamp"""</p>
+<p>        return sum(</p>
+<p>            record.cost</p>
+<p>            for record in self.usage_history</p>
+<p>            if record.timestamp >= since</p>
+<p>        )</p>
+    
+<p>    def _get_user_cost_since(self, user_id: str, since: datetime) -> float:</p>
+<p>        """Get user's cost since timestamp"""</p>
+<p>        if user_id not in self.user_usage:</p>
+<p>            return 0.0</p>
+        
+<p>        return sum(</p>
+<p>            record.cost</p>
+<p>            for record in self.user_usage[user_id]</p>
+<p>            if record.timestamp >= since</p>
+<p>        )</p>
+    
+<p>    def _is_anomalous(self, user_id: str, current_cost: float) -> bool:</p>
+<p>        """Detect anomalous costs"""</p>
+<p>        if user_id not in self.user_usage or len(self.user_usage[user_id]) < 10:</p>
+<p>            return False</p>
+        
+<p>        # Calculate average cost</p>
+<p>        recent_records = self.user_usage[user_id][-100:]</p>
+<p>        avg_cost = sum(r.cost for r in recent_records) / len(recent_records)</p>
+        
+<p>        # Flag if current cost is 20x average</p>
+<p>        return current_cost > avg_cost * 20</p>
+    
+<p>    def get_usage_report(self) -> dict:</p>
+<p>        """Generate usage report"""</p>
+<p>        now = datetime.now()</p>
+        
+<p>        return {</p>
+<p>            "total_requests": len(self.usage_history),</p>
+<p>            "hourly_cost": self._get_cost_since(now - timedelta(hours=1)),</p>
+<p>            "daily_cost": self._get_cost_since(now - timedelta(days=1)),</p>
+<p>            "hourly_budget": self.hourly_budget,</p>
+<p>            "daily_budget": self.daily_budget,</p>
+<p>            "budget_utilization": {</p>
+<p>                "hourly": f"{(self._get_cost_since(now - timedelta(hours=1)) / self.hourly_budget) * 100:.1f}%",</p>
+<p>                "daily": f"{(self._get_cost_since(now - timedelta(days=1)) / self.daily_budget) * 100:.1f}%"</p>
+<p>            }</p>
+<p>        }</p>
+
+<h1>Usage</h1>
+<p>cost_monitor = CostMonitoringService()</p>
+
+<p>async def monitored_llm_request(user_id: str, prompt: str, </p>
+<p>                               max_tokens: int, model: str = "gpt-4"):</p>
+<p>    """LLM request with cost monitoring"""</p>
+    
+<p>    # Estimate cost before processing</p>
+<p>    input_tokens = len(prompt) // 4  # Rough estimate</p>
+<p>    estimated_cost = cost_monitor.calculate_cost(</p>
+<p>        model, input_tokens, max_tokens</p>
+<p>    )</p>
+    
+<p>    # Check budget</p>
+<p>    allowed, message = cost_monitor.check_budget(user_id, estimated_cost)</p>
+<p>    if not allowed:</p>
+<p>        return {"error": message}, 429</p>
+    
+<p>    # Process request</p>
+<p>    response = await openai_async_client.chat.completions.create(</p>
+<p>        model=model,</p>
+<p>        messages=[{"role": "user", "content": prompt}],</p>
+<p>        max_tokens=max_tokens</p>
+<p>    )</p>
+    
+<p>    # Record actual usage</p>
+<p>    cost_monitor.record_usage(</p>
+<p>        user_id=user_id,</p>
+<p>        model=model,</p>
+<p>        input_tokens=response.usage.prompt_tokens,</p>
+<p>        output_tokens=response.usage.completion_tokens</p>
+<p>    )</p>
+    
+<p>    return {</p>
+<p>        "response": response.choices[0].message.content,</p>
+<p>        "usage": {</p>
+<p>            "input_tokens": response.usage.prompt_tokens,</p>
+<p>            "output_tokens": response.usage.completion_tokens,</p>
+<p>            "cost": cost_monitor.calculate_cost(</p>
+<p>                model,</p>
+<p>                response.usage.prompt_tokens,</p>
+<p>                response.usage.completion_tokens</p>
+<p>            )</p>
+<p>        }</p>
+<p>    }, 200</p>
+</code>`<code>
+
+<strong>Security Features</strong>:
+<ul>
+<li>✅ Real-time cost calculation</li>
+<li>✅ Budget enforcement (system and per-user)</li>
+<li>✅ Anomaly detection</li>
+<li>✅ Usage tracking and reporting</li>
+<li>✅ Cost alerts and logging</li>
+</ul>
+
+<h2>Attack Scenarios</h2>
+
+<h3>Scenario 1: Concurrent Request Flood</h3>
+
+<strong>Attack</strong>:
+</code>`<code>python
+<h1>Attacker floods with concurrent requests</h1>
+<p>import asyncio</p>
+<p>import aiohttp</p>
+
+<p>async def flood_attack(target_url, api_key):</p>
+<p>    """Launch concurrent request flood"""</p>
+    
+<p>    async def send_request(session):</p>
+<p>        async with session.post(</p>
+<p>            target_url,</p>
+<p>            headers={"Authorization": f"Bearer {api_key}"},</p>
+<p>            json={</p>
+<p>                "prompt": "x " * 10000,  # Large input</p>
+<p>                "max_tokens": 4000        # Large output</p>
+<p>            }</p>
+<p>        ) as response:</p>
+<p>            return await response.json()</p>
+    
+<p>    # Create 1000 concurrent requests</p>
+<p>    async with aiohttp.ClientSession() as session:</p>
+<p>        tasks = [send_request(session) for _ in range(1000)]</p>
+<p>        results = await asyncio.gather(*tasks, return_exceptions=True)</p>
+    
+<p>    print(f"Completed {len(results)} requests")</p>
+
+<h1>Run attack</h1>
+<p>asyncio.run(flood_attack("https://target/api/chat", "stolen-key"))</p>
+</code>`<code>
+
+<strong>Defense</strong>:
+</code>`<code>python
+<h1>Implemented defenses prevent this</h1>
+<h1>1. Rate limiting: Rejects after limit (e.g., 60/min)</h1>
+<h1>2. Concurrent limits: Max 10 concurrent per user</h1>
+<h1>3. Request queue: Fair scheduling</h1>
+<h1>4. Budget limits: Stops at daily budget</h1>
+
+<h1>Result:</h1>
+<h1>- First 10 requests processed</h1>
+<h1>- Remaining 990 rejected with 429 status</h1>
+<h1>- Rate limits prevent resource exhaustion</h1>
+<h1>- Service remains available</h1>
+</code>`<code>
+
+<h3>Scenario 2: Maximum Context Exploitation</h3>
+
+<strong>Attack</strong>:
+</code>`<code>python
+<h1>Attacker sends maximum-length context</h1>
+<p>def max_context_attack():</p>
+<p>    # Create input near maximum token limit</p>
+<p>    attack_prompt = "Analyze this data: " + ("word " * 100000)</p>
+    
+<p>    response = requests.post(</p>
+<p>        "https://target/api/chat",</p>
+<p>        json={</p>
+<p>            "prompt": attack_prompt,  # ~100K tokens</p>
+<p>            "max_tokens": 16000        # Maximum output</p>
+<p>        }</p>
+<p>    )</p>
+    
+<p>    # Single request costs:</p>
+<p>    # - Input: 100K tokens × $0.03/1K = $3.00</p>
+<p>    # - Output: 16K tokens × $0.06/1K = $0.96</p>
+<p>    # - Total: ~$4 per request</p>
+<p>    # - Takes 5-10 minutes to process</p>
+</code>`<code>
+
+<strong>Defense</strong>:
+</code>`<code>python
+<h1>Input validator catches this</h1>
+<p>validator = SecureInputValidator()</p>
+
+<p>valid, message, sanitized = validator.validate_and_sanitize(</p>
+<p>    attack_prompt,</p>
+<p>    max_tokens=16000</p>
+<p>)</p>
+
+<h1>Result: valid = False</h1>
+<h1>Message: "Input too long: 100000 tokens (max 8000)"</h1>
+<h1>Request rejected before processing</h1>
+<h1>No cost incurred</h1>
+<h1>Resources protected</h1>
+</code>`<code>
+
+<h2>Defense Implementations</h2>
+
+<h3>Complete Secure Implementation</h3>
+
+<strong>Comprehensive Protected Service</strong>:
+</code>`<code>python
+<p>from flask import Flask, request, jsonify</p>
+<p>import asyncio</p>
+<p>from functools import wraps</p>
+
+<p>app = Flask(__name__)</p>
+
+<h1>Initialize all security components</h1>
+<p>rate_limiter = MultiTierRateLimiter()</p>
+<p>validator = SecureInputValidator()</p>
+<p>llm_service = SecureLLMService()</p>
+<p>cost_monitor = CostMonitoringService()</p>
+
+<p>def secure_endpoint(f):</p>
+<p>    """Comprehensive security decorator"""</p>
+<p>    @wraps(f)</p>
+<p>    async def decorated(<em>args, </em>*kwargs):</p>
+<p>        # 1. Authentication</p>
+<p>        user_id = request.headers.get('X-User-ID')</p>
+<p>        if not user_id:</p>
+<p>            return jsonify({"error": "Authentication required"}), 401</p>
+        
+<p>        # 2. Rate limiting</p>
+<p>        allowed, message = rate_limiter.check_rate_limit(user_id)</p>
+<p>        if not allowed:</p>
+<p>            return jsonify({"error": message}), 429</p>
+        
+<p>        # Execute endpoint</p>
+<p>        return await f(user_id, <em>args, </em>*kwargs)</p>
+    
+<p>    return decorated</p>
+
+<p>@app.route('/api/chat', methods=['POST'])</p>
+<p>@secure_endpoint</p>
+<p>async def secure_chat(user_id: str):</p>
+<p>    """Fully secured chat endpoint"""</p>
+<p>    data = request.json</p>
+<p>    prompt = data.get('prompt', '')</p>
+<p>    max_tokens = data.get('max_tokens', 1000)</p>
+<p>    model = data.get('model', 'gpt-4')</p>
+    
+<p>    # 3. Input validation</p>
+<p>    valid, message, sanitized_prompt = validator.validate_and_sanitize(</p>
+<p>        prompt, max_tokens</p>
+<p>    )</p>
+<p>    if not valid:</p>
+<p>        return jsonify({"error": message}), 400</p>
+    
+<p>    # 4. Cost check</p>
+<p>    input_tokens = len(sanitized_prompt) // 4</p>
+<p>    estimated_cost = cost_monitor.calculate_cost(</p>
+<p>        model, input_tokens, max_tokens</p>
+<p>    )</p>
+    
+<p>    budget_ok, budget_msg = cost_monitor.check_budget(user_id, estimated_cost)</p>
+<p>    if not budget_ok:</p>
+<p>        return jsonify({"error": budget_msg}), 429</p>
+    
+<p>    # 5. Process with timeout and resource management</p>
+<p>    result = await llm_service.generate_with_timeout(</p>
+<p>        prompt=sanitized_prompt,</p>
+<p>        max_tokens=max_tokens</p>
+<p>    )</p>
+    
+<p>    if "error" in result:</p>
+<p>        return jsonify(result), 500</p>
+    
+<p>    # 6. Record usage</p>
+<p>    # (Would get actual token counts from response)</p>
+<p>    cost_monitor.record_usage(</p>
+<p>        user_id=user_id,</p>
+<p>        model=model,</p>
+<p>        input_tokens=input_tokens,</p>
+<p>        output_tokens=max_tokens</p>
+<p>    )</p>
+    
+<p>    # 7. Return response with usage info</p>
+<p>    return jsonify({</p>
+<p>        "response": result["response"],</p>
+<p>        "usage": {</p>
+<p>            "estimated_cost": estimated_cost,</p>
+<p>            "budget_remaining": cost_monitor.user_daily_budget - </p>
+<p>                               cost_monitor._get_user_cost_since(</p>
+<p>                                   user_id, </p>
+<p>                                   datetime.now() - timedelta(days=1)</p>
+<p>                               )</p>
+<p>        }</p>
+<p>    }), 200</p>
+
+<p>if __name__ == '__main__':</p>
+<p>    app.run()</p>
+</code>``
+
+<strong>Security Features</strong>:
+<ul>
+<li>✅ Multi-tier rate limiting</li>
+<li>✅ Input validation and sanitization</li>
+<li>✅ Cost monitoring and budgets</li>
+<li>✅ Timeout protection</li>
+<li>✅ Resource management</li>
+<li>✅ Concurrent request limiting</li>
+<li>✅ Usage tracking</li>
+<li>✅ Comprehensive error handling</li>
+</ul>
+
+<p>---</p>
+
+<strong>Key Principle</strong>: Defense against Model DoS requires multiple layers of protection working together. Input validation, rate limiting, resource management, timeout controls, and cost monitoring must all be implemented for comprehensive security.
+
         </div>
     </div>
 </body>

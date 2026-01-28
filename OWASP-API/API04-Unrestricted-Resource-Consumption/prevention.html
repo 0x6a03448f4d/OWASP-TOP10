@@ -215,7 +215,1458 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>API04: Unrestricted Resource Consumption - Prevention</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#defense-strategy-overview">Defense Strategy Overview</a></li>
+<li><a href="#rate-limiting-implementation">Rate Limiting Implementation</a></li>
+<li><a href="#pagination-best-practices">Pagination Best Practices</a></li>
+<li><a href="#query-limits-and-optimization">Query Limits and Optimization</a></li>
+<li><a href="#timeout-configuration">Timeout Configuration</a></li>
+<li><a href="#caching-strategies">Caching Strategies</a></li>
+<li><a href="#resource-quotas">Resource Quotas</a></li>
+<li><a href="#monitoring-and-alerting">Monitoring and Alerting</a></li>
+<li><a href="#infrastructure-protections">Infrastructure Protections</a></li>
+</ul>
+
+<h2>Defense Strategy Overview</h2>
+
+<p>Preventing resource exhaustion requires a <strong>defense-in-depth</strong> approach with multiple protective layers.</p>
+
+<h3>The Protection Pyramid</h3>
+
+<p>``<code></p>
+<p>                    ┌─────────────────┐</p>
+<p>                    │   Monitoring    │  ← Detect anomalies</p>
+<p>                    └─────────────────┘</p>
+<p>                  ┌───────────────────┐</p>
+<p>                  │  Business Logic   │  ← Smart limits</p>
+<p>                  └───────────────────┘</p>
+<p>                ┌─────────────────────┐</p>
+<p>              │  Application Layer  │  ← Rate limiting</p>
+<p>              └─────────────────────┘</p>
+<p>            ┌───────────────────────────┐</p>
+<p>            │   Infrastructure Layer    │  ← Resource quotas</p>
+<p>            └───────────────────────────┘</p>
+<p>          ┌─────────────────────────────────┐</p>
+<p>          │        Network Layer            │  ← DDoS protection</p>
+<p>          └─────────────────────────────────┘</p>
+</code>`<code>
+
+<h3>Core Principles</h3>
+
+<ol>
+<li><strong>Fail Gracefully</strong>: Degrade service quality instead of crashing</li>
+<li><strong>Limit Everything</strong>: Every resource needs bounds</li>
+<li><strong>Monitor Continuously</strong>: Detect abnormal patterns early</li>
+<li><strong>Cost-Based Limiting</strong>: Expensive operations get tighter limits</li>
+<li><strong>User-Aware Controls</strong>: Different limits for different user types</li>
+<li><strong>Adaptive Throttling</strong>: Adjust limits based on system load</li>
+</ol>
+
+<h2>Rate Limiting Implementation</h2>
+
+<p>Rate limiting is your first line of defense against volume-based attacks.</p>
+
+<h3>Algorithm 1: Token Bucket</h3>
+
+<strong>How It Works</strong>: Tokens are added to a bucket at a fixed rate. Each request consumes a token. When the bucket is empty, requests are rejected.
+
+<strong>Benefits</strong>:
+<ul>
+<li>Allows burst traffic</li>
+<li>Smooth rate limiting</li>
+<li>Industry standard</li>
+</ul>
+
+<strong>Implementation</strong>:
+
+</code>`<code>python
+<p>import time</p>
+<p>import redis</p>
+
+<p>class TokenBucket:</p>
+<p>    def __init__(self, redis_client, key, capacity, refill_rate):</p>
+<p>        """</p>
+<p>        capacity: Maximum tokens in bucket</p>
+<p>        refill_rate: Tokens added per second</p>
+<p>        """</p>
+<p>        self.redis = redis_client</p>
+<p>        self.key = key</p>
+<p>        self.capacity = capacity</p>
+<p>        self.refill_rate = refill_rate</p>
+    
+<p>    def consume(self, tokens=1):</p>
+<p>        """Try to consume tokens. Returns True if allowed."""</p>
+<p>        lua_script = """</p>
+<p>        local key = KEYS[1]</p>
+<p>        local capacity = tonumber(ARGV[1])</p>
+<p>        local refill_rate = tonumber(ARGV[2])</p>
+<p>        local tokens_requested = tonumber(ARGV[3])</p>
+<p>        local now = tonumber(ARGV[4])</p>
+        
+<p>        local bucket = redis.call('HMGET', key, 'tokens', 'last_refill')</p>
+<p>        local tokens = tonumber(bucket[1])</p>
+<p>        local last_refill = tonumber(bucket[2])</p>
+        
+<p>        if tokens == nil then</p>
+<p>            tokens = capacity</p>
+<p>            last_refill = now</p>
+<p>        end</p>
+        
+<p>        -- Refill tokens based on time elapsed</p>
+<p>        local elapsed = now - last_refill</p>
+<p>        local new_tokens = math.min(capacity, tokens + (elapsed * refill_rate))</p>
+        
+<p>        -- Try to consume</p>
+<p>        if new_tokens >= tokens_requested then</p>
+<p>            new_tokens = new_tokens - tokens_requested</p>
+<p>            redis.call('HMSET', key, 'tokens', new_tokens, 'last_refill', now)</p>
+<p>            redis.call('EXPIRE', key, 3600)  -- Cleanup after 1 hour</p>
+<p>            return 1</p>
+<p>        else</p>
+<p>            return 0</p>
+<p>        end</p>
+<p>        """</p>
+        
+<p>        result = self.redis.eval(</p>
+<p>            lua_script,</p>
+<p>            1,</p>
+<p>            self.key,</p>
+<p>            self.capacity,</p>
+<p>            self.refill_rate,</p>
+<p>            tokens,</p>
+<p>            time.time()</p>
+<p>        )</p>
+        
+<p>        return bool(result)</p>
+
+<h1>Usage with Flask</h1>
+<p>from flask import Flask, request, jsonify</p>
+<p>from functools import wraps</p>
+
+<p>app = Flask(__name__)</p>
+<p>redis_client = redis.Redis(host='localhost', port=6379, decode_responses=True)</p>
+
+<p>def rate_limit(capacity=100, refill_rate=10):</p>
+<p>    """Decorator for rate limiting endpoints"""</p>
+<p>    def decorator(f):</p>
+<p>        @wraps(f)</p>
+<p>        def wrapped(<em>args, </em>*kwargs):</p>
+<p>            # Identify user (prefer user ID, fallback to IP)</p>
+<p>            user_id = request.headers.get('X-User-ID', request.remote_addr)</p>
+<p>            key = f"rate_limit:{f.__name__}:{user_id}"</p>
+            
+<p>            bucket = TokenBucket(redis_client, key, capacity, refill_rate)</p>
+            
+<p>            if bucket.consume():</p>
+<p>                return f(<em>args, </em>*kwargs)</p>
+<p>            else:</p>
+<p>                return jsonify({</p>
+<p>                    'error': 'Rate limit exceeded',</p>
+<p>                    'retry_after': 60</p>
+<p>                }), 429</p>
+        
+<p>        return wrapped</p>
+<p>    return decorator</p>
+
+<p>@app.route('/api/search')</p>
+<p>@rate_limit(capacity=100, refill_rate=10)  # 100 tokens, refill 10/sec</p>
+<p>def search():</p>
+<p>    query = request.args.get('q')</p>
+<p>    results = perform_search(query)</p>
+<p>    return jsonify(results)</p>
+</code>`<code>
+
+<h3>Algorithm 2: Sliding Window</h3>
+
+<strong>How It Works</strong>: Tracks requests in a time window that slides continuously.
+
+<strong>Benefits</strong>:
+<ul>
+<li>No boundary issues (vs fixed window)</li>
+<li>Precise rate limiting</li>
+<li>Fair distribution</li>
+</ul>
+
+<strong>Implementation</strong>:
+
+</code>`<code>python
+<p>import time</p>
+<p>import redis</p>
+
+<p>class SlidingWindow:</p>
+<p>    def __init__(self, redis_client, key, max_requests, window_seconds):</p>
+<p>        self.redis = redis_client</p>
+<p>        self.key = key</p>
+<p>        self.max_requests = max_requests</p>
+<p>        self.window_seconds = window_seconds</p>
+    
+<p>    def is_allowed(self):</p>
+<p>        """Check if request is allowed under sliding window"""</p>
+<p>        now = time.time()</p>
+<p>        window_start = now - self.window_seconds</p>
+        
+<p>        # Use Redis sorted set with timestamps as scores</p>
+<p>        pipeline = self.redis.pipeline()</p>
+        
+<p>        # Remove old entries outside window</p>
+<p>        pipeline.zremrangebyscore(self.key, 0, window_start)</p>
+        
+<p>        # Count requests in current window</p>
+<p>        pipeline.zcard(self.key)</p>
+        
+<p>        # Add current request</p>
+<p>        pipeline.zadd(self.key, {f"req_{now}": now})</p>
+        
+<p>        # Set expiration</p>
+<p>        pipeline.expire(self.key, self.window_seconds * 2)</p>
+        
+<p>        results = pipeline.execute()</p>
+<p>        request_count = results[1]</p>
+        
+<p>        return request_count < self.max_requests</p>
+
+<h1>Usage</h1>
+<p>def sliding_window_limit(max_requests=100, window_seconds=60):</p>
+<p>    def decorator(f):</p>
+<p>        @wraps(f)</p>
+<p>        def wrapped(<em>args, </em>*kwargs):</p>
+<p>            user_id = request.headers.get('X-User-ID', request.remote_addr)</p>
+<p>            key = f"sliding_window:{f.__name__}:{user_id}"</p>
+            
+<p>            window = SlidingWindow(redis_client, key, max_requests, window_seconds)</p>
+            
+<p>            if window.is_allowed():</p>
+<p>                return f(<em>args, </em>*kwargs)</p>
+<p>            else:</p>
+<p>                return jsonify({'error': 'Rate limit exceeded'}), 429</p>
+        
+<p>        return wrapped</p>
+<p>    return decorator</p>
+
+<p>@app.route('/api/login', methods=['POST'])</p>
+<p>@sliding_window_limit(max_requests=5, window_seconds=60)  # 5 login attempts per minute</p>
+<p>def login():</p>
+<p>    # Login logic</p>
+<p>    pass</p>
+</code>`<code>
+
+<h3>Algorithm 3: Fixed Window Counter</h3>
+
+<strong>How It Works</strong>: Count requests in fixed time windows (e.g., per minute).
+
+<strong>Benefits</strong>:
+<ul>
+<li>Simple implementation</li>
+<li>Low memory usage</li>
+<li>Easy to understand</li>
+</ul>
+
+<strong>Limitations</strong>:
+<ul>
+<li>Boundary issue: Can receive 2x limit at window boundaries</li>
+</ul>
+
+<strong>Implementation</strong>:
+
+</code>`<code>python
+<p>class FixedWindow:</p>
+<p>    def __init__(self, redis_client, key, max_requests, window_seconds):</p>
+<p>        self.redis = redis_client</p>
+<p>        self.key = key</p>
+<p>        self.max_requests = max_requests</p>
+<p>        self.window_seconds = window_seconds</p>
+    
+<p>    def is_allowed(self):</p>
+<p>        now = int(time.time())</p>
+<p>        window = now // self.window_seconds</p>
+<p>        key = f"{self.key}:{window}"</p>
+        
+<p>        current = self.redis.incr(key)</p>
+        
+<p>        if current == 1:</p>
+<p>            self.redis.expire(key, self.window_seconds * 2)</p>
+        
+<p>        return current <= self.max_requests</p>
+</code>`<code>
+
+<h3>Multi-Tier Rate Limiting</h3>
+
+<p>Different limits for different user types:</p>
+
+</code>`<code>python
+<p>RATE_LIMITS = {</p>
+<p>    'anonymous': {</p>
+<p>        'requests_per_minute': 10,</p>
+<p>        'burst': 20</p>
+<p>    },</p>
+<p>    'authenticated': {</p>
+<p>        'requests_per_minute': 100,</p>
+<p>        'burst': 200</p>
+<p>    },</p>
+<p>    'premium': {</p>
+<p>        'requests_per_minute': 1000,</p>
+<p>        'burst': 2000</p>
+<p>    },</p>
+<p>    'admin': {</p>
+<p>        'requests_per_minute': 10000,</p>
+<p>        'burst': 20000</p>
+<p>    }</p>
+<p>}</p>
+
+<p>def get_user_tier(request):</p>
+<p>    """Determine user tier from request"""</p>
+<p>    if not request.headers.get('Authorization'):</p>
+<p>        return 'anonymous'</p>
+    
+<p>    # Decode JWT or check session</p>
+<p>    user = get_user_from_token(request.headers['Authorization'])</p>
+    
+<p>    if user.is_admin:</p>
+<p>        return 'admin'</p>
+<p>    elif user.subscription == 'premium':</p>
+<p>        return 'premium'</p>
+<p>    else:</p>
+<p>        return 'authenticated'</p>
+
+<p>def adaptive_rate_limit(f):</p>
+<p>    @wraps(f)</p>
+<p>    def wrapped(<em>args, </em>*kwargs):</p>
+<p>        tier = get_user_tier(request)</p>
+<p>        limits = RATE_LIMITS[tier]</p>
+        
+<p>        # Apply tier-specific limits</p>
+<p>        # ... implementation</p>
+        
+<p>        return f(<em>args, </em>*kwargs)</p>
+<p>    return wrapped</p>
+</code>`<code>
+
+<h3>Cost-Based Rate Limiting</h3>
+
+<p>Different limits based on operation cost:</p>
+
+</code>`<code>python
+<p>ENDPOINT_COSTS = {</p>
+<p>    '/api/health': 1,           # Cheap</p>
+<p>    '/api/users/profile': 5,    # Medium</p>
+<p>    '/api/search': 10,          # Expensive</p>
+<p>    '/api/reports/generate': 50 # Very expensive</p>
+<p>}</p>
+
+<p>def cost_based_rate_limit(f):</p>
+<p>    @wraps(f)</p>
+<p>    def wrapped(<em>args, </em>*kwargs):</p>
+<p>        endpoint = request.endpoint</p>
+<p>        cost = ENDPOINT_COSTS.get(endpoint, 10)</p>
+        
+<p>        user_id = get_user_id(request)</p>
+<p>        key = f"cost_limit:{user_id}"</p>
+        
+<p>        # Token bucket with cost-based consumption</p>
+<p>        bucket = TokenBucket(redis_client, key, capacity=1000, refill_rate=10)</p>
+        
+<p>        if bucket.consume(tokens=cost):</p>
+<p>            return f(<em>args, </em>*kwargs)</p>
+<p>        else:</p>
+<p>            return jsonify({</p>
+<p>                'error': 'Rate limit exceeded',</p>
+<p>                'cost': cost,</p>
+<p>                'retry_after': cost / 10  # Seconds until enough tokens</p>
+<p>            }), 429</p>
+    
+<p>    return wrapped</p>
+</code>`<code>
+
+<h3>Using Flask-Limiter Library</h3>
+
+<p>For production use, leverage battle-tested libraries:</p>
+
+</code>`<code>python
+<p>from flask import Flask</p>
+<p>from flask_limiter import Limiter</p>
+<p>from flask_limiter.util import get_remote_address</p>
+
+<p>app = Flask(__name__)</p>
+
+<h1>Initialize limiter with Redis backend</h1>
+<p>limiter = Limiter(</p>
+<p>    app=app,</p>
+<p>    key_func=get_remote_address,</p>
+<p>    storage_uri="redis://localhost:6379",</p>
+<p>    default_limits=["200 per day", "50 per hour"],</p>
+<p>    headers_enabled=True  # Return rate limit info in headers</p>
+<p>)</p>
+
+<h1>Global default limits apply to all routes</h1>
+<h1>Override per route as needed</h1>
+
+<p>@app.route('/api/expensive')</p>
+<p>@limiter.limit("10 per minute")</p>
+<p>def expensive_operation():</p>
+<p>    return jsonify({'data': 'result'})</p>
+
+<p>@app.route('/api/login', methods=['POST'])</p>
+<p>@limiter.limit("5 per minute")  # Stricter for authentication</p>
+<p>def login():</p>
+<p>    return jsonify({'token': 'xyz'})</p>
+
+<h1>Dynamic limits based on user</h1>
+<p>def get_user_limit():</p>
+<p>    """Return different limits for different users"""</p>
+<p>    if is_premium_user(request):</p>
+<p>        return "1000 per hour"</p>
+<p>    return "100 per hour"</p>
+
+<p>@app.route('/api/search')</p>
+<p>@limiter.limit(get_user_limit)</p>
+<p>def search():</p>
+<p>    return jsonify({'results': []})</p>
+
+<h1>Exempt certain routes</h1>
+<p>@app.route('/api/health')</p>
+<p>@limiter.exempt</p>
+<p>def health():</p>
+<p>    return jsonify({'status': 'ok'})</p>
+</code>`<code>
+
+<h2>Pagination Best Practices</h2>
+
+<p>Never return unbounded result sets.</p>
+
+<h3>Cursor-Based Pagination</h3>
+
+<strong>Best for</strong>: Large datasets, real-time data
+
+</code>`<code>python
+<p>from flask import Flask, request, jsonify</p>
+<p>import base64</p>
+<p>import json</p>
+
+<p>@app.route('/api/users')</p>
+<p>def get_users():</p>
+<p>    # Get cursor from query parameter</p>
+<p>    cursor = request.args.get('cursor')</p>
+<p>    limit = min(int(request.args.get('limit', 100)), 100)  # Max 100 per page</p>
+    
+<p>    if cursor:</p>
+<p>        # Decode cursor</p>
+<p>        cursor_data = json.loads(base64.b64decode(cursor))</p>
+<p>        last_id = cursor_data['last_id']</p>
+        
+<p>        # Query after cursor</p>
+<p>        users = User.query.filter(User.id > last_id)\</p>
+<p>            .order_by(User.id)\</p>
+<p>            .limit(limit + 1)\</p>
+<p>            .all()</p>
+<p>    else:</p>
+<p>        # First page</p>
+<p>        users = User.query.order_by(User.id).limit(limit + 1).all()</p>
+    
+<p>    # Check if there's a next page</p>
+<p>    has_next = len(users) > limit</p>
+<p>    users = users[:limit]</p>
+    
+<p>    # Generate next cursor</p>
+<p>    next_cursor = None</p>
+<p>    if has_next and users:</p>
+<p>        cursor_data = {'last_id': users[-1].id}</p>
+<p>        next_cursor = base64.b64encode(</p>
+<p>            json.dumps(cursor_data).encode()</p>
+<p>        ).decode()</p>
+    
+<p>    return jsonify({</p>
+<p>        'data': [u.to_dict() for u in users],</p>
+<p>        'pagination': {</p>
+<p>            'cursor': next_cursor,</p>
+<p>            'has_next': has_next,</p>
+<p>            'limit': limit</p>
+<p>        }</p>
+<p>    })</p>
+</code>`<code>
+
+<h3>Offset-Based Pagination</h3>
+
+<strong>Best for</strong>: Simple cases, known total pages
+
+</code>`<code>python
+<p>@app.route('/api/products')</p>
+<p>def get_products():</p>
+<p>    page = int(request.args.get('page', 1))</p>
+<p>    per_page = min(int(request.args.get('per_page', 50)), 100)  # Max 100</p>
+    
+<p>    # Validate page number</p>
+<p>    if page < 1:</p>
+<p>        return jsonify({'error': 'Invalid page number'}), 400</p>
+    
+<p>    # Limit maximum offset to prevent expensive queries</p>
+<p>    max_offset = 10000</p>
+<p>    offset = (page - 1) * per_page</p>
+    
+<p>    if offset > max_offset:</p>
+<p>        return jsonify({</p>
+<p>            'error': f'Maximum offset exceeded. Use cursor-based pagination for deep pages.'</p>
+<p>        }), 400</p>
+    
+<p>    # Query with offset</p>
+<p>    products = Product.query.offset(offset).limit(per_page).all()</p>
+<p>    total = Product.query.count()</p>
+    
+<p>    return jsonify({</p>
+<p>        'data': [p.to_dict() for p in products],</p>
+<p>        'pagination': {</p>
+<p>            'page': page,</p>
+<p>            'per_page': per_page,</p>
+<p>            'total': total,</p>
+<p>            'total_pages': (total + per_page - 1) // per_page</p>
+<p>        }</p>
+<p>    })</p>
+</code>`<code>
+
+<h3>Keyset Pagination</h3>
+
+<strong>Best for</strong>: Large datasets with stable ordering
+
+</code>`<code>python
+<p>@app.route('/api/posts')</p>
+<p>def get_posts():</p>
+<p>    last_created_at = request.args.get('last_created_at')</p>
+<p>    last_id = request.args.get('last_id')</p>
+<p>    limit = min(int(request.args.get('limit', 50)), 100)</p>
+    
+<p>    query = Post.query.order_by(Post.created_at.desc(), Post.id.desc())</p>
+    
+<p>    if last_created_at and last_id:</p>
+<p>        # Continue from last position</p>
+<p>        query = query.filter(</p>
+<p>            db.or_(</p>
+<p>                Post.created_at < last_created_at,</p>
+<p>                db.and_(</p>
+<p>                    Post.created_at == last_created_at,</p>
+<p>                    Post.id < last_id</p>
+<p>                )</p>
+<p>            )</p>
+<p>        )</p>
+    
+<p>    posts = query.limit(limit + 1).all()</p>
+<p>    has_next = len(posts) > limit</p>
+<p>    posts = posts[:limit]</p>
+    
+<p>    return jsonify({</p>
+<p>        'data': [p.to_dict() for p in posts],</p>
+<p>        'pagination': {</p>
+<p>            'last_created_at': posts[-1].created_at.isoformat() if posts else None,</p>
+<p>            'last_id': posts[-1].id if posts else None,</p>
+<p>            'has_next': has_next</p>
+<p>        }</p>
+<p>    })</p>
+</code>`<code>
+
+<h2>Query Limits and Optimization</h2>
+
+<p>Protect your database from expensive queries.</p>
+
+<h3>Query Timeouts</h3>
+
+</code>`<code>python
+<p>from sqlalchemy import event</p>
+<p>from sqlalchemy.engine import Engine</p>
+<p>import time</p>
+
+<h1>Set statement timeout for PostgreSQL</h1>
+<p>@event.listens_for(Engine, "connect")</p>
+<p>def set_timeout(dbapi_conn, connection_record):</p>
+<p>    cursor = dbapi_conn.cursor()</p>
+<p>    cursor.execute("SET statement_timeout = 5000")  # 5 second timeout</p>
+<p>    cursor.close()</p>
+
+<h1>Or per-query timeout</h1>
+<p>@app.route('/api/complex-query')</p>
+<p>def complex_query():</p>
+<p>    try:</p>
+<p>        # Execute with timeout</p>
+<p>        db.session.execute('SET LOCAL statement_timeout = 3000')  # 3 seconds</p>
+<p>        results = db.session.execute(complex_sql_query).fetchall()</p>
+<p>        return jsonify([dict(r) for r in results])</p>
+<p>    except Exception as e:</p>
+<p>        if 'timeout' in str(e).lower():</p>
+<p>            return jsonify({'error': 'Query timeout exceeded'}), 408</p>
+<p>        raise</p>
+</code>`<code>
+
+<h3>Query Complexity Limits</h3>
+
+</code>`<code>python
+<p>def limit_query_complexity(max_joins=3, max_where_clauses=5):</p>
+<p>    """Decorator to limit query complexity"""</p>
+<p>    def decorator(f):</p>
+<p>        @wraps(f)</p>
+<p>        def wrapped(<em>args, </em>*kwargs):</p>
+<p>            # Analyze query parameters</p>
+<p>            filters = request.args.to_dict()</p>
+            
+<p>            if len(filters) > max_where_clauses:</p>
+<p>                return jsonify({</p>
+<p>                    'error': f'Too many filter conditions. Maximum: {max_where_clauses}'</p>
+<p>                }), 400</p>
+            
+<p>            return f(<em>args, </em>*kwargs)</p>
+<p>        return wrapped</p>
+<p>    return decorator</p>
+
+<p>@app.route('/api/search')</p>
+<p>@limit_query_complexity(max_where_clauses=5)</p>
+<p>def search():</p>
+<p>    # Build query from validated parameters</p>
+<p>    pass</p>
+</code>`<code>
+
+<h3>GraphQL Query Depth Limiting</h3>
+
+</code>`<code>python
+<p>from graphql import GraphQLError</p>
+
+<p>def depth_limit_validator(max_depth):</p>
+<p>    """Limit GraphQL query depth to prevent N+1 attacks"""</p>
+<p>    def validate(context, document, *args):</p>
+<p>        depths = []</p>
+        
+<p>        def measure_depth(node, depth=0):</p>
+<p>            if hasattr(node, 'selection_set') and node.selection_set:</p>
+<p>                depths.append(depth)</p>
+<p>                for field in node.selection_set.selections:</p>
+<p>                    measure_depth(field, depth + 1)</p>
+        
+<p>        for definition in document.definitions:</p>
+<p>            measure_depth(definition)</p>
+        
+<p>        if depths and max(depths) > max_depth:</p>
+<p>            raise GraphQLError(</p>
+<p>                f'Query depth {max(depths)} exceeds maximum {max_depth}'</p>
+<p>            )</p>
+    
+<p>    return validate</p>
+
+<h1>Usage with graphene</h1>
+<p>schema = graphene.Schema(</p>
+<p>    query=Query,</p>
+<p>    validation_rules=[depth_limit_validator(max_depth=5)]</p>
+<p>)</p>
+</code>`<code>
+
+<h3>Query Cost Analysis</h3>
+
+</code>`<code>python
+<p>class QueryCostAnalyzer:</p>
+<p>    FIELD_COSTS = {</p>
+<p>        'User.posts': 10,        # N+1 risk</p>
+<p>        'Post.comments': 10,     # N+1 risk</p>
+<p>        'User.followers': 50,    # Expensive</p>
+<p>        'search': 100,           # Very expensive</p>
+<p>    }</p>
+    
+<p>    MAX_COST = 1000</p>
+    
+<p>    @staticmethod</p>
+<p>    def calculate_cost(query_ast):</p>
+<p>        """Calculate cost of GraphQL query"""</p>
+<p>        total_cost = 0</p>
+        
+<p>        def analyze_node(node, multiplier=1):</p>
+<p>            nonlocal total_cost</p>
+            
+<p>            if hasattr(node, 'name'):</p>
+<p>                field_name = node.name.value</p>
+<p>                cost = QueryCostAnalyzer.FIELD_COSTS.get(field_name, 1)</p>
+<p>                total_cost += cost * multiplier</p>
+            
+<p>            if hasattr(node, 'selection_set') and node.selection_set:</p>
+<p>                for field in node.selection_set.selections:</p>
+<p>                    # Arguments can increase multiplier (e.g., limit: 100)</p>
+<p>                    new_multiplier = multiplier</p>
+<p>                    if hasattr(field, 'arguments'):</p>
+<p>                        for arg in field.arguments:</p>
+<p>                            if arg.name.value == 'limit':</p>
+<p>                                new_multiplier *= int(arg.value.value)</p>
+                    
+<p>                    analyze_node(field, new_multiplier)</p>
+        
+<p>        for definition in query_ast.definitions:</p>
+<p>            analyze_node(definition)</p>
+        
+<p>        return total_cost</p>
+    
+<p>    @staticmethod</p>
+<p>    def validate(query_ast):</p>
+<p>        cost = QueryCostAnalyzer.calculate_cost(query_ast)</p>
+<p>        if cost > QueryCostAnalyzer.MAX_COST:</p>
+<p>            raise GraphQLError(</p>
+<p>                f'Query cost {cost} exceeds maximum {QueryCostAnalyzer.MAX_COST}'</p>
+<p>            )</p>
+</code>`<code>
+
+<h2>Timeout Configuration</h2>
+
+<p>Set timeouts at every layer to prevent hung requests.</p>
+
+<h3>Application-Level Timeouts</h3>
+
+</code>`<code>python
+<p>from flask import Flask, request</p>
+<p>import signal</p>
+<p>from contextlib import contextmanager</p>
+
+<p>@contextmanager</p>
+<p>def timeout(seconds):</p>
+<p>    """Context manager for function timeout"""</p>
+<p>    def timeout_handler(signum, frame):</p>
+<p>        raise TimeoutError(f"Operation timed out after {seconds} seconds")</p>
+    
+<p>    # Set signal handler</p>
+<p>    old_handler = signal.signal(signal.SIGALRM, timeout_handler)</p>
+<p>    signal.alarm(seconds)</p>
+    
+<p>    try:</p>
+<p>        yield</p>
+<p>    finally:</p>
+<p>        signal.alarm(0)</p>
+<p>        signal.signal(signal.SIGALRM, old_handler)</p>
+
+<p>@app.route('/api/expensive-operation')</p>
+<p>def expensive_operation():</p>
+<p>    try:</p>
+<p>        with timeout(5):  # 5 second timeout</p>
+<p>            result = perform_expensive_calculation()</p>
+<p>            return jsonify(result)</p>
+<p>    except TimeoutError:</p>
+<p>        return jsonify({'error': 'Operation timeout'}), 408</p>
+
+<h1>Or using concurrent.futures for better control</h1>
+<p>from concurrent.futures import ThreadPoolExecutor, TimeoutError</p>
+<p>import time</p>
+
+<p>executor = ThreadPoolExecutor(max_workers=10)</p>
+
+<p>@app.route('/api/process')</p>
+<p>def process_with_timeout():</p>
+<p>    def do_work():</p>
+<p>        return expensive_operation()</p>
+    
+<p>    future = executor.submit(do_work)</p>
+    
+<p>    try:</p>
+<p>        result = future.result(timeout=10)  # 10 second timeout</p>
+<p>        return jsonify(result)</p>
+<p>    except TimeoutError:</p>
+<p>        return jsonify({'error': 'Processing timeout'}), 408</p>
+</code>`<code>
+
+<h3>Request Timeout Middleware</h3>
+
+</code>`<code>python
+<p>from flask import Flask, request, jsonify</p>
+<p>import time</p>
+<p>import threading</p>
+
+<p>class TimeoutMiddleware:</p>
+<p>    def __init__(self, app, timeout=30):</p>
+<p>        self.app = app</p>
+<p>        self.timeout = timeout</p>
+    
+<p>    def __call__(self, environ, start_response):</p>
+<p>        request_start = time.time()</p>
+        
+<p>        # Set timeout for request</p>
+<p>        timer = threading.Timer(</p>
+<p>            self.timeout,</p>
+<p>            lambda: self._timeout_request(environ)</p>
+<p>        )</p>
+<p>        timer.start()</p>
+        
+<p>        try:</p>
+<p>            return self.app(environ, start_response)</p>
+<p>        finally:</p>
+<p>            timer.cancel()</p>
+            
+<p>            # Log slow requests</p>
+<p>            duration = time.time() - request_start</p>
+<p>            if duration > self.timeout * 0.8:</p>
+<p>                app.logger.warning(</p>
+<p>                    f"Slow request: {environ['PATH_INFO']} took {duration:.2f}s"</p>
+<p>                )</p>
+    
+<p>    def _timeout_request(self, environ):</p>
+<p>        app.logger.error(f"Request timeout: {environ['PATH_INFO']}")</p>
+
+<h1>Apply middleware</h1>
+<p>app.wsgi_app = TimeoutMiddleware(app.wsgi_app, timeout=30)</p>
+</code>`<code>
+
+<h3>Database Connection Timeout</h3>
+
+</code>`<code>python
+<p>from sqlalchemy import create_engine</p>
+<p>from sqlalchemy.pool import QueuePool</p>
+
+<p>engine = create_engine(</p>
+<p>    'postgresql://user:pass@localhost/db',</p>
+<p>    pool_size=10,</p>
+<p>    max_overflow=20,</p>
+<p>    pool_timeout=5,  # Wait max 5 seconds for connection</p>
+<p>    pool_recycle=3600,  # Recycle connections after 1 hour</p>
+<p>    connect_args={</p>
+<p>        'connect_timeout': 5,  # Connection timeout</p>
+<p>        'options': '-c statement_timeout=5000'  # Query timeout (5 sec)</p>
+<p>    }</p>
+<p>)</p>
+</code>`<code>
+
+<h2>Caching Strategies</h2>
+
+<p>Reduce load by caching expensive operations.</p>
+
+<h3>Response Caching</h3>
+
+</code>`<code>python
+<p>from flask_caching import Cache</p>
+<p>from flask import Flask, request, jsonify</p>
+
+<p>app = Flask(__name__)</p>
+
+<h1>Configure caching</h1>
+<p>cache = Cache(app, config={</p>
+<p>    'CACHE_TYPE': 'redis',</p>
+<p>    'CACHE_REDIS_URL': 'redis://localhost:6379/0',</p>
+<p>    'CACHE_DEFAULT_TIMEOUT': 300  # 5 minutes</p>
+<p>})</p>
+
+<p>@app.route('/api/popular-products')</p>
+<p>@cache.cached(timeout=300, query_string=True)  # Cache based on query params</p>
+<p>def get_popular_products():</p>
+<p>    # Expensive database query</p>
+<p>    products = Product.query.filter_by(featured=True)\</p>
+<p>        .order_by(Product.views.desc())\</p>
+<p>        .limit(10).all()</p>
+    
+<p>    return jsonify([p.to_dict() for p in products])</p>
+
+<h1>Cache with custom key</h1>
+<p>def make_cache_key():</p>
+<p>    """Generate cache key based on user and query"""</p>
+<p>    user_id = get_user_id(request)</p>
+<p>    query = request.args.get('q', '')</p>
+<p>    return f"search:{user_id}:{query}"</p>
+
+<p>@app.route('/api/search')</p>
+<p>@cache.cached(timeout=60, key_prefix=make_cache_key)</p>
+<p>def search():</p>
+<p>    query = request.args.get('q')</p>
+<p>    results = perform_search(query)</p>
+<p>    return jsonify(results)</p>
+
+<h1>Manual cache control</h1>
+<p>@app.route('/api/user/<int:user_id>')</p>
+<p>def get_user(user_id):</p>
+<p>    cache_key = f"user:{user_id}"</p>
+    
+<p>    # Try cache first</p>
+<p>    user_data = cache.get(cache_key)</p>
+    
+<p>    if user_data is None:</p>
+<p>        # Cache miss - fetch from database</p>
+<p>        user = User.query.get_or_404(user_id)</p>
+<p>        user_data = user.to_dict()</p>
+        
+<p>        # Store in cache</p>
+<p>        cache.set(cache_key, user_data, timeout=600)</p>
+    
+<p>    return jsonify(user_data)</p>
+</code>`<code>
+
+<h3>Memoization for Expensive Functions</h3>
+
+</code>`<code>python
+<p>from functools import lru_cache</p>
+<p>import hashlib</p>
+<p>import json</p>
+
+<h1>In-memory caching for pure functions</h1>
+<p>@lru_cache(maxsize=1000)</p>
+<p>def calculate_hash(data):</p>
+<p>    """Expensive calculation - cache results"""</p>
+<p>    return hashlib.sha256(data.encode()).hexdigest()</p>
+
+<h1>Custom memoization with Redis</h1>
+<p>def redis_memoize(timeout=3600):</p>
+<p>    def decorator(f):</p>
+<p>        @wraps(f)</p>
+<p>        def wrapped(<em>args, </em>*kwargs):</p>
+<p>            # Generate cache key from function name and arguments</p>
+<p>            key_data = {</p>
+<p>                'func': f.__name__,</p>
+<p>                'args': args,</p>
+<p>                'kwargs': kwargs</p>
+<p>            }</p>
+<p>            cache_key = f"memo:{hashlib.md5(json.dumps(key_data, sort_keys=True).encode()).hexdigest()}"</p>
+            
+<p>            # Check cache</p>
+<p>            cached = redis_client.get(cache_key)</p>
+<p>            if cached:</p>
+<p>                return json.loads(cached)</p>
+            
+<p>            # Compute result</p>
+<p>            result = f(<em>args, </em>*kwargs)</p>
+            
+<p>            # Store in cache</p>
+<p>            redis_client.setex(</p>
+<p>                cache_key,</p>
+<p>                timeout,</p>
+<p>                json.dumps(result)</p>
+<p>            )</p>
+            
+<p>            return result</p>
+<p>        return wrapped</p>
+<p>    return decorator</p>
+
+<p>@redis_memoize(timeout=600)</p>
+<p>def expensive_calculation(param1, param2):</p>
+<p>    # Expensive operation</p>
+<p>    import time</p>
+<p>    time.sleep(2)</p>
+<p>    return param1 + param2</p>
+</code>`<code>
+
+<h3>ETags for Conditional Requests</h3>
+
+</code>`<code>python
+<p>from flask import Flask, request, jsonify, make_response</p>
+<p>import hashlib</p>
+<p>import json</p>
+
+<p>@app.route('/api/data')</p>
+<p>def get_data():</p>
+<p>    data = fetch_data_from_db()</p>
+    
+<p>    # Generate ETag from data</p>
+<p>    data_json = json.dumps(data, sort_keys=True)</p>
+<p>    etag = hashlib.md5(data_json.encode()).hexdigest()</p>
+    
+<p>    # Check If-None-Match header</p>
+<p>    if request.headers.get('If-None-Match') == etag:</p>
+<p>        # Data hasn't changed</p>
+<p>        return '', 304  # Not Modified</p>
+    
+<p>    # Return data with ETag</p>
+<p>    response = make_response(jsonify(data))</p>
+<p>    response.headers['ETag'] = etag</p>
+<p>    response.headers['Cache-Control'] = 'private, max-age=300'</p>
+    
+<p>    return response</p>
+</code>`<code>
+
+<h2>Resource Quotas</h2>
+
+<p>Enforce hard limits on resource usage.</p>
+
+<h3>User Quotas</h3>
+
+</code>`<code>python
+<p>class UserQuota:</p>
+<p>    def __init__(self, user_id, redis_client):</p>
+<p>        self.user_id = user_id</p>
+<p>        self.redis = redis_client</p>
+    
+<p>    def check_quota(self, resource_type, amount=1):</p>
+<p>        """Check if user has quota remaining"""</p>
+<p>        quota_key = f"quota:{self.user_id}:{resource_type}"</p>
+        
+<p>        # Get user's tier limits</p>
+<p>        tier = get_user_tier(self.user_id)</p>
+<p>        limits = QUOTA_LIMITS[tier][resource_type]</p>
+        
+<p>        # Get current usage</p>
+<p>        current_usage = int(self.redis.get(quota_key) or 0)</p>
+        
+<p>        if current_usage + amount > limits['daily']:</p>
+<p>            return False, {</p>
+<p>                'error': 'Daily quota exceeded',</p>
+<p>                'limit': limits['daily'],</p>
+<p>                'current': current_usage,</p>
+<p>                'resets_at': get_next_reset_time()</p>
+<p>            }</p>
+        
+<p>        # Increment usage</p>
+<p>        pipeline = self.redis.pipeline()</p>
+<p>        pipeline.incrby(quota_key, amount)</p>
+<p>        pipeline.expireat(quota_key, get_next_reset_time())</p>
+<p>        pipeline.execute()</p>
+        
+<p>        return True, {</p>
+<p>            'remaining': limits['daily'] - current_usage - amount</p>
+<p>        }</p>
+
+<p>QUOTA_LIMITS = {</p>
+<p>    'free': {</p>
+<p>        'api_calls': {'daily': 1000},</p>
+<p>        'storage_mb': {'total': 100},</p>
+<p>        'export_rows': {'daily': 10000}</p>
+<p>    },</p>
+<p>    'premium': {</p>
+<p>        'api_calls': {'daily': 100000},</p>
+<p>        'storage_mb': {'total': 10000},</p>
+<p>        'export_rows': {'daily': 1000000}</p>
+<p>    }</p>
+<p>}</p>
+
+<p>@app.route('/api/export')</p>
+<p>def export_data():</p>
+<p>    user_id = get_user_id(request)</p>
+<p>    row_count = request.args.get('rows', 1000)</p>
+    
+<p>    quota = UserQuota(user_id, redis_client)</p>
+<p>    allowed, info = quota.check_quota('export_rows', row_count)</p>
+    
+<p>    if not allowed:</p>
+<p>        return jsonify(info), 429</p>
+    
+<p>    # Proceed with export</p>
+<p>    data = generate_export(row_count)</p>
+    
+<p>    return jsonify({</p>
+<p>        'data': data,</p>
+<p>        'quota': info</p>
+<p>    })</p>
+</code>`<code>
+
+<h3>File Upload Limits</h3>
+
+</code>`<code>python
+<p>from flask import Flask, request</p>
+<p>from werkzeug.utils import secure_filename</p>
+
+<p>app = Flask(__name__)</p>
+
+<h1>Configure upload limits</h1>
+<p>app.config['MAX_CONTENT_LENGTH'] = 50 <em> 1024 </em> 1024  # 50 MB max request size</p>
+
+<p>ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'doc', 'docx'}</p>
+<p>MAX_FILE_SIZE = 10 <em> 1024 </em> 1024  # 10 MB per file</p>
+
+<p>def allowed_file(filename):</p>
+<p>    return '.' in filename and \</p>
+<p>           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS</p>
+
+<p>@app.route('/api/upload', methods=['POST'])</p>
+<p>@rate_limit(capacity=10, refill_rate=0.1)  # 10 uploads per 100 seconds</p>
+<p>def upload_file():</p>
+<p>    if 'file' not in request.files:</p>
+<p>        return jsonify({'error': 'No file provided'}), 400</p>
+    
+<p>    file = request.files['file']</p>
+    
+<p>    if file.filename == '':</p>
+<p>        return jsonify({'error': 'Empty filename'}), 400</p>
+    
+<p>    if not allowed_file(file.filename):</p>
+<p>        return jsonify({'error': 'File type not allowed'}), 400</p>
+    
+<p>    # Check file size by reading in chunks</p>
+<p>    file.seek(0, 2)  # Seek to end</p>
+<p>    size = file.tell()</p>
+<p>    file.seek(0)  # Seek back to start</p>
+    
+<p>    if size > MAX_FILE_SIZE:</p>
+<p>        return jsonify({</p>
+<p>            'error': f'File too large. Maximum: {MAX_FILE_SIZE / 1024 / 1024}MB'</p>
+<p>        }), 413</p>
+    
+<p>    # Check user's storage quota</p>
+<p>    user_id = get_user_id(request)</p>
+<p>    quota = UserQuota(user_id, redis_client)</p>
+<p>    allowed, info = quota.check_quota('storage_mb', size / 1024 / 1024)</p>
+    
+<p>    if not allowed:</p>
+<p>        return jsonify(info), 429</p>
+    
+<p>    # Save file</p>
+<p>    filename = secure_filename(file.filename)</p>
+<p>    file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))</p>
+    
+<p>    return jsonify({</p>
+<p>        'status': 'uploaded',</p>
+<p>        'filename': filename,</p>
+<p>        'size': size,</p>
+<p>        'quota_remaining': info['remaining']</p>
+<p>    })</p>
+
+<h1>Handle file too large error</h1>
+<p>@app.errorhandler(413)</p>
+<p>def request_entity_too_large(error):</p>
+<p>    return jsonify({</p>
+<p>        'error': 'Request too large',</p>
+<p>        'max_size_mb': app.config['MAX_CONTENT_LENGTH'] / 1024 / 1024</p>
+<p>    }), 413</p>
+</code>`<code>
+
+<h3>Memory Limits for Processing</h3>
+
+</code>`<code>python
+<p>import resource</p>
+<p>import sys</p>
+
+<p>def limit_memory(max_mem_mb):</p>
+<p>    """Limit memory usage of current process"""</p>
+<p>    max_mem_bytes = max_mem_mb <em> 1024 </em> 1024</p>
+<p>    resource.setrlimit(resource.RLIMIT_AS, (max_mem_bytes, max_mem_bytes))</p>
+
+<p>@app.route('/api/process-large-file', methods=['POST'])</p>
+<p>def process_large_file():</p>
+<p>    # Limit memory to 500MB</p>
+<p>    limit_memory(500)</p>
+    
+<p>    try:</p>
+<p>        # Process file</p>
+<p>        result = process_file(request.json['file_url'])</p>
+<p>        return jsonify(result)</p>
+<p>    except MemoryError:</p>
+<p>        return jsonify({'error': 'Processing exceeds memory limits'}), 507</p>
+</code>`<code>
+
+<h2>Monitoring and Alerting</h2>
+
+<p>You can't protect what you can't see.</p>
+
+<h3>Prometheus Metrics</h3>
+
+</code>`<code>python
+<p>from prometheus_client import Counter, Histogram, Gauge</p>
+<p>from flask import Flask, request</p>
+<p>import time</p>
+
+<h1>Define metrics</h1>
+<p>request_count = Counter(</p>
+<p>    'api_requests_total',</p>
+<p>    'Total API requests',</p>
+<p>    ['method', 'endpoint', 'status']</p>
+<p>)</p>
+
+<p>request_duration = Histogram(</p>
+<p>    'api_request_duration_seconds',</p>
+<p>    'API request duration',</p>
+<p>    ['method', 'endpoint']</p>
+<p>)</p>
+
+<p>active_requests = Gauge(</p>
+<p>    'api_active_requests',</p>
+<p>    'Currently active requests',</p>
+<p>    ['endpoint']</p>
+<p>)</p>
+
+<p>rate_limit_hits = Counter(</p>
+<p>    'api_rate_limit_hits_total',</p>
+<p>    'Rate limit hits',</p>
+<p>    ['endpoint', 'user_tier']</p>
+<p>)</p>
+
+<p>@app.before_request</p>
+<p>def before_request():</p>
+<p>    request.start_time = time.time()</p>
+<p>    active_requests.labels(endpoint=request.endpoint).inc()</p>
+
+<p>@app.after_request</p>
+<p>def after_request(response):</p>
+<p>    # Record metrics</p>
+<p>    duration = time.time() - request.start_time</p>
+    
+<p>    request_count.labels(</p>
+<p>        method=request.method,</p>
+<p>        endpoint=request.endpoint,</p>
+<p>        status=response.status_code</p>
+<p>    ).inc()</p>
+    
+<p>    request_duration.labels(</p>
+<p>        method=request.method,</p>
+<p>        endpoint=request.endpoint</p>
+<p>    ).observe(duration)</p>
+    
+<p>    active_requests.labels(endpoint=request.endpoint).dec()</p>
+    
+<p>    return response</p>
+
+<h1>Expose metrics endpoint</h1>
+<p>from prometheus_client import generate_latest</p>
+
+<p>@app.route('/metrics')</p>
+<p>def metrics():</p>
+<p>    return generate_latest()</p>
+</code>`<code>
+
+<h3>Anomaly Detection</h3>
+
+</code>`<code>python
+<p>class AnomalyDetector:</p>
+<p>    def __init__(self, redis_client):</p>
+<p>        self.redis = redis_client</p>
+    
+<p>    def check_anomaly(self, user_id, endpoint):</p>
+<p>        """Detect abnormal usage patterns"""</p>
+<p>        key = f"usage:{user_id}:{endpoint}"</p>
+        
+<p>        # Record current access</p>
+<p>        now = int(time.time())</p>
+<p>        self.redis.zadd(key, {now: now})</p>
+<p>        self.redis.expire(key, 3600)  # Keep 1 hour of data</p>
+        
+<p>        # Get access count in last 5 minutes</p>
+<p>        five_min_ago = now - 300</p>
+<p>        recent_count = self.redis.zcount(key, five_min_ago, now)</p>
+        
+<p>        # Get historical average</p>
+<p>        historical_key = f"avg:{endpoint}"</p>
+<p>        historical_avg = float(self.redis.get(historical_key) or 10)</p>
+        
+<p>        # Check if current rate is anomalous (>3x average)</p>
+<p>        if recent_count > historical_avg * 3:</p>
+<p>            self.alert_anomaly(user_id, endpoint, recent_count, historical_avg)</p>
+<p>            return True</p>
+        
+<p>        # Update historical average</p>
+<p>        self.redis.set(historical_key, (historical_avg <em> 0.95) + (recent_count </em> 0.05))</p>
+        
+<p>        return False</p>
+    
+<p>    def alert_anomaly(self, user_id, endpoint, current, avg):</p>
+<p>        """Send alert about anomalous behavior"""</p>
+<p>        app.logger.warning(</p>
+<p>            f"Anomaly detected: User {user_id} on {endpoint} - "</p>
+<p>            f"{current} requests vs {avg} average"</p>
+<p>        )</p>
+<p>        # Send to monitoring system (PagerDuty, Slack, etc.)</p>
+</code>`<code>
+
+<h2>Infrastructure Protections</h2>
+
+<p>Beyond application code, infrastructure needs limits too.</p>
+
+<h3>Docker Resource Limits</h3>
+
+</code>`<code>yaml
+<h1>docker-compose.yml</h1>
+<p>version: '3.8'</p>
+<p>services:</p>
+<p>  api:</p>
+<p>    image: myapi:latest</p>
+<p>    deploy:</p>
+<p>      resources:</p>
+<p>        limits:</p>
+<p>          cpus: '2.0'</p>
+<p>          memory: 2G</p>
+<p>        reservations:</p>
+<p>          cpus: '1.0'</p>
+<p>          memory: 1G</p>
+<p>    ulimits:</p>
+<p>      nofile:</p>
+<p>        soft: 65536</p>
+<p>        hard: 65536</p>
+<p>      nproc: 512</p>
+</code>`<code>
+
+<h3>Kubernetes Resource Quotas</h3>
+
+</code>`<code>yaml
+<h1>resource-quota.yaml</h1>
+<p>apiVersion: v1</p>
+<p>kind: ResourceQuota</p>
+<p>metadata:</p>
+<p>  name: api-quota</p>
+<p>spec:</p>
+<p>  hard:</p>
+<p>    requests.cpu: "10"</p>
+<p>    requests.memory: 20Gi</p>
+<p>    limits.cpu: "20"</p>
+<p>    limits.memory: 40Gi</p>
+<p>    pods: "50"</p>
+    
+<p>---</p>
+<h1>pod-definition.yaml</h1>
+<p>apiVersion: v1</p>
+<p>kind: Pod</p>
+<p>metadata:</p>
+<p>  name: api-pod</p>
+<p>spec:</p>
+<p>  containers:</p>
+<ul>
+<li>name: api</li>
+</ul>
+<p>    image: myapi:latest</p>
+<p>    resources:</p>
+<p>      requests:</p>
+<p>        memory: "256Mi"</p>
+<p>        cpu: "250m"</p>
+<p>      limits:</p>
+<p>        memory: "512Mi"</p>
+<p>        cpu: "500m"</p>
+</code>`<code>
+
+<h3>Nginx Rate Limiting</h3>
+
+</code>`<code>nginx
+<h1>nginx.conf</h1>
+<p>http {</p>
+<p>    # Define rate limit zones</p>
+<p>    limit_req_zone $binary_remote_addr zone=general:10m rate=10r/s;</p>
+<p>    limit_req_zone $binary_remote_addr zone=login:10m rate=5r/m;</p>
+<p>    limit_req_zone $binary_remote_addr zone=api:10m rate=100r/s;</p>
+    
+<p>    # Connection limits</p>
+<p>    limit_conn_zone $binary_remote_addr zone=addr:10m;</p>
+    
+<p>    server {</p>
+<p>        listen 80;</p>
+        
+<p>        # General rate limit</p>
+<p>        limit_req zone=general burst=20 nodelay;</p>
+<p>        limit_conn addr 10;</p>
+        
+<p>        location /api/login {</p>
+<p>            limit_req zone=login burst=5 nodelay;</p>
+<p>            proxy_pass http://backend;</p>
+<p>        }</p>
+        
+<p>        location /api/ {</p>
+<p>            limit_req zone=api burst=200 nodelay;</p>
+<p>            proxy_pass http://backend;</p>
+<p>        }</p>
+        
+<p>        # Custom error page for rate limiting</p>
+<p>        error_page 429 /rate_limit.html;</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Complete Example: Protected Flask API</h2>
+
+</code>`<code>python
+<p>from flask import Flask, request, jsonify</p>
+<p>from flask_limiter import Limiter</p>
+<p>from flask_limiter.util import get_remote_address</p>
+<p>from flask_caching import Cache</p>
+<p>from prometheus_client import Counter, Histogram</p>
+<p>import redis</p>
+
+<p>app = Flask(__name__)</p>
+
+<h1>Redis for rate limiting and caching</h1>
+<p>redis_client = redis.Redis(host='localhost', port=6379, decode_responses=True)</p>
+
+<h1>Rate limiter</h1>
+<p>limiter = Limiter(</p>
+<p>    app=app,</p>
+<p>    key_func=lambda: request.headers.get('X-User-ID', get_remote_address()),</p>
+<p>    storage_uri="redis://localhost:6379",</p>
+<p>    default_limits=["1000 per day", "100 per hour"],</p>
+<p>    headers_enabled=True</p>
+<p>)</p>
+
+<h1>Cache</h1>
+<p>cache = Cache(app, config={</p>
+<p>    'CACHE_TYPE': 'redis',</p>
+<p>    'CACHE_REDIS_URL': 'redis://localhost:6379/1'</p>
+<p>})</p>
+
+<h1>Metrics</h1>
+<p>request_count = Counter('requests_total', 'Total requests', ['endpoint', 'status'])</p>
+
+<h1>Configure limits</h1>
+<p>app.config['MAX_CONTENT_LENGTH'] = 10 <em> 1024 </em> 1024  # 10 MB</p>
+
+<h1>Health check (no limits)</h1>
+<p>@app.route('/health')</p>
+<p>@limiter.exempt</p>
+<p>def health():</p>
+<p>    return jsonify({'status': 'healthy'})</p>
+
+<h1>Expensive search endpoint</h1>
+<p>@app.route('/api/search')</p>
+<p>@limiter.limit("30 per minute")</p>
+<p>@cache.cached(timeout=60, query_string=True)</p>
+<p>def search():</p>
+<p>    query = request.args.get('q', '')</p>
+    
+<p>    # Validate query length</p>
+<p>    if len(query) > 100:</p>
+<p>        return jsonify({'error': 'Query too long'}), 400</p>
+    
+<p>    # Perform search with timeout</p>
+<p>    try:</p>
+<p>        with timeout(5):</p>
+<p>            results = perform_search(query)</p>
+<p>            request_count.labels(endpoint='search', status='success').inc()</p>
+<p>            return jsonify(results)</p>
+<p>    except TimeoutError:</p>
+<p>        request_count.labels(endpoint='search', status='timeout').inc()</p>
+<p>        return jsonify({'error': 'Search timeout'}), 408</p>
+
+<h1>List endpoint with pagination</h1>
+<p>@app.route('/api/users')</p>
+<p>@limiter.limit("60 per minute")</p>
+<p>def list_users():</p>
+<p>    page = int(request.args.get('page', 1))</p>
+<p>    per_page = min(int(request.args.get('per_page', 50)), 100)</p>
+    
+<p>    if page < 1 or per_page < 1:</p>
+<p>        return jsonify({'error': 'Invalid pagination parameters'}), 400</p>
+    
+<p>    users = User.query.paginate(page=page, per_page=per_page, error_out=False)</p>
+    
+<p>    return jsonify({</p>
+<p>        'data': [u.to_dict() for u in users.items],</p>
+<p>        'pagination': {</p>
+<p>            'page': page,</p>
+<p>            'per_page': per_page,</p>
+<p>            'total': users.total,</p>
+<p>            'pages': users.pages</p>
+<p>        }</p>
+<p>    })</p>
+
+<h1>Authentication endpoint (strict limits)</h1>
+<p>@app.route('/api/login', methods=['POST'])</p>
+<p>@limiter.limit("5 per minute")</p>
+<p>def login():</p>
+<p>    # Login logic with bcrypt (inherently rate-limited by cost)</p>
+<p>    pass</p>
+
+<h1>File upload</h1>
+<p>@app.route('/api/upload', methods=['POST'])</p>
+<p>@limiter.limit("10 per hour")</p>
+<p>def upload():</p>
+<p>    # Upload logic with size limits</p>
+<p>    pass</p>
+
+<p>if __name__ == '__main__':</p>
+<p>    app.run()</p>
+</code>``
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Layer multiple defenses</strong> - Rate limiting + pagination + timeouts + caching</li>
+<li><strong>Be proactive</strong> - Set limits before you need them</li>
+<li><strong>Monitor everything</strong> - Metrics are essential</li>
+<li><strong>Fail gracefully</strong> - Return helpful errors, don't crash</li>
+<li><strong>Different limits for different contexts</strong> - One size doesn't fit all</li>
+<li><strong>Test your limits</strong> - Ensure they actually work under load</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong>Study Real Examples</strong> → <a href="./examples.md">examples.md</a> - Working code samples</li>
+<li><strong>Practice</strong> → <a href="./lab/api04-rate-limiting-lab/">lab/</a> - Hands-on exploitation and hardening</li>
+</ul>
+
         </div>
     </div>
 </body>

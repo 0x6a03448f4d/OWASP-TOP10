@@ -215,7 +215,802 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>M05: Insecure Communication - Prevention</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#prevention-overview">Prevention Overview</a></li>
+<li><a href="#enforce-https-everywhere">Enforce HTTPS Everywhere</a></li>
+<li><a href="#proper-tls-configuration">Proper TLS Configuration</a></li>
+<li><a href="#certificate-validation">Certificate Validation</a></li>
+<li><a href="#certificate-pinning">Certificate Pinning</a></li>
+<li><a href="#network-security-configuration">Network Security Configuration</a></li>
+<li><a href="#secure-communication-patterns">Secure Communication Patterns</a></li>
+<li><a href="#testing-and-validation">Testing and Validation</a></li>
+<li><a href="#implementation-checklist">Implementation Checklist</a></li>
+</ul>
+
+<h2>Prevention Overview</h2>
+
+<p>Preventing insecure communication requires a multi-layered approach focusing on:</p>
+<ol>
+<li><strong>Mandatory HTTPS</strong> for all network communications</li>
+<li><strong>Strong TLS configuration</strong> using modern protocols and cipher suites</li>
+<li><strong>Proper certificate validation</strong> to prevent MITM attacks</li>
+<li><strong>Certificate pinning</strong> for critical connections</li>
+<li><strong>Network security policies</strong> enforced at the platform level</li>
+</ol>
+
+<h3>Defense-in-Depth Strategy</h3>
+
+<p>``<code></p>
+<p>Layer 1: Enforce HTTPS Only (No HTTP allowed)</p>
+<p>    ↓</p>
+<p>Layer 2: TLS 1.2/1.3 with Strong Cipher Suites</p>
+<p>    ↓</p>
+<p>Layer 3: Proper Certificate Validation</p>
+<p>    ↓</p>
+<p>Layer 4: Certificate Pinning for Critical APIs</p>
+<p>    ↓</p>
+<p>Layer 5: Network Security Configuration</p>
+<p>    ↓</p>
+<p>Secure Communication Channel</p>
+</code>`<code>
+
+<h2>Enforce HTTPS Everywhere</h2>
+
+<h3>Principle: Never Use HTTP for Sensitive Data</h3>
+
+<strong>Rule:</strong> All network communications containing sensitive data MUST use HTTPS.
+
+<h3>Android Implementation</h3>
+
+<strong>1. Network Security Configuration (API 24+):</strong>
+
+</code>`<code>xml
+<!-- res/xml/network_security_config.xml -->
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Block all cleartext (HTTP) traffic -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    
+    <!-- Enforce HTTPS for all domains -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">example.com</domain>
+    </domain-config>
+</network-security-config>
+</code>`<code>
+
+<strong>AndroidManifest.xml:</strong>
+</code>`<code>xml
+<application
+<p>    android:networkSecurityConfig="@xml/network_security_config"</p>
+<p>    android:usesCleartextTraffic="false"></p>
+    <!-- App configuration -->
+</application>
+</code>`<code>
+
+<h3>iOS Implementation</h3>
+
+<strong>1. App Transport Security (ATS):</strong>
+
+</code>`<code>xml
+<!-- Info.plist -->
+<key>NSAppTransportSecurity</key>
+<dict>
+    <!-- Enforce HTTPS globally -->
+    <key>NSAllowsArbitraryLoads</key>
+    <false/>
+    
+    <!-- Exception for specific domains if absolutely necessary -->
+    <key>NSExceptionDomains</key>
+    <dict>
+        <key>api.example.com</key>
+        <dict>
+            <key>NSExceptionAllowsInsecureHTTPLoads</key>
+            <false/>
+            <key>NSExceptionRequiresForwardSecrecy</key>
+            <true/>
+            <key>NSExceptionMinimumTLSVersion</key>
+            <string>TLSv1.2</string>
+        </dict>
+    </dict>
+</dict>
+</code>`<code>
+
+<h3>Code-Level Enforcement</h3>
+
+<strong>Android - Retrofit Configuration:</strong>
+</code>`<code>java
+<p>public class SecureApiClient {</p>
+    
+<p>    private static OkHttpClient createSecureClient() {</p>
+<p>        // Force HTTPS only</p>
+<p>        return new OkHttpClient.Builder()</p>
+<p>            .addInterceptor(chain -> {</p>
+<p>                Request request = chain.request();</p>
+                
+<p>                // Block HTTP requests</p>
+<p>                if (!"https".equals(request.url().scheme())) {</p>
+<p>                    throw new IllegalStateException(</p>
+<p>                        "SECURITY: HTTP not allowed. Use HTTPS only."</p>
+<p>                    );</p>
+<p>                }</p>
+                
+<p>                return chain.proceed(request);</p>
+<p>            })</p>
+<p>            .build();</p>
+<p>    }</p>
+    
+<p>    public static Retrofit createApiService() {</p>
+<p>        return new Retrofit.Builder()</p>
+<p>            .baseUrl("https://api.example.com/")  // HTTPS only</p>
+<p>            .client(createSecureClient())</p>
+<p>            .addConverterFactory(GsonConverterFactory.create())</p>
+<p>            .build();</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>iOS - URLSession Configuration:</strong>
+</code>`<code>swift
+<p>class SecureNetworkManager {</p>
+    
+<p>    static func createSecureSession() -> URLSession {</p>
+<p>        let configuration = URLSessionConfiguration.default</p>
+        
+<p>        // Additional security headers</p>
+<p>        configuration.httpAdditionalHeaders = [</p>
+<p>            "Strict-Transport-Security": "max-age=31536000; includeSubDomains"</p>
+<p>        ]</p>
+        
+<p>        return URLSession(configuration: configuration, </p>
+<p>                         delegate: SecureSessionDelegate(), </p>
+<p>                         delegateQueue: nil)</p>
+<p>    }</p>
+    
+<p>    static func makeRequest(url: String, completion: @escaping (Data?, Error?) -> Void) {</p>
+<p>        guard url.hasPrefix("https://") else {</p>
+<p>            completion(nil, NSError(domain: "Security", code: 1, </p>
+<p>                                   userInfo: [NSLocalizedDescriptionKey: "HTTPS required"]))</p>
+<p>            return</p>
+<p>        }</p>
+        
+<p>        let session = createSecureSession()</p>
+<p>        let task = session.dataTask(with: URL(string: url)!) { data, response, error in</p>
+<p>            completion(data, error)</p>
+<p>        }</p>
+<p>        task.resume()</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Proper TLS Configuration</h2>
+
+<h3>Use Modern TLS Versions</h3>
+
+<strong>Minimum Requirements:</strong>
+<ul>
+<li>TLS 1.2 as minimum (prefer TLS 1.3)</li>
+<li>Disable TLS 1.0 and TLS 1.1 (deprecated)</li>
+<li>Use strong cipher suites only</li>
+</ul>
+
+<h3>Android TLS Configuration</h3>
+
+</code>`<code>java
+<p>public class SecureTLSConfiguration {</p>
+    
+<p>    public static SSLContext createSecureSSLContext() throws Exception {</p>
+<p>        // Use TLS 1.2 or 1.3</p>
+<p>        SSLContext sslContext = SSLContext.getInstance("TLSv1.3");</p>
+        
+<p>        // Initialize with default trust manager</p>
+<p>        TrustManagerFactory tmf = TrustManagerFactory.getInstance(</p>
+<p>            TrustManagerFactory.getDefaultAlgorithm()</p>
+<p>        );</p>
+<p>        tmf.init((KeyStore) null);</p>
+        
+<p>        sslContext.init(null, tmf.getTrustManagers(), new SecureRandom());</p>
+<p>        return sslContext;</p>
+<p>    }</p>
+    
+<p>    public static OkHttpClient createTLSSecureClient() throws Exception {</p>
+<p>        SSLContext sslContext = createSecureSSLContext();</p>
+        
+<p>        // Specify TLS versions</p>
+<p>        ConnectionSpec spec = new ConnectionSpec.Builder(ConnectionSpec.MODERN_TLS)</p>
+<p>            .tlsVersions(TlsVersion.TLS_1_3, TlsVersion.TLS_1_2)</p>
+<p>            .cipherSuites(</p>
+<p>                // Strong cipher suites only</p>
+<p>                CipherSuite.TLS_AES_128_GCM_SHA256,</p>
+<p>                CipherSuite.TLS_AES_256_GCM_SHA384,</p>
+<p>                CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,</p>
+<p>                CipherSuite.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384</p>
+<p>            )</p>
+<p>            .build();</p>
+        
+<p>        return new OkHttpClient.Builder()</p>
+<p>            .sslSocketFactory(sslContext.getSocketFactory(), </p>
+<p>                             (X509TrustManager) tmf.getTrustManagers()[0])</p>
+<p>            .connectionSpecs(Collections.singletonList(spec))</p>
+<p>            .build();</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>iOS TLS Configuration</h3>
+
+</code>`<code>swift
+<p>class TLSSecurityManager {</p>
+    
+<p>    static func configureSecureTLS() {</p>
+<p>        // iOS handles TLS 1.2/1.3 automatically</p>
+<p>        // Enforce through ATS configuration</p>
+<p>    }</p>
+    
+<p>    // Custom SSL validation</p>
+<p>    func urlSession(_ session: URLSession, </p>
+<p>                   didReceive challenge: URLAuthenticationChallenge,</p>
+<p>                   completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {</p>
+        
+<p>        guard challenge.protectionSpace.authenticationMethod == </p>
+<p>              NSURLAuthenticationMethodServerTrust else {</p>
+<p>            completionHandler(.performDefaultHandling, nil)</p>
+<p>            return</p>
+<p>        }</p>
+        
+<p>        guard let serverTrust = challenge.protectionSpace.serverTrust else {</p>
+<p>            completionHandler(.cancelAuthenticationChallenge, nil)</p>
+<p>            return</p>
+<p>        }</p>
+        
+<p>        // Validate TLS version</p>
+<p>        let policy = SecPolicyCreateSSL(true, challenge.protectionSpace.host as CFString)</p>
+<p>        SecTrustSetPolicies(serverTrust, policy)</p>
+        
+<p>        var error: CFError?</p>
+<p>        guard SecTrustEvaluateWithError(serverTrust, &error) else {</p>
+<p>            print("TLS validation failed: \(error?.localizedDescription ?? "Unknown error")")</p>
+<p>            completionHandler(.cancelAuthenticationChallenge, nil)</p>
+<p>            return</p>
+<p>        }</p>
+        
+<p>        completionHandler(.useCredential, URLCredential(trust: serverTrust))</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Certificate Validation</h2>
+
+<h3>Proper Certificate Validation Implementation</h3>
+
+<strong>Android - Secure Certificate Validation:</strong>
+
+</code>`<code>java
+<p>public class CertificateValidator {</p>
+    
+<p>    public static OkHttpClient createValidatingClient(Context context) {</p>
+<p>        try {</p>
+<p>            // Load system CA certificates</p>
+<p>            TrustManagerFactory tmf = TrustManagerFactory.getInstance(</p>
+<p>                TrustManagerFactory.getDefaultAlgorithm()</p>
+<p>            );</p>
+<p>            tmf.init((KeyStore) null);</p>
+            
+<p>            // Get default trust manager</p>
+<p>            X509TrustManager trustManager = null;</p>
+<p>            for (TrustManager tm : tmf.getTrustManagers()) {</p>
+<p>                if (tm instanceof X509TrustManager) {</p>
+<p>                    trustManager = (X509TrustManager) tm;</p>
+<p>                    break;</p>
+<p>                }</p>
+<p>            }</p>
+            
+<p>            SSLContext sslContext = SSLContext.getInstance("TLS");</p>
+<p>            sslContext.init(null, new TrustManager[]{trustManager}, null);</p>
+            
+<p>            return new OkHttpClient.Builder()</p>
+<p>                .sslSocketFactory(sslContext.getSocketFactory(), trustManager)</p>
+<p>                .hostnameVerifier(new StrictHostnameVerifier())  // Strict validation</p>
+<p>                .build();</p>
+                
+<p>        } catch (Exception e) {</p>
+<p>            throw new RuntimeException("Failed to create secure client", e);</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    // Custom hostname verifier with strict validation</p>
+<p>    private static class StrictHostnameVerifier implements HostnameVerifier {</p>
+<p>        @Override</p>
+<p>        public boolean verify(String hostname, SSLSession session) {</p>
+<p>            HostnameVerifier defaultVerifier = HttpsURLConnection.getDefaultHostnameVerifier();</p>
+<p>            return defaultVerifier.verify(hostname, session);</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>iOS - Certificate Validation:</strong>
+
+</code>`<code>swift
+<p>class CertificateValidationDelegate: NSObject, URLSessionDelegate {</p>
+    
+<p>    func urlSession(_ session: URLSession, </p>
+<p>                   didReceive challenge: URLAuthenticationChallenge,</p>
+<p>                   completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {</p>
+        
+<p>        // Only handle server trust challenges</p>
+<p>        guard challenge.protectionSpace.authenticationMethod == </p>
+<p>              NSURLAuthenticationMethodServerTrust,</p>
+<p>              let serverTrust = challenge.protectionSpace.serverTrust else {</p>
+<p>            completionHandler(.cancelAuthenticationChallenge, nil)</p>
+<p>            return</p>
+<p>        }</p>
+        
+<p>        // Create policy for SSL</p>
+<p>        let policies = [SecPolicyCreateSSL(true, challenge.protectionSpace.host as CFString)]</p>
+<p>        SecTrustSetPolicies(serverTrust, policies as CFTypeRef)</p>
+        
+<p>        // Evaluate trust</p>
+<p>        var error: CFError?</p>
+<p>        let isValid = SecTrustEvaluateWithError(serverTrust, &error)</p>
+        
+<p>        if isValid {</p>
+<p>            let credential = URLCredential(trust: serverTrust)</p>
+<p>            completionHandler(.useCredential, credential)</p>
+<p>        } else {</p>
+<p>            print("Certificate validation failed: \(error?.localizedDescription ?? "Unknown")")</p>
+<p>            completionHandler(.cancelAuthenticationChallenge, nil)</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Certificate Pinning</h2>
+
+<h3>What is Certificate Pinning?</h3>
+
+<p>Certificate pinning ensures your app only trusts specific certificates or public keys, preventing MITM attacks even if a CA is compromised.</p>
+
+<h3>Android - Certificate Pinning with OkHttp</h3>
+
+</code>`<code>java
+<p>public class CertificatePinningExample {</p>
+    
+<p>    public static OkHttpClient createPinnedClient() {</p>
+<p>        // Pin specific certificates (SHA-256 hash of public key)</p>
+<p>        CertificatePinner certificatePinner = new CertificatePinner.Builder()</p>
+<p>            .add("api.example.com", </p>
+<p>                 "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")  // Primary cert</p>
+<p>            .add("api.example.com", </p>
+<p>                 "sha256/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=")  // Backup cert</p>
+<p>            .build();</p>
+        
+<p>        return new OkHttpClient.Builder()</p>
+<p>            .certificatePinner(certificatePinner)</p>
+<p>            .build();</p>
+<p>    }</p>
+    
+<p>    // Alternative: Network Security Configuration (Android 7.0+)</p>
+<p>    // See res/xml/network_security_config.xml below</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Network Security Configuration with Pinning:</strong>
+</code>`<code>xml
+<!-- res/xml/network_security_config.xml -->
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api.example.com</domain>
+        <pin-set expiration="2025-12-31">
+            <!-- Pin to certificate public key (SHA-256) -->
+            <pin digest="SHA-256">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>
+            <!-- Backup pin -->
+            <pin digest="SHA-256">BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=</pin>
+        </pin-set>
+    </domain-config>
+</network-security-config>
+</code>`<code>
+
+<strong>Get Certificate Pin:</strong>
+</code>`<code>bash
+<h1>Extract SHA-256 pin from certificate</h1>
+<p>openssl s_client -connect api.example.com:443 < /dev/null | \</p>
+<p>  openssl x509 -pubkey -noout | \</p>
+<p>  openssl pkey -pubin -outform der | \</p>
+<p>  openssl dgst -sha256 -binary | \</p>
+<p>  base64</p>
+</code>`<code>
+
+<h3>iOS - Certificate Pinning</h3>
+
+</code>`<code>swift
+<p>class CertificatePinningManager: NSObject, URLSessionDelegate {</p>
+    
+<p>    // Store pinned certificate hashes</p>
+<p>    private let pinnedCertificates: Set<String> = [</p>
+<p>        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",  // Primary</p>
+<p>        "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB="   // Backup</p>
+<p>    ]</p>
+    
+<p>    func urlSession(_ session: URLSession,</p>
+<p>                   didReceive challenge: URLAuthenticationChallenge,</p>
+<p>                   completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {</p>
+        
+<p>        guard challenge.protectionSpace.authenticationMethod == </p>
+<p>              NSURLAuthenticationMethodServerTrust,</p>
+<p>              let serverTrust = challenge.protectionSpace.serverTrust else {</p>
+<p>            completionHandler(.cancelAuthenticationChallenge, nil)</p>
+<p>            return</p>
+<p>        }</p>
+        
+<p>        // Validate certificate chain</p>
+<p>        var error: CFError?</p>
+<p>        let isValid = SecTrustEvaluateWithError(serverTrust, &error)</p>
+        
+<p>        guard isValid else {</p>
+<p>            completionHandler(.cancelAuthenticationChallenge, nil)</p>
+<p>            return</p>
+<p>        }</p>
+        
+<p>        // Get server certificate</p>
+<p>        guard let serverCertificate = SecTrustGetCertificateAtIndex(serverTrust, 0) else {</p>
+<p>            completionHandler(.cancelAuthenticationChallenge, nil)</p>
+<p>            return</p>
+<p>        }</p>
+        
+<p>        // Get public key and compute hash</p>
+<p>        let publicKey = SecCertificateCopyKey(serverCertificate)</p>
+<p>        let publicKeyData = SecKeyCopyExternalRepresentation(publicKey!, nil)! as Data</p>
+        
+<p>        let hash = publicKeyData.sha256().base64EncodedString()</p>
+        
+<p>        // Check if hash matches pinned certificates</p>
+<p>        if pinnedCertificates.contains(hash) {</p>
+<p>            completionHandler(.useCredential, URLCredential(trust: serverTrust))</p>
+<p>        } else {</p>
+<p>            print("Certificate pinning failed: Hash mismatch")</p>
+<p>            completionHandler(.cancelAuthenticationChallenge, nil)</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+
+<p>// Extension for SHA-256 hashing</p>
+<p>extension Data {</p>
+<p>    func sha256() -> Data {</p>
+<p>        var hash = <a href="repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH">UInt8</a>)</p>
+<p>        self.withUnsafeBytes {</p>
+<p>            _ = CC_SHA256($0.baseAddress, CC_LONG(self.count), &hash)</p>
+<p>        }</p>
+<p>        return Data(hash)</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Certificate Pinning Best Practices</h3>
+
+<ol>
+<li><strong>Pin Multiple Certificates</strong>: Always pin backup certificates</li>
+<li><strong>Set Expiration</strong>: Update pins before certificates expire</li>
+<li><strong>Monitor Expiration</strong>: Automated alerts for expiring pins</li>
+<li><strong>Graceful Fallback</strong>: Handle pinning failures appropriately</li>
+<li><strong>Update Mechanism</strong>: Plan for emergency pin updates</li>
+</ol>
+
+<h2>Network Security Configuration</h2>
+
+<h3>Android Network Security Best Practices</h3>
+
+</code>`<code>xml
+<!-- res/xml/network_security_config.xml - Complete Example -->
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Base configuration for all connections -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <!-- Trust system certificates -->
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    
+    <!-- Production API configuration -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api.example.com</domain>
+        <pin-set expiration="2025-12-31">
+            <pin digest="SHA-256">primaryCertHash=</pin>
+            <pin digest="SHA-256">backupCertHash=</pin>
+        </pin-set>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+    
+    <!-- Debug configuration (development only) -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="user" />
+            <certificates src="system" />
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>
+</code>`<code>
+
+<h3>iOS Network Security Best Practices</h3>
+
+</code>`<code>xml
+<!-- Info.plist - Complete ATS Configuration -->
+<key>NSAppTransportSecurity</key>
+<dict>
+    <!-- Global settings -->
+    <key>NSAllowsArbitraryLoads</key>
+    <false/>
+    
+    <!-- Domain-specific requirements -->
+    <key>NSExceptionDomains</key>
+    <dict>
+        <key>api.example.com</key>
+        <dict>
+            <key>NSIncludesSubdomains</key>
+            <true/>
+            <key>NSExceptionRequiresForwardSecrecy</key>
+            <true/>
+            <key>NSExceptionMinimumTLSVersion</key>
+            <string>TLSv1.2</string>
+            <key>NSRequiresCertificateTransparency</key>
+            <true/>
+        </dict>
+    </dict>
+</dict>
+</code>`<code>
+
+<h2>Secure Communication Patterns</h2>
+
+<h3>Pattern 1: Secure API Client Wrapper</h3>
+
+</code>`<code>java
+<p>public class SecureApiClient {</p>
+<p>    private static final String BASE_URL = "https://api.example.com/";</p>
+<p>    private static OkHttpClient httpClient;</p>
+    
+<p>    public static synchronized OkHttpClient getClient() {</p>
+<p>        if (httpClient == null) {</p>
+<p>            httpClient = new OkHttpClient.Builder()</p>
+<p>                // Enforce HTTPS</p>
+<p>                .addInterceptor(new HttpsEnforcementInterceptor())</p>
+<p>                // Add security headers</p>
+<p>                .addInterceptor(new SecurityHeadersInterceptor())</p>
+<p>                // Certificate pinning</p>
+<p>                .certificatePinner(createCertificatePinner())</p>
+<p>                // TLS configuration</p>
+<p>                .connectionSpecs(Arrays.asList(</p>
+<p>                    ConnectionSpec.MODERN_TLS,</p>
+<p>                    ConnectionSpec.COMPATIBLE_TLS</p>
+<p>                ))</p>
+<p>                // Timeouts</p>
+<p>                .connectTimeout(30, TimeUnit.SECONDS)</p>
+<p>                .readTimeout(30, TimeUnit.SECONDS)</p>
+<p>                .build();</p>
+<p>        }</p>
+<p>        return httpClient;</p>
+<p>    }</p>
+    
+<p>    private static CertificatePinner createCertificatePinner() {</p>
+<p>        return new CertificatePinner.Builder()</p>
+<p>            .add("api.example.com", "sha256/primaryHash=")</p>
+<p>            .add("api.example.com", "sha256/backupHash=")</p>
+<p>            .build();</p>
+<p>    }</p>
+<p>}</p>
+
+<p>class HttpsEnforcementInterceptor implements Interceptor {</p>
+<p>    @Override</p>
+<p>    public Response intercept(Chain chain) throws IOException {</p>
+<p>        Request request = chain.request();</p>
+<p>        if (!"https".equals(request.url().scheme())) {</p>
+<p>            throw new SecurityException("HTTPS required for all requests");</p>
+<p>        }</p>
+<p>        return chain.proceed(request);</p>
+<p>    }</p>
+<p>}</p>
+
+<p>class SecurityHeadersInterceptor implements Interceptor {</p>
+<p>    @Override</p>
+<p>    public Response intercept(Chain chain) throws IOException {</p>
+<p>        Request request = chain.request().newBuilder()</p>
+<p>            .addHeader("X-Content-Type-Options", "nosniff")</p>
+<p>            .addHeader("X-Frame-Options", "DENY")</p>
+<p>            .addHeader("Strict-Transport-Security", "max-age=31536000")</p>
+<p>            .build();</p>
+<p>        return chain.proceed(request);</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Pattern 2: Secure Data Transmission</h3>
+
+</code>`<code>kotlin
+<p>class SecureDataTransmitter {</p>
+    
+<p>    suspend fun sendSecureData(data: SensitiveData): Result<Response> {</p>
+<p>        return withContext(Dispatchers.IO) {</p>
+<p>            try {</p>
+<p>                // Validate network security</p>
+<p>                if (!isSecureConnection()) {</p>
+<p>                    return@withContext Result.failure(</p>
+<p>                        SecurityException("Insecure network detected")</p>
+<p>                    )</p>
+<p>                }</p>
+                
+<p>                // Encrypt data before transmission</p>
+<p>                val encryptedData = encryptData(data)</p>
+                
+<p>                // Send over HTTPS</p>
+<p>                val response = SecureApiClient.getClient()</p>
+<p>                    .newCall(buildRequest(encryptedData))</p>
+<p>                    .execute()</p>
+                
+<p>                Result.success(response)</p>
+                
+<p>            } catch (e: Exception) {</p>
+<p>                Result.failure(e)</p>
+<p>            }</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    private fun isSecureConnection(): Boolean {</p>
+<p>        val connectivityManager = context.getSystemService(</p>
+<p>            Context.CONNECTIVITY_SERVICE</p>
+<p>        ) as ConnectivityManager</p>
+        
+<p>        val activeNetwork = connectivityManager.activeNetwork ?: return false</p>
+<p>        val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork)</p>
+        
+<p>        // Check if on VPN or trusted network</p>
+<p>        return capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true ||</p>
+<p>               capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) == true</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Testing and Validation</h2>
+
+<h3>Manual Testing Checklist</h3>
+
+</code>`<code>bash
+<h1>1. Test HTTPS enforcement</h1>
+<p>curl http://api.example.com/endpoint</p>
+<h1>Should fail or redirect to HTTPS</h1>
+
+<h1>2. Test TLS version</h1>
+<p>openssl s_client -connect api.example.com:443 -tls1</p>
+<h1>Should fail (TLS 1.0 not supported)</h1>
+
+<p>openssl s_client -connect api.example.com:443 -tls1_2</p>
+<h1>Should succeed</h1>
+
+<h1>3. Test certificate validation</h1>
+<p>openssl s_client -connect api.example.com:443 -showcerts</p>
+
+<h1>4. Test cipher suites</h1>
+<p>nmap --script ssl-enum-ciphers -p 443 api.example.com</p>
+
+<h1>5. Test with SSL/TLS scanner</h1>
+<p>./testssl.sh api.example.com</p>
+</code>`<code>
+
+<h3>Automated Testing</h3>
+
+</code>`<code>java
+<p>@Test</p>
+<p>public void testHttpsEnforcement() {</p>
+<p>    OkHttpClient client = SecureApiClient.getClient();</p>
+    
+<p>    // Attempt HTTP request</p>
+<p>    Request request = new Request.Builder()</p>
+<p>        .url("http://api.example.com/test")</p>
+<p>        .build();</p>
+    
+<p>    assertThrows(SecurityException.class, () -> {</p>
+<p>        client.newCall(request).execute();</p>
+<p>    });</p>
+<p>}</p>
+
+<p>@Test</p>
+<p>public void testCertificatePinning() {</p>
+<p>    // This should fail with invalid certificate</p>
+<p>    assertThrows(SSLPeerUnverifiedException.class, () -> {</p>
+<p>        OkHttpClient client = new OkHttpClient.Builder()</p>
+<p>            .certificatePinner(new CertificatePinner.Builder()</p>
+<p>                .add("api.example.com", "sha256/invalidHash=")</p>
+<p>                .build())</p>
+<p>            .build();</p>
+        
+<p>        Request request = new Request.Builder()</p>
+<p>            .url("https://api.example.com/test")</p>
+<p>            .build();</p>
+        
+<p>        client.newCall(request).execute();</p>
+<p>    });</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Implementation Checklist</h2>
+
+<h3>Essential Security Measures</h3>
+
+<ul>
+<li>[ ] <strong>Enforce HTTPS for all communications</strong></li>
+<li>[ ] No HTTP URLs in code</li>
+<li>[ ] Network security configuration blocks cleartext</li>
+<li>[ ] ATS properly configured (iOS)</li>
+</ul>
+
+<ul>
+<li>[ ] <strong>Proper TLS Configuration</strong></li>
+<li>[ ] TLS 1.2 minimum (prefer 1.3)</li>
+<li>[ ] Strong cipher suites only</li>
+<li>[ ] No deprecated protocols (SSL, TLS 1.0/1.1)</li>
+</ul>
+
+<ul>
+<li>[ ] <strong>Certificate Validation</strong></li>
+<li>[ ] Default system validation enabled</li>
+<li>[ ] No custom trust managers that skip validation</li>
+<li>[ ] Proper hostname verification</li>
+</ul>
+
+<ul>
+<li>[ ] <strong>Certificate Pinning</strong></li>
+<li>[ ] Implemented for critical APIs</li>
+<li>[ ] Multiple pins configured (primary + backup)</li>
+<li>[ ] Expiration dates set and monitored</li>
+</ul>
+
+<ul>
+<li>[ ] <strong>Code Review</strong></li>
+<li>[ ] No hardcoded HTTP URLs</li>
+<li>[ ] No disabled certificate validation</li>
+<li>[ ] No </code>trustAllCerts` implementations</li>
+</ul>
+
+<ul>
+<li>[ ] <strong>Testing</strong></li>
+<li>[ ] MITM attack testing performed</li>
+<li>[ ] Certificate validation tested</li>
+<li>[ ] Automated security tests in CI/CD</li>
+</ul>
+
+<ul>
+<li>[ ] <strong>Monitoring</strong></li>
+<li>[ ] Certificate expiration monitoring</li>
+<li>[ ] TLS handshake failure alerts</li>
+<li>[ ] Pinning failure tracking</li>
+</ul>
+
+<h2>Summary</h2>
+
+<p>Secure communication requires:</p>
+<ol>
+<li><strong>Mandatory HTTPS</strong> with no HTTP fallback</li>
+<li><strong>Modern TLS</strong> (1.2/1.3) with strong ciphers</li>
+<li><strong>Proper certificate validation</strong> without exceptions</li>
+<li><strong>Certificate pinning</strong> for critical connections</li>
+<li><strong>Platform security features</strong> (NSC, ATS)</li>
+<li><strong>Regular testing</strong> and monitoring</li>
+</ol>
+
+<p>These measures provide defense-in-depth against MITM attacks, packet sniffing, and other network-based threats.</p>
+
+<p>---</p>
+
+<strong>Next:</strong> See <a href="./examples.md">Code Examples</a> for practical implementation examples and try the <a href="./lab/">Hands-on Lab</a> to practice secure communication.
+
         </div>
     </div>
 </body>

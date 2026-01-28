@@ -215,7 +215,433 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>M02: Inadequate Supply Chain Security - Attack Vectors</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#understanding-supply-chain-attacks">Understanding Supply Chain Attacks</a></li>
+<li><a href="#attack-vector-categories">Attack Vector Categories</a></li>
+<li><a href="#attack-scenarios">Attack Scenarios</a></li>
+<li><a href="#attack-chain-analysis">Attack Chain Analysis</a></li>
+<li><a href="#exploitation-techniques">Exploitation Techniques</a></li>
+<li><a href="#detection-indicators">Detection Indicators</a></li>
+</ul>
+
+<h2>Understanding Supply Chain Attacks</h2>
+
+<p>Supply chain attacks exploit the trust relationship between mobile applications and their dependencies. Rather than attacking the application directly, attackers compromise components that the application depends on.</p>
+
+<h3>The Trust Chain</h3>
+
+<p>``<code></p>
+<p>Developer → Package Registry → Build System → App Store → User Device</p>
+<p>     ↓           ↓                  ↓              ↓            ↓</p>
+<p>  Trusts      Trusts            Trusts        Trusts       Trusts</p>
+<p>     ↓           ↓                  ↓              ↓            ↓</p>
+<p>Any compromise in this chain affects everyone downstream</p>
+</code>`<code>
+
+<h2>Attack Vector Categories</h2>
+
+<h3>1. Malicious Package Injection</h3>
+
+<strong>Typosquatting Attack</strong>
+<ul>
+<li>Attacker creates package with name similar to popular library</li>
+<li>Developers accidentally install wrong package</li>
+<li>Example: </code>react-native<code> vs </code>react-natve<code></li>
+</ul>
+
+<strong>Dependency Confusion</strong>
+<ul>
+<li>Exploits package manager behavior with internal vs public packages</li>
+<li>Attacker publishes package with internal name on public registry</li>
+<li>Build system installs malicious public version instead of internal</li>
+</ul>
+
+<strong>Brandjacking</strong>
+<ul>
+<li>Using trusted brand names to create deceptive packages</li>
+<li>"facebook-sdk-unofficial" appearing legitimate</li>
+<li>Developers trust the name association</li>
+</ul>
+
+<h3>2. Legitimate Package Compromise</h3>
+
+<strong>Account Takeover</strong>
+<ul>
+<li>Attacker compromises maintainer account credentials</li>
+<li>Publishes malicious update to legitimate package</li>
+<li>All apps auto-updating receive infected version</li>
+</ul>
+
+<strong>Repository Injection</strong>
+<ul>
+<li>Compromising source code repositories</li>
+<li>Injecting malicious code through pull requests</li>
+<li>Social engineering maintainers to merge malicious code</li>
+</ul>
+
+<strong>Build System Compromise</strong>
+<ul>
+<li>Attacking CI/CD pipelines</li>
+<li>Injecting malicious code during build process</li>
+<li>Published package differs from source code</li>
+</ul>
+
+<h3>3. Transitive Dependency Attacks</h3>
+
+<strong>Deep Dependency Exploitation</strong>
+<ul>
+<li>Targeting obscure dependencies deep in dependency tree</li>
+<li>Less scrutiny on packages few developers directly interact with</li>
+<li>Example: Popular package depends on 50+ libraries, one is compromised</li>
+</ul>
+
+<strong>Dependency Confusion Chain</strong>
+<ul>
+<li>Compromising low-level dependencies</li>
+<li>Malicious code propagates up dependency chain</li>
+<li>Affects thousands of apps indirectly</li>
+</ul>
+
+<h3>4. Abandoned Package Exploitation</h3>
+
+<strong>Package Takeover</strong>
+<ul>
+<li>Identifying abandoned but widely-used packages</li>
+<li>Social engineering to gain maintainer access</li>
+<li>Publishing "update" with malicious payload</li>
+</ul>
+
+<strong>Namespace Squatting</strong>
+<ul>
+<li>Registering package names before projects claim them</li>
+<li>Waiting for developers to make assumptions about official packages</li>
+<li>Serving malicious code to unsuspecting developers</li>
+</ul>
+
+<h3>5. SDK and Framework Attacks</h3>
+
+<strong>Third-Party SDK Compromise</strong>
+<ul>
+<li>Analytics, advertising, or social media SDKs infected</li>
+<li>Automatic updates push malicious code</li>
+<li>Widespread impact across many applications</li>
+</ul>
+
+<strong>Framework Backdoors</strong>
+<ul>
+<li>Compromising development frameworks</li>
+<li>All apps built with framework are vulnerable</li>
+<li>Long-term persistent access</li>
+</ul>
+
+<h2>Attack Scenarios</h2>
+
+<h3>Scenario 1: The Typosquatting Trap</h3>
+
+</code>`<code>
+<p>Attack Flow:</p>
+<ol>
+<li>Attacker researches popular packages (e.g., "axios" - HTTP client)</li>
+<li>Creates similar package "axois" with malicious code</li>
+<li>Developer makes typo during installation</li>
+<li>Package installed in project</li>
+<li>Malicious code exfiltrates environment variables</li>
+<li>API keys and secrets stolen</li>
+<li>Attacker accesses backend systems</li>
+</ol>
+</code>`<code>
+
+<strong>Impact</strong>: Credential theft, backend compromise, data breach
+
+<h3>Scenario 2: The Dependency Confusion Attack</h3>
+
+</code>`<code>
+<p>Attack Flow:</p>
+<ol>
+<li>Attacker discovers internal package name from error messages/job postings</li>
+<li>Publishes package with same name to public npm/PyPI</li>
+<li>Build system checks public registry first</li>
+<li>Downloads malicious public package instead of internal</li>
+<li>Malicious code executes in build environment</li>
+<li>Source code and secrets exfiltrated</li>
+<li>Supply chain fully compromised</li>
+</ol>
+</code>`<code>
+
+<strong>Impact</strong>: Source code theft, credential exposure, backdoored releases
+
+<h3>Scenario 3: The Legitimate Package Hijack</h3>
+
+</code>`<code>
+<p>Attack Flow:</p>
+<ol>
+<li>Attacker identifies popular but under-maintained package</li>
+<li>Social engineers way into maintainer team</li>
+<li>Publishes malicious "security update"</li>
+<li>Apps auto-update to compromised version</li>
+<li>Malicious SDK collects user data</li>
+<li>Data sent to attacker-controlled servers</li>
+<li>Millions of users affected</li>
+</ol>
+</code>`<code>
+
+<strong>Impact</strong>: Mass data collection, privacy violations, app store removal
+
+<h3>Scenario 4: The Build Tool Compromise</h3>
+
+</code>`<code>
+<p>Attack Flow:</p>
+<ol>
+<li>Attacker compromises developer's machine via phishing</li>
+<li>Injects malicious plugin into build tool configuration</li>
+<li>Plugin modifies compiled application during build</li>
+<li>Backdoor inserted that's not in source code</li>
+<li>App published with hidden malicious functionality</li>
+<li>Source code reviews miss the compromise</li>
+<li>Users install backdoored application</li>
+</ol>
+</code>`<code>
+
+<strong>Impact</strong>: Backdoored applications, persistent access, undetectable compromise
+
+<h2>Attack Chain Analysis</h2>
+
+<h3>Phase 1: Reconnaissance</h3>
+
+<strong>Attacker Activities:</strong>
+<ul>
+<li>Identifying popular packages and their typo variants</li>
+<li>Discovering internal package names</li>
+<li>Finding vulnerable or abandoned projects</li>
+<li>Researching maintainer accounts and security practices</li>
+</ul>
+
+<strong>Duration</strong>: Days to months of preparation
+
+<h3>Phase 2: Compromise</h3>
+
+<strong>Attack Methods:</strong>
+<ul>
+<li>Publishing malicious packages</li>
+<li>Compromising maintainer accounts via credential theft</li>
+<li>Social engineering to gain commit access</li>
+<li>Exploiting build system vulnerabilities</li>
+</ul>
+
+<strong>Duration</strong>: Minutes to hours for execution
+
+<h3>Phase 3: Distribution</h3>
+
+<strong>Propagation:</strong>
+<ul>
+<li>Developers install compromised packages</li>
+<li>CI/CD systems auto-download malicious dependencies</li>
+<li>Package updates push malicious code to existing installations</li>
+<li>App updates distribute compromised code to users</li>
+</ul>
+
+<strong>Duration</strong>: Hours to days for widespread distribution
+
+<h3>Phase 4: Exploitation</h3>
+
+<strong>Malicious Actions:</strong>
+<ul>
+<li>Exfiltrating credentials and API keys</li>
+<li>Collecting user data (contacts, location, messages)</li>
+<li>Installing additional malware</li>
+<li>Creating backdoors for persistent access</li>
+<li>Cryptocurrency mining</li>
+</ul>
+
+<strong>Duration</strong>: Continuous until detected
+
+<h3>Phase 5: Persistence</h3>
+
+<strong>Maintaining Access:</strong>
+<ul>
+<li>Backdoors in multiple dependencies</li>
+<li>Compromised build pipelines</li>
+<li>Account access for future updates</li>
+<li>Distributed across app ecosystem</li>
+</ul>
+
+<strong>Duration</strong>: Months to years if undetected
+
+<h2>Exploitation Techniques</h2>
+
+<h3>1. Data Exfiltration</h3>
+
+</code>`<code>
+<p>Conceptual Approach:</p>
+<ul>
+<li>Malicious dependency collects sensitive data</li>
+<li>Encodes data to avoid detection</li>
+<li>Sends to attacker-controlled endpoint</li>
+<li>Uses legitimate-looking traffic patterns</li>
+</ul>
+</code>`<code>
+
+<strong>What Gets Stolen:</strong>
+<ul>
+<li>Environment variables with API keys</li>
+<li>User authentication tokens</li>
+<li>Personal user data</li>
+<li>Application source code</li>
+<li>Build artifacts and certificates</li>
+</ul>
+
+<h3>2. Backdoor Installation</h3>
+
+</code>`<code>
+<p>Conceptual Approach:</p>
+<ul>
+<li>Inject remote code execution capability</li>
+<li>Establish command and control channel</li>
+<li>Hide communication in normal traffic</li>
+<li>Enable future arbitrary code execution</li>
+</ul>
+</code>`<code>
+
+<strong>Capabilities Enabled:</strong>
+<ul>
+<li>Remote control of application behavior</li>
+<li>Dynamic payload delivery</li>
+<li>Credential harvesting</li>
+<li>Lateral movement to backend systems</li>
+</ul>
+
+<h3>3. Supply Chain Poisoning</h3>
+
+</code>`<code>
+<p>Conceptual Approach:</p>
+<ul>
+<li>Compromise one package in dependency tree</li>
+<li>Malicious code spreads to dependent packages</li>
+<li>Creates cascading compromise</li>
+<li>Difficult to trace origin</li>
+</ul>
+</code>``
+
+<strong>Spread Pattern:</strong>
+<ul>
+<li>Direct dependencies affected immediately</li>
+<li>Transitive dependencies over time</li>
+<li>Ecosystem-wide contamination possible</li>
+</ul>
+
+<h2>Detection Indicators</h2>
+
+<h3>Technical Indicators</h3>
+
+<strong>Package Anomalies:</strong>
+<ul>
+<li>Unexpected network connections during build</li>
+<li>New dependencies appearing in package-lock files</li>
+<li>Changes in package checksums or hashes</li>
+<li>Unusual permissions requested by SDKs</li>
+</ul>
+
+<strong>Code Indicators:</strong>
+<ul>
+<li>Obfuscated code in dependencies</li>
+<li>Base64-encoded strings (potential payload hiding)</li>
+<li>Dynamic code evaluation (eval, Function constructor)</li>
+<li>Suspicious network requests to unknown domains</li>
+</ul>
+
+<strong>Behavioral Indicators:</strong>
+<ul>
+<li>Build times suddenly increase</li>
+<li>Unexpected files in build output</li>
+<li>Environment variables accessed by libraries</li>
+<li>New outbound network connections</li>
+</ul>
+
+<h3>Process Indicators</h3>
+
+<strong>Development Environment:</strong>
+<ul>
+<li>Unfamiliar packages in node_modules</li>
+<li>Unexpected package updates</li>
+<li>Lock file modifications without explicit updates</li>
+<li>Build warnings about deprecated or vulnerable packages</li>
+</ul>
+
+<strong>Runtime Indicators:</strong>
+<ul>
+<li>Unexpected API calls from app</li>
+<li>Data sent to unknown endpoints</li>
+<li>Increased battery or data usage</li>
+<li>Crashes or performance degradation</li>
+</ul>
+
+<h2>Defense Strategies Preview</h2>
+
+<p>While detailed defenses are covered in the Prevention guide, key detection strategies include:</p>
+
+<ol>
+<li><strong>Dependency Scanning</strong>: Automated vulnerability detection</li>
+<li><strong>Integrity Verification</strong>: Checksum and signature validation</li>
+<li><strong>SBOM Maintenance</strong>: Complete dependency inventory</li>
+<li><strong>Network Monitoring</strong>: Detecting unusual build-time connections</li>
+<li><strong>Code Review</strong>: Manual inspection of critical dependencies</li>
+</ol>
+
+<h2>Risk Assessment</h2>
+
+<h3>High-Risk Scenarios</h3>
+
+<ul>
+<li>Installing packages from unknown authors</li>
+<li>Auto-updating dependencies without review</li>
+<li>Using deprecated or unmaintained packages</li>
+<li>No dependency integrity verification</li>
+<li>Lack of SBOM or dependency tracking</li>
+</ul>
+
+<h3>Medium-Risk Scenarios</h3>
+
+<ul>
+<li>Using popular packages without version pinning</li>
+<li>Transitive dependencies not regularly audited</li>
+<li>Build processes without network restrictions</li>
+<li>Limited code review of dependency updates</li>
+</ul>
+
+<h3>Lower-Risk Scenarios</h3>
+
+<ul>
+<li>Pinned dependencies with manual update reviews</li>
+<li>Comprehensive dependency scanning</li>
+<li>Network-restricted build environments</li>
+<li>Regular security audits of dependency chain</li>
+</ul>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Supply chain attacks exploit trust relationships in development</strong></li>
+<li><strong>A single compromised dependency can affect millions of users</strong></li>
+<li><strong>Attacks can occur at multiple points: registry, build, runtime</strong></li>
+<li><strong>Detection requires both automated tools and manual vigilance</strong></li>
+<li><strong>Defense must be proactive, not reactive</strong></li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="./prevention.md">Prevention Guide</a></strong>: Learn how to secure your supply chain</li>
+<li><strong><a href="./examples.md">Examples</a></strong>: See vulnerable vs secure dependency practices</li>
+<li><strong><a href="./lab/">Interactive Lab</a></strong>: Practice identifying supply chain vulnerabilities</li>
+</ul>
+
+<p>---</p>
+
+<strong>Remember</strong>: In supply chain security, paranoia is a feature, not a bug.
+
         </div>
     </div>
 </body>

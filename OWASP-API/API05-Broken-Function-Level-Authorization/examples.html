@@ -215,7 +215,1020 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>API05: Broken Function Level Authorization - Code Examples</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#flask-examples">Flask Examples</a></li>
+<li><a href="#expressjs-examples">Express.js Examples</a></li>
+<li><a href="#fastapi-examples">FastAPI Examples</a></li>
+<li><a href="#django-rest-framework-examples">Django REST Framework Examples</a></li>
+<li><a href="#complete-application-examples">Complete Application Examples</a></li>
+</ul>
+
+<h2>Flask Examples</h2>
+
+<h3>Example 1: Basic Admin Function Protection</h3>
+
+<h4>❌ Vulnerable Code</h4>
+
+<p>``<code>python</p>
+<p>from flask import Flask, request, jsonify</p>
+<p>from models import User, db</p>
+
+<p>app = Flask(__name__)</p>
+
+<p>@app.route('/api/users/<int:user_id>', methods=['DELETE'])</p>
+<p>def delete_user(user_id):</p>
+<p>    """VULNERABLE: No authorization check!"""</p>
+<p>    user = User.query.get_or_404(user_id)</p>
+<p>    db.session.delete(user)</p>
+<p>    db.session.commit()</p>
+<p>    return jsonify({'status': 'deleted', 'user_id': user_id})</p>
+
+<h1>Any authenticated user can delete any user!</h1>
+</code>`<code>
+
+<strong>Vulnerabilities</strong>:
+<ul>
+<li>No role verification</li>
+<li>No permission checking</li>
+<li>Admin function accessible to all authenticated users</li>
+</ul>
+
+<h4>✅ Secure Code</h4>
+
+</code>`<code>python
+<p>from flask import Flask, request, jsonify, g</p>
+<p>from functools import wraps</p>
+<p>from models import User, db</p>
+
+<p>app = Flask(__name__)</p>
+
+<p>def admin_required(f):</p>
+<p>    """Decorator to require admin role."""</p>
+<p>    @wraps(f)</p>
+<p>    def decorated_function(<em>args, </em>*kwargs):</p>
+<p>        if not hasattr(g, 'current_user'):</p>
+<p>            return jsonify({'error': 'Authentication required'}), 401</p>
+        
+<p>        if g.current_user.role != 'admin':</p>
+<p>            return jsonify({'error': 'Admin access required'}), 403</p>
+        
+<p>        return f(<em>args, </em>*kwargs)</p>
+<p>    return decorated_function</p>
+
+<p>@app.route('/api/users/<int:user_id>', methods=['DELETE'])</p>
+<p>@admin_required</p>
+<p>def delete_user(user_id):</p>
+<p>    """SECURE: Requires admin role."""</p>
+<p>    user = User.query.get_or_404(user_id)</p>
+    
+<p>    # Additional check: prevent deleting yourself</p>
+<p>    if user.id == g.current_user.id:</p>
+<p>        return jsonify({'error': 'Cannot delete your own account'}), 400</p>
+    
+<p>    db.session.delete(user)</p>
+<p>    db.session.commit()</p>
+    
+<p>    return jsonify({'status': 'deleted', 'user_id': user_id})</p>
+</code>`<code>
+
+<strong>Security Improvements</strong>:
+<ul>
+<li>✓ Explicit admin role check</li>
+<li>✓ Authentication verification</li>
+<li>✓ Self-deletion prevention</li>
+<li>✓ Clear error messages</li>
+</ul>
+
+<h3>Example 2: Method-Specific Authorization</h3>
+
+<h4>❌ Vulnerable Code</h4>
+
+</code>`<code>python
+<p>@app.route('/api/products/<int:product_id>', methods=['GET', 'PUT', 'DELETE'])</p>
+<p>def product_endpoint(product_id):</p>
+<p>    """VULNERABLE: GET protected, but PUT/DELETE are not!"""</p>
+<p>    product = Product.query.get_or_404(product_id)</p>
+    
+<p>    if request.method == 'GET':</p>
+<p>        # Only check authorization for GET</p>
+<p>        if not g.current_user.can_view_product(product):</p>
+<p>            return jsonify({'error': 'Forbidden'}), 403</p>
+<p>        return jsonify(product.to_dict())</p>
+    
+<p>    elif request.method == 'PUT':</p>
+<p>        # Missing authorization check!</p>
+<p>        product.update(request.json)</p>
+<p>        db.session.commit()</p>
+<p>        return jsonify(product.to_dict())</p>
+    
+<p>    elif request.method == 'DELETE':</p>
+<p>        # Missing authorization check!</p>
+<p>        db.session.delete(product)</p>
+<p>        db.session.commit()</p>
+<p>        return jsonify({'status': 'deleted'})</p>
+</code>`<code>
+
+<h4>✅ Secure Code</h4>
+
+</code>`<code>python
+<p>def require_role(*allowed_roles):</p>
+<p>    """Decorator to require specific roles."""</p>
+<p>    def decorator(f):</p>
+<p>        @wraps(f)</p>
+<p>        def decorated_function(<em>args, </em>*kwargs):</p>
+<p>            if not hasattr(g, 'current_user'):</p>
+<p>                return jsonify({'error': 'Authentication required'}), 401</p>
+            
+<p>            if g.current_user.role not in allowed_roles:</p>
+<p>                return jsonify({</p>
+<p>                    'error': f'Requires one of: {", ".join(allowed_roles)}'</p>
+<p>                }), 403</p>
+            
+<p>            return f(<em>args, </em>*kwargs)</p>
+<p>        return decorated_function</p>
+<p>    return decorator</p>
+
+<p>@app.route('/api/products/<int:product_id>', methods=['GET'])</p>
+<p>@require_role('user', 'admin')</p>
+<p>def get_product(product_id):</p>
+<p>    """GET: All authenticated users."""</p>
+<p>    product = Product.query.get_or_404(product_id)</p>
+<p>    return jsonify(product.to_dict())</p>
+
+<p>@app.route('/api/products/<int:product_id>', methods=['PUT'])</p>
+<p>@require_role('admin', 'product_manager')</p>
+<p>def update_product(product_id):</p>
+<p>    """PUT: Admin or product manager only."""</p>
+<p>    product = Product.query.get_or_404(product_id)</p>
+<p>    product.update(request.json)</p>
+<p>    db.session.commit()</p>
+<p>    return jsonify(product.to_dict())</p>
+
+<p>@app.route('/api/products/<int:product_id>', methods=['DELETE'])</p>
+<p>@require_role('admin')</p>
+<p>def delete_product(product_id):</p>
+<p>    """DELETE: Admin only."""</p>
+<p>    product = Product.query.get_or_404(product_id)</p>
+<p>    db.session.delete(product)</p>
+<p>    db.session.commit()</p>
+<p>    return jsonify({'status': 'deleted'})</p>
+</code>`<code>
+
+<strong>Security Improvements</strong>:
+<ul>
+<li>✓ Separate routes for different methods</li>
+<li>✓ Method-specific authorization</li>
+<li>✓ Reusable role decorator</li>
+<li>✓ Clear permission requirements</li>
+</ul>
+
+<h3>Example 3: Parameter Manipulation Prevention</h3>
+
+<h4>❌ Vulnerable Code</h4>
+
+</code>`<code>python
+<p>@app.route('/api/register', methods=['POST'])</p>
+<p>def register():</p>
+<p>    """VULNERABLE: Trusts client-provided role!"""</p>
+<p>    data = request.json</p>
+    
+<p>    user = User(</p>
+<p>        username=data['username'],</p>
+<p>        email=data['email'],</p>
+<p>        password=hash_password(data['password']),</p>
+<p>        role=data.get('role', 'user')  # Attacker can set 'admin'!</p>
+<p>    )</p>
+    
+<p>    db.session.add(user)</p>
+<p>    db.session.commit()</p>
+    
+<p>    return jsonify(user.to_dict()), 201</p>
+</code>`<code>
+
+<strong>Attack</strong>:
+</code>`<code>bash
+<p>curl -X POST https://api.example.com/api/register \</p>
+<p>  -H "Content-Type: application/json" \</p>
+<p>  -d '{</p>
+<p>    "username": "attacker",</p>
+<p>    "email": "attacker@evil.com",</p>
+<p>    "password": "password123",</p>
+<p>    "role": "admin"</p>
+<p>  }'</p>
+</code>`<code>
+
+<h4>✅ Secure Code</h4>
+
+</code>`<code>python
+<p>@app.route('/api/register', methods=['POST'])</p>
+<p>def register():</p>
+<p>    """SECURE: Only allowed fields, fixed role."""</p>
+<p>    data = request.json</p>
+    
+<p>    # Whitelist allowed fields</p>
+<p>    allowed_fields = {'username', 'email', 'password'}</p>
+<p>    user_data = {k: v for k, v in data.items() if k in allowed_fields}</p>
+    
+<p>    # Server assigns role (never trust client)</p>
+<p>    user = User(</p>
+<p>        username=user_data['username'],</p>
+<p>        email=user_data['email'],</p>
+<p>        password=hash_password(user_data['password']),</p>
+<p>        role='user'  # Always 'user' for registration</p>
+<p>    )</p>
+    
+<p>    db.session.add(user)</p>
+<p>    db.session.commit()</p>
+    
+<p>    # Don't expose role in response if not needed</p>
+<p>    response_data = {</p>
+<p>        'id': user.id,</p>
+<p>        'username': user.username,</p>
+<p>        'email': user.email</p>
+<p>    }</p>
+    
+<p>    return jsonify(response_data), 201</p>
+
+<p>@app.route('/api/users/<int:user_id>/role', methods=['PUT'])</p>
+<p>@require_role('admin')</p>
+<p>def update_user_role(user_id):</p>
+<p>    """SECURE: Separate endpoint for role changes, admin-only."""</p>
+<p>    user = User.query.get_or_404(user_id)</p>
+<p>    new_role = request.json.get('role')</p>
+    
+<p>    # Validate role</p>
+<p>    valid_roles = ['user', 'moderator', 'admin']</p>
+<p>    if new_role not in valid_roles:</p>
+<p>        return jsonify({'error': 'Invalid role'}), 400</p>
+    
+<p>    # Additional business logic checks</p>
+<p>    if new_role == 'admin' and g.current_user.role != 'super_admin':</p>
+<p>        return jsonify({'error': 'Only super_admin can create admins'}), 403</p>
+    
+<p>    user.role = new_role</p>
+<p>    db.session.commit()</p>
+    
+<p>    return jsonify({'user_id': user.id, 'role': user.role})</p>
+</code>`<code>
+
+<strong>Security Improvements</strong>:
+<ul>
+<li>✓ Field whitelisting</li>
+<li>✓ Server-controlled role assignment</li>
+<li>✓ Separate admin endpoint for role changes</li>
+<li>✓ Role validation</li>
+<li>✓ Hierarchical permission checks</li>
+</ul>
+
+<h3>Example 4: Hidden Endpoint Protection</h3>
+
+<h4>❌ Vulnerable Code</h4>
+
+</code>`<code>python
+<h1>Public documented endpoint</h1>
+<p>@app.route('/api/users', methods=['GET'])</p>
+<p>def list_users():</p>
+<p>    """Public endpoint - returns limited data."""</p>
+<p>    users = User.query.limit(100).all()</p>
+<p>    return jsonify([{'id': u.id, 'username': u.username} for u in users])</p>
+
+<h1>Hidden admin endpoint (not in documentation)</h1>
+<p>@app.route('/api/admin/users', methods=['GET'])</p>
+<p>def admin_list_users():</p>
+<p>    """VULNERABLE: No authorization check on 'hidden' endpoint!"""</p>
+<p>    users = User.query.all()</p>
+<p>    return jsonify([u.to_dict(include_sensitive=True) for u in users])</p>
+
+<h1>Attacker can discover and access this endpoint</h1>
+</code>`<code>
+
+<h4>✅ Secure Code</h4>
+
+</code>`<code>python
+<p>@app.route('/api/users', methods=['GET'])</p>
+<p>@require_role('user', 'admin')</p>
+<p>def list_users():</p>
+<p>    """Public endpoint - returns limited data."""</p>
+<p>    users = User.query.limit(100).all()</p>
+<p>    return jsonify([{'id': u.id, 'username': u.username} for u in users])</p>
+
+<p>@app.route('/api/admin/users', methods=['GET'])</p>
+<p>@require_role('admin')</p>
+<p>def admin_list_users():</p>
+<p>    """SECURE: Admin-only endpoint with explicit check."""</p>
+<p>    # Additional parameter validation</p>
+<p>    include_deleted = request.args.get('include_deleted', 'false') == 'true'</p>
+<p>    export_format = request.args.get('export')</p>
+    
+<p>    query = User.query</p>
+<p>    if include_deleted:</p>
+<p>        query = query.filter_by(deleted=True)</p>
+    
+<p>    users = query.all()</p>
+    
+<p>    if export_format == 'csv':</p>
+<p>        # Verify admin permission for export</p>
+<p>        return export_users_csv(users)</p>
+    
+<p>    return jsonify([u.to_dict(include_sensitive=True) for u in users])</p>
+
+<p>@app.before_request</p>
+<p>def check_admin_routes():</p>
+<p>    """Global check for admin routes."""</p>
+<p>    if request.path.startswith('/api/admin/'):</p>
+<p>        if not hasattr(g, 'current_user'):</p>
+<p>            return jsonify({'error': 'Authentication required'}), 401</p>
+<p>        if g.current_user.role not in ['admin', 'super_admin']:</p>
+<p>            return jsonify({'error': 'Admin access required'}), 403</p>
+</code>`<code>
+
+<strong>Security Improvements</strong>:
+<ul>
+<li>✓ Explicit authorization on all endpoints</li>
+<li>✓ Global admin route protection</li>
+<li>✓ Parameter validation</li>
+<li>✓ No reliance on obscurity</li>
+</ul>
+
+<h2>Express.js Examples</h2>
+
+<h3>Example 1: Middleware-Based Authorization</h3>
+
+<h4>❌ Vulnerable Code</h4>
+
+</code>`<code>javascript
+<p>const express = require('express');</p>
+<p>const app = express();</p>
+
+<p>// Authentication middleware (only checks if logged in)</p>
+<p>const authenticate = (req, res, next) => {</p>
+<p>    const token = req.headers.authorization;</p>
+<p>    if (!token) {</p>
+<p>        return res.status(401).json({ error: 'Not authenticated' });</p>
+<p>    }</p>
+<p>    req.user = verifyToken(token);</p>
+<p>    next();</p>
+<p>};</p>
+
+<p>// VULNERABLE: Only checks authentication, not authorization</p>
+<p>app.delete('/api/users/:id', authenticate, async (req, res) => {</p>
+<p>    await User.destroy({ where: { id: req.params.id } });</p>
+<p>    res.json({ status: 'deleted' });</p>
+<p>});</p>
+
+<p>// Any authenticated user can delete any user!</p>
+</code>`<code>
+
+<h4>✅ Secure Code</h4>
+
+</code>`<code>javascript
+<p>const express = require('express');</p>
+<p>const app = express();</p>
+
+<p>// Authentication middleware</p>
+<p>const authenticate = (req, res, next) => {</p>
+<p>    const token = req.headers.authorization?.replace('Bearer ', '');</p>
+    
+<p>    if (!token) {</p>
+<p>        return res.status(401).json({ error: 'Authentication required' });</p>
+<p>    }</p>
+    
+<p>    try {</p>
+<p>        req.user = verifyToken(token);</p>
+<p>        next();</p>
+<p>    } catch (error) {</p>
+<p>        return res.status(401).json({ error: 'Invalid token' });</p>
+<p>    }</p>
+<p>};</p>
+
+<p>// Authorization middleware factory</p>
+<p>const requireRole = (...allowedRoles) => {</p>
+<p>    return (req, res, next) => {</p>
+<p>        if (!req.user) {</p>
+<p>            return res.status(401).json({ error: 'Authentication required' });</p>
+<p>        }</p>
+        
+<p>        if (!allowedRoles.includes(req.user.role)) {</p>
+<p>            return res.status(403).json({ </p>
+<p>                error: </code>Requires one of: ${allowedRoles.join(', ')}<code> </p>
+<p>            });</p>
+<p>        }</p>
+        
+<p>        next();</p>
+<p>    };</p>
+<p>};</p>
+
+<p>// SECURE: Requires admin role</p>
+<p>app.delete('/api/users/:id', </p>
+<p>    authenticate,</p>
+<p>    requireRole('admin', 'super_admin'),</p>
+<p>    async (req, res) => {</p>
+<p>        const userId = req.params.id;</p>
+        
+<p>        // Prevent self-deletion</p>
+<p>        if (userId === req.user.id) {</p>
+<p>            return res.status(400).json({ error: 'Cannot delete your own account' });</p>
+<p>        }</p>
+        
+<p>        await User.destroy({ where: { id: userId } });</p>
+<p>        res.json({ status: 'deleted', userId });</p>
+<p>    }</p>
+<p>);</p>
+</code>`<code>
+
+<h3>Example 2: Role-Based CRUD Operations</h3>
+
+<h4>❌ Vulnerable Code</h4>
+
+</code>`<code>javascript
+<p>// VULNERABLE: No differentiation between operations</p>
+<p>app.route('/api/posts/:id')</p>
+<p>    .get(authenticate, async (req, res) => {</p>
+<p>        const post = await Post.findByPk(req.params.id);</p>
+<p>        res.json(post);</p>
+<p>    })</p>
+<p>    .put(authenticate, async (req, res) => {</p>
+<p>        // Missing authorization - any user can edit any post!</p>
+<p>        const post = await Post.findByPk(req.params.id);</p>
+<p>        await post.update(req.body);</p>
+<p>        res.json(post);</p>
+<p>    })</p>
+<p>    .delete(authenticate, async (req, res) => {</p>
+<p>        // Missing authorization - any user can delete any post!</p>
+<p>        await Post.destroy({ where: { id: req.params.id } });</p>
+<p>        res.json({ status: 'deleted' });</p>
+<p>    });</p>
+</code>`<code>
+
+<h4>✅ Secure Code</h4>
+
+</code>`<code>javascript
+<p>// Permission checking middleware</p>
+<p>const canModifyPost = async (req, res, next) => {</p>
+<p>    const post = await Post.findByPk(req.params.id);</p>
+    
+<p>    if (!post) {</p>
+<p>        return res.status(404).json({ error: 'Post not found' });</p>
+<p>    }</p>
+    
+<p>    // Admin can modify any post</p>
+<p>    if (req.user.role === 'admin') {</p>
+<p>        req.post = post;</p>
+<p>        return next();</p>
+<p>    }</p>
+    
+<p>    // Moderators can modify any post</p>
+<p>    if (req.user.role === 'moderator') {</p>
+<p>        req.post = post;</p>
+<p>        return next();</p>
+<p>    }</p>
+    
+<p>    // Regular users can only modify their own posts</p>
+<p>    if (post.authorId === req.user.id) {</p>
+<p>        req.post = post;</p>
+<p>        return next();</p>
+<p>    }</p>
+    
+<p>    return res.status(403).json({ error: 'Not authorized to modify this post' });</p>
+<p>};</p>
+
+<p>const canDeletePost = async (req, res, next) => {</p>
+<p>    const post = await Post.findByPk(req.params.id);</p>
+    
+<p>    if (!post) {</p>
+<p>        return res.status(404).json({ error: 'Post not found' });</p>
+<p>    }</p>
+    
+<p>    // Only admin and post author can delete</p>
+<p>    if (req.user.role === 'admin' || post.authorId === req.user.id) {</p>
+<p>        req.post = post;</p>
+<p>        return next();</p>
+<p>    }</p>
+    
+<p>    return res.status(403).json({ error: 'Not authorized to delete this post' });</p>
+<p>};</p>
+
+<p>// SECURE: Different authorization for different operations</p>
+<p>app.route('/api/posts/:id')</p>
+<p>    .get(authenticate, async (req, res) => {</p>
+<p>        // Read: all authenticated users</p>
+<p>        const post = await Post.findByPk(req.params.id);</p>
+<p>        res.json(post);</p>
+<p>    })</p>
+<p>    .put(authenticate, canModifyPost, async (req, res) => {</p>
+<p>        // Update: owner, moderator, or admin</p>
+<p>        await req.post.update(req.body);</p>
+<p>        res.json(req.post);</p>
+<p>    })</p>
+<p>    .delete(authenticate, canDeletePost, async (req, res) => {</p>
+<p>        // Delete: owner or admin only</p>
+<p>        await req.post.destroy();</p>
+<p>        res.json({ status: 'deleted' });</p>
+<p>    });</p>
+</code>`<code>
+
+<h3>Example 3: Bulk Operations Protection</h3>
+
+<h4>❌ Vulnerable Code</h4>
+
+</code>`<code>javascript
+<p>// VULNERABLE: Bulk delete accessible to all users</p>
+<p>app.post('/api/users/bulk-delete', authenticate, async (req, res) => {</p>
+<p>    const { userIds } = req.body;</p>
+    
+<p>    await User.destroy({</p>
+<p>        where: {</p>
+<p>            id: { [Op.in]: userIds }</p>
+<p>        }</p>
+<p>    });</p>
+    
+<p>    res.json({ status: 'deleted', count: userIds.length });</p>
+<p>});</p>
+
+<p>// Regular user could delete hundreds of users!</p>
+</code>`<code>
+
+<h4>✅ Secure Code</h4>
+
+</code>`<code>javascript
+<p>// SECURE: Bulk operations require admin role</p>
+<p>app.post('/api/users/bulk-delete', </p>
+<p>    authenticate,</p>
+<p>    requireRole('admin'),</p>
+<p>    async (req, res) => {</p>
+<p>        const { userIds } = req.body;</p>
+        
+<p>        // Validate input</p>
+<p>        if (!Array.isArray(userIds) || userIds.length === 0) {</p>
+<p>            return res.status(400).json({ error: 'Invalid user IDs' });</p>
+<p>        }</p>
+        
+<p>        // Limit bulk operation size</p>
+<p>        if (userIds.length > 100) {</p>
+<p>            return res.status(400).json({ </p>
+<p>                error: 'Bulk operations limited to 100 users at a time' </p>
+<p>            });</p>
+<p>        }</p>
+        
+<p>        // Prevent deleting yourself in bulk</p>
+<p>        if (userIds.includes(req.user.id)) {</p>
+<p>            return res.status(400).json({ </p>
+<p>                error: 'Cannot delete your own account in bulk operation' </p>
+<p>            });</p>
+<p>        }</p>
+        
+<p>        // Perform deletion with transaction</p>
+<p>        const transaction = await sequelize.transaction();</p>
+        
+<p>        try {</p>
+<p>            const result = await User.destroy({</p>
+<p>                where: {</p>
+<p>                    id: { [Op.in]: userIds }</p>
+<p>                },</p>
+<p>                transaction</p>
+<p>            });</p>
+            
+<p>            await transaction.commit();</p>
+            
+<p>            // Audit log</p>
+<p>            await AuditLog.create({</p>
+<p>                userId: req.user.id,</p>
+<p>                action: 'bulk_delete_users',</p>
+<p>                details: { userIds, count: result }</p>
+<p>            });</p>
+            
+<p>            res.json({ status: 'deleted', count: result });</p>
+<p>        } catch (error) {</p>
+<p>            await transaction.rollback();</p>
+<p>            res.status(500).json({ error: 'Bulk deletion failed' });</p>
+<p>        }</p>
+<p>    }</p>
+<p>);</p>
+</code>`<code>
+
+<h2>FastAPI Examples</h2>
+
+<h3>Example 1: Dependency-Based Authorization</h3>
+
+<h4>❌ Vulnerable Code</h4>
+
+</code>`<code>python
+<p>from fastapi import FastAPI, Depends, HTTPException</p>
+<p>from fastapi.security import HTTPBearer</p>
+
+<p>app = FastAPI()</p>
+<p>security = HTTPBearer()</p>
+
+<p>async def get_current_user(credentials = Depends(security)):</p>
+<p>    """VULNERABLE: Only checks authentication, not authorization."""</p>
+<p>    token = credentials.credentials</p>
+<p>    user = verify_token(token)</p>
+<p>    if not user:</p>
+<p>        raise HTTPException(status_code=401, detail="Invalid token")</p>
+<p>    return user</p>
+
+<p>@app.delete("/api/users/{user_id}")</p>
+<p>async def delete_user(</p>
+<p>    user_id: int,</p>
+<p>    current_user = Depends(get_current_user)</p>
+<p>):</p>
+<p>    """VULNERABLE: Any authenticated user can delete any user!"""</p>
+<p>    user = await User.get(user_id)</p>
+<p>    await user.delete()</p>
+<p>    return {"status": "deleted", "user_id": user_id}</p>
+</code>`<code>
+
+<h4>✅ Secure Code</h4>
+
+</code>`<code>python
+<p>from fastapi import FastAPI, Depends, HTTPException, status</p>
+<p>from fastapi.security import HTTPBearer</p>
+<p>from typing import List</p>
+
+<p>app = FastAPI()</p>
+<p>security = HTTPBearer()</p>
+
+<p>async def get_current_user(credentials = Depends(security)):</p>
+<p>    """Get authenticated user."""</p>
+<p>    token = credentials.credentials</p>
+<p>    user = verify_token(token)</p>
+<p>    if not user:</p>
+<p>        raise HTTPException(</p>
+<p>            status_code=status.HTTP_401_UNAUTHORIZED,</p>
+<p>            detail="Invalid authentication credentials"</p>
+<p>        )</p>
+<p>    return user</p>
+
+<p>class RoleChecker:</p>
+<p>    """Dependency for role-based authorization."""</p>
+    
+<p>    def __init__(self, allowed_roles: List[str]):</p>
+<p>        self.allowed_roles = allowed_roles</p>
+    
+<p>    def __call__(self, user = Depends(get_current_user)):</p>
+<p>        if user.role not in self.allowed_roles:</p>
+<p>            raise HTTPException(</p>
+<p>                status_code=status.HTTP_403_FORBIDDEN,</p>
+<p>                detail=f"Requires one of: {', '.join(self.allowed_roles)}"</p>
+<p>            )</p>
+<p>        return user</p>
+
+<h1>Use as dependency</h1>
+<p>require_admin = RoleChecker(["admin", "super_admin"])</p>
+<p>require_moderator = RoleChecker(["admin", "moderator"])</p>
+
+<p>@app.delete("/api/users/{user_id}")</p>
+<p>async def delete_user(</p>
+<p>    user_id: int,</p>
+<p>    current_user = Depends(require_admin)</p>
+<p>):</p>
+<p>    """SECURE: Only admins can delete users."""</p>
+<p>    # Prevent self-deletion</p>
+<p>    if user_id == current_user.id:</p>
+<p>        raise HTTPException(</p>
+<p>            status_code=status.HTTP_400_BAD_REQUEST,</p>
+<p>            detail="Cannot delete your own account"</p>
+<p>        )</p>
+    
+<p>    user = await User.get(user_id)</p>
+<p>    if not user:</p>
+<p>        raise HTTPException(</p>
+<p>            status_code=status.HTTP_404_NOT_FOUND,</p>
+<p>            detail="User not found"</p>
+<p>        )</p>
+    
+<p>    await user.delete()</p>
+<p>    return {"status": "deleted", "user_id": user_id}</p>
+</code>`<code>
+
+<h3>Example 2: Permission-Based Authorization</h3>
+
+<h4>✅ Secure Implementation</h4>
+
+</code>`<code>python
+<p>from enum import Enum</p>
+<p>from typing import Set</p>
+
+<p>class Permission(str, Enum):</p>
+<p>    READ_USERS = "users:read"</p>
+<p>    WRITE_USERS = "users:write"</p>
+<p>    DELETE_USERS = "users:delete"</p>
+<p>    MANAGE_ROLES = "roles:manage"</p>
+<p>    VIEW_ANALYTICS = "analytics:view"</p>
+
+<p>ROLE_PERMISSIONS = {</p>
+<p>    "admin": {</p>
+<p>        Permission.READ_USERS,</p>
+<p>        Permission.WRITE_USERS,</p>
+<p>        Permission.DELETE_USERS,</p>
+<p>        Permission.MANAGE_ROLES,</p>
+<p>        Permission.VIEW_ANALYTICS,</p>
+<p>    },</p>
+<p>    "moderator": {</p>
+<p>        Permission.READ_USERS,</p>
+<p>        Permission.WRITE_USERS,</p>
+<p>        Permission.VIEW_ANALYTICS,</p>
+<p>    },</p>
+<p>    "user": {</p>
+<p>        Permission.READ_USERS,</p>
+<p>    }</p>
+<p>}</p>
+
+<p>class PermissionChecker:</p>
+<p>    """Dependency for permission-based authorization."""</p>
+    
+<p>    def __init__(self, required_permissions: Set[Permission]):</p>
+<p>        self.required_permissions = required_permissions</p>
+    
+<p>    def __call__(self, user = Depends(get_current_user)):</p>
+<p>        user_permissions = ROLE_PERMISSIONS.get(user.role, set())</p>
+        
+<p>        if not self.required_permissions.issubset(user_permissions):</p>
+<p>            raise HTTPException(</p>
+<p>                status_code=status.HTTP_403_FORBIDDEN,</p>
+<p>                detail="Insufficient permissions"</p>
+<p>            )</p>
+        
+<p>        return user</p>
+
+<p>@app.delete("/api/users/{user_id}")</p>
+<p>async def delete_user(</p>
+<p>    user_id: int,</p>
+<p>    current_user = Depends(PermissionChecker({Permission.DELETE_USERS}))</p>
+<p>):</p>
+<p>    """Requires specific permission to delete users."""</p>
+<p>    user = await User.get(user_id)</p>
+<p>    await user.delete()</p>
+<p>    return {"status": "deleted"}</p>
+
+<p>@app.put("/api/users/{user_id}/role")</p>
+<p>async def update_user_role(</p>
+<p>    user_id: int,</p>
+<p>    new_role: str,</p>
+<p>    current_user = Depends(PermissionChecker({</p>
+<p>        Permission.MANAGE_ROLES,</p>
+<p>        Permission.WRITE_USERS</p>
+<p>    }))</p>
+<p>):</p>
+<p>    """Requires multiple permissions to change roles."""</p>
+<p>    user = await User.get(user_id)</p>
+<p>    user.role = new_role</p>
+<p>    await user.save()</p>
+<p>    return user</p>
+</code>`<code>
+
+<h2>Django REST Framework Examples</h2>
+
+<h3>Example 1: Custom Permission Classes</h3>
+
+<h4>❌ Vulnerable Code</h4>
+
+</code>`<code>python
+<p>from rest_framework import viewsets</p>
+<p>from rest_framework.permissions import IsAuthenticated</p>
+
+<p>class UserViewSet(viewsets.ModelViewSet):</p>
+<p>    """VULNERABLE: Same permission for all actions."""</p>
+<p>    queryset = User.objects.all()</p>
+<p>    permission_classes = [IsAuthenticated]</p>
+    
+<p>    # Any authenticated user can create, update, delete any user!</p>
+</code>`<code>
+
+<h4>✅ Secure Code</h4>
+
+</code>`<code>python
+<p>from rest_framework import viewsets, permissions</p>
+<p>from rest_framework.decorators import action</p>
+<p>from rest_framework.response import Response</p>
+
+<p>class IsAdminUser(permissions.BasePermission):</p>
+<p>    """Custom permission: only admins allowed."""</p>
+    
+<p>    def has_permission(self, request, view):</p>
+<p>        return request.user and request.user.role == 'admin'</p>
+
+<p>class IsAdminOrReadOnly(permissions.BasePermission):</p>
+<p>    """Admins can modify, others read-only."""</p>
+    
+<p>    def has_permission(self, request, view):</p>
+<p>        if request.method in permissions.SAFE_METHODS:</p>
+<p>            return request.user and request.user.is_authenticated</p>
+<p>        return request.user and request.user.role == 'admin'</p>
+
+<p>class IsOwnerOrAdmin(permissions.BasePermission):</p>
+<p>    """Owner can modify their data, admins can modify any."""</p>
+    
+<p>    def has_object_permission(self, request, view, obj):</p>
+<p>        if request.user.role == 'admin':</p>
+<p>            return True</p>
+<p>        return obj.id == request.user.id</p>
+
+<p>class UserViewSet(viewsets.ModelViewSet):</p>
+<p>    """SECURE: Different permissions per action."""</p>
+<p>    queryset = User.objects.all()</p>
+    
+<p>    def get_permissions(self):</p>
+<p>        """Set permissions based on action."""</p>
+<p>        if self.action in ['create', 'list']:</p>
+<p>            permission_classes = [IsAdminUser]</p>
+<p>        elif self.action in ['update', 'partial_update', 'destroy']:</p>
+<p>            permission_classes = [IsOwnerOrAdmin]</p>
+<p>        else:</p>
+<p>            permission_classes = [permissions.IsAuthenticated]</p>
+        
+<p>        return [permission() for permission in permission_classes]</p>
+    
+<p>    @action(detail=False, methods=['post'], permission_classes=[IsAdminUser])</p>
+<p>    def bulk_delete(self, request):</p>
+<p>        """Admin-only bulk delete."""</p>
+<p>        user_ids = request.data.get('user_ids', [])</p>
+        
+<p>        # Prevent deleting yourself</p>
+<p>        if request.user.id in user_ids:</p>
+<p>            return Response(</p>
+<p>                {'error': 'Cannot delete your own account'},</p>
+<p>                status=400</p>
+<p>            )</p>
+        
+<p>        deleted_count, _ = User.objects.filter(id__in=user_ids).delete()</p>
+<p>        return Response({'deleted': deleted_count})</p>
+</code>`<code>
+
+<h2>Complete Application Examples</h2>
+
+<h3>Complete Flask Application with Authorization</h3>
+
+</code>`<code>python
+<p>from flask import Flask, request, jsonify, g</p>
+<p>from flask_sqlalchemy import SQLAlchemy</p>
+<p>from functools import wraps</p>
+<p>import jwt</p>
+<p>from datetime import datetime, timedelta</p>
+
+<p>app = Flask(__name__)</p>
+<p>app.config['SECRET_KEY'] = 'your-secret-key'</p>
+<p>db = SQLAlchemy(app)</p>
+
+<h1>Models</h1>
+<p>class User(db.Model):</p>
+<p>    id = db.Column(db.Integer, primary_key=True)</p>
+<p>    username = db.Column(db.String(80), unique=True, nullable=False)</p>
+<p>    password = db.Column(db.String(120), nullable=False)</p>
+<p>    role = db.Column(db.String(20), default='user')</p>
+    
+<p>    def generate_token(self):</p>
+<p>        payload = {</p>
+<p>            'user_id': self.id,</p>
+<p>            'role': self.role,</p>
+<p>            'exp': datetime.utcnow() + timedelta(hours=24)</p>
+<p>        }</p>
+<p>        return jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')</p>
+
+<h1>Authorization decorators</h1>
+<p>def token_required(f):</p>
+<p>    @wraps(f)</p>
+<p>    def decorated(<em>args, </em>*kwargs):</p>
+<p>        token = request.headers.get('Authorization', '').replace('Bearer ', '')</p>
+        
+<p>        if not token:</p>
+<p>            return jsonify({'error': 'Token required'}), 401</p>
+        
+<p>        try:</p>
+<p>            payload = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])</p>
+<p>            g.current_user = User.query.get(payload['user_id'])</p>
+<p>        except jwt.ExpiredSignatureError:</p>
+<p>            return jsonify({'error': 'Token expired'}), 401</p>
+<p>        except jwt.InvalidTokenError:</p>
+<p>            return jsonify({'error': 'Invalid token'}), 401</p>
+        
+<p>        return f(<em>args, </em>*kwargs)</p>
+<p>    return decorated</p>
+
+<p>def require_role(*roles):</p>
+<p>    def decorator(f):</p>
+<p>        @wraps(f)</p>
+<p>        def decorated(<em>args, </em>*kwargs):</p>
+<p>            if not hasattr(g, 'current_user'):</p>
+<p>                return jsonify({'error': 'Authentication required'}), 401</p>
+            
+<p>            if g.current_user.role not in roles:</p>
+<p>                return jsonify({'error': f'Requires: {", ".join(roles)}'}), 403</p>
+            
+<p>            return f(<em>args, </em>*kwargs)</p>
+<p>        return decorated</p>
+<p>    return decorator</p>
+
+<h1>Public endpoints</h1>
+<p>@app.route('/api/register', methods=['POST'])</p>
+<p>def register():</p>
+<p>    data = request.json</p>
+    
+<p>    # Field whitelist</p>
+<p>    allowed = {'username', 'password', 'email'}</p>
+<p>    user_data = {k: v for k, v in data.items() if k in allowed}</p>
+    
+<p>    user = User(</p>
+<p>        username=user_data['username'],</p>
+<p>        password=hash_password(user_data['password']),</p>
+<p>        role='user'  # Always user on registration</p>
+<p>    )</p>
+    
+<p>    db.session.add(user)</p>
+<p>    db.session.commit()</p>
+    
+<p>    return jsonify({'id': user.id, 'username': user.username}), 201</p>
+
+<p>@app.route('/api/login', methods=['POST'])</p>
+<p>def login():</p>
+<p>    data = request.json</p>
+<p>    user = User.query.filter_by(username=data['username']).first()</p>
+    
+<p>    if user and verify_password(user.password, data['password']):</p>
+<p>        token = user.generate_token()</p>
+<p>        return jsonify({'token': token})</p>
+    
+<p>    return jsonify({'error': 'Invalid credentials'}), 401</p>
+
+<h1>User endpoints</h1>
+<p>@app.route('/api/users', methods=['GET'])</p>
+<p>@token_required</p>
+<p>@require_role('user', 'admin')</p>
+<p>def list_users():</p>
+<p>    users = User.query.limit(100).all()</p>
+<p>    return jsonify([{'id': u.id, 'username': u.username} for u in users])</p>
+
+<p>@app.route('/api/users/<int:user_id>', methods=['GET'])</p>
+<p>@token_required</p>
+<p>def get_user(user_id):</p>
+<p>    user = User.query.get_or_404(user_id)</p>
+<p>    return jsonify(user.to_dict())</p>
+
+<h1>Admin endpoints</h1>
+<p>@app.route('/api/admin/users', methods=['GET'])</p>
+<p>@token_required</p>
+<p>@require_role('admin')</p>
+<p>def admin_list_users():</p>
+<p>    users = User.query.all()</p>
+<p>    return jsonify([u.to_dict(include_sensitive=True) for u in users])</p>
+
+<p>@app.route('/api/users/<int:user_id>', methods=['DELETE'])</p>
+<p>@token_required</p>
+<p>@require_role('admin')</p>
+<p>def delete_user(user_id):</p>
+<p>    if user_id == g.current_user.id:</p>
+<p>        return jsonify({'error': 'Cannot delete yourself'}), 400</p>
+    
+<p>    user = User.query.get_or_404(user_id)</p>
+<p>    db.session.delete(user)</p>
+<p>    db.session.commit()</p>
+    
+<p>    return jsonify({'status': 'deleted'})</p>
+
+<p>@app.route('/api/users/<int:user_id>/role', methods=['PUT'])</p>
+<p>@token_required</p>
+<p>@require_role('admin')</p>
+<p>def update_user_role(user_id):</p>
+<p>    user = User.query.get_or_404(user_id)</p>
+<p>    new_role = request.json.get('role')</p>
+    
+<p>    valid_roles = ['user', 'moderator', 'admin']</p>
+<p>    if new_role not in valid_roles:</p>
+<p>        return jsonify({'error': 'Invalid role'}), 400</p>
+    
+<p>    user.role = new_role</p>
+<p>    db.session.commit()</p>
+    
+<p>    return jsonify({'user_id': user.id, 'role': user.role})</p>
+
+<p>if __name__ == '__main__':</p>
+<p>    app.run(debug=True)</p>
+</code>``
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Never trust client input</strong> for authorization decisions</li>
+<li><strong>Explicit authorization</strong> required for every privileged operation</li>
+<li><strong>Separate routes</strong> for different HTTP methods when permissions differ</li>
+<li><strong>Centralized authorization logic</strong> using decorators/middleware</li>
+<li><strong>Default deny</strong> - require explicit permission grants</li>
+<li><strong>Validate all inputs</strong> including roles, permissions, and resource IDs</li>
+<li><strong>Audit logging</strong> for all privileged operations</li>
+<li><strong>Test with multiple roles</strong> to verify authorization</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="lab/api05-function-auth-lab/">Lab</a></strong> - Practice implementing secure function-level authorization</li>
+<li><strong><a href="prevention.md">Prevention</a></strong> - Review comprehensive prevention strategies</li>
+<li><strong><a href="attack-vectors.md">Attack Vectors</a></strong> - Understand common exploitation techniques</li>
+</ul>
+
         </div>
     </div>
 </body>

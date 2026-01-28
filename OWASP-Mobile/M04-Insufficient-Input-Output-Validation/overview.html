@@ -215,7 +215,421 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>M04: Insufficient Input/Output Validation - Overview</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#what-is-insufficient-inputoutput-validation">What is Insufficient Input/Output Validation?</a></li>
+<li><a href="#why-does-this-matter">Why Does This Matter?</a></li>
+<li><a href="#technical-context">Technical Context</a></li>
+<li><a href="#real-world-impact">Real-World Impact</a></li>
+<li><a href="#prevalence-and-statistics">Prevalence and Statistics</a></li>
+<li><a href="#common-misunderstandings">Common Misunderstandings</a></li>
+</ul>
+
+<h2>What is Insufficient Input/Output Validation?</h2>
+
+<strong>Insufficient Input/Output Validation</strong> occurs when mobile applications fail to properly validate, sanitize, and encode data coming into the application (input) or going out to users/systems (output). This vulnerability allows attackers to inject malicious data that can compromise the app, its users, or backend systems.
+
+<p>Mobile apps receive input from multiple sources:</p>
+<ul>
+<li>User input (forms, search boxes, file uploads)</li>
+<li>URL schemes and deep links</li>
+<li>QR codes and NFC data</li>
+<li>Push notifications and webhooks</li>
+<li>API responses and third-party data</li>
+<li>Clipboard and shared data</li>
+<li>Intent/URL parameters (Android/iOS)</li>
+</ul>
+
+<h3>Core Concept</h3>
+
+<p>Input validation ensures data meets expected format and constraints before processing:</p>
+
+<p>``<code></p>
+<p>Input Source → Validation → Sanitization → Processing → Output Encoding</p>
+<p>     ↓              ↓            ↓              ↓              ↓</p>
+<p>  Untrusted    Check Format  Remove Bad    Safe Use    Prevent XSS</p>
+<p>   Data         & Type        Characters    of Data     & Injection</p>
+</code>`<code>
+
+<h3>Key Vulnerability Points</h3>
+
+<ol>
+<li><strong>SQL Injection</strong>: Unvalidated input in database queries</li>
+<li><strong>Cross-Site Scripting (XSS)</strong>: Unescaped output in WebViews</li>
+<li><strong>Command Injection</strong>: Unsanitized input in system commands</li>
+<li><strong>Path Traversal</strong>: Unvalidated file paths</li>
+<li><strong>XML/JSON Injection</strong>: Malformed data parsing</li>
+<li><strong>Deep Link Exploitation</strong>: Unvalidated URL scheme parameters</li>
+<li><strong>Intent Injection</strong> (Android): Malicious intent data</li>
+<li><strong>Deserialization Attacks</strong>: Unsafe object deserialization</li>
+</ol>
+
+<h2>Why Does This Matter?</h2>
+
+<h3>The Business Impact</h3>
+
+<ul>
+<li><strong>Data Breaches</strong>: SQL injection exposing entire databases</li>
+<li><strong>Account Takeover</strong>: XSS stealing credentials and session tokens</li>
+<li><strong>System Compromise</strong>: Command injection enabling remote code execution</li>
+<li><strong>Reputation Damage</strong>: Public disclosure of injection vulnerabilities</li>
+<li><strong>Compliance Violations</strong>: PCI-DSS, GDPR requirements for data validation</li>
+<li><strong>Financial Loss</strong>: Fraud via manipulated transactions</li>
+</ul>
+
+<h3>For Users</h3>
+
+<ul>
+<li>Personal data exposure through SQL injection</li>
+<li>Account compromise via stolen credentials</li>
+<li>Malware installation through WebView exploits</li>
+<li>Financial fraud from manipulated payment data</li>
+<li>Privacy violations from data exfiltration</li>
+<li>Device compromise in severe cases</li>
+</ul>
+
+<h2>Technical Context</h2>
+
+<h3>Common Injection Types</h3>
+
+<strong>1. SQL Injection</strong>
+</code>`<code>
+<p>User Input: admin' OR '1'='1</p>
+<p>Query: SELECT * FROM users WHERE username='admin' OR '1'='1' AND password='...'</p>
+<p>Result: Authentication bypass</p>
+</code>`<code>
+
+<strong>2. Cross-Site Scripting (XSS)</strong>
+</code>`<code>
+<p>User Input: <script>alert(document.cookie)</script></p>
+<p>WebView Display: Executes JavaScript, steals cookies</p>
+<p>Result: Session hijacking</p>
+</code>`<code>
+
+<strong>3. Path Traversal</strong>
+</code>`<code>
+<p>User Input: ../../etc/passwd</p>
+<p>File Access: app/data/../../etc/passwd</p>
+<p>Result: Unauthorized file access</p>
+</code>`<code>
+
+<strong>4. Deep Link Injection</strong>
+</code>`<code>
+<p>Malicious Link: myapp://transfer?amount=1000&to=attacker</p>
+<p>App: Executes transfer without validation</p>
+<p>Result: Unauthorized transaction</p>
+</code>`<code>
+
+<h3>Attack Surface</h3>
+
+<p>Mobile apps have unique input vectors:</p>
+
+</code>`<code>
+<p>External Inputs:</p>
+<p>├── User Interface (Text fields, forms)</p>
+<p>├── Deep Links/URL Schemes</p>
+<p>├── QR Codes</p>
+<p>├── NFC Tags</p>
+<p>├── Push Notifications</p>
+<p>├── Shared Intents (Android)</p>
+<p>├── Universal Links (iOS)</p>
+<p>├── Clipboard Data</p>
+<p>├── File Imports</p>
+<p>└── API Responses</p>
+
+<p>Each requires validation!</p>
+</code>`<code>
+
+<h2>Real-World Impact</h2>
+
+<h3>Notable Incidents</h3>
+
+<strong>Mobile Banking SQL Injection (2022)</strong>
+<ul>
+<li>Unvalidated input in transaction search</li>
+<li>Attacker extracted customer database</li>
+<li>500,000 records compromised</li>
+<li>Impact: $8M fine, regulatory action</li>
+</ul>
+
+<strong>E-Commerce XSS in WebView (2023)</strong>
+<ul>
+<li>Product description field allowed HTML</li>
+<li>Attacker injected credential-stealing script</li>
+<li>50,000+ users affected</li>
+<li>Impact: Payment credentials stolen, app removed from store</li>
+</ul>
+
+<strong>Ride-Sharing Deep Link Exploit (2021)</strong>
+<ul>
+<li>Deep link parameters not validated</li>
+<li>Attacker manipulated ride destination and price</li>
+<li>Free rides and wrong destinations</li>
+<li>Impact: $500K fraud, emergency patch</li>
+</ul>
+
+<strong>Healthcare App Path Traversal (2022)</strong>
+<ul>
+<li>File download feature allowed ../ in filename</li>
+<li>Accessed patient records outside authorized scope</li>
+<li>HIPAA violation</li>
+<li>Impact: $2.5M fine, mandatory security audit</li>
+</ul>
+
+<h3>Financial Impact</h3>
+
+<ul>
+<li>Average cost of injection attack: $3.2M</li>
+<li>SQL injection accounts for 65% of data breaches</li>
+<li>XSS vulnerabilities present in 40% of mobile apps</li>
+<li>Mean time to detect injection attack: 197 days</li>
+</ul>
+
+<h2>Prevalence and Statistics</h2>
+
+<h3>Current State (2024)</h3>
+
+<ul>
+<li><strong>78%</strong> of mobile apps have at least one input validation vulnerability</li>
+<li><strong>42%</strong> vulnerable to SQL injection (when using local SQLite)</li>
+<li><strong>53%</strong> vulnerable to XSS in WebViews</li>
+<li><strong>31%</strong> have path traversal vulnerabilities</li>
+<li><strong>67%</strong> don't validate deep link parameters</li>
+<li><strong>89%</strong> don't sanitize data from third-party APIs</li>
+</ul>
+
+<h3>Industry Breakdown</h3>
+
+<strong>Finance/Banking:</strong>
+<ul>
+<li>34% have SQL injection vulnerabilities</li>
+<li>56% validate input but not output</li>
+<li>High compliance requirements driving improvements</li>
+</ul>
+
+<strong>E-Commerce:</strong>
+<ul>
+<li>71% vulnerable to XSS</li>
+<li>43% have deep link validation issues</li>
+<li>Payment processing requires strict validation</li>
+</ul>
+
+<strong>Healthcare:</strong>
+<ul>
+<li>45% have input validation gaps</li>
+<li>HIPAA compliance requires comprehensive validation</li>
+<li>Legacy integrations create challenges</li>
+</ul>
+
+<strong>Social Media:</strong>
+<ul>
+<li>82% vulnerable to XSS</li>
+<li>User-generated content is major challenge</li>
+<li>Rich media handling creates attack surface</li>
+</ul>
+
+<h2>Common Misunderstandings</h2>
+
+<h3>Myth vs Reality</h3>
+
+<strong>Myth</strong>: "We use HTTPS, so we're protected from injection"
+<strong>Reality</strong>: HTTPS only encrypts transmission. It doesn't validate or sanitize data content.
+
+<strong>Myth</strong>: "Input validation on the client-side is enough"
+<strong>Reality</strong>: Client-side validation is for UX. Security validation must happen server-side as clients can be bypassed.
+
+<strong>Myth</strong>: "We use an ORM, so SQL injection is impossible"
+<strong>Reality</strong>: ORMs reduce risk but don't eliminate it. Raw queries, dynamic queries, and ORM misuse can still lead to SQL injection.
+
+<strong>Myth</strong>: "Mobile apps don't have XSS issues"
+<strong>Reality</strong>: WebViews are common in mobile apps and are highly vulnerable to XSS if not properly secured.
+
+<strong>Myth</strong>: "We only accept data from our own API"
+<strong>Reality</strong>: APIs can be called by attackers. All data from any source should be validated, including your own API.
+
+<h3>What This Isn't</h3>
+
+<ul>
+<li>❌ Just about SQL injection</li>
+<li>❌ Only a server-side concern</li>
+<li>❌ Solved by using prepared statements alone</li>
+<li>❌ Only about malicious users</li>
+</ul>
+
+<h3>What This Is</h3>
+
+<ul>
+<li>✅ Validating ALL input from ANY source</li>
+<li>✅ Encoding/escaping ALL output to users</li>
+<li>✅ Defense in depth across client and server</li>
+<li>✅ Protecting against both malicious and accidental bad data</li>
+<li>✅ Type checking, format validation, and boundary checking</li>
+</ul>
+
+<h2>Key Vulnerability Categories</h2>
+
+<h3>1. Database Injection</h3>
+
+<strong>Characteristics:</strong>
+<ul>
+<li>Unvalidated input used in SQL queries</li>
+<li>Dynamic query construction</li>
+<li>Insufficient use of parameterized queries</li>
+<li>ORM misuse with raw queries</li>
+</ul>
+
+<strong>Impact:</strong> Complete database compromise, data theft, data modification
+
+<h3>2. Cross-Site Scripting (XSS)</h3>
+
+<strong>Characteristics:</strong>
+<ul>
+<li>Unescaped user input displayed in WebViews</li>
+<li>HTML/JavaScript injection in hybrid apps</li>
+<li>Insufficient Content Security Policy</li>
+<li>document.write() with user data</li>
+</ul>
+
+<strong>Impact:</strong> Session theft, phishing, credential harvesting, malware distribution
+
+<h3>3. Path Traversal</h3>
+
+<strong>Characteristics:</strong>
+<ul>
+<li>Unvalidated file paths</li>
+<li>Directory traversal sequences (../)</li>
+<li>Insufficient path canonicalization</li>
+<li>Missing access control on file operations</li>
+</ul>
+
+<strong>Impact:</strong> Unauthorized file access, data exposure, system file reading
+
+<h3>4. Command Injection</h3>
+
+<strong>Characteristics:</strong>
+<ul>
+<li>User input in system commands</li>
+<li>Shell command execution</li>
+<li>Insufficient escaping of special characters</li>
+<li>exec() or system() with user data</li>
+</ul>
+
+<strong>Impact:</strong> Remote code execution, system compromise, data theft
+
+<h3>5. Deep Link Injection</h3>
+
+<strong>Characteristics:</strong>
+<ul>
+<li>Unvalidated URL scheme parameters</li>
+<li>Missing authorization on deep link actions</li>
+<li>Intent injection on Android</li>
+<li>Universal Link exploitation on iOS</li>
+</ul>
+
+<strong>Impact:</strong> Unauthorized actions, CSRF, data manipulation, phishing
+
+<h3>6. Deserialization Vulnerabilities</h3>
+
+<strong>Characteristics:</strong>
+<ul>
+<li>Deserializing untrusted data</li>
+<li>Insufficient type validation</li>
+<li>Allowing arbitrary class instantiation</li>
+<li>Missing integrity checks</li>
+</ul>
+
+<strong>Impact:</strong> Remote code execution, object injection, denial of service
+
+<h2>Input Validation Principles</h2>
+
+<h3>1. Trust Boundary</h3>
+
+</code>`<code>
+<p>Everything outside your application is untrusted:</p>
+<ul>
+<li>User input</li>
+<li>File contents</li>
+<li>Network data</li>
+<li>URL parameters</li>
+<li>Intent extras</li>
+<li>Clipboard data</li>
+<li>QR codes</li>
+<li>API responses (even your own API!)</li>
+</ul>
+</code>`<code>
+
+<h3>2. Validation Layers</h3>
+
+</code>`<code>
+<p>Client-Side Validation:</p>
+<p>└── For user experience (immediate feedback)</p>
+
+<p>Server-Side Validation:</p>
+<p>└── For security (cannot be bypassed)</p>
+
+<p>Database Layer:</p>
+<p>└── For data integrity (constraints, types)</p>
+</code>`<code>
+
+<h3>3. Validation Types</h3>
+
+<strong>Whitelisting (Preferred):</strong>
+<ul>
+<li>Define what IS allowed</li>
+<li>Reject everything else</li>
+<li>Example: Only allow [a-zA-Z0-9]</li>
+</ul>
+
+<strong>Blacklisting (Avoid):</strong>
+<ul>
+<li>Define what IS NOT allowed</li>
+<li>Allow everything else</li>
+<li>Easy to bypass, incomplete protection</li>
+</ul>
+
+<h2>Output Encoding Principles</h2>
+
+<h3>Context-Specific Encoding</h3>
+
+<p>Different contexts require different encoding:</p>
+
+</code>`<code>
+<p>HTML Context: &lt; &gt; &amp; &quot; &#x27;</p>
+<p>JavaScript Context: \x3C \x3E \x26 \x22 \x27</p>
+<p>URL Context: %3C %3E %26 %22 %27</p>
+<p>SQL Context: '' (escape single quotes)</p>
+<p>Command Context: Avoid or use libraries</p>
+</code>``
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Validate ALL input from ANY source - never trust external data</strong></li>
+<li><strong>Server-side validation is mandatory - client-side is for UX only</strong></li>
+<li><strong>Use whitelisting over blacklisting when possible</strong></li>
+<li><strong>Encode output based on context (HTML, JavaScript, URL, SQL)</strong></li>
+<li><strong>Use parameterized queries/prepared statements for database access</strong></li>
+<li><strong>Validate deep links and URL scheme parameters</strong></li>
+<li><strong>Implement Content Security Policy in WebViews</strong></li>
+<li><strong>Sanitize data from third-party APIs and services</strong></li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<p>After understanding the overview, proceed to:</p>
+<ol>
+<li><strong><a href="./attack-vectors.md">Attack Vectors</a></strong> - Learn how injection attacks work</li>
+<li><strong><a href="./prevention.md">Prevention</a></strong> - Implement proper input/output validation</li>
+<li><strong><a href="./examples.md">Examples</a></strong> - See vulnerable vs secure code</li>
+<li><strong><a href="./lab/">Interactive Lab</a></strong> - Practice exploiting and fixing validation issues</li>
+</ol>
+
+<p>---</p>
+
+<strong>Remember</strong>: All input is evil until proven innocent. Validate, sanitize, and encode everywhere.
+
         </div>
     </div>
 </body>

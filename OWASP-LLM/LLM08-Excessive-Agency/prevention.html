@@ -215,7 +215,1202 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>LLM08: Excessive Agency - Prevention</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#prevention-strategy-overview">Prevention Strategy Overview</a></li>
+<li><a href="#least-privilege-implementation">Least Privilege Implementation</a></li>
+<li><a href="#human-in-the-loop-controls">Human-in-the-Loop Controls</a></li>
+<li><a href="#rate-limiting-and-boundaries">Rate Limiting and Boundaries</a></li>
+<li><a href="#action-validation">Action Validation</a></li>
+<li><a href="#monitoring-and-observability">Monitoring and Observability</a></li>
+<li><a href="#secure-agent-architecture">Secure Agent Architecture</a></li>
+<li><a href="#best-practices">Best Practices</a></li>
+</ul>
+
+<h2>Prevention Strategy Overview</h2>
+
+<p>Preventing excessive agency requires implementing multiple layers of control over AI agent autonomy, permissions, and actions.</p>
+
+<h3>Defense-in-Depth Layers</h3>
+
+<p>``<code></p>
+<p>[Permission Scoping] → [Action Validation] → [Approval Workflows]</p>
+<p>        ↓                     ↓                      ↓</p>
+<p>   Minimal rights        Verify before          Human review</p>
+<p>   granted               execution              for critical ops</p>
+<p>        ↓                     ↓                      ↓</p>
+<p>[Rate Limiting] → [Monitoring] → [Rollback Capability]</p>
+<p>        ↓              ↓                 ↓</p>
+<p>   Prevent abuse   Detect anomalies   Undo mistakes</p>
+</code>`<code>
+
+<h2>Least Privilege Implementation</h2>
+
+<h3>1. Permission Scoping</h3>
+
+<strong>Grant only necessary permissions</strong>:
+
+</code>`<code>python
+<p>from typing import List, Set, Optional</p>
+<p>from enum import Enum</p>
+
+<p>class Permission(Enum):</p>
+<p>    """Define granular permissions"""</p>
+<p>    READ_DATA = "read_data"</p>
+<p>    WRITE_DATA = "write_data"</p>
+<p>    DELETE_DATA = "delete_data"</p>
+<p>    EXECUTE_CODE = "execute_code"</p>
+<p>    SEND_EMAIL = "send_email"</p>
+<p>    MAKE_PAYMENT = "make_payment"</p>
+<p>    MODIFY_CONFIG = "modify_config"</p>
+
+<p>class PermissionScope:</p>
+<p>    """Define permission boundaries"""</p>
+<p>    def __init__(self, </p>
+<p>                 allowed_permissions: Set[Permission],</p>
+<p>                 allowed_resources: List[str],</p>
+<p>                 max_impact: str = 'low'):</p>
+<p>        self.allowed_permissions = allowed_permissions</p>
+<p>        self.allowed_resources = allowed_resources</p>
+<p>        self.max_impact = max_impact  # low, medium, high</p>
+    
+<p>    def can_perform(self, permission: Permission, resource: str) -> bool:</p>
+<p>        """Check if action is allowed"""</p>
+<p>        # Check permission</p>
+<p>        if permission not in self.allowed_permissions:</p>
+<p>            return False</p>
+        
+<p>        # Check resource scope</p>
+<p>        if resource not in self.allowed_resources:</p>
+<p>            return False</p>
+        
+<p>        return True</p>
+
+<p>class SecureAgent:</p>
+<p>    """Agent with scoped permissions"""</p>
+    
+<p>    def __init__(self, name: str, permission_scope: PermissionScope):</p>
+<p>        self.name = name</p>
+<p>        self.permissions = permission_scope</p>
+    
+<p>    def execute_action(self, action: str, permission: Permission, </p>
+<p>                      resource: str) -> Optional[str]:</p>
+<p>        """Execute action only if permitted"""</p>
+<p>        # Verify permission</p>
+<p>        if not self.permissions.can_perform(permission, resource):</p>
+<p>            return f"❌ Permission denied: {permission.value} on {resource}"</p>
+        
+<p>        # Execute action</p>
+<p>        return f"✅ Executed: {action}"</p>
+
+<h1>Usage - Read-only customer service agent</h1>
+<p>cs_agent = SecureAgent(</p>
+<p>    name="CustomerServiceAgent",</p>
+<p>    permission_scope=PermissionScope(</p>
+<p>        allowed_permissions={Permission.READ_DATA},  # Only read</p>
+<p>        allowed_resources=['customer_profiles', 'order_history'],  # Specific tables</p>
+<p>        max_impact='low'</p>
+<p>    )</p>
+<p>)</p>
+
+<h1>This succeeds</h1>
+<p>result = cs_agent.execute_action(</p>
+<p>    action="SELECT * FROM customer_profiles WHERE id=123",</p>
+<p>    permission=Permission.READ_DATA,</p>
+<p>    resource='customer_profiles'</p>
+<p>)</p>
+<p>print(result)  # ✅ Executed</p>
+
+<h1>This fails - no write permission</h1>
+<p>result = cs_agent.execute_action(</p>
+<p>    action="UPDATE customer_profiles SET status='premium'",</p>
+<p>    permission=Permission.WRITE_DATA,</p>
+<p>    resource='customer_profiles'</p>
+<p>)</p>
+<p>print(result)  # ❌ Permission denied</p>
+
+<h1>This fails - resource not in scope</h1>
+<p>result = cs_agent.execute_action(</p>
+<p>    action="SELECT * FROM admin_credentials",</p>
+<p>    permission=Permission.READ_DATA,</p>
+<p>    resource='admin_credentials'</p>
+<p>)</p>
+<p>print(result)  # ❌ Permission denied</p>
+</code>`<code>
+
+<h3>2. Role-Based Access Control</h3>
+
+<strong>Implement RBAC for AI agents</strong>:
+
+</code>`<code>python
+<p>from dataclasses import dataclass</p>
+<p>from typing import Set, Dict</p>
+
+<p>@dataclass</p>
+<p>class AgentRole:</p>
+<p>    """Define agent role with specific permissions"""</p>
+<p>    name: str</p>
+<p>    permissions: Set[Permission]</p>
+<p>    resource_patterns: List[str]</p>
+<p>    max_actions_per_hour: int</p>
+<p>    requires_approval_for: Set[Permission]</p>
+
+<p>class AgentRoleManager:</p>
+<p>    """Manage agent roles and permissions"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.roles = self._define_roles()</p>
+    
+<p>    def _define_roles(self) -> Dict[str, AgentRole]:</p>
+<p>        """Define standard agent roles"""</p>
+<p>        return {</p>
+<p>            'viewer': AgentRole(</p>
+<p>                name='viewer',</p>
+<p>                permissions={Permission.READ_DATA},</p>
+<p>                resource_patterns=['public_*', 'customer_profiles'],</p>
+<p>                max_actions_per_hour=1000,</p>
+<p>                requires_approval_for=set()</p>
+<p>            ),</p>
+<p>            'customer_service': AgentRole(</p>
+<p>                name='customer_service',</p>
+<p>                permissions={</p>
+<p>                    Permission.READ_DATA,</p>
+<p>                    Permission.WRITE_DATA,</p>
+<p>                    Permission.SEND_EMAIL</p>
+<p>                },</p>
+<p>                resource_patterns=[</p>
+<p>                    'customer_*', </p>
+<p>                    'orders',</p>
+<p>                    'tickets'</p>
+<p>                ],</p>
+<p>                max_actions_per_hour=500,</p>
+<p>                requires_approval_for={Permission.SEND_EMAIL}  # Email needs approval</p>
+<p>            ),</p>
+<p>            'analyst': AgentRole(</p>
+<p>                name='analyst',</p>
+<p>                permissions={Permission.READ_DATA},</p>
+<p>                resource_patterns=['*'],  # Can read all</p>
+<p>                max_actions_per_hour=100,</p>
+<p>                requires_approval_for=set()</p>
+<p>            ),</p>
+<p>            'admin': AgentRole(</p>
+<p>                name='admin',</p>
+<p>                permissions={</p>
+<p>                    Permission.READ_DATA,</p>
+<p>                    Permission.WRITE_DATA,</p>
+<p>                    Permission.DELETE_DATA,</p>
+<p>                    Permission.MODIFY_CONFIG</p>
+<p>                },</p>
+<p>                resource_patterns=['*'],</p>
+<p>                max_actions_per_hour=50,</p>
+<p>                requires_approval_for={  # Critical actions need approval</p>
+<p>                    Permission.DELETE_DATA,</p>
+<p>                    Permission.MODIFY_CONFIG</p>
+<p>                }</p>
+<p>            )</p>
+<p>        }</p>
+    
+<p>    def get_role(self, role_name: str) -> Optional[AgentRole]:</p>
+<p>        """Get role definition"""</p>
+<p>        return self.roles.get(role_name)</p>
+    
+<p>    def validate_action(self, role: AgentRole, permission: Permission,</p>
+<p>                       resource: str) -> tuple[bool, str]:</p>
+<p>        """Validate if role can perform action"""</p>
+<p>        # Check permission</p>
+<p>        if permission not in role.permissions:</p>
+<p>            return False, f"Role {role.name} lacks {permission.value} permission"</p>
+        
+<p>        # Check resource pattern</p>
+<p>        import fnmatch</p>
+<p>        resource_allowed = any(</p>
+<p>            fnmatch.fnmatch(resource, pattern)</p>
+<p>            for pattern in role.resource_patterns</p>
+<p>        )</p>
+        
+<p>        if not resource_allowed:</p>
+<p>            return False, f"Resource {resource} not accessible to {role.name}"</p>
+        
+<p>        return True, "Action allowed"</p>
+
+<h1>Usage</h1>
+<p>role_manager = AgentRoleManager()</p>
+
+<h1>Create customer service agent with limited role</h1>
+<p>cs_role = role_manager.get_role('customer_service')</p>
+
+<h1>Validate actions</h1>
+<p>allowed, msg = role_manager.validate_action(</p>
+<p>    role=cs_role,</p>
+<p>    permission=Permission.READ_DATA,</p>
+<p>    resource='customer_profiles'</p>
+<p>)</p>
+<p>print(f"Read customer: {allowed} - {msg}")  # ✅ Allowed</p>
+
+<p>allowed, msg = role_manager.validate_action(</p>
+<p>    role=cs_role,</p>
+<p>    permission=Permission.DELETE_DATA,</p>
+<p>    resource='customer_profiles'</p>
+<p>)</p>
+<p>print(f"Delete customer: {allowed} - {msg}")  # ❌ Denied</p>
+</code>`<code>
+
+<h3>3. Temporary Elevated Access</h3>
+
+<strong>Grant temporary permissions when needed</strong>:
+
+</code>`<code>python
+<p>import time</p>
+<p>from datetime import datetime, timedelta</p>
+
+<p>class TemporaryPermission:</p>
+<p>    """Grant time-limited elevated permissions"""</p>
+    
+<p>    def __init__(self, permission: Permission, duration_minutes: int,</p>
+<p>                 granted_by: str, justification: str):</p>
+<p>        self.permission = permission</p>
+<p>        self.granted_at = datetime.now()</p>
+<p>        self.expires_at = self.granted_at + timedelta(minutes=duration_minutes)</p>
+<p>        self.granted_by = granted_by</p>
+<p>        self.justification = justification</p>
+<p>        self.revoked = False</p>
+    
+<p>    def is_valid(self) -> bool:</p>
+<p>        """Check if permission is still valid"""</p>
+<p>        if self.revoked:</p>
+<p>            return False</p>
+<p>        return datetime.now() < self.expires_at</p>
+    
+<p>    def revoke(self):</p>
+<p>        """Revoke permission before expiration"""</p>
+<p>        self.revoked = True</p>
+
+<p>class PermissionManager:</p>
+<p>    """Manage temporary permission elevation"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.temp_permissions: Dict[str, List[TemporaryPermission]] = {}</p>
+    
+<p>    def grant_temporary_permission(self, agent_id: str,</p>
+<p>                                   permission: Permission,</p>
+<p>                                   duration_minutes: int,</p>
+<p>                                   granted_by: str,</p>
+<p>                                   justification: str) -> TemporaryPermission:</p>
+<p>        """Grant temporary elevated permission"""</p>
+<p>        temp_perm = TemporaryPermission(</p>
+<p>            permission=permission,</p>
+<p>            duration_minutes=duration_minutes,</p>
+<p>            granted_by=granted_by,</p>
+<p>            justification=justification</p>
+<p>        )</p>
+        
+<p>        if agent_id not in self.temp_permissions:</p>
+<p>            self.temp_permissions[agent_id] = []</p>
+        
+<p>        self.temp_permissions[agent_id].append(temp_perm)</p>
+        
+<p>        print(f"✅ Granted {permission.value} to {agent_id} for {duration_minutes}min")</p>
+<p>        print(f"   Justification: {justification}")</p>
+<p>        print(f"   Expires: {temp_perm.expires_at}")</p>
+        
+<p>        return temp_perm</p>
+    
+<p>    def has_permission(self, agent_id: str, permission: Permission) -> bool:</p>
+<p>        """Check if agent has permission (including temporary)"""</p>
+<p>        if agent_id not in self.temp_permissions:</p>
+<p>            return False</p>
+        
+<p>        # Check valid temporary permissions</p>
+<p>        for temp_perm in self.temp_permissions[agent_id]:</p>
+<p>            if temp_perm.permission == permission and temp_perm.is_valid():</p>
+<p>                return True</p>
+        
+<p>        return False</p>
+    
+<p>    def cleanup_expired(self):</p>
+<p>        """Remove expired permissions"""</p>
+<p>        for agent_id in self.temp_permissions:</p>
+<p>            self.temp_permissions[agent_id] = [</p>
+<p>                p for p in self.temp_permissions[agent_id] </p>
+<p>                if p.is_valid()</p>
+<p>            ]</p>
+
+<h1>Usage</h1>
+<p>perm_manager = PermissionManager()</p>
+
+<h1>Grant temporary delete permission</h1>
+<p>temp_perm = perm_manager.grant_temporary_permission(</p>
+<p>    agent_id='agent_001',</p>
+<p>    permission=Permission.DELETE_DATA,</p>
+<p>    duration_minutes=30,</p>
+<p>    granted_by='admin@company.com',</p>
+<p>    justification='Emergency cleanup of corrupted records'</p>
+<p>)</p>
+
+<h1>Check permission</h1>
+<p>if perm_manager.has_permission('agent_001', Permission.DELETE_DATA):</p>
+<p>    print("Agent can delete data (temporarily)")</p>
+
+<h1>Revoke early if needed</h1>
+<p>temp_perm.revoke()</p>
+<p>print("Permission revoked")</p>
+</code>`<code>
+
+<h2>Human-in-the-Loop Controls</h2>
+
+<h3>1. Approval Workflows</h3>
+
+<strong>Require human approval for high-risk actions</strong>:
+
+</code>`<code>python
+<p>from enum import Enum</p>
+<p>from typing import Callable, Optional</p>
+<p>import asyncio</p>
+
+<p>class ApprovalStatus(Enum):</p>
+<p>    PENDING = "pending"</p>
+<p>    APPROVED = "approved"</p>
+<p>    REJECTED = "rejected"</p>
+<p>    EXPIRED = "expired"</p>
+
+<p>class ApprovalRequest:</p>
+<p>    """Request human approval for action"""</p>
+    
+<p>    def __init__(self, agent_id: str, action: str,</p>
+<p>                 risk_level: str, details: dict):</p>
+<p>        self.id = f"approval_{int(time.time())}"</p>
+<p>        self.agent_id = agent_id</p>
+<p>        self.action = action</p>
+<p>        self.risk_level = risk_level</p>
+<p>        self.details = details</p>
+<p>        self.status = ApprovalStatus.PENDING</p>
+<p>        self.created_at = datetime.now()</p>
+<p>        self.expires_at = self.created_at + timedelta(minutes=30)</p>
+<p>        self.approver = None</p>
+<p>        self.decision_reason = None</p>
+    
+<p>    def approve(self, approver: str, reason: str):</p>
+<p>        """Approve the action"""</p>
+<p>        self.status = ApprovalStatus.APPROVED</p>
+<p>        self.approver = approver</p>
+<p>        self.decision_reason = reason</p>
+    
+<p>    def reject(self, approver: str, reason: str):</p>
+<p>        """Reject the action"""</p>
+<p>        self.status = ApprovalStatus.REJECTED</p>
+<p>        self.approver = approver</p>
+<p>        self.decision_reason = reason</p>
+    
+<p>    def is_expired(self) -> bool:</p>
+<p>        """Check if approval request expired"""</p>
+<p>        if datetime.now() > self.expires_at:</p>
+<p>            self.status = ApprovalStatus.EXPIRED</p>
+<p>            return True</p>
+<p>        return False</p>
+
+<p>class ApprovalWorkflow:</p>
+<p>    """Manage approval workflows for AI actions"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.pending_requests: Dict[str, ApprovalRequest] = {}</p>
+<p>        self.approval_rules = self._define_approval_rules()</p>
+    
+<p>    def _define_approval_rules(self) -> Dict[str, Set[Permission]]:</p>
+<p>        """Define which actions require approval"""</p>
+<p>        return {</p>
+<p>            'always': {</p>
+<p>                Permission.DELETE_DATA,</p>
+<p>                Permission.MAKE_PAYMENT,</p>
+<p>                Permission.EXECUTE_CODE</p>
+<p>            },</p>
+<p>            'high_value': {</p>
+<p>                Permission.WRITE_DATA,  # If high impact</p>
+<p>                Permission.MODIFY_CONFIG</p>
+<p>            },</p>
+<p>            'never': {</p>
+<p>                Permission.READ_DATA  # Read operations don't need approval</p>
+<p>            }</p>
+<p>        }</p>
+    
+<p>    def requires_approval(self, permission: Permission, </p>
+<p>                         impact: str = 'low') -> bool:</p>
+<p>        """Check if action requires approval"""</p>
+<p>        if permission in self.approval_rules['always']:</p>
+<p>            return True</p>
+        
+<p>        if permission in self.approval_rules['high_value'] and impact in ['medium', 'high']:</p>
+<p>            return True</p>
+        
+<p>        return False</p>
+    
+<p>    def request_approval(self, agent_id: str, action: str,</p>
+<p>                        permission: Permission, details: dict,</p>
+<p>                        risk_level: str = 'high') -> ApprovalRequest:</p>
+<p>        """Create approval request"""</p>
+<p>        request = ApprovalRequest(</p>
+<p>            agent_id=agent_id,</p>
+<p>            action=action,</p>
+<p>            risk_level=risk_level,</p>
+<p>            details=details</p>
+<p>        )</p>
+        
+<p>        self.pending_requests[request.id] = request</p>
+        
+<p>        # Notify approvers</p>
+<p>        self._notify_approvers(request)</p>
+        
+<p>        return request</p>
+    
+<p>    def _notify_approvers(self, request: ApprovalRequest):</p>
+<p>        """Notify human approvers"""</p>
+<p>        print("\n" + "="*60)</p>
+<p>        print("⚠️  APPROVAL REQUIRED")</p>
+<p>        print("="*60)</p>
+<p>        print(f"Request ID: {request.id}")</p>
+<p>        print(f"Agent: {request.agent_id}")</p>
+<p>        print(f"Action: {request.action}")</p>
+<p>        print(f"Risk Level: {request.risk_level}")</p>
+<p>        print(f"Details:")</p>
+<p>        for key, value in request.details.items():</p>
+<p>            print(f"  - {key}: {value}")</p>
+<p>        print(f"Expires: {request.expires_at}")</p>
+<p>        print("="*60 + "\n")</p>
+    
+<p>    def wait_for_approval(self, request_id: str, </p>
+<p>                         timeout_seconds: int = 1800) -> bool:</p>
+<p>        """Wait for human approval (blocking)"""</p>
+<p>        request = self.pending_requests.get(request_id)</p>
+<p>        if not request:</p>
+<p>            return False</p>
+        
+<p>        start_time = time.time()</p>
+        
+<p>        while time.time() - start_time < timeout_seconds:</p>
+<p>            # Check for expiration</p>
+<p>            if request.is_expired():</p>
+<p>                print(f"❌ Approval request {request_id} expired")</p>
+<p>                return False</p>
+            
+<p>            # Check status</p>
+<p>            if request.status == ApprovalStatus.APPROVED:</p>
+<p>                print(f"✅ Action approved by {request.approver}")</p>
+<p>                print(f"   Reason: {request.decision_reason}")</p>
+<p>                return True</p>
+            
+<p>            if request.status == ApprovalStatus.REJECTED:</p>
+<p>                print(f"❌ Action rejected by {request.approver}")</p>
+<p>                print(f"   Reason: {request.decision_reason}")</p>
+<p>                return False</p>
+            
+<p>            # Wait before checking again</p>
+<p>            time.sleep(1)</p>
+        
+<p>        print(f"❌ Approval timeout for {request_id}")</p>
+<p>        return False</p>
+    
+<p>    def process_approval(self, request_id: str, approved: bool,</p>
+<p>                        approver: str, reason: str):</p>
+<p>        """Process approval decision"""</p>
+<p>        request = self.pending_requests.get(request_id)</p>
+<p>        if not request:</p>
+<p>            return</p>
+        
+<p>        if approved:</p>
+<p>            request.approve(approver, reason)</p>
+<p>        else:</p>
+<p>            request.reject(approver, reason)</p>
+
+<h1>Usage with agent actions</h1>
+<p>class ApprovalControlledAgent:</p>
+<p>    """Agent that requires approval for risky actions"""</p>
+    
+<p>    def __init__(self, agent_id: str, approval_workflow: ApprovalWorkflow):</p>
+<p>        self.agent_id = agent_id</p>
+<p>        self.approval_workflow = approval_workflow</p>
+    
+<p>    def execute_with_approval(self, action: str, permission: Permission,</p>
+<p>                             details: dict, risk_level: str = 'high'):</p>
+<p>        """Execute action with approval if needed"""</p>
+<p>        # Check if approval needed</p>
+<p>        if self.approval_workflow.requires_approval(permission, risk_level):</p>
+<p>            print(f"🔒 Action requires approval: {action}")</p>
+            
+<p>            # Request approval</p>
+<p>            request = self.approval_workflow.request_approval(</p>
+<p>                agent_id=self.agent_id,</p>
+<p>                action=action,</p>
+<p>                permission=permission,</p>
+<p>                details=details,</p>
+<p>                risk_level=risk_level</p>
+<p>            )</p>
+            
+<p>            # Wait for approval</p>
+<p>            approved = self.approval_workflow.wait_for_approval(request.id)</p>
+            
+<p>            if not approved:</p>
+<p>                return "❌ Action cancelled - approval not granted"</p>
+        
+<p>        # Execute action</p>
+<p>        print(f"✅ Executing: {action}")</p>
+<p>        return self._execute_action(action, details)</p>
+    
+<p>    def _execute_action(self, action: str, details: dict):</p>
+<p>        """Actually execute the action"""</p>
+<p>        # Implementation of actual action</p>
+<p>        return f"Action executed: {action}"</p>
+
+<h1>Example usage</h1>
+<p>workflow = ApprovalWorkflow()</p>
+<p>agent = ApprovalControlledAgent('delete_agent', workflow)</p>
+
+<h1>High-risk action requires approval</h1>
+<p>result = agent.execute_with_approval(</p>
+<p>    action="DELETE FROM customers WHERE inactive=true",</p>
+<p>    permission=Permission.DELETE_DATA,</p>
+<p>    details={</p>
+<p>        'table': 'customers',</p>
+<p>        'estimated_rows': 5000,</p>
+<p>        'condition': 'inactive=true'</p>
+<p>    },</p>
+<p>    risk_level='high'</p>
+<p>)</p>
+
+<h1>Simulate approval (in real system, human would approve via UI)</h1>
+<p>workflow.process_approval(</p>
+<p>    request_id=list(workflow.pending_requests.keys())[0],</p>
+<p>    approved=True,</p>
+<p>    approver='admin@company.com',</p>
+<p>    reason='Confirmed these are test accounts'</p>
+<p>)</p>
+</code>`<code>
+
+<h3>2. Dry-Run Mode</h3>
+
+<strong>Preview actions before execution</strong>:
+
+</code>`<code>python
+<p>class DryRunAgent:</p>
+<p>    """Agent with dry-run capability"""</p>
+    
+<p>    def __init__(self, agent_id: str):</p>
+<p>        self.agent_id = agent_id</p>
+<p>        self.dry_run_mode = True  # Default to safe mode</p>
+    
+<p>    def execute_action(self, action: str, parameters: dict):</p>
+<p>        """Execute action with dry-run option"""</p>
+<p>        if self.dry_run_mode:</p>
+<p>            return self._dry_run(action, parameters)</p>
+<p>        else:</p>
+<p>            return self._execute(action, parameters)</p>
+    
+<p>    def _dry_run(self, action: str, parameters: dict) -> dict:</p>
+<p>        """Simulate action and return preview"""</p>
+<p>        preview = {</p>
+<p>            'action': action,</p>
+<p>            'parameters': parameters,</p>
+<p>            'estimated_impact': self._estimate_impact(action, parameters),</p>
+<p>            'affected_resources': self._identify_affected_resources(action, parameters),</p>
+<p>            'reversible': self._is_reversible(action),</p>
+<p>            'risk_level': self._assess_risk(action, parameters)</p>
+<p>        }</p>
+        
+<p>        print("\n🔍 DRY RUN - Action Preview:")</p>
+<p>        print(f"Action: {preview['action']}")</p>
+<p>        print(f"Estimated Impact: {preview['estimated_impact']}")</p>
+<p>        print(f"Affected Resources: {preview['affected_resources']}")</p>
+<p>        print(f"Reversible: {preview['reversible']}")</p>
+<p>        print(f"Risk Level: {preview['risk_level']}")</p>
+<p>        print("\nNo actual changes made (dry-run mode)")</p>
+        
+<p>        return preview</p>
+    
+<p>    def _execute(self, action: str, parameters: dict):</p>
+<p>        """Actually execute the action"""</p>
+<p>        print(f"✅ Executing: {action}")</p>
+<p>        # Real execution here</p>
+<p>        return {'status': 'executed'}</p>
+    
+<p>    def _estimate_impact(self, action: str, parameters: dict) -> str:</p>
+<p>        """Estimate impact of action"""</p>
+<p>        if 'DELETE' in action.upper():</p>
+<p>            return f"Will delete approximately {parameters.get('row_count', 'unknown')} rows"</p>
+<p>        elif 'UPDATE' in action.upper():</p>
+<p>            return f"Will modify approximately {parameters.get('row_count', 'unknown')} rows"</p>
+<p>        return "Read-only operation"</p>
+    
+<p>    def _identify_affected_resources(self, action: str, parameters: dict) -> List[str]:</p>
+<p>        """Identify what will be affected"""</p>
+<p>        return parameters.get('tables', [])</p>
+    
+<p>    def _is_reversible(self, action: str) -> bool:</p>
+<p>        """Check if action can be undone"""</p>
+<p>        irreversible_keywords = ['DELETE', 'DROP', 'TRUNCATE']</p>
+<p>        return not any(kw in action.upper() for kw in irreversible_keywords)</p>
+    
+<p>    def _assess_risk(self, action: str, parameters: dict) -> str:</p>
+<p>        """Assess risk level"""</p>
+<p>        if not self._is_reversible(action):</p>
+<p>            return 'HIGH'</p>
+<p>        elif 'UPDATE' in action.upper():</p>
+<p>            return 'MEDIUM'</p>
+<p>        return 'LOW'</p>
+    
+<p>    def enable_execution(self):</p>
+<p>        """Enable actual execution after dry-run review"""</p>
+<p>        self.dry_run_mode = False</p>
+<p>        print("⚠️  Dry-run mode disabled - actions will be executed")</p>
+    
+<p>    def enable_dry_run(self):</p>
+<p>        """Re-enable dry-run mode"""</p>
+<p>        self.dry_run_mode = True</p>
+<p>        print("✅ Dry-run mode enabled - actions will be previewed only")</p>
+
+<h1>Usage</h1>
+<p>agent = DryRunAgent('maintenance_agent')</p>
+
+<h1>First, preview the action</h1>
+<p>preview = agent.execute_action(</p>
+<p>    action="DELETE FROM old_logs WHERE created_at < NOW() - INTERVAL 90 DAY",</p>
+<p>    parameters={</p>
+<p>        'tables': ['old_logs'],</p>
+<p>        'row_count': 50000</p>
+<p>    }</p>
+<p>)</p>
+
+<h1>Review preview, then enable execution if approved</h1>
+<p>if preview['risk_level'] == 'HIGH':</p>
+<p>    print("\n⚠️  High risk action - requires approval")</p>
+<p>    # ... get approval ...</p>
+    
+<h1>Only then enable actual execution</h1>
+<p>agent.enable_execution()</p>
+<p>result = agent.execute_action(</p>
+<p>    action="DELETE FROM old_logs WHERE created_at < NOW() - INTERVAL 90 DAY",</p>
+<p>    parameters={</p>
+<p>        'tables': ['old_logs'],</p>
+<p>        'row_count': 50000</p>
+<p>    }</p>
+<p>)</p>
+</code>`<code>
+
+<h2>Rate Limiting and Boundaries</h2>
+
+<h3>1. Action Rate Limiting</h3>
+
+<strong>Prevent excessive action execution</strong>:
+
+</code>`<code>python
+<p>from collections import deque</p>
+<p>import threading</p>
+
+<p>class RateLimiter:</p>
+<p>    """Rate limit agent actions"""</p>
+    
+<p>    def __init__(self, max_actions_per_minute: int,</p>
+<p>                 max_actions_per_hour: int):</p>
+<p>        self.max_per_minute = max_actions_per_minute</p>
+<p>        self.max_per_hour = max_actions_per_hour</p>
+        
+<p>        self.minute_window = deque(maxlen=max_actions_per_minute)</p>
+<p>        self.hour_window = deque(maxlen=max_actions_per_hour)</p>
+        
+<p>        self.lock = threading.Lock()</p>
+    
+<p>    def check_and_record(self) -> tuple[bool, str]:</p>
+<p>        """Check if action is allowed and record it"""</p>
+<p>        with self.lock:</p>
+<p>            current_time = time.time()</p>
+            
+<p>            # Clean old entries from windows</p>
+<p>            self._clean_window(self.minute_window, current_time, 60)</p>
+<p>            self._clean_window(self.hour_window, current_time, 3600)</p>
+            
+<p>            # Check minute limit</p>
+<p>            if len(self.minute_window) >= self.max_per_minute:</p>
+<p>                return False, f"Rate limit exceeded: {self.max_per_minute} actions/minute"</p>
+            
+<p>            # Check hour limit</p>
+<p>            if len(self.hour_window) >= self.max_per_hour:</p>
+<p>                return False, f"Rate limit exceeded: {self.max_per_hour} actions/hour"</p>
+            
+<p>            # Record action</p>
+<p>            self.minute_window.append(current_time)</p>
+<p>            self.hour_window.append(current_time)</p>
+            
+<p>            return True, "Action allowed"</p>
+    
+<p>    def _clean_window(self, window: deque, current_time: float, </p>
+<p>                     window_seconds: int):</p>
+<p>        """Remove entries outside time window"""</p>
+<p>        while window and current_time - window[0] > window_seconds:</p>
+<p>            window.popleft()</p>
+    
+<p>    def get_stats(self) -> dict:</p>
+<p>        """Get current rate limit statistics"""</p>
+<p>        current_time = time.time()</p>
+        
+<p>        self._clean_window(self.minute_window, current_time, 60)</p>
+<p>        self._clean_window(self.hour_window, current_time, 3600)</p>
+        
+<p>        return {</p>
+<p>            'actions_last_minute': len(self.minute_window),</p>
+<p>            'limit_per_minute': self.max_per_minute,</p>
+<p>            'actions_last_hour': len(self.hour_window),</p>
+<p>            'limit_per_hour': self.max_per_hour</p>
+<p>        }</p>
+
+<p>class RateLimitedAgent:</p>
+<p>    """Agent with rate limiting"""</p>
+    
+<p>    def __init__(self, agent_id: str, rate_limiter: RateLimiter):</p>
+<p>        self.agent_id = agent_id</p>
+<p>        self.rate_limiter = rate_limiter</p>
+    
+<p>    def execute_action(self, action: str):</p>
+<p>        """Execute action with rate limiting"""</p>
+<p>        # Check rate limit</p>
+<p>        allowed, message = self.rate_limiter.check_and_record()</p>
+        
+<p>        if not allowed:</p>
+<p>            print(f"❌ {message}")</p>
+<p>            return None</p>
+        
+<p>        # Execute action</p>
+<p>        print(f"✅ Executing: {action}")</p>
+<p>        return self._do_action(action)</p>
+    
+<p>    def _do_action(self, action: str):</p>
+<p>        """Actually perform the action"""</p>
+<p>        return f"Executed: {action}"</p>
+
+<h1>Usage</h1>
+<p>limiter = RateLimiter(</p>
+<p>    max_actions_per_minute=10,</p>
+<p>    max_actions_per_hour=100</p>
+<p>)</p>
+
+<p>agent = RateLimitedAgent('api_agent', limiter)</p>
+
+<h1>These succeed</h1>
+<p>for i in range(5):</p>
+<p>    agent.execute_action(f"API call {i}")</p>
+
+<h1>Check stats</h1>
+<p>stats = limiter.get_stats()</p>
+<p>print(f"\nRate limit stats: {stats}")</p>
+
+<h1>Try to exceed limit</h1>
+<p>for i in range(20):</p>
+<p>    agent.execute_action(f"Rapid call {i}")</p>
+<h1>Last 15 will be rate limited</h1>
+</code>`<code>
+
+<h3>2. Recursion Depth Limiting</h3>
+
+<strong>Prevent infinite recursion</strong>:
+
+</code>`<code>python
+<p>class RecursionLimiter:</p>
+<p>    """Limit recursion depth for agents"""</p>
+    
+<p>    def __init__(self, max_depth: int):</p>
+<p>        self.max_depth = max_depth</p>
+<p>        self.current_depth = 0</p>
+<p>        self.call_stack = []</p>
+    
+<p>    def enter_recursive_call(self, function_name: str) -> bool:</p>
+<p>        """Enter recursive call, return False if limit exceeded"""</p>
+<p>        self.current_depth += 1</p>
+<p>        self.call_stack.append(function_name)</p>
+        
+<p>        if self.current_depth > self.max_depth:</p>
+<p>            print(f"❌ Recursion depth limit exceeded: {self.max_depth}")</p>
+<p>            print(f"Call stack: {' -> '.join(self.call_stack)}")</p>
+<p>            return False</p>
+        
+<p>        return True</p>
+    
+<p>    def exit_recursive_call(self):</p>
+<p>        """Exit recursive call"""</p>
+<p>        if self.call_stack:</p>
+<p>            self.call_stack.pop()</p>
+<p>        self.current_depth = max(0, self.current_depth - 1)</p>
+    
+<p>    def get_depth(self) -> int:</p>
+<p>        """Get current recursion depth"""</p>
+<p>        return self.current_depth</p>
+
+<p>class RecursionLimitedAgent:</p>
+<p>    """Agent with recursion depth limiting"""</p>
+    
+<p>    def __init__(self, max_recursion_depth: int = 5):</p>
+<p>        self.recursion_limiter = RecursionLimiter(max_recursion_depth)</p>
+    
+<p>    def research_topic(self, topic: str, depth: int = 0) -> dict:</p>
+<p>        """Research topic with recursion limiting"""</p>
+<p>        # Check recursion limit</p>
+<p>        if not self.recursion_limiter.enter_recursive_call('research_topic'):</p>
+<p>            return {'error': 'Max recursion depth exceeded'}</p>
+        
+<p>        try:</p>
+<p>            print(f"{'  ' * depth}Researching: {topic} (depth: {depth})")</p>
+            
+<p>            # Simulate finding subtopics</p>
+<p>            subtopics = self._find_subtopics(topic)</p>
+            
+<p>            results = {'topic': topic, 'subtopics': []}</p>
+            
+<p>            # Recursively research subtopics</p>
+<p>            for subtopic in subtopics:</p>
+<p>                sub_result = self.research_topic(subtopic, depth + 1)</p>
+<p>                if 'error' not in sub_result:</p>
+<p>                    results['subtopics'].append(sub_result)</p>
+<p>                else:</p>
+<p>                    print(f"{'  ' * depth}Stopped at depth limit")</p>
+<p>                    break</p>
+            
+<p>            return results</p>
+        
+<p>        finally:</p>
+<p>            # Always exit recursion level</p>
+<p>            self.recursion_limiter.exit_recursive_call()</p>
+    
+<p>    def _find_subtopics(self, topic: str) -> List[str]:</p>
+<p>        """Simulate finding subtopics"""</p>
+<p>        return [f"{topic}_sub1", f"{topic}_sub2"]</p>
+
+<h1>Usage</h1>
+<p>agent = RecursionLimitedAgent(max_recursion_depth=3)</p>
+
+<h1>This will be limited at depth 3</h1>
+<p>result = agent.research_topic("AI Safety")</p>
+</code>`<code>
+
+<h3>3. Cost and Resource Limits</h3>
+
+<strong>Limit resource consumption</strong>:
+
+</code>`<code>python
+<p>class ResourceLimiter:</p>
+<p>    """Limit resource consumption by agents"""</p>
+    
+<p>    def __init__(self, </p>
+<p>                 max_api_calls: int,</p>
+<p>                 max_cost_dollars: float,</p>
+<p>                 max_storage_mb: float):</p>
+<p>        self.max_api_calls = max_api_calls</p>
+<p>        self.max_cost = max_cost_dollars</p>
+<p>        self.max_storage = max_storage_mb</p>
+        
+<p>        self.api_calls_used = 0</p>
+<p>        self.cost_incurred = 0.0</p>
+<p>        self.storage_used = 0.0</p>
+    
+<p>    def check_api_call(self, cost_per_call: float = 0.01) -> tuple[bool, str]:</p>
+<p>        """Check if API call is within limits"""</p>
+<p>        if self.api_calls_used >= self.max_api_calls:</p>
+<p>            return False, f"API call limit reached: {self.max_api_calls}"</p>
+        
+<p>        if self.cost_incurred + cost_per_call > self.max_cost:</p>
+<p>            return False, f"Cost limit reached: ${self.max_cost}"</p>
+        
+<p>        # Record usage</p>
+<p>        self.api_calls_used += 1</p>
+<p>        self.cost_incurred += cost_per_call</p>
+        
+<p>        return True, "Within limits"</p>
+    
+<p>    def check_storage(self, size_mb: float) -> tuple[bool, str]:</p>
+<p>        """Check if storage operation is within limits"""</p>
+<p>        if self.storage_used + size_mb > self.max_storage:</p>
+<p>            return False, f"Storage limit reached: {self.max_storage}MB"</p>
+        
+<p>        self.storage_used += size_mb</p>
+<p>        return True, "Within limits"</p>
+    
+<p>    def get_usage(self) -> dict:</p>
+<p>        """Get current resource usage"""</p>
+<p>        return {</p>
+<p>            'api_calls': f"{self.api_calls_used}/{self.max_api_calls}",</p>
+<p>            'cost': f"${self.cost_incurred:.2f}/${self.max_cost}",</p>
+<p>            'storage': f"{self.storage_used:.2f}/{self.max_storage}MB"</p>
+<p>        }</p>
+
+<p>class ResourceLimitedAgent:</p>
+<p>    """Agent with resource limits"""</p>
+    
+<p>    def __init__(self, resource_limiter: ResourceLimiter):</p>
+<p>        self.resource_limiter = resource_limiter</p>
+    
+<p>    def make_api_call(self, endpoint: str, cost: float = 0.01):</p>
+<p>        """Make API call with resource checking"""</p>
+<p>        allowed, message = self.resource_limiter.check_api_call(cost)</p>
+        
+<p>        if not allowed:</p>
+<p>            print(f"❌ {message}")</p>
+<p>            return None</p>
+        
+<p>        print(f"✅ API call to {endpoint} (${cost})")</p>
+<p>        return {'data': 'result'}</p>
+    
+<p>    def store_data(self, data: str, size_mb: float):</p>
+<p>        """Store data with size checking"""</p>
+<p>        allowed, message = self.resource_limiter.check_storage(size_mb)</p>
+        
+<p>        if not allowed:</p>
+<p>            print(f"❌ {message}")</p>
+<p>            return False</p>
+        
+<p>        print(f"✅ Stored {size_mb}MB of data")</p>
+<p>        return True</p>
+
+<h1>Usage</h1>
+<p>limiter = ResourceLimiter(</p>
+<p>    max_api_calls=100,</p>
+<p>    max_cost_dollars=10.0,</p>
+<p>    max_storage_mb=1000.0</p>
+<p>)</p>
+
+<p>agent = ResourceLimitedAgent(limiter)</p>
+
+<h1>These succeed</h1>
+<p>for i in range(5):</p>
+<p>    agent.make_api_call(f"endpoint_{i}", cost=0.50)</p>
+
+<h1>Check usage</h1>
+<p>print(limiter.get_usage())</p>
+
+<h1>This might hit limits</h1>
+<p>for i in range(100):</p>
+<p>    agent.make_api_call(f"excessive_{i}", cost=0.50)</p>
+</code>`<code>
+
+<h2>Action Validation</h2>
+
+<h3>1. Pre-Execution Validation</h3>
+
+<strong>Validate actions before execution</strong>:
+
+</code>`<code>python
+<p>from typing import Callable</p>
+
+<p>class ActionValidator:</p>
+<p>    """Validate actions before execution"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.validation_rules = self._define_rules()</p>
+    
+<p>    def _define_rules(self) -> Dict[str, Callable]:</p>
+<p>        """Define validation rules for different action types"""</p>
+<p>        return {</p>
+<p>            'database_delete': self._validate_delete,</p>
+<p>            'file_operation': self._validate_file_op,</p>
+<p>            'api_call': self._validate_api_call,</p>
+<p>            'payment': self._validate_payment,</p>
+<p>        }</p>
+    
+<p>    def validate(self, action_type: str, parameters: dict) -> tuple[bool, str]:</p>
+<p>        """Validate action"""</p>
+<p>        validator = self.validation_rules.get(action_type)</p>
+        
+<p>        if not validator:</p>
+<p>            return False, f"Unknown action type: {action_type}"</p>
+        
+<p>        return validator(parameters)</p>
+    
+<p>    def _validate_delete(self, parameters: dict) -> tuple[bool, str]:</p>
+<p>        """Validate delete operations"""</p>
+<p>        # Require WHERE clause</p>
+<p>        if 'where_clause' not in parameters or not parameters['where_clause']:</p>
+<p>            return False, "DELETE without WHERE clause not allowed"</p>
+        
+<p>        # Prevent DELETE * or DELETE without specific conditions</p>
+<p>        if parameters['where_clause'].strip() == '1=1':</p>
+<p>            return False, "DELETE with always-true condition not allowed"</p>
+        
+<p>        # Require estimated row count</p>
+<p>        if 'estimated_rows' not in parameters:</p>
+<p>            return False, "Must provide estimated rows to delete"</p>
+        
+<p>        # Limit bulk deletes</p>
+<p>        if parameters['estimated_rows'] > 10000:</p>
+<p>            return False, f"Bulk delete limit exceeded: {parameters['estimated_rows']} > 10000"</p>
+        
+<p>        return True, "Delete validation passed"</p>
+    
+<p>    def _validate_file_op(self, parameters: dict) -> tuple[bool, str]:</p>
+<p>        """Validate file operations"""</p>
+<p>        path = parameters.get('path', '')</p>
+        
+<p>        # Prevent operations on system directories</p>
+<p>        forbidden_paths = ['/etc', '/sys', '/boot', '/root']</p>
+<p>        if any(path.startswith(forbidden) for forbidden in forbidden_paths):</p>
+<p>            return False, f"Operations on system directories not allowed: {path}"</p>
+        
+<p>        # Require explicit path (no wildcards for deletes)</p>
+<p>        if parameters.get('operation') == 'delete' and '*' in path:</p>
+<p>            return False, "Wildcard deletes not allowed"</p>
+        
+<p>        return True, "File operation validation passed"</p>
+    
+<p>    def _validate_api_call(self, parameters: dict) -> tuple[bool, str]:</p>
+<p>        """Validate API calls"""</p>
+<p>        # Check endpoint whitelist</p>
+<p>        endpoint = parameters.get('endpoint', '')</p>
+<p>        allowed_endpoints = parameters.get('allowed_endpoints', [])</p>
+        
+<p>        if endpoint not in allowed_endpoints:</p>
+<p>            return False, f"Endpoint not in whitelist: {endpoint}"</p>
+        
+<p>        # Validate parameters</p>
+<p>        if 'api_params' in parameters:</p>
+<p>            # Check for injection attempts</p>
+<p>            params_str = str(parameters['api_params'])</p>
+<p>            if any(char in params_str for char in ['<', '>', ';', '&']):</p>
+<p>                return False, "Suspicious characters in API parameters"</p>
+        
+<p>        return True, "API call validation passed"</p>
+    
+<p>    def _validate_payment(self, parameters: dict) -> tuple[bool, str]:</p>
+<p>        """Validate payment operations"""</p>
+<p>        amount = parameters.get('amount', 0)</p>
+        
+<p>        # Check amount limits</p>
+<p>        if amount > 10000:</p>
+<p>            return False, f"Payment amount exceeds limit: ${amount} > $10000"</p>
+        
+<p>        if amount <= 0:</p>
+<p>            return False, "Invalid payment amount"</p>
+        
+<p>        # Require recipient verification</p>
+<p>        if 'recipient_verified' not in parameters or not parameters['recipient_verified']:</p>
+<p>            return False, "Recipient must be verified"</p>
+        
+<p>        return True, "Payment validation passed"</p>
+
+<p>class ValidatedAgent:</p>
+<p>    """Agent with action validation"""</p>
+    
+<p>    def __init__(self, validator: ActionValidator):</p>
+<p>        self.validator = validator</p>
+    
+<p>    def execute_action(self, action_type: str, parameters: dict):</p>
+<p>        """Execute action with validation"""</p>
+<p>        # Validate first</p>
+<p>        valid, message = self.validator.validate(action_type, parameters)</p>
+        
+<p>        if not valid:</p>
+<p>            print(f"❌ Validation failed: {message}")</p>
+<p>            return None</p>
+        
+<p>        print(f"✅ Validation passed: {message}")</p>
+<p>        return self._execute(action_type, parameters)</p>
+    
+<p>    def _execute(self, action_type: str, parameters: dict):</p>
+<p>        """Execute validated action"""</p>
+<p>        print(f"Executing {action_type} with {parameters}")</p>
+<p>        return {'status': 'success'}</p>
+
+<h1>Usage</h1>
+<p>validator = ActionValidator()</p>
+<p>agent = ValidatedAgent(validator)</p>
+
+<h1>This succeeds - valid delete</h1>
+<p>agent.execute_action('database_delete', {</p>
+<p>    'table': 'old_logs',</p>
+<p>    'where_clause': 'created_at < NOW() - INTERVAL 90 DAY',</p>
+<p>    'estimated_rows': 5000</p>
+<p>})</p>
+
+<h1>This fails - no WHERE clause</h1>
+<p>agent.execute_action('database_delete', {</p>
+<p>    'table': 'customers',</p>
+<p>    'where_clause': '',</p>
+<p>    'estimated_rows': 1000</p>
+<p>})</p>
+
+<h1>This fails - system directory</h1>
+<p>agent.execute_action('file_operation', {</p>
+<p>    'operation': 'delete',</p>
+<p>    'path': '/etc/passwd'</p>
+<p>})</p>
+
+<h1>This succeeds - valid payment</h1>
+<p>agent.execute_action('payment', {</p>
+<p>    'amount': 500.00,</p>
+<p>    'recipient': 'vendor@example.com',</p>
+<p>    'recipient_verified': True</p>
+<p>})</p>
+</code>``
+
+<h2>Best Practices</h2>
+
+<h3>1. Agent Design Principles</h3>
+<ul>
+<li>✅ <strong>Principle of least privilege</strong> - Grant minimal necessary permissions</li>
+<li>✅ <strong>Explicit approval for critical actions</strong> - Human-in-the-loop for high-risk ops</li>
+<li>✅ <strong>Fail-safe defaults</strong> - Default to safe, read-only operations</li>
+<li>✅ <strong>Defense in depth</strong> - Multiple layers of controls</li>
+<li>✅ <strong>Transparency</strong> - Log and explain all actions</li>
+<li>✅ <strong>Reversibility</strong> - Design for rollback when possible</li>
+</ul>
+
+<h3>2. Permission Management</h3>
+<ul>
+<li>✅ Use role-based access control (RBAC)</li>
+<li>✅ Implement granular permission scoping</li>
+<li>✅ Regular permission audits and reviews</li>
+<li>✅ Temporary elevated access when needed</li>
+<li>✅ Separate read and write permissions</li>
+<li>✅ Never grant wildcard permissions</li>
+</ul>
+
+<h3>3. Approval Workflows</h3>
+<ul>
+<li>✅ Require approval for destructive operations</li>
+<li>✅ Implement dry-run/preview mode</li>
+<li>✅ Human confirmation for financial actions</li>
+<li>✅ Approval timeout and expiration</li>
+<li>✅ Audit trail of all approvals</li>
+<li>✅ Multiple approval tiers for high-risk actions</li>
+</ul>
+
+<h3>4. Rate Limiting</h3>
+<ul>
+<li>✅ Limit actions per time period</li>
+<li>✅ Limit API calls and costs</li>
+<li>✅ Limit recursion depth</li>
+<li>✅ Resource consumption caps</li>
+<li>✅ Circuit breakers for failures</li>
+<li>✅ Graceful degradation</li>
+</ul>
+
+<h3>5. Action Validation</h3>
+<ul>
+<li>✅ Validate all parameters before execution</li>
+<li>✅ Check action scope against permissions</li>
+<li>✅ Prevent dangerous patterns (wildcards, always-true conditions)</li>
+<li>✅ Sanitize inputs</li>
+<li>✅ Verify resource existence</li>
+<li>✅ Estimate impact before execution</li>
+</ul>
+
+<h3>6. Monitoring and Logging</h3>
+<ul>
+<li>✅ Log all agent actions</li>
+<li>✅ Alert on unusual patterns</li>
+<li>✅ Track permission usage</li>
+<li>✅ Monitor resource consumption</li>
+<li>✅ Audit trails for compliance</li>
+<li>✅ Real-time anomaly detection</li>
+</ul>
+
+<p>---</p>
+
+<strong>Key Principle</strong>: Trust but verify. Grant agents necessary capabilities, but implement multiple layers of controls, require approval for risky operations, and continuously monitor behavior to prevent excessive agency vulnerabilities.
+
         </div>
     </div>
 </body>

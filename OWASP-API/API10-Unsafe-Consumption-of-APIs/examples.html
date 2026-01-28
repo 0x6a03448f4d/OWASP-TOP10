@@ -215,7 +215,77 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>API10: Unsafe Consumption of APIs - Code Examples</h1>
+
+<h2>Flask - Vulnerable vs Secure</h2>
+
+<h3>Vulnerable</h3>
+<p>``<code>python</p>
+<p>@app.route('/import')</p>
+<p>def import_data():</p>
+<p>    data = requests.get('https://external-api.com/data').json()</p>
+<p>    db.execute(f"INSERT INTO items VALUES ('{data['name']}')")  # SQLi!</p>
+<p>    return f"<div>{data['description']}</div>"  # XSS!</p>
+</code>`<code>
+
+<h3>Secure</h3>
+</code>`<code>python
+<p>from markupsafe import escape</p>
+
+<p>@app.route('/import')</p>
+<p>def import_data_secure():</p>
+<p>    data = requests.get('https://external-api.com/data').json()</p>
+    
+<p>    # Validate</p>
+<p>    if not isinstance(data, dict):</p>
+<p>        return jsonify({'error': 'Invalid data'}), 400</p>
+    
+<p>    # Parameterized query</p>
+<p>    cursor.execute("INSERT INTO items (name) VALUES (?)", (data['name'],))</p>
+    
+<p>    # Escape output</p>
+<p>    return f"<div>{escape(data['description'])}</div>"</p>
+</code>`<code>
+
+<h2>Node.js - Payment Verification</h2>
+
+<h3>Vulnerable</h3>
+</code>`<code>javascript
+<p>const payment = await axios.post('https://payment.com/charge', order);</p>
+<p>if (payment.data.status === 'success') {  // Trusts response!</p>
+<p>    grantAccess();</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Secure</h3>
+</code>`<code>javascript
+<p>const payment = await axios.post('https://payment.com/charge', order);</p>
+
+<p>// Verify signature</p>
+<p>const signature = payment.headers['x-signature'];</p>
+<p>const expected = crypto.createHmac('sha256', SECRET).update(JSON.stringify(payment.data)).digest('hex');</p>
+
+<p>if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {</p>
+<p>    throw new Error('Invalid signature');</p>
+<p>}</p>
+
+<p>if (payment.data.status === 'success') {</p>
+<p>    grantAccess();</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Spring Boot - Safe XML Parsing</h2>
+
+</code>`<code>java
+<p>DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();</p>
+<p>factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);</p>
+<p>factory.setFeature("http://xml.org/sax/features/external-general-entities", false);</p>
+<p>factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);</p>
+
+<p>DocumentBuilder builder = factory.newDocumentBuilder();</p>
+<p>Document doc = builder.parse(new InputSource(new StringReader(xmlFromAPI)));</p>
+</code>``
+
         </div>
     </div>
 </body>

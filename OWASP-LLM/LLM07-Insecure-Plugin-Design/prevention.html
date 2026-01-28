@@ -215,7 +215,1275 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>LLM07: Insecure Plugin Design - Prevention</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#prevention-strategy-overview">Prevention Strategy Overview</a></li>
+<li><a href="#input-validation">Input Validation</a></li>
+<li><a href="#authentication-and-authorization">Authentication and Authorization</a></li>
+<li><a href="#secure-plugin-architecture">Secure Plugin Architecture</a></li>
+<li><a href="#ssrf-prevention">SSRF Prevention</a></li>
+<li><a href="#command-injection-prevention">Command Injection Prevention</a></li>
+<li><a href="#path-traversal-prevention">Path Traversal Prevention</a></li>
+<li><a href="#rate-limiting-and-resource-controls">Rate Limiting and Resource Controls</a></li>
+<li><a href="#monitoring-and-logging">Monitoring and Logging</a></li>
+<li><a href="#best-practices">Best Practices</a></li>
+</ul>
+
+<h2>Prevention Strategy Overview</h2>
+
+<p>Preventing plugin vulnerabilities requires defense-in-depth with multiple security layers across the entire plugin lifecycle.</p>
+
+<h3>Defense Layers</h3>
+
+<p>``<code></p>
+<p>[User Input] → [LLM] → [Plugin Validator] → [Authorization] → [Sandboxed Execution]</p>
+<p>     ↓            ↓           ↓                    ↓                  ↓</p>
+<p>  Validated   Sanitized  Type Checked         Permissions      Restricted Access</p>
+<p>  Filtered    Encoded    Schema Valid         Verified         Resource Limited</p>
+</code>`<code>
+
+<h2>Input Validation</h2>
+
+<h3>1. Comprehensive Input Validation Framework</h3>
+
+<strong>Validate all plugin inputs before execution</strong>:
+
+</code>`<code>python
+<p>from typing import Any, Dict, List, Optional</p>
+<p>import re</p>
+<p>from urllib.parse import urlparse</p>
+
+<p>class PluginInputValidator:</p>
+<p>    """Comprehensive input validation for plugins"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.allowed_url_schemes = ['http', 'https']</p>
+<p>        self.max_string_length = 10000</p>
+<p>        self.max_array_size = 1000</p>
+    
+<p>    def validate_string(self, value: str, </p>
+<p>                       pattern: Optional[str] = None,</p>
+<p>                       max_length: Optional[int] = None) -> bool:</p>
+<p>        """Validate string input"""</p>
+<p>        if not isinstance(value, str):</p>
+<p>            raise ValueError("Input must be string")</p>
+        
+<p>        # Length check</p>
+<p>        max_len = max_length or self.max_string_length</p>
+<p>        if len(value) > max_len:</p>
+<p>            raise ValueError(f"String exceeds maximum length: {max_len}")</p>
+        
+<p>        # Pattern validation if provided</p>
+<p>        if pattern and not re.match(pattern, value):</p>
+<p>            raise ValueError(f"String doesn't match required pattern")</p>
+        
+<p>        # Check for null bytes</p>
+<p>        if '\x00' in value:</p>
+<p>            raise ValueError("Null bytes not allowed")</p>
+        
+<p>        return True</p>
+    
+<p>    def validate_url(self, url: str, </p>
+<p>                    allowed_domains: Optional[List[str]] = None) -> bool:</p>
+<p>        """Validate URL input"""</p>
+<p>        try:</p>
+<p>            parsed = urlparse(url)</p>
+            
+<p>            # Check scheme</p>
+<p>            if parsed.scheme not in self.allowed_url_schemes:</p>
+<p>                raise ValueError(f"URL scheme not allowed: {parsed.scheme}")</p>
+            
+<p>            # Check for localhost/internal IPs</p>
+<p>            hostname = parsed.hostname</p>
+<p>            if self.is_internal_address(hostname):</p>
+<p>                raise ValueError(f"Access to internal addresses not allowed")</p>
+            
+<p>            # Check domain allowlist if provided</p>
+<p>            if allowed_domains:</p>
+<p>                if not any(allowed in hostname for allowed in allowed_domains):</p>
+<p>                    raise ValueError(f"Domain not in allowlist: {hostname}")</p>
+            
+<p>            return True</p>
+        
+<p>        except Exception as e:</p>
+<p>            raise ValueError(f"Invalid URL: {e}")</p>
+    
+<p>    def is_internal_address(self, hostname: str) -> bool:</p>
+<p>        """Check if hostname points to internal/private network"""</p>
+<p>        import ipaddress</p>
+        
+<p>        # Check for localhost</p>
+<p>        if hostname in ['localhost', '127.0.0.1', '::1']:</p>
+<p>            return True</p>
+        
+<p>        # Check for private IP ranges</p>
+<p>        try:</p>
+<p>            ip = ipaddress.ip_address(hostname)</p>
+<p>            return ip.is_private or ip.is_loopback or ip.is_link_local</p>
+<p>        except ValueError:</p>
+<p>            # Not an IP, check for metadata endpoints</p>
+<p>            metadata_endpoints = [</p>
+<p>                'metadata.google.internal',</p>
+<p>                '169.254.169.254',</p>
+<p>                'metadata.azure.com',</p>
+<p>            ]</p>
+<p>            return any(endpoint in hostname for endpoint in metadata_endpoints)</p>
+    
+<p>    def validate_file_path(self, path: str, </p>
+<p>                          allowed_directory: str) -> bool:</p>
+<p>        """Validate file path is within allowed directory"""</p>
+<p>        import os</p>
+        
+<p>        # Resolve to absolute path</p>
+<p>        abs_path = os.path.abspath(path)</p>
+<p>        abs_allowed = os.path.abspath(allowed_directory)</p>
+        
+<p>        # Check if path is within allowed directory</p>
+<p>        common_path = os.path.commonpath([abs_path, abs_allowed])</p>
+<p>        if common_path != abs_allowed:</p>
+<p>            raise ValueError(f"Path outside allowed directory: {path}")</p>
+        
+<p>        # Check for suspicious patterns</p>
+<p>        suspicious = ['..', '~', '${', '$(',]</p>
+<p>        if any(pattern in path for pattern in suspicious):</p>
+<p>            raise ValueError(f"Suspicious pattern in path: {path}")</p>
+        
+<p>        return True</p>
+    
+<p>    def validate_sql_identifier(self, identifier: str) -> bool:</p>
+<p>        """Validate SQL identifier (table/column name)"""</p>
+<p>        # Only allow alphanumeric and underscore</p>
+<p>        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', identifier):</p>
+<p>            raise ValueError(f"Invalid SQL identifier: {identifier}")</p>
+        
+<p>        # Check length</p>
+<p>        if len(identifier) > 64:</p>
+<p>            raise ValueError("SQL identifier too long")</p>
+        
+<p>        # Blacklist SQL keywords</p>
+<p>        sql_keywords = [</p>
+<p>            'SELECT', 'INSERT', 'UPDATE', 'DELETE', 'DROP', 'CREATE',</p>
+<p>            'ALTER', 'EXEC', 'EXECUTE', 'UNION', 'OR', 'AND'</p>
+<p>        ]</p>
+<p>        if identifier.upper() in sql_keywords:</p>
+<p>            raise ValueError(f"SQL keyword not allowed: {identifier}")</p>
+        
+<p>        return True</p>
+    
+<p>    def validate_command_args(self, args: List[str]) -> bool:</p>
+<p>        """Validate command arguments"""</p>
+<p>        dangerous_chars = [';', '|', '&', '$', '</code>', '\n', '>', '<']</p>
+        
+<p>        for arg in args:</p>
+<p>            # Check for command injection characters</p>
+<p>            if any(char in arg for char in dangerous_chars):</p>
+<p>                raise ValueError(f"Dangerous character in argument: {arg}")</p>
+            
+<p>            # Check for command substitution</p>
+<p>            if '$(' in arg or '<code>' in arg:</p>
+<p>                raise ValueError(f"Command substitution not allowed: {arg}")</p>
+        
+<p>        return True</p>
+
+<h1>Usage</h1>
+<p>validator = PluginInputValidator()</p>
+
+<p>def secure_database_plugin(table: str, query: str):</p>
+<p>    """Secure database plugin with validation"""</p>
+<p>    try:</p>
+<p>        # Validate table name</p>
+<p>        validator.validate_sql_identifier(table)</p>
+        
+<p>        # Validate query string</p>
+<p>        validator.validate_string(query, max_length=1000)</p>
+        
+<p>        # Additional validation: use parameterized queries</p>
+<p>        # ... proceed with query execution</p>
+        
+<p>    except ValueError as e:</p>
+<p>        return {"error": f"Validation failed: {e}"}</p>
+</code>`<code>
+
+<h3>2. Schema-Based Validation</h3>
+
+<strong>Define and enforce plugin input schemas</strong>:
+
+</code>`<code>python
+<p>from typing import Any, Dict</p>
+<p>from jsonschema import validate, ValidationError</p>
+<p>import jsonschema</p>
+
+<p>class PluginSchemaValidator:</p>
+<p>    """Schema-based validation for plugin inputs"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.schemas = {}</p>
+    
+<p>    def register_plugin_schema(self, plugin_name: str, schema: Dict):</p>
+<p>        """Register JSON schema for plugin"""</p>
+<p>        self.schemas[plugin_name] = schema</p>
+    
+<p>    def validate_plugin_input(self, plugin_name: str, </p>
+<p>                             parameters: Dict) -> bool:</p>
+<p>        """Validate plugin input against registered schema"""</p>
+<p>        if plugin_name not in self.schemas:</p>
+<p>            raise ValueError(f"No schema registered for plugin: {plugin_name}")</p>
+        
+<p>        try:</p>
+<p>            validate(instance=parameters, schema=self.schemas[plugin_name])</p>
+<p>            return True</p>
+<p>        except ValidationError as e:</p>
+<p>            raise ValueError(f"Schema validation failed: {e.message}")</p>
+
+<h1>Define schemas</h1>
+<p>schema_validator = PluginSchemaValidator()</p>
+
+<h1>Database plugin schema</h1>
+<p>database_schema = {</p>
+<p>    "type": "object",</p>
+<p>    "properties": {</p>
+<p>        "table": {</p>
+<p>            "type": "string",</p>
+<p>            "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",</p>
+<p>            "maxLength": 64</p>
+<p>        },</p>
+<p>        "filters": {</p>
+<p>            "type": "object",</p>
+<p>            "additionalProperties": {</p>
+<p>                "type": ["string", "number", "boolean"]</p>
+<p>            }</p>
+<p>        },</p>
+<p>        "limit": {</p>
+<p>            "type": "integer",</p>
+<p>            "minimum": 1,</p>
+<p>            "maximum": 1000</p>
+<p>        }</p>
+<p>    },</p>
+<p>    "required": ["table"],</p>
+<p>    "additionalProperties": False</p>
+<p>}</p>
+
+<p>schema_validator.register_plugin_schema("database", database_schema)</p>
+
+<h1>URL fetch plugin schema</h1>
+<p>url_fetch_schema = {</p>
+<p>    "type": "object",</p>
+<p>    "properties": {</p>
+<p>        "url": {</p>
+<p>            "type": "string",</p>
+<p>            "format": "uri",</p>
+<p>            "pattern": "^https://[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}(/.*)?$"</p>
+<p>        },</p>
+<p>        "method": {</p>
+<p>            "type": "string",</p>
+<p>            "enum": ["GET", "POST"]</p>
+<p>        },</p>
+<p>        "timeout": {</p>
+<p>            "type": "integer",</p>
+<p>            "minimum": 1,</p>
+<p>            "maximum": 30</p>
+<p>        }</p>
+<p>    },</p>
+<p>    "required": ["url"],</p>
+<p>    "additionalProperties": False</p>
+<p>}</p>
+
+<p>schema_validator.register_plugin_schema("url_fetch", url_fetch_schema)</p>
+
+<h1>Usage</h1>
+<p>def execute_plugin(plugin_name: str, parameters: Dict):</p>
+<p>    """Execute plugin with schema validation"""</p>
+<p>    try:</p>
+<p>        # Validate against schema</p>
+<p>        schema_validator.validate_plugin_input(plugin_name, parameters)</p>
+        
+<p>        # Execute plugin</p>
+<p>        return plugins<a href="**parameters">plugin_name</a></p>
+    
+<p>    except ValueError as e:</p>
+<p>        return {"error": str(e)}</p>
+</code>`<code>
+
+<h2>Authentication and Authorization</h2>
+
+<h3>1. Role-Based Access Control (RBAC)</h3>
+
+<strong>Implement proper authorization for plugins</strong>:
+
+</code>`<code>python
+<p>from enum import Enum</p>
+<p>from typing import Set, Dict, Optional</p>
+<p>from functools import wraps</p>
+
+<p>class Role(Enum):</p>
+<p>    ADMIN = "admin"</p>
+<p>    USER = "user"</p>
+<p>    READONLY = "readonly"</p>
+
+<p>class Permission(Enum):</p>
+<p>    READ_DATA = "read_data"</p>
+<p>    WRITE_DATA = "write_data"</p>
+<p>    EXECUTE_COMMAND = "execute_command"</p>
+<p>    ACCESS_ADMIN = "access_admin"</p>
+<p>    READ_FILES = "read_files"</p>
+<p>    WRITE_FILES = "write_files"</p>
+
+<p>class PluginAuthorizationManager:</p>
+<p>    """Manage plugin access control"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        # Define role permissions</p>
+<p>        self.role_permissions: Dict[Role, Set[Permission]] = {</p>
+<p>            Role.ADMIN: {</p>
+<p>                Permission.READ_DATA,</p>
+<p>                Permission.WRITE_DATA,</p>
+<p>                Permission.EXECUTE_COMMAND,</p>
+<p>                Permission.ACCESS_ADMIN,</p>
+<p>                Permission.READ_FILES,</p>
+<p>                Permission.WRITE_FILES,</p>
+<p>            },</p>
+<p>            Role.USER: {</p>
+<p>                Permission.READ_DATA,</p>
+<p>                Permission.WRITE_DATA,</p>
+<p>                Permission.READ_FILES,</p>
+<p>            },</p>
+<p>            Role.READONLY: {</p>
+<p>                Permission.READ_DATA,</p>
+<p>                Permission.READ_FILES,</p>
+<p>            }</p>
+<p>        }</p>
+        
+<p>        # Define plugin permission requirements</p>
+<p>        self.plugin_permissions: Dict[str, Set[Permission]] = {</p>
+<p>            "database_write": {Permission.WRITE_DATA},</p>
+<p>            "database_read": {Permission.READ_DATA},</p>
+<p>            "file_read": {Permission.READ_FILES},</p>
+<p>            "file_write": {Permission.WRITE_FILES},</p>
+<p>            "system_command": {Permission.EXECUTE_COMMAND},</p>
+<p>            "admin_panel": {Permission.ACCESS_ADMIN},</p>
+<p>        }</p>
+    
+<p>    def has_permission(self, user_role: Role, </p>
+<p>                      required_permission: Permission) -> bool:</p>
+<p>        """Check if role has required permission"""</p>
+<p>        return required_permission in self.role_permissions.get(user_role, set())</p>
+    
+<p>    def authorize_plugin(self, user_role: Role, plugin_name: str) -> bool:</p>
+<p>        """Check if user role can execute plugin"""</p>
+<p>        required_perms = self.plugin_permissions.get(plugin_name, set())</p>
+<p>        user_perms = self.role_permissions.get(user_role, set())</p>
+        
+<p>        # User must have all required permissions</p>
+<p>        return required_perms.issubset(user_perms)</p>
+    
+<p>    def require_permission(self, permission: Permission):</p>
+<p>        """Decorator to enforce permission on plugin"""</p>
+<p>        def decorator(func):</p>
+<p>            @wraps(func)</p>
+<p>            def wrapper(user_context, <em>args, </em>*kwargs):</p>
+<p>                if not self.has_permission(user_context.role, permission):</p>
+<p>                    raise PermissionError(</p>
+<p>                        f"User lacks required permission: {permission.value}"</p>
+<p>                    )</p>
+<p>                return func(user_context, <em>args, </em>*kwargs)</p>
+<p>            return wrapper</p>
+<p>        return decorator</p>
+
+<h1>Usage</h1>
+<p>auth_manager = PluginAuthorizationManager()</p>
+
+<p>class UserContext:</p>
+<p>    """User context with authentication info"""</p>
+<p>    def __init__(self, user_id: str, role: Role):</p>
+<p>        self.user_id = user_id</p>
+<p>        self.role = role</p>
+
+<p>@auth_manager.require_permission(Permission.WRITE_DATA)</p>
+<p>def database_write_plugin(user_context: UserContext, </p>
+<p>                         table: str, data: Dict):</p>
+<p>    """Plugin with permission enforcement"""</p>
+<p>    # Permission already checked by decorator</p>
+<p>    return db.insert(table, data)</p>
+
+<p>@auth_manager.require_permission(Permission.READ_FILES)</p>
+<p>def file_read_plugin(user_context: UserContext, filepath: str):</p>
+<p>    """File read with authorization"""</p>
+<p>    # Additional owner check</p>
+<p>    file_owner = get_file_owner(filepath)</p>
+<p>    if file_owner != user_context.user_id and user_context.role != Role.ADMIN:</p>
+<p>        raise PermissionError("Access denied: not file owner")</p>
+    
+<p>    return read_file(filepath)</p>
+
+<h1>Execute with authorization</h1>
+<p>user = UserContext("user123", Role.USER)</p>
+
+<p>try:</p>
+<p>    # This will succeed (user has READ_FILES permission)</p>
+<p>    content = file_read_plugin(user, "/documents/user123/data.txt")</p>
+    
+<p>    # This will fail (user lacks EXECUTE_COMMAND permission)</p>
+<p>    result = system_command_plugin(user, "ls")</p>
+    
+<p>except PermissionError as e:</p>
+<p>    print(f"Authorization failed: {e}")</p>
+</code>`<code>
+
+<h3>2. Plugin Authentication</h3>
+
+<strong>Verify plugin caller identity</strong>:
+
+</code>`<code>python
+<p>import hmac</p>
+<p>import hashlib</p>
+<p>import secrets</p>
+<p>from typing import Optional</p>
+
+<p>class PluginAuthenticator:</p>
+<p>    """Authenticate plugin requests"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.api_keys: Dict[str, Dict] = {}</p>
+    
+<p>    def generate_api_key(self, user_id: str) -> str:</p>
+<p>        """Generate secure API key for user"""</p>
+<p>        api_key = secrets.token_urlsafe(32)</p>
+        
+<p>        # Store hashed version</p>
+<p>        key_hash = hashlib.sha256(api_key.encode()).hexdigest()</p>
+<p>        self.api_keys[key_hash] = {</p>
+<p>            "user_id": user_id,</p>
+<p>            "created_at": datetime.now(),</p>
+<p>            "active": True</p>
+<p>        }</p>
+        
+<p>        return api_key</p>
+    
+<p>    def verify_api_key(self, api_key: str) -> Optional[str]:</p>
+<p>        """Verify API key and return user ID"""</p>
+<p>        key_hash = hashlib.sha256(api_key.encode()).hexdigest()</p>
+        
+<p>        key_data = self.api_keys.get(key_hash)</p>
+<p>        if not key_data or not key_data["active"]:</p>
+<p>            return None</p>
+        
+<p>        return key_data["user_id"]</p>
+    
+<p>    def generate_signature(self, secret: str, data: str) -> str:</p>
+<p>        """Generate HMAC signature for plugin request"""</p>
+<p>        return hmac.new(</p>
+<p>            secret.encode(),</p>
+<p>            data.encode(),</p>
+<p>            hashlib.sha256</p>
+<p>        ).hexdigest()</p>
+    
+<p>    def verify_signature(self, secret: str, data: str, </p>
+<p>                        signature: str) -> bool:</p>
+<p>        """Verify request signature"""</p>
+<p>        expected = self.generate_signature(secret, data)</p>
+<p>        return hmac.compare_digest(expected, signature)</p>
+
+<h1>Usage</h1>
+<p>authenticator = PluginAuthenticator()</p>
+
+<p>def authenticated_plugin_execution(api_key: str, plugin_name: str, </p>
+<p>                                  parameters: Dict):</p>
+<p>    """Execute plugin with authentication"""</p>
+<p>    # Verify API key</p>
+<p>    user_id = authenticator.verify_api_key(api_key)</p>
+<p>    if not user_id:</p>
+<p>        raise AuthenticationError("Invalid API key")</p>
+    
+<p>    # Get user context</p>
+<p>    user = get_user(user_id)</p>
+<p>    user_context = UserContext(user_id, user.role)</p>
+    
+<p>    # Check authorization</p>
+<p>    if not auth_manager.authorize_plugin(user_context.role, plugin_name):</p>
+<p>        raise PermissionError("Plugin access denied")</p>
+    
+<p>    # Execute plugin</p>
+<p>    return execute_plugin(plugin_name, user_context, parameters)</p>
+</code>`<code>
+
+<h2>Secure Plugin Architecture</h2>
+
+<h3>1. Plugin Sandboxing</h3>
+
+<strong>Isolate plugin execution in restricted environment</strong>:
+
+</code>`<code>python
+<p>import subprocess</p>
+<p>import json</p>
+<p>from typing import Any, Dict</p>
+<p>import tempfile</p>
+<p>import os</p>
+
+<p>class PluginSandbox:</p>
+<p>    """Execute plugins in sandboxed environment"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.timeout = 30</p>
+<p>        self.max_memory_mb = 512</p>
+<p>        self.allowed_syscalls = ['read', 'write', 'open', 'close']</p>
+    
+<p>    def execute_sandboxed(self, plugin_code: str, </p>
+<p>                         parameters: Dict) -> Any:</p>
+<p>        """Execute plugin in sandbox"""</p>
+<p>        # Create temporary directory for plugin</p>
+<p>        with tempfile.TemporaryDirectory() as tmpdir:</p>
+<p>            # Write plugin code</p>
+<p>            plugin_file = os.path.join(tmpdir, "plugin.py")</p>
+<p>            with open(plugin_file, 'w') as f:</p>
+<p>                f.write(plugin_code)</p>
+            
+<p>            # Write parameters</p>
+<p>            params_file = os.path.join(tmpdir, "params.json")</p>
+<p>            with open(params_file, 'w') as f:</p>
+<p>                json.dump(parameters, f)</p>
+            
+<p>            # Execute in sandbox using firejail or similar</p>
+<p>            cmd = [</p>
+<p>                'firejail',</p>
+<p>                '--noprofile',</p>
+<p>                '--private=' + tmpdir,</p>
+<p>                '--net=none',  # No network access</p>
+<p>                '--noroot',  # No root access</p>
+<p>                f'--rlimit-as={self.max_memory_mb <em> 1024 </em> 1024}',  # Memory limit</p>
+<p>                'python3', plugin_file</p>
+<p>            ]</p>
+            
+<p>            try:</p>
+<p>                result = subprocess.run(</p>
+<p>                    cmd,</p>
+<p>                    timeout=self.timeout,</p>
+<p>                    capture_output=True,</p>
+<p>                    text=True</p>
+<p>                )</p>
+                
+<p>                if result.returncode != 0:</p>
+<p>                    raise RuntimeError(f"Plugin execution failed: {result.stderr}")</p>
+                
+<p>                return json.loads(result.stdout)</p>
+            
+<p>            except subprocess.TimeoutExpired:</p>
+<p>                raise TimeoutError("Plugin execution timeout")</p>
+
+<h1>Docker-based sandbox</h1>
+<p>class DockerPluginSandbox:</p>
+<p>    """Execute plugins in Docker container"""</p>
+    
+<p>    def execute_in_container(self, plugin_name: str, </p>
+<p>                            parameters: Dict) -> Any:</p>
+<p>        """Execute plugin in isolated Docker container"""</p>
+<p>        import docker</p>
+        
+<p>        client = docker.from_env()</p>
+        
+<p>        try:</p>
+<p>            # Run container with restrictions</p>
+<p>            container = client.containers.run(</p>
+<p>                'plugin-runtime:latest',</p>
+<p>                command=f'python -c "import plugin_{plugin_name}; print(plugin_{plugin_name}.execute({parameters}))"',</p>
+<p>                mem_limit='512m',  # Memory limit</p>
+<p>                cpu_quota=50000,  # CPU limit</p>
+<p>                network_disabled=True,  # No network</p>
+<p>                read_only=True,  # Read-only filesystem</p>
+<p>                security_opt=['no-new-privileges'],</p>
+<p>                cap_drop=['ALL'],  # Drop all capabilities</p>
+<p>                detach=False,</p>
+<p>                remove=True,</p>
+<p>                timeout=30</p>
+<p>            )</p>
+            
+<p>            return json.loads(container.decode())</p>
+        
+<p>        except docker.errors.ContainerError as e:</p>
+<p>            raise RuntimeError(f"Container execution failed: {e}")</p>
+</code>`<code>
+
+<h3>2. Principle of Least Privilege</h3>
+
+<strong>Grant minimum necessary permissions</strong>:
+
+</code>`<code>python
+<p>class PluginPermissionManager:</p>
+<p>    """Manage granular plugin permissions"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.plugin_capabilities = {}</p>
+    
+<p>    def define_plugin_capabilities(self, plugin_name: str, </p>
+<p>                                  capabilities: Dict):</p>
+<p>        """Define what plugin is allowed to do"""</p>
+<p>        self.plugin_capabilities[plugin_name] = capabilities</p>
+    
+<p>    def check_capability(self, plugin_name: str, </p>
+<p>                        action: str, resource: str) -> bool:</p>
+<p>        """Check if plugin can perform action on resource"""</p>
+<p>        caps = self.plugin_capabilities.get(plugin_name, {})</p>
+        
+<p>        allowed_actions = caps.get('actions', [])</p>
+<p>        allowed_resources = caps.get('resources', [])</p>
+        
+<p>        if action not in allowed_actions:</p>
+<p>            raise PermissionError(f"Plugin cannot perform action: {action}")</p>
+        
+<p>        if resource not in allowed_resources:</p>
+<p>            raise PermissionError(f"Plugin cannot access resource: {resource}")</p>
+        
+<p>        return True</p>
+
+<h1>Define minimal capabilities</h1>
+<p>perm_manager = PluginPermissionManager()</p>
+
+<p>perm_manager.define_plugin_capabilities('weather_plugin', {</p>
+<p>    'actions': ['http_get'],</p>
+<p>    'resources': ['https://api.weather.com/*'],</p>
+<p>    'max_requests_per_minute': 10</p>
+<p>})</p>
+
+<p>perm_manager.define_plugin_capabilities('database_read', {</p>
+<p>    'actions': ['database_select'],</p>
+<p>    'resources': ['table:products', 'table:orders'],</p>
+<p>    'max_rows': 100</p>
+<p>})</p>
+
+<h1>Plugin enforces capabilities</h1>
+<p>def execute_with_capabilities(plugin_name: str, action: str, </p>
+<p>                             resource: str):</p>
+<p>    """Execute only if plugin has capability"""</p>
+<p>    perm_manager.check_capability(plugin_name, action, resource)</p>
+    
+<p>    # Proceed with action</p>
+<p>    return perform_action(action, resource)</p>
+</code>`<code>
+
+<h2>SSRF Prevention</h2>
+
+<h3>1. URL Allowlist and Validation</h3>
+
+<strong>Strictly control URL access</strong>:
+
+</code>`<code>python
+<p>from urllib.parse import urlparse</p>
+<p>import ipaddress</p>
+<p>from typing import List, Set</p>
+
+<p>class SSRFProtection:</p>
+<p>    """Prevent Server-Side Request Forgery"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.allowed_domains: Set[str] = set()</p>
+<p>        self.blocked_ips: Set[str] = {</p>
+<p>            '127.0.0.1', '::1', '0.0.0.0',</p>
+<p>            '169.254.169.254',  # AWS metadata</p>
+<p>            'metadata.google.internal',  # GCP metadata</p>
+<p>        }</p>
+<p>        self.blocked_ip_ranges = [</p>
+<p>            ipaddress.ip_network('10.0.0.0/8'),      # Private</p>
+<p>            ipaddress.ip_network('172.16.0.0/12'),   # Private</p>
+<p>            ipaddress.ip_network('192.168.0.0/16'),  # Private</p>
+<p>            ipaddress.ip_network('127.0.0.0/8'),     # Loopback</p>
+<p>            ipaddress.ip_network('169.254.0.0/16'),  # Link-local</p>
+<p>        ]</p>
+    
+<p>    def add_allowed_domain(self, domain: str):</p>
+<p>        """Add domain to allowlist"""</p>
+<p>        self.allowed_domains.add(domain.lower())</p>
+    
+<p>    def is_safe_url(self, url: str) -> bool:</p>
+<p>        """Check if URL is safe to request"""</p>
+<p>        try:</p>
+<p>            parsed = urlparse(url)</p>
+            
+<p>            # Only allow HTTP/HTTPS</p>
+<p>            if parsed.scheme not in ['http', 'https']:</p>
+<p>                raise ValueError(f"Scheme not allowed: {parsed.scheme}")</p>
+            
+<p>            # Check domain allowlist</p>
+<p>            if self.allowed_domains:</p>
+<p>                if parsed.hostname not in self.allowed_domains:</p>
+<p>                    raise ValueError(f"Domain not in allowlist: {parsed.hostname}")</p>
+            
+<p>            # Resolve hostname to IP</p>
+<p>            import socket</p>
+<p>            ip = socket.gethostbyname(parsed.hostname)</p>
+<p>            ip_obj = ipaddress.ip_address(ip)</p>
+            
+<p>            # Check against blocked IPs</p>
+<p>            if ip in self.blocked_ips:</p>
+<p>                raise ValueError(f"Access to blocked IP: {ip}")</p>
+            
+<p>            # Check against blocked ranges</p>
+<p>            for ip_range in self.blocked_ip_ranges:</p>
+<p>                if ip_obj in ip_range:</p>
+<p>                    raise ValueError(f"Access to private IP range: {ip}")</p>
+            
+<p>            return True</p>
+        
+<p>        except Exception as e:</p>
+<p>            raise ValueError(f"URL validation failed: {e}")</p>
+    
+<p>    def safe_request(self, url: str, method: str = 'GET', </p>
+<p>                    timeout: int = 10):</p>
+<p>        """Make HTTP request with SSRF protection"""</p>
+<p>        import requests</p>
+        
+<p>        # Validate URL</p>
+<p>        self.is_safe_url(url)</p>
+        
+<p>        # Make request with restrictions</p>
+<p>        response = requests.request(</p>
+<p>            method,</p>
+<p>            url,</p>
+<p>            timeout=timeout,</p>
+<p>            allow_redirects=False,  # Prevent redirect-based SSRF</p>
+<p>            verify=True,  # Verify SSL</p>
+<p>        )</p>
+        
+<p>        # Check redirect if any</p>
+<p>        if response.is_redirect:</p>
+<p>            redirect_url = response.headers.get('Location')</p>
+<p>            if redirect_url:</p>
+<p>                self.is_safe_url(redirect_url)</p>
+        
+<p>        return response</p>
+
+<h1>Usage</h1>
+<p>ssrf_protection = SSRFProtection()</p>
+
+<h1>Add allowed domains</h1>
+<p>ssrf_protection.add_allowed_domain('api.example.com')</p>
+<p>ssrf_protection.add_allowed_domain('data.example.com')</p>
+
+<p>def secure_url_fetch_plugin(url: str):</p>
+<p>    """URL fetch with SSRF protection"""</p>
+<p>    try:</p>
+<p>        response = ssrf_protection.safe_request(url)</p>
+<p>        return response.text</p>
+<p>    except ValueError as e:</p>
+<p>        return {"error": f"SSRF protection: {e}"}</p>
+</code>`<code>
+
+<h2>Command Injection Prevention</h2>
+
+<h3>1. Safe Command Execution</h3>
+
+<strong>Never use shell execution, use safe APIs</strong>:
+
+</code>`<code>python
+<p>import subprocess</p>
+<p>import shlex</p>
+<p>from typing import List</p>
+
+<p>class SafeCommandExecutor:</p>
+<p>    """Execute system commands safely"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.allowed_commands = {</p>
+<p>            'ls': ['-l', '-a', '-h'],</p>
+<p>            'cat': [],</p>
+<p>            'grep': ['-i', '-n'],</p>
+<p>        }</p>
+    
+<p>    def execute_safe(self, command: str, args: List[str]) -> str:</p>
+<p>        """Execute command without shell"""</p>
+<p>        # Check command whitelist</p>
+<p>        if command not in self.allowed_commands:</p>
+<p>            raise ValueError(f"Command not allowed: {command}")</p>
+        
+<p>        # Validate arguments</p>
+<p>        allowed_args = self.allowed_commands[command]</p>
+<p>        for arg in args:</p>
+<p>            # Check if arg is a flag</p>
+<p>            if arg.startswith('-'):</p>
+<p>                if arg not in allowed_args:</p>
+<p>                    raise ValueError(f"Argument not allowed: {arg}")</p>
+<p>            else:</p>
+<p>                # Validate file argument</p>
+<p>                if not self.is_safe_path(arg):</p>
+<p>                    raise ValueError(f"Unsafe path: {arg}")</p>
+        
+<p>        # Build command list (NO SHELL=TRUE)</p>
+<p>        cmd_list = [command] + args</p>
+        
+<p>        try:</p>
+<p>            result = subprocess.run(</p>
+<p>                cmd_list,</p>
+<p>                shell=False,  # NEVER use shell=True</p>
+<p>                capture_output=True,</p>
+<p>                text=True,</p>
+<p>                timeout=10,</p>
+<p>                check=True</p>
+<p>            )</p>
+<p>            return result.stdout</p>
+        
+<p>        except subprocess.CalledProcessError as e:</p>
+<p>            raise RuntimeError(f"Command failed: {e.stderr}")</p>
+    
+<p>    def is_safe_path(self, path: str) -> bool:</p>
+<p>        """Validate path is safe"""</p>
+<p>        dangerous_chars = [';', '|', '&', '$', '</code>', '\n', '>', '<', '$(', '${']</p>
+<p>        return not any(char in path for char in dangerous_chars)</p>
+
+<h1>Usage - WRONG WAY (VULNERABLE)</h1>
+<p>def vulnerable_command_plugin(user_input):</p>
+<p>    # NEVER DO THIS</p>
+<p>    result = subprocess.run(</p>
+<p>        f"ls {user_input}",  # Command injection possible</p>
+<p>        shell=True,  # DANGEROUS</p>
+<p>        capture_output=True</p>
+<p>    )</p>
+<p>    return result.stdout</p>
+
+<h1>Usage - RIGHT WAY (SECURE)</h1>
+<p>executor = SafeCommandExecutor()</p>
+
+<p>def secure_command_plugin(directory: str):</p>
+<p>    """Secure command execution"""</p>
+<p>    try:</p>
+<p>        # Validate input</p>
+<p>        if not directory.startswith('/safe/directory/'):</p>
+<p>            raise ValueError("Directory not in allowed path")</p>
+        
+<p>        # Execute without shell</p>
+<p>        result = executor.execute_safe('ls', ['-l', directory])</p>
+<p>        return result</p>
+    
+<p>    except (ValueError, RuntimeError) as e:</p>
+<p>        return {"error": str(e)}</p>
+<p>``<code></p>
+
+<h2>Path Traversal Prevention</h2>
+
+<h3>1. Secure File Access</h3>
+
+<strong>Validate and restrict file paths</strong>:
+
+</code>`<code>python
+<p>import os</p>
+<p>from pathlib import Path</p>
+<p>from typing import Optional</p>
+
+<p>class SecureFileAccess:</p>
+<p>    """Secure file operations with path validation"""</p>
+    
+<p>    def __init__(self, base_directory: str):</p>
+<p>        self.base_dir = os.path.abspath(base_directory)</p>
+    
+<p>    def validate_path(self, filepath: str) -> str:</p>
+<p>        """Validate and resolve file path"""</p>
+<p>        # Convert to absolute path</p>
+<p>        abs_path = os.path.abspath(os.path.join(self.base_dir, filepath))</p>
+        
+<p>        # Check if path is within base directory</p>
+<p>        if not abs_path.startswith(self.base_dir):</p>
+<p>            raise ValueError(f"Path traversal detected: {filepath}")</p>
+        
+<p>        # Additional checks</p>
+<p>        if '..' in filepath:</p>
+<p>            raise ValueError("Parent directory references not allowed")</p>
+        
+<p>        if filepath.startswith('/'):</p>
+<p>            raise ValueError("Absolute paths not allowed")</p>
+        
+<p>        # Check for symlinks</p>
+<p>        if os.path.islink(abs_path):</p>
+<p>            # Resolve symlink and validate</p>
+<p>            real_path = os.path.realpath(abs_path)</p>
+<p>            if not real_path.startswith(self.base_dir):</p>
+<p>                raise ValueError("Symlink outside base directory")</p>
+        
+<p>        return abs_path</p>
+    
+<p>    def read_file(self, filepath: str) -> str:</p>
+<p>        """Safely read file"""</p>
+<p>        safe_path = self.validate_path(filepath)</p>
+        
+<p>        # Check file exists</p>
+<p>        if not os.path.isfile(safe_path):</p>
+<p>            raise FileNotFoundError(f"File not found: {filepath}")</p>
+        
+<p>        # Check size limit</p>
+<p>        max_size = 10 <em> 1024 </em> 1024  # 10MB</p>
+<p>        if os.path.getsize(safe_path) > max_size:</p>
+<p>            raise ValueError("File too large")</p>
+        
+<p>        with open(safe_path, 'r', encoding='utf-8') as f:</p>
+<p>            return f.read()</p>
+    
+<p>    def write_file(self, filepath: str, content: str):</p>
+<p>        """Safely write file"""</p>
+<p>        safe_path = self.validate_path(filepath)</p>
+        
+<p>        # Create directory if needed</p>
+<p>        os.makedirs(os.path.dirname(safe_path), exist_ok=True)</p>
+        
+<p>        with open(safe_path, 'w', encoding='utf-8') as f:</p>
+<p>            f.write(content)</p>
+    
+<p>    def list_directory(self, dirpath: str) -> List[str]:</p>
+<p>        """Safely list directory"""</p>
+<p>        safe_path = self.validate_path(dirpath)</p>
+        
+<p>        if not os.path.isdir(safe_path):</p>
+<p>            raise ValueError(f"Not a directory: {dirpath}")</p>
+        
+<p>        # List files with relative paths</p>
+<p>        files = []</p>
+<p>        for item in os.listdir(safe_path):</p>
+<p>            rel_path = os.path.relpath(</p>
+<p>                os.path.join(safe_path, item),</p>
+<p>                self.base_dir</p>
+<p>            )</p>
+<p>            files.append(rel_path)</p>
+        
+<p>        return files</p>
+
+<h1>Usage</h1>
+<p>file_access = SecureFileAccess('/app/user_data')</p>
+
+<p>def secure_file_read_plugin(filepath: str):</p>
+<p>    """File read with path validation"""</p>
+<p>    try:</p>
+<p>        content = file_access.read_file(filepath)</p>
+<p>        return {"content": content}</p>
+<p>    except (ValueError, FileNotFoundError) as e:</p>
+<p>        return {"error": str(e)}</p>
+
+<h1>Example usage</h1>
+<p>result = secure_file_read_plugin('documents/report.txt')  # OK</p>
+<p>result = secure_file_read_plugin('../../../etc/passwd')   # Blocked</p>
+<p>result = secure_file_read_plugin('/etc/passwd')           # Blocked</p>
+</code>`<code>
+
+<h2>Rate Limiting and Resource Controls</h2>
+
+<h3>1. Request Rate Limiting</h3>
+
+<strong>Prevent abuse through rate limiting</strong>:
+
+</code>`<code>python
+<p>from collections import defaultdict</p>
+<p>from datetime import datetime, timedelta</p>
+<p>from typing import Dict</p>
+<p>import time</p>
+
+<p>class RateLimiter:</p>
+<p>    """Rate limit plugin invocations"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.requests: Dict[str, List[float]] = defaultdict(list)</p>
+<p>        self.limits = {</p>
+<p>            'default': {'requests': 100, 'window': 60},  # 100 req/min</p>
+<p>            'database': {'requests': 50, 'window': 60},</p>
+<p>            'api_call': {'requests': 20, 'window': 60},</p>
+<p>            'file_operation': {'requests': 30, 'window': 60},</p>
+<p>        }</p>
+    
+<p>    def is_allowed(self, user_id: str, plugin_name: str) -> bool:</p>
+<p>        """Check if request is within rate limit"""</p>
+<p>        key = f"{user_id}:{plugin_name}"</p>
+<p>        now = time.time()</p>
+        
+<p>        # Get limit for plugin</p>
+<p>        limit_config = self.limits.get(plugin_name, self.limits['default'])</p>
+<p>        max_requests = limit_config['requests']</p>
+<p>        window_seconds = limit_config['window']</p>
+        
+<p>        # Clean old requests</p>
+<p>        cutoff = now - window_seconds</p>
+<p>        self.requests[key] = [</p>
+<p>            req_time for req_time in self.requests[key]</p>
+<p>            if req_time > cutoff</p>
+<p>        ]</p>
+        
+<p>        # Check limit</p>
+<p>        if len(self.requests[key]) >= max_requests:</p>
+<p>            return False</p>
+        
+<p>        # Record request</p>
+<p>        self.requests[key].append(now)</p>
+<p>        return True</p>
+    
+<p>    def get_retry_after(self, user_id: str, plugin_name: str) -> int:</p>
+<p>        """Get seconds until rate limit resets"""</p>
+<p>        key = f"{user_id}:{plugin_name}"</p>
+<p>        if not self.requests[key]:</p>
+<p>            return 0</p>
+        
+<p>        limit_config = self.limits.get(plugin_name, self.limits['default'])</p>
+<p>        oldest_request = min(self.requests[key])</p>
+<p>        window_seconds = limit_config['window']</p>
+        
+<p>        reset_time = oldest_request + window_seconds</p>
+<p>        return max(0, int(reset_time - time.time()))</p>
+
+<h1>Resource limits</h1>
+<p>class ResourceLimiter:</p>
+<p>    """Limit resource consumption"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.limits = {</p>
+<p>            'max_response_size': 1024 * 1024,  # 1MB</p>
+<p>            'max_execution_time': 30,  # seconds</p>
+<p>            'max_memory': 512 <em> 1024 </em> 1024,  # 512MB</p>
+<p>        }</p>
+    
+<p>    def limit_execution_time(self, timeout: int):</p>
+<p>        """Decorator to limit execution time"""</p>
+<p>        import signal</p>
+        
+<p>        def decorator(func):</p>
+<p>            def wrapper(<em>args, </em>*kwargs):</p>
+<p>                def timeout_handler(signum, frame):</p>
+<p>                    raise TimeoutError("Plugin execution timeout")</p>
+                
+<p>                signal.signal(signal.SIGALRM, timeout_handler)</p>
+<p>                signal.alarm(timeout)</p>
+                
+<p>                try:</p>
+<p>                    result = func(<em>args, </em>*kwargs)</p>
+<p>                finally:</p>
+<p>                    signal.alarm(0)</p>
+                
+<p>                return result</p>
+<p>            return wrapper</p>
+<p>        return decorator</p>
+    
+<p>    def limit_response_size(self, response: Any) -> Any:</p>
+<p>        """Limit response size"""</p>
+<p>        import sys</p>
+        
+<p>        size = sys.getsizeof(response)</p>
+<p>        if size > self.limits['max_response_size']:</p>
+<p>            raise ValueError(f"Response too large: {size} bytes")</p>
+        
+<p>        return response</p>
+
+<h1>Usage</h1>
+<p>rate_limiter = RateLimiter()</p>
+<p>resource_limiter = ResourceLimiter()</p>
+
+<p>def execute_plugin_with_limits(user_id: str, plugin_name: str, </p>
+<p>                               parameters: Dict):</p>
+<p>    """Execute plugin with rate and resource limits"""</p>
+<p>    # Check rate limit</p>
+<p>    if not rate_limiter.is_allowed(user_id, plugin_name):</p>
+<p>        retry_after = rate_limiter.get_retry_after(user_id, plugin_name)</p>
+<p>        raise TooManyRequestsError(</p>
+<p>            f"Rate limit exceeded. Retry after {retry_after}s"</p>
+<p>        )</p>
+    
+<p>    # Execute with timeout</p>
+<p>    @resource_limiter.limit_execution_time(30)</p>
+<p>    def execute():</p>
+<p>        return plugins<a href="**parameters">plugin_name</a></p>
+    
+<p>    try:</p>
+<p>        result = execute()</p>
+        
+<p>        # Limit response size</p>
+<p>        return resource_limiter.limit_response_size(result)</p>
+    
+<p>    except TimeoutError:</p>
+<p>        return {"error": "Plugin execution timeout"}</p>
+<p>    except ValueError as e:</p>
+<p>        return {"error": str(e)}</p>
+</code>`<code>
+
+<h2>Monitoring and Logging</h2>
+
+<h3>1. Comprehensive Plugin Logging</h3>
+
+<strong>Log all plugin activities for security monitoring</strong>:
+
+</code>`<code>python
+<p>import logging</p>
+<p>import json</p>
+<p>from datetime import datetime</p>
+<p>from typing import Any, Dict</p>
+
+<p>class PluginAuditLogger:</p>
+<p>    """Audit logging for plugin executions"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.logger = logging.getLogger('plugin_audit')</p>
+<p>        self.logger.setLevel(logging.INFO)</p>
+        
+<p>        # JSON formatter for structured logging</p>
+<p>        handler = logging.FileHandler('plugin_audit.log')</p>
+<p>        handler.setFormatter(logging.Formatter('%(message)s'))</p>
+<p>        self.logger.addHandler(handler)</p>
+    
+<p>    def log_execution(self, user_id: str, plugin_name: str,</p>
+<p>                     parameters: Dict, result: Any, </p>
+<p>                     execution_time: float, success: bool):</p>
+<p>        """Log plugin execution"""</p>
+<p>        log_entry = {</p>
+<p>            'timestamp': datetime.utcnow().isoformat(),</p>
+<p>            'user_id': user_id,</p>
+<p>            'plugin_name': plugin_name,</p>
+<p>            'parameters': parameters,</p>
+<p>            'success': success,</p>
+<p>            'execution_time_ms': execution_time * 1000,</p>
+<p>            'result_size': len(str(result)),</p>
+<p>        }</p>
+        
+<p>        if not success:</p>
+<p>            log_entry['error'] = str(result)</p>
+        
+<p>        self.logger.info(json.dumps(log_entry))</p>
+    
+<p>    def log_security_event(self, event_type: str, details: Dict):</p>
+<p>        """Log security-relevant events"""</p>
+<p>        log_entry = {</p>
+<p>            'timestamp': datetime.utcnow().isoformat(),</p>
+<p>            'event_type': event_type,</p>
+<p>            'severity': 'HIGH',</p>
+<p>            'details': details</p>
+<p>        }</p>
+        
+<p>        self.logger.warning(json.dumps(log_entry))</p>
+
+<h1>Anomaly detection</h1>
+<p>class PluginAnomalyDetector:</p>
+<p>    """Detect suspicious plugin usage patterns"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.user_patterns = defaultdict(list)</p>
+<p>        self.alert_thresholds = {</p>
+<p>            'failed_attempts': 5,</p>
+<p>            'unusual_parameters': 3,</p>
+<p>            'rapid_requests': 10,</p>
+<p>        }</p>
+    
+<p>    def check_for_anomalies(self, user_id: str, plugin_name: str,</p>
+<p>                           parameters: Dict, success: bool):</p>
+<p>        """Detect anomalous behavior"""</p>
+<p>        # Track failed attempts</p>
+<p>        if not success:</p>
+<p>            failed_key = f"{user_id}:failed"</p>
+<p>            self.user_patterns[failed_key].append(time.time())</p>
+            
+<p>            recent_failures = [</p>
+<p>                t for t in self.user_patterns[failed_key]</p>
+<p>                if time.time() - t < 300  # Last 5 minutes</p>
+<p>            ]</p>
+            
+<p>            if len(recent_failures) > self.alert_thresholds['failed_attempts']:</p>
+<p>                return {</p>
+<p>                    'anomaly_type': 'excessive_failures',</p>
+<p>                    'details': f'{len(recent_failures)} failures in 5 minutes'</p>
+<p>                }</p>
+        
+<p>        # Check for SQL injection patterns</p>
+<p>        param_str = json.dumps(parameters).lower()</p>
+<p>        injection_patterns = [</p>
+<p>            'union select', 'or 1=1', '--', '; drop',</p>
+<p>            '../', '../../', '/etc/passwd'</p>
+<p>        ]</p>
+        
+<p>        if any(pattern in param_str for pattern in injection_patterns):</p>
+<p>            return {</p>
+<p>                'anomaly_type': 'injection_attempt',</p>
+<p>                'details': f'Suspicious patterns in parameters'</p>
+<p>            }</p>
+        
+<p>        return None</p>
+
+<h1>Usage</h1>
+<p>audit_logger = PluginAuditLogger()</p>
+<p>anomaly_detector = PluginAnomalyDetector()</p>
+
+<p>def monitored_plugin_execution(user_id: str, plugin_name: str,</p>
+<p>                               parameters: Dict):</p>
+<p>    """Execute plugin with monitoring"""</p>
+<p>    start_time = time.time()</p>
+<p>    success = False</p>
+<p>    result = None</p>
+    
+<p>    try:</p>
+<p>        # Execute plugin</p>
+<p>        result = execute_plugin(plugin_name, parameters)</p>
+<p>        success = True</p>
+        
+<p>    except Exception as e:</p>
+<p>        result = {"error": str(e)}</p>
+        
+<p>    finally:</p>
+<p>        execution_time = time.time() - start_time</p>
+        
+<p>        # Log execution</p>
+<p>        audit_logger.log_execution(</p>
+<p>            user_id, plugin_name, parameters,</p>
+<p>            result, execution_time, success</p>
+<p>        )</p>
+        
+<p>        # Check for anomalies</p>
+<p>        anomaly = anomaly_detector.check_for_anomalies(</p>
+<p>            user_id, plugin_name, parameters, success</p>
+<p>        )</p>
+        
+<p>        if anomaly:</p>
+<p>            audit_logger.log_security_event('anomaly_detected', {</p>
+<p>                'user_id': user_id,</p>
+<p>                'plugin_name': plugin_name,</p>
+<p>                'anomaly': anomaly</p>
+<p>            })</p>
+    
+<p>    return result</p>
+</code>`<code>
+
+<h2>Best Practices</h2>
+
+<h3>Plugin Development</h3>
+<ul>
+<li>✅ Validate ALL inputs before use</li>
+<li>✅ Use parameterized queries for databases</li>
+<li>✅ Never use </code>shell=True` in subprocess</li>
+<li>✅ Implement proper error handling</li>
+<li>✅ Use principle of least privilege</li>
+<li>✅ Apply defense in depth</li>
+</ul>
+
+<h3>Security Controls</h3>
+<ul>
+<li>✅ Implement authentication and authorization</li>
+<li>✅ Use allowlists for URLs, domains, commands</li>
+<li>✅ Sandbox plugin execution</li>
+<li>✅ Apply rate limiting</li>
+<li>✅ Monitor and log all activities</li>
+<li>✅ Regular security audits</li>
+</ul>
+
+<h3>Architecture</h3>
+<ul>
+<li>✅ Isolate plugins from core system</li>
+<li>✅ Use containers or VMs for execution</li>
+<li>✅ Implement circuit breakers</li>
+<li>✅ Use secure communication channels</li>
+<li>✅ Version control plugin code</li>
+<li>✅ Maintain plugin inventory</li>
+</ul>
+
+<h3>Operations</h3>
+<ul>
+<li>✅ Monitor for suspicious patterns</li>
+<li>✅ Alert on anomalies</li>
+<li>✅ Regular penetration testing</li>
+<li>✅ Incident response plan</li>
+<li>✅ Keep dependencies updated</li>
+<li>✅ Security training for developers</li>
+</ul>
+
+<p>---</p>
+
+<strong>Key Principle</strong>: Treat plugins as untrusted code running in a hostile environment. Validate, authorize, sandbox, limit, and monitor every aspect of plugin execution.
+
         </div>
     </div>
 </body>

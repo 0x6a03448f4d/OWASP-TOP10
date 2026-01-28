@@ -215,7 +215,476 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>LLM04: Model Denial of Service - Overview</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#what-is-model-denial-of-service">What is Model Denial of Service?</a></li>
+<li><a href="#why-does-this-matter">Why Does This Matter?</a></li>
+<li><a href="#technical-context">Technical Context</a></li>
+<li><a href="#real-world-impact">Real-World Impact</a></li>
+<li><a href="#common-scenarios">Common Scenarios</a></li>
+<li><a href="#key-takeaways">Key Takeaways</a></li>
+</ul>
+
+<h2>What is Model Denial of Service?</h2>
+
+<strong>Model Denial of Service</strong> (DoS) occurs when attackers manipulate inputs or exploit the resource-intensive nature of Large Language Models to cause service degradation, excessive resource consumption, or complete system unavailability. Unlike traditional DoS attacks that flood network bandwidth, Model DoS exploits the computational characteristics of AI systems.
+
+<h3>Core Concept</h3>
+
+<p>Model DoS attacks exploit the unique resource demands of LLMs:</p>
+
+<p>``<code></p>
+<p>[Malicious Input] → [LLM Processing] → [Resource Exhaustion]</p>
+<p>      ↓                  ↓                    ↓</p>
+<p>  Crafted to be    Heavy computation    Service degradation</p>
+<p>  resource-heavy   Long processing      System unavailability</p>
+<p>                   Memory overflow      Cost explosion</p>
+</code>`<code>
+
+<p>The fundamental issue is <strong>unbounded or poorly managed resource consumption during model inference</strong>.</p>
+
+<h2>Why Does This Matter?</h2>
+
+<p>Model Denial of Service is ranked <strong>#4</strong> in the OWASP Top 10 for LLM Applications because it can render AI services unavailable, cause financial damage, and impact user experience at scale.</p>
+
+<h3>The Business Impact</h3>
+
+<ul>
+<li><strong>Service Unavailability</strong>: Users cannot access AI-powered features</li>
+<li><strong>Financial Damage</strong>: Excessive API costs from cloud providers</li>
+<li><strong>Resource Waste</strong>: Computing resources exhausted on malicious requests</li>
+<li><strong>Reputation Loss</strong>: Poor user experience and service reliability</li>
+<li><strong>Cascading Failures</strong>: DoS on AI service impacts dependent systems</li>
+<li><strong>Economic Denial</strong>: Competitors can increase operational costs</li>
+</ul>
+
+<h3>The Technical Impact</h3>
+
+<ul>
+<li><strong>CPU/GPU Exhaustion</strong>: Model inference consumes all available compute</li>
+<li><strong>Memory Overflow</strong>: Large contexts cause out-of-memory errors</li>
+<li><strong>Queue Saturation</strong>: Request queues fill up, blocking legitimate users</li>
+<li><strong>Timeout Cascades</strong>: Long-running requests trigger cascading timeouts</li>
+<li><strong>Cost Explosion</strong>: Pay-per-token models become financially unsustainable</li>
+<li><strong>Thread Starvation</strong>: All worker threads blocked on slow requests</li>
+</ul>
+
+<h2>Technical Context</h2>
+
+<h3>The LLM Resource Consumption Model</h3>
+
+</code>`<code>
+<p>[User Input] → [Tokenization] → [Model Inference] → [Response Generation]</p>
+<p>     ↓              ↓                  ↓                    ↓</p>
+<p>  Length         Token count      O(n²) attention     Token generation</p>
+<p>  Complexity     Vocabulary       Memory allocation    Sampling steps</p>
+<p>                                 Compute cycles</p>
+</code>`<code>
+
+<h3>Resource Characteristics of LLMs</h3>
+
+<h4>1. Quadratic Attention Complexity</h4>
+</code>`<code>
+<p>Computational Cost ∝ (Input Length)²</p>
+
+<p>Example:</p>
+<ul>
+<li>100 tokens: ~10,000 operations</li>
+<li>1,000 tokens: ~1,000,000 operations</li>
+<li>10,000 tokens: ~100,000,000 operations</li>
+</ul>
+
+<p>10x input → 100x computation</p>
+</code>`<code>
+
+<h4>2. Memory Requirements</h4>
+</code>`<code>
+<p>Memory Usage = Model Size + Context Size + Activation Memory</p>
+
+<p>Example (GPT-3 scale):</p>
+<ul>
+<li>Model Parameters: 175B × 2 bytes = 350GB</li>
+<li>Context (8K tokens): ~8K × 12KB = 96MB per request</li>
+<li>Activations: ~2-4GB per request</li>
+</ul>
+
+<p>100 concurrent requests = ~10TB memory needed</p>
+</code>`<code>
+
+<h4>3. Sequential Token Generation</h4>
+</code>`<code>
+<p>Output generation is inherently serial:</p>
+<ul>
+<li>Each token depends on previous tokens</li>
+<li>Cannot be fully parallelized</li>
+<li>Long outputs = proportionally long time</li>
+</ul>
+
+<p>1000-token output ≈ 1000 sequential steps</p>
+</code>`<code>
+
+<h3>Attack Vectors</h3>
+
+<h4>1. Input Length Exploitation</h4>
+</code>`<code>python
+<h1>Attacker sends maximum-length inputs</h1>
+<p>malicious_input = "a " * 100000  # Near token limit</p>
+
+<h1>Model processes O(n²) operations</h1>
+<h1>CPU/GPU maxed out for extended period</h1>
+<p>response = llm.generate(malicious_input)</p>
+</code>`<code>
+
+<h4>2. Complex Query Patterns</h4>
+</code>`<code>python
+<h1>Nested, complex instructions</h1>
+<p>malicious_prompt = """</p>
+<p>Analyze the following text and for each word:</p>
+<ol>
+<li>Provide etymology</li>
+<li>List synonyms</li>
+<li>Give examples</li>
+<li>Translate to 50 languages</li>
+<li>Explain usage in literature</li>
+</ol>
+
+<p>[Repeat for 1000 words...]</p>
+<p>"""</p>
+<h1>Forces extensive processing per word</h1>
+</code>`<code>
+
+<h4>3. Repetitive Requests</h4>
+</code>`<code>python
+<h1>Flood with expensive requests</h1>
+<p>import asyncio</p>
+
+<p>async def attack():</p>
+<p>    tasks = []</p>
+<p>    for i in range(10000):</p>
+<p>        # Each request is expensive</p>
+<p>        task = llm.generate("Write a 10000-word essay about...")</p>
+<p>        tasks.append(task)</p>
+<p>    await asyncio.gather(*tasks)</p>
+</code>`<code>
+
+<h4>4. Variable-Length Output Exploitation</h4>
+</code>`<code>python
+<h1>Request maximum output length</h1>
+<p>prompt = "List all prime numbers up to 1000000"</p>
+
+<h1>Model generates extremely long response</h1>
+<h1>Consumes resources for entire generation</h1>
+</code>`<code>
+
+<h2>Real-World Impact</h2>
+
+<h3>Case Study 1: ChatGPT Service Degradation (2023)</h3>
+
+<strong>Incident</strong>: ChatGPT experienced multiple service outages due to overwhelming demand.
+
+<strong>Attack Vector</strong>:
+<ul>
+<li>Legitimate and malicious traffic exceeded capacity</li>
+<li>Complex queries consumed disproportionate resources</li>
+<li>Concurrent requests caused memory saturation</li>
+</ul>
+
+<strong>Impact</strong>:
+<ul>
+<li>Service unavailable for millions of users</li>
+<li>Extended downtime periods</li>
+<li>User frustration and trust erosion</li>
+</ul>
+
+<strong>Lesson</strong>: Even legitimate high demand can create DoS conditions without proper rate limiting and resource management.
+
+<h3>Case Study 2: API Cost Exploitation</h3>
+
+<strong>Incident</strong>: Organization using GPT-4 API experienced unexpected $100K+ bill.
+
+<strong>Attack Vector</strong>:
+<ul>
+<li>API key leaked in public repository</li>
+<li>Attackers scripted automated requests</li>
+<li>Each request used maximum token limits</li>
+<li>Ran continuously for days undetected</li>
+</ul>
+
+<strong>Impact</strong>:
+<ul>
+<li>Massive unexpected costs</li>
+<li>Budget exhaustion</li>
+<li>Service had to be shut down</li>
+<li>Investigation and remediation costs</li>
+</ul>
+
+<strong>Lesson</strong>: API key protection and cost monitoring are critical security controls.
+
+<h3>Case Study 3: Recursive Prompt Injection DoS</h3>
+
+<strong>Incident</strong>: Research demonstration showed recursive prompts causing resource exhaustion.
+
+<strong>Attack Vector</strong>:
+<ul>
+<li>Prompt instructs model to generate more prompts</li>
+<li>Each generated prompt fed back to model</li>
+<li>Creates exponential resource consumption</li>
+<li>System resources exhausted quickly</li>
+</ul>
+
+<strong>Impact</strong>:
+<ul>
+<li>Proof of concept for recursive attacks</li>
+<li>Demonstrates need for recursion limits</li>
+<li>Shows vulnerability of autonomous agents</li>
+</ul>
+
+<strong>Lesson</strong>: Recursive or self-referential patterns need strict limits.
+
+<h2>Common Scenarios</h2>
+
+<h3>Scenario 1: Unbounded Context Length</h3>
+
+</code>`<code>python
+<h1>VULNERABLE: No input length validation</h1>
+<p>def process_user_input(user_text):</p>
+<p>    # User can send arbitrarily long input</p>
+<p>    response = llm_api.generate(</p>
+<p>        prompt=user_text,  # Could be 100,000 tokens</p>
+<p>        max_tokens=4096</p>
+<p>    )</p>
+<p>    return response</p>
+
+<h1>Attacker sends maximum-length input</h1>
+<p>massive_input = "tell me about " + ("quantum physics " * 50000)</p>
+<p>process_user_input(massive_input)  # Causes extreme resource usage</p>
+</code>`<code>
+
+<h3>Scenario 2: No Rate Limiting</h3>
+
+</code>`<code>python
+<h1>VULNERABLE: No rate limiting on expensive operations</h1>
+<p>@app.route('/api/analyze')</p>
+<p>def analyze_text():</p>
+<p>    text = request.json['text']</p>
+    
+<p>    # No rate limiting</p>
+<p>    # No request throttling</p>
+<p>    # No user limits</p>
+    
+<p>    # Expensive operation available to all</p>
+<p>    result = llm.analyze(text, depth='comprehensive')</p>
+<p>    return jsonify(result)</p>
+
+<h1>Attacker floods endpoint</h1>
+<p>for i in range(10000):</p>
+<p>    requests.post('/api/analyze', json={'text': long_text})</p>
+</code>`<code>
+
+<h3>Scenario 3: Unconstrained Output Length</h3>
+
+</code>`<code>python
+<h1>VULNERABLE: User controls output length</h1>
+<p>def generate_content(prompt, requested_length):</p>
+<p>    # User can request arbitrarily long output</p>
+<p>    response = llm.generate(</p>
+<p>        prompt=prompt,</p>
+<p>        max_tokens=requested_length  # Could be 100,000</p>
+<p>    )</p>
+<p>    return response</p>
+
+<h1>Attacker requests maximum output</h1>
+<p>generate_content(</p>
+<p>    "Write detailed analysis",</p>
+<p>    requested_length=100000  # Maximum possible</p>
+<p>)</p>
+</code>`<code>
+
+<h3>Scenario 4: Complex Prompt Patterns</h3>
+
+</code>`<code>python
+<h1>VULNERABLE: No complexity validation</h1>
+<p>def process_instruction(user_prompt):</p>
+<p>    # Accepts arbitrarily complex instructions</p>
+<p>    result = llm.complete(user_prompt)</p>
+<p>    return result</p>
+
+<h1>Attacker sends computationally expensive prompt</h1>
+<p>complex_prompt = """</p>
+<p>For each character in this 10000-word text:</p>
+<ul>
+<li>Analyze grammatical role</li>
+<li>Provide phonetic breakdown</li>
+<li>List historical usage</li>
+<li>Generate related words</li>
+<li>Translate to 100 languages</li>
+</ul>
+<p>[10000 words of text...]</p>
+<p>"""</p>
+<p>process_instruction(complex_prompt)</p>
+</code>`<code>
+
+<h3>Scenario 5: Recursive Agent Calls</h3>
+
+</code>`<code>python
+<h1>VULNERABLE: No recursion limits</h1>
+<p>def autonomous_agent(task):</p>
+<p>    # Agent can call itself recursively</p>
+<p>    response = llm.generate(task)</p>
+    
+<p>    if "subtask:" in response:</p>
+<p>        # Recursively process subtasks</p>
+<p>        subtask = extract_subtask(response)</p>
+<p>        return autonomous_agent(subtask)  # No depth limit!</p>
+    
+<p>    return response</p>
+
+<h1>Prompt that creates recursive loop</h1>
+<p>malicious_task = "Break this task into subtasks, then break each subtask into more subtasks..."</p>
+<p>autonomous_agent(malicious_task)  # Stack overflow / resource exhaustion</p>
+</code>``
+
+<h2>Key Takeaways</h2>
+
+<h3>For Security Teams</h3>
+
+<ol>
+<li><strong>Implement Rate Limiting</strong></li>
+<ul>
+<li>Request frequency limits per user/IP</li>
+<li>Concurrent request limits</li>
+<li>Resource consumption quotas</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Resource Monitoring</strong></li>
+<ul>
+<li>Track CPU/GPU/memory usage</li>
+<li>Monitor request queue depth</li>
+<li>Alert on anomalous patterns</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Input Validation</strong></li>
+<ul>
+<li>Enforce maximum input lengths</li>
+<li>Validate prompt complexity</li>
+<li>Reject malformed requests</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Output Controls</strong></li>
+<ul>
+<li>Cap maximum output tokens</li>
+<li>Timeout long-running requests</li>
+<li>Progressive response generation</li>
+</ul>
+</ol>
+
+<h3>For Developers</h3>
+
+<ol>
+<li><strong>Enforce Limits</strong></li>
+<ul>
+<li>Maximum input token count</li>
+<li>Maximum output token count</li>
+<li>Request timeout values</li>
+<li>Concurrent request limits per user</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Implement Throttling</strong></li>
+<ul>
+<li>Exponential backoff for retries</li>
+<li>Queue management</li>
+<li>Priority-based processing</li>
+<li>Fair resource allocation</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Cost Management</strong></li>
+<ul>
+<li>Token usage tracking</li>
+<li>Budget alerts</li>
+<li>User quotas</li>
+<li>Cost attribution</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Graceful Degradation</strong></li>
+<ul>
+<li>Return partial results on timeout</li>
+<li>Queue requests during high load</li>
+<li>Provide status updates</li>
+<li>Clear error messages</li>
+</ul>
+</ol>
+
+<h3>For Organizations</h3>
+
+<ol>
+<li><strong>Capacity Planning</strong></li>
+<ul>
+<li>Estimate token usage patterns</li>
+<li>Plan for peak load</li>
+<li>Reserve emergency capacity</li>
+<li>Scale resources appropriately</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Monitoring Infrastructure</strong></li>
+<ul>
+<li>Real-time resource monitoring</li>
+<li>Cost tracking dashboards</li>
+<li>Performance metrics</li>
+<li>Anomaly detection</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Incident Response</strong></li>
+<ul>
+<li>DoS detection procedures</li>
+<li>Mitigation playbooks</li>
+<li>Communication plans</li>
+<li>Recovery processes</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Architecture Design</strong></li>
+<ul>
+<li>Load balancing</li>
+<li>Request queuing</li>
+<li>Circuit breakers</li>
+<li>Fallback mechanisms</li>
+</ul>
+</ol>
+
+<h3>Critical Points</h3>
+
+<ul>
+<li><strong>Computational cost scales non-linearly</strong> - Small input increases can cause massive resource consumption</li>
+<li><strong>Token-based pricing</strong> - Attackers can cause financial damage without compromising systems</li>
+<li><strong>Sequential generation</strong> - Output tokens generated one at a time, creating inherent slowness</li>
+<li><strong>Memory requirements</strong> - Large contexts and concurrent requests can exhaust memory</li>
+<li><strong>Cascading failures</strong> - LLM DoS can impact all dependent services</li>
+<li><strong>Prevention is essential</strong> - Once under attack, mitigation options are limited</li>
+</ul>
+
+<p>---</p>
+
+<strong>Remember</strong>: LLMs are computationally expensive by nature. Without proper resource controls, rate limiting, and monitoring, even legitimate usage patterns can create denial of service conditions. Design for security and scalability from the start.
+
         </div>
     </div>
 </body>

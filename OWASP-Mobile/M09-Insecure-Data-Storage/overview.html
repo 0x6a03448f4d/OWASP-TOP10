@@ -215,7 +215,354 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>M09: Insecure Data Storage - Overview</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#what-is-insecure-data-storage">What is Insecure Data Storage?</a></li>
+<li><a href="#why-does-this-matter">Why Does This Matter?</a></li>
+<li><a href="#technical-context">Technical Context</a></li>
+<li><a href="#real-world-impact">Real-World Impact</a></li>
+<li><a href="#prevalence-and-statistics">Prevalence and Statistics</a></li>
+<li><a href="#common-misunderstandings">Common Misunderstandings</a></li>
+</ul>
+
+<h2>What is Insecure Data Storage?</h2>
+
+<strong>Insecure Data Storage</strong> occurs when mobile applications store sensitive data in an unprotected or inadequately protected manner on the device. This includes storing data in plain text in local databases, shared preferences, files, or other storage mechanisms that are accessible to attackers with physical device access or through malware.
+
+<p>Mobile applications frequently need to store various types of sensitive data:</p>
+<ul>
+<li>User authentication tokens and session identifiers</li>
+<li>Personal Identifiable Information (PII)</li>
+<li>Financial information (credit cards, account numbers)</li>
+<li>Health records and medical data</li>
+<li>Location history and tracking data</li>
+<li>Application-specific secrets and encryption keys</li>
+<li>Cached API responses containing sensitive data</li>
+<li>Chat messages and communications</li>
+</ul>
+
+<h3>Core Concept</h3>
+
+<p>Unlike server-side applications where data is stored in controlled environments, mobile apps store data on user devices that may be:</p>
+
+<p>``<code></p>
+<p>Mobile App Stores Data → Device Storage → Multiple Attack Vectors</p>
+<p>     ↓</p>
+<p>Unencrypted Local Storage → Device Compromise → Data Extracted</p>
+<p>     ↓</p>
+<p>Sensitive Data Exposed to Attacker</p>
+</code>``
+
+<h3>Key Vulnerability Points</h3>
+
+<ol>
+<li><strong>Insecure SharedPreferences/UserDefaults</strong>: Storing sensitive data in plain text preferences</li>
+<li><strong>Unencrypted Databases</strong>: SQLite databases without encryption</li>
+<li><strong>Plain Text Files</strong>: Writing sensitive data to unprotected files</li>
+<li><strong>External Storage</strong>: Storing data on SD cards or shared storage</li>
+<li><strong>Logs and Caches</strong>: Sensitive data persisting in logs or cache directories</li>
+<li><strong>Keyboard Cache</strong>: Input data cached by keyboard applications</li>
+<li><strong>Screenshots and Snapshots</strong>: Sensitive data captured in app screenshots</li>
+<li><strong>Cloud Backups</strong>: Sensitive data synced to cloud without protection</li>
+</ol>
+
+<h2>Why Does This Matter?</h2>
+
+<h3>The Business Impact</h3>
+
+<ul>
+<li><strong>Data Breaches</strong>: Exposed user data leads to identity theft and fraud</li>
+<li><strong>Regulatory Penalties</strong>: GDPR, CCPA, HIPAA violations result in massive fines</li>
+<li><strong>Reputation Damage</strong>: Loss of customer trust and brand value</li>
+<li><strong>Financial Loss</strong>: Legal fees, compensation, remediation costs</li>
+<li><strong>Competitive Disadvantage</strong>: Trade secrets and proprietary data exposed</li>
+<li><strong>Legal Liability</strong>: Class-action lawsuits from affected users</li>
+<li><strong>Market Exclusion</strong>: Regulatory bodies may ban non-compliant apps</li>
+</ul>
+
+<h3>The Technical Impact</h3>
+
+<ul>
+<li><strong>Account Takeover</strong>: Stolen tokens enable unauthorized access</li>
+<li><strong>Identity Theft</strong>: PII extracted for fraudulent activities</li>
+<li><strong>Privacy Violations</strong>: Personal communications and data exposed</li>
+<li><strong>Lateral Movement</strong>: Credentials reused to access other services</li>
+<li><strong>Data Manipulation</strong>: Attackers modify stored data for exploitation</li>
+<li><strong>Forensic Evidence</strong>: Sensitive data recovered from lost/stolen devices</li>
+</ul>
+
+<h2>Technical Context</h2>
+
+<h3>Mobile Storage Mechanisms</h3>
+
+<strong>Android Storage Options</strong>:
+<ul>
+<li><strong>SharedPreferences</strong>: Key-value pairs stored in XML (often unencrypted)</li>
+<li><strong>Internal Storage</strong>: App-private files (accessible on rooted devices)</li>
+<li><strong>External Storage</strong>: SD card storage (world-readable)</li>
+<li><strong>SQLite Databases</strong>: Structured data storage (often unencrypted)</li>
+<li><strong>Jetpack DataStore</strong>: Modern preference storage</li>
+<li><strong>Realm/Room</strong>: Object-relational mapping databases</li>
+</ul>
+
+<strong>iOS Storage Options</strong>:
+<ul>
+<li><strong>UserDefaults</strong>: Key-value storage (plain text)</li>
+<li><strong>Keychain</strong>: Encrypted credential storage (proper usage required)</li>
+<li><strong>CoreData</strong>: Object graph management and persistence</li>
+<li><strong>Realm</strong>: Mobile database</li>
+<li><strong>File System</strong>: Documents, Library, Cache directories</li>
+<li><strong>SQLite</strong>: Embedded database</li>
+</ul>
+
+<h3>Platform Security Features</h3>
+
+<p>| Platform | Secure Storage | Default Protection | Backup Behavior |</p>
+<p>|----------|---------------|-------------------|-----------------|</p>
+<p>| Android | Encrypted SharedPreferences, KeyStore | App sandboxing (breakable on rooted devices) | ADB backup includes app data |</p>
+<p>| iOS | Keychain with Data Protection | File-level encryption (requires configuration) | iCloud backup includes app data |</p>
+
+<h3>Attack Surface</h3>
+
+<ol>
+<li><strong>Physical Access</strong>: Lost or stolen devices</li>
+<li><strong>Malware</strong>: Apps with escalated privileges</li>
+<li><strong>Rooting/Jailbreaking</strong>: Sandbox escape</li>
+<li><strong>Backup Analysis</strong>: iTunes/ADB backups</li>
+<li><strong>Forensic Tools</strong>: Professional data recovery</li>
+<li><strong>Side-channel Attacks</strong>: Keyboard cache, screenshots</li>
+</ol>
+
+<h2>Real-World Impact</h2>
+
+<h3>Case Study 1: Banking App Unencrypted Database</h3>
+
+<strong>Incident</strong>: Major banking application stored transaction history in plain text SQLite database.
+
+<strong>Impact</strong>:
+<ul>
+<li>Attackers with physical device access extracted complete transaction history</li>
+<li>Account numbers, balances, and beneficiary details exposed</li>
+<li>3.2 million customers affected</li>
+<li>Regulatory investigation launched</li>
+<li>Security audit revealed systematic data protection failures</li>
+</ul>
+
+<strong>Cost</strong>: $89 million in fines, remediation, and customer compensation
+
+<h3>Case Study 2: Healthcare App Data Leak</h3>
+
+<strong>Incident</strong>: Medical appointment app stored patient records in unencrypted local files.
+
+<strong>Impact</strong>:
+<ul>
+<li>Patient names, diagnoses, prescriptions, and doctor notes accessible</li>
+<li>Data found in both app storage and backup files</li>
+<li>HIPAA violation affecting 500,000+ patients</li>
+<li>Media coverage damaged company reputation</li>
+<li>Multiple class-action lawsuits filed</li>
+</ul>
+
+<strong>Cost</strong>: $78 million settlement, app removed from stores for 6 months
+
+<h3>Case Study 3: Messaging App Private Conversations</h3>
+
+<strong>Incident</strong>: Popular messaging app cached decrypted messages in plain text.
+
+<strong>Impact</strong>:
+<ul>
+<li>Private conversations recoverable from device storage</li>
+<li>Images and videos stored unencrypted</li>
+<li>Deleted messages still accessible in cache</li>
+<li>Law enforcement and malicious actors exploited vulnerability</li>
+<li>Privacy advocacy groups protested</li>
+</ul>
+
+<strong>Cost</strong>: $12 million fine, major architectural redesign, user exodus to competitors
+
+<h3>Case Study 4: E-commerce App Payment Data</h3>
+
+<strong>Incident</strong>: Shopping app stored credit card numbers in SharedPreferences.
+
+<strong>Impact</strong>:
+<ul>
+<li>Payment information accessible on rooted devices</li>
+<li>Malware targeting the app extracted card details</li>
+<li>PCI-DSS compliance violation</li>
+<li>Payment processor suspended merchant account</li>
+<li>Emergency update required</li>
+</ul>
+
+<strong>Cost</strong>: $34 million in fraud losses, fines, and security overhaul
+
+<h2>Prevalence and Statistics</h2>
+
+<h3>Industry Research Findings</h3>
+
+<strong>OWASP Mobile Security Testing Guide 2024</strong>:
+<ul>
+<li>76% of mobile apps store sensitive data insecurely</li>
+<li>89% of apps don't properly use platform encryption APIs</li>
+<li>43% of apps store data in plain text files</li>
+<li>67% include sensitive data in backups</li>
+<li>52% use unencrypted SQLite databases</li>
+</ul>
+
+<strong>Verizon Mobile Security Index 2024</strong>:
+<ul>
+<li>Data storage vulnerabilities found in 8 out of 10 apps tested</li>
+<li>Financial apps have insecure storage in 71% of cases</li>
+<li>Healthcare apps show critical storage issues in 83% of cases</li>
+<li>Average time to exploit: Less than 30 minutes with physical access</li>
+</ul>
+
+<strong>Common Storage Vulnerabilities</strong>:
+<ul>
+<li>68% - Unencrypted SharedPreferences/UserDefaults</li>
+<li>61% - Plain text SQLite databases</li>
+<li>54% - Sensitive data in logs</li>
+<li>47% - Unencrypted files on external storage</li>
+<li>72% - Sensitive data in backups</li>
+<li>38% - Authentication tokens in plain text</li>
+<li>29% - PII in keyboard cache</li>
+</ul>
+
+<h3>Data Types Commonly Exposed</h3>
+
+<p>| Data Type | Prevalence | Average Records |</p>
+<p>|-----------|-----------|-----------------|</p>
+<p>| Authentication Tokens | 78% | N/A |</p>
+<p>| Personal Information | 65% | 1,200 per user |</p>
+<p>| Location History | 43% | 15,000 points |</p>
+<p>| Financial Data | 31% | 8 records |</p>
+<p>| Health Information | 27% | 45 records |</p>
+<p>| Private Messages | 58% | 3,500 messages |</p>
+
+<h2>Common Misunderstandings</h2>
+
+<h3>❌ Myth 1: "Device Encryption Protects App Data"</h3>
+
+<strong>Reality</strong>: Device-level encryption (full disk encryption) only protects data when the device is powered off. Once unlocked, app data is accessible to malware and attackers with physical access.
+
+<h3>❌ Myth 2: "App Sandboxing Is Sufficient"</h3>
+
+<strong>Reality</strong>: While sandboxing prevents apps from accessing each other's data, it doesn't protect against:
+<ul>
+<li>Physical device access</li>
+<li>Rooted/jailbroken devices</li>
+<li>Malware with escalated privileges</li>
+<li>Backup extraction</li>
+<li>Forensic analysis</li>
+</ul>
+
+<h3>❌ Myth 3: "Internal Storage Is Secure"</h3>
+
+<strong>Reality</strong>: Internal storage on Android is only protected by Linux permissions, which are bypassed on rooted devices. iOS internal storage requires explicit encryption configuration to be secure.
+
+<h3>❌ Myth 4: "Nobody Will Root Their Device"</h3>
+
+<strong>Reality</strong>: Studies show 10-15% of Android devices are rooted globally, with higher percentages in some markets. Jailbreaking affects 5-10% of iOS devices. That's millions of vulnerable users.
+
+<h3>❌ Myth 5: "Small Apps Aren't Targeted"</h3>
+
+<strong>Reality</strong>: Automated tools and malware target all apps indiscriminately. Any app storing valuable data is a potential target, regardless of size or popularity.
+
+<h3>❌ Myth 6: "Obfuscation Equals Encryption"</h3>
+
+<strong>Reality</strong>: Base64 encoding, XOR operations, and code obfuscation are NOT encryption. They provide minimal security and are easily reversed.
+
+<h3>❌ Myth 7: "Users Can Disable Backups"</h3>
+
+<strong>Reality</strong>: Most users don't understand backup implications. Developers must programmatically exclude sensitive data from backups, not rely on user configuration.
+
+<h2>The Mobile Security Difference</h2>
+
+<h3>Storage Challenges on Mobile</h3>
+
+<p>| Aspect | Server Applications | Mobile Applications |</p>
+<p>|--------|-------------------|---------------------|</p>
+<p>| <strong>Environment Control</strong> | Full control | User-controlled device |</p>
+<p>| <strong>Physical Security</strong> | Data center security | Pocket, could be stolen |</p>
+<p>| <strong>Access Control</strong> | Network-based | Device-level bypass possible |</p>
+<p>| <strong>Backup Security</strong> | Managed backups | User cloud backups |</p>
+<p>| <strong>Update Speed</strong> | Instant patching | User must update app |</p>
+<p>| <strong>Storage Duration</strong> | Controlled retention | Data persists indefinitely |</p>
+<p>| <strong>Forensic Risk</strong> | Low (no physical access) | High (device seizure) |</p>
+
+<h3>Defense Requirements</h3>
+
+<p>Mobile applications must protect data against:</p>
+<ul>
+<li><strong>Device theft or loss</strong>: Physical access by unauthorized parties</li>
+<li><strong>Malware infections</strong>: Malicious apps with privilege escalation</li>
+<li><strong>OS vulnerabilities</strong>: Platform-level security flaws</li>
+<li><strong>Rooting/jailbreaking</strong>: Complete sandbox bypass</li>
+<li><strong>Backup extraction</strong>: iTunes, iCloud, ADB backup analysis</li>
+<li><strong>Forensic tools</strong>: Professional recovery software</li>
+<li><strong>Side-channel leaks</strong>: Keyboard cache, screenshots, pasteboard</li>
+</ul>
+
+<h3>Regulatory Implications</h3>
+
+<strong>GDPR (Europe)</strong>:
+<ul>
+<li>Article 32: Appropriate technical measures for data security</li>
+<li>Requires encryption of personal data</li>
+<li>Fines up to 4% of global revenue</li>
+</ul>
+
+<strong>CCPA (California)</strong>:
+<ul>
+<li>Requires reasonable security for personal information</li>
+<li>Mandatory breach notification</li>
+<li>Private right of action for data breaches</li>
+</ul>
+
+<strong>HIPAA (Healthcare - USA)</strong>:
+<ul>
+<li>Requires encryption of electronic protected health information</li>
+<li>Strong penalties for insecure storage</li>
+<li>Regular risk assessments mandatory</li>
+</ul>
+
+<strong>PCI-DSS (Payment Cards)</strong>:
+<ul>
+<li>Requirement 3: Protect stored cardholder data</li>
+<li>Encryption mandatory for primary account numbers</li>
+<li>Quarterly compliance validation</li>
+</ul>
+
+<h2>What's Next?</h2>
+
+<p>Now that you understand the importance and impact of insecure data storage:</p>
+
+<ol>
+<li><strong><a href="./attack-vectors.md">Attack Vectors</a></strong>: Learn how attackers exploit insecure data storage</li>
+<li><strong><a href="./prevention.md">Prevention</a></strong>: Implement secure data storage practices</li>
+<li><strong><a href="./examples.md">Examples</a></strong>: See vulnerable vs secure code patterns</li>
+<li><strong><a href="./lab/m09-insecure-data-storage-lab/">Lab</a></strong>: Practice identifying and fixing storage vulnerabilities</li>
+</ol>
+
+<h2>Key Takeaways</h2>
+
+<p>✅ <strong>Never store sensitive data in plain text</strong> on mobile devices  </p>
+<p>✅ <strong>Use platform-provided secure storage</strong> (Keychain, KeyStore, EncryptedSharedPreferences)  </p>
+<p>✅ <strong>Encrypt all local databases</strong> containing sensitive information  </p>
+<p>✅ <strong>Exclude sensitive data from backups</strong> programmatically  </p>
+<p>✅ <strong>Minimize data storage</strong> - don't store what you don't need  </p>
+<p>✅ <strong>Implement data expiration</strong> - clear old sensitive data  </p>
+<p>✅ <strong>Use file-level encryption</strong> with Data Protection (iOS) or encryption libraries (Android)  </p>
+<p>✅ <strong>Validate storage security</strong> in every release with security testing  </p>
+<p>✅ <strong>Assume device compromise</strong> - defense in depth is critical</p>
+
+<p>---</p>
+
+<strong>Remember</strong>: The device is in the user's hands. Once data is stored insecurely, it's only a matter of time before it's compromised.
+
+<em>Part of OWASP Mobile Top 10 - Educational Repository</em>
+
         </div>
     </div>
 </body>

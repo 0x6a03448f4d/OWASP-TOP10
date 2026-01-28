@@ -215,7 +215,661 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>M03: Insecure Authentication/Authorization - Attack Vectors</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#understanding-authenticationauthorization-attacks">Understanding Authentication/Authorization Attacks</a></li>
+<li><a href="#attack-vector-categories">Attack Vector Categories</a></li>
+<li><a href="#attack-scenarios">Attack Scenarios</a></li>
+<li><a href="#attack-chain-analysis">Attack Chain Analysis</a></li>
+<li><a href="#exploitation-techniques">Exploitation Techniques</a></li>
+<li><a href="#detection-indicators">Detection Indicators</a></li>
+</ul>
+
+<h2>Understanding Authentication/Authorization Attacks</h2>
+
+<p>Authentication and authorization attacks exploit weaknesses in identity verification and access control mechanisms. These attacks can range from simple credential guessing to sophisticated token manipulation and privilege escalation.</p>
+
+<h3>The Attack Surface</h3>
+
+<p>``<code></p>
+<p>Authentication Layer:</p>
+<p>User Credentials → Authentication Mechanism → Session/Token Creation</p>
+<p>      ↓                      ↓                        ↓</p>
+<p>  Weak Passwords      Bypass/Brute Force      Predictable Tokens</p>
+<p>      ↓                      ↓                        ↓</p>
+<p>Authorization Layer:</p>
+<p>Session/Token → Access Control Check → Resource Access</p>
+<p>      ↓                  ↓                    ↓</p>
+<p>Token Theft      Missing Checks        IDOR/Privilege Escalation</p>
+</code>`<code>
+
+<h2>Attack Vector Categories</h2>
+
+<h3>1. Credential-Based Attacks</h3>
+
+<strong>Brute Force Attacks</strong>
+<ul>
+<li>Systematic trying of password combinations</li>
+<li>Dictionary attacks using common passwords</li>
+<li>Credential stuffing with leaked password databases</li>
+<li>No rate limiting allows unlimited attempts</li>
+</ul>
+
+<strong>Weak Password Exploitation</strong>
+<ul>
+<li>Default credentials (admin/admin, user/password)</li>
+<li>Passwords based on personal information</li>
+<li>Short passwords without complexity</li>
+<li>Common patterns (Password123, Summer2024)</li>
+</ul>
+
+<strong>Credential Harvesting</strong>
+<ul>
+<li>Phishing attacks targeting mobile users</li>
+<li>Keyloggers on compromised devices</li>
+<li>Man-in-the-middle attacks on insecure connections</li>
+<li>Social engineering to obtain credentials</li>
+</ul>
+
+<h3>2. Session Management Attacks</h3>
+
+<strong>Session Hijacking</strong>
+<ul>
+<li>Intercepting session tokens over insecure channels</li>
+<li>XSS attacks stealing session cookies/tokens</li>
+<li>Session token prediction if weakly generated</li>
+<li>Replay attacks using captured tokens</li>
+</ul>
+
+<strong>Session Fixation</strong>
+<ul>
+<li>Attacker sets known session ID for victim</li>
+<li>Victim authenticates with attacker's session ID</li>
+<li>Attacker uses same session ID to access account</li>
+<li>Lack of session regeneration on login</li>
+</ul>
+
+<strong>Session Timeout Exploitation</strong>
+<ul>
+<li>Sessions that never expire</li>
+<li>Shared device attacks using active sessions</li>
+<li>Session persistence across app reinstalls</li>
+<li>Background session hijacking</li>
+</ul>
+
+<h3>3. Token Manipulation Attacks</h3>
+
+<strong>JWT Vulnerabilities</strong>
+<ul>
+<li>Algorithm confusion attacks (RS256 → HS256)</li>
+<li>None algorithm acceptance</li>
+<li>Weak signing keys</li>
+<li>Token signature not verified</li>
+<li>Expired token acceptance</li>
+</ul>
+
+<strong>Token Storage Exploitation</strong>
+<ul>
+<li>Tokens in shared preferences (unencrypted)</li>
+<li>Tokens in application logs</li>
+<li>Tokens in URL parameters</li>
+<li>Backup extraction exposing tokens</li>
+</ul>
+
+<strong>Refresh Token Attacks</strong>
+<ul>
+<li>Refresh tokens with no expiration</li>
+<li>Refresh tokens not bound to devices</li>
+<li>No refresh token rotation</li>
+<li>Stolen refresh tokens enabling persistent access</li>
+</ul>
+
+<h3>4. Biometric Authentication Bypass</h3>
+
+<strong>Implementation Flaws</strong>
+<ul>
+<li>Client-side only biometric verification</li>
+<li>Biometric success bypassed via hooking</li>
+<li>Fallback mechanisms weaker than biometric</li>
+<li>Race conditions in biometric flow</li>
+</ul>
+
+<strong>Physical Attacks</strong>
+<ul>
+<li>Fingerprint spoofing with lifted prints</li>
+<li>Face recognition bypass with photos/videos</li>
+<li>Presentation attack detection failures</li>
+<li>Unconscious victim biometric use</li>
+</ul>
+
+<strong>Root/Jailbreak Exploitation</strong>
+<ul>
+<li>Hooking biometric APIs</li>
+<li>Modifying biometric verification results</li>
+<li>Bypassing device security altogether</li>
+<li>Custom biometric implementations vulnerable</li>
+</ul>
+
+<h3>5. Authorization Bypass Attacks</h3>
+
+<strong>Insecure Direct Object References (IDOR)</strong>
+<ul>
+<li>Changing ID parameters to access others' data</li>
+<li>Predictable resource identifiers</li>
+<li>No ownership verification on server</li>
+<li>Sequential ID enumeration</li>
+</ul>
+
+<strong>Horizontal Privilege Escalation</strong>
+<ul>
+<li>Accessing resources of users at same privilege level</li>
+<li>User A accessing User B's data</li>
+<li>Parameter manipulation (userId=123 → userId=124)</li>
+<li>No user context validation</li>
+</ul>
+
+<strong>Vertical Privilege Escalation</strong>
+<ul>
+<li>Regular user accessing admin functions</li>
+<li>Missing role checks on sensitive endpoints</li>
+<li>Client-side role enforcement only</li>
+<li>Default to privileged access</li>
+</ul>
+
+<strong>Function-Level Access Control Issues</strong>
+<ul>
+<li>No authorization checks on API endpoints</li>
+<li>Hidden/undocumented admin endpoints accessible</li>
+<li>Mobile app bypassed to call APIs directly</li>
+<li>Authorization checks only in UI layer</li>
+</ul>
+
+<h3>6. Multi-Factor Authentication Bypass</h3>
+
+<strong>MFA Implementation Flaws</strong>
+<ul>
+<li>MFA bypass via account recovery</li>
+<li>Race conditions in MFA validation</li>
+<li>Reusable MFA codes</li>
+<li>MFA only required for initial login</li>
+</ul>
+
+<strong>Social Engineering</strong>
+<ul>
+<li>SIM swapping to intercept SMS codes</li>
+<li>Phishing for authenticator codes</li>
+<li>Push notification fatigue attacks</li>
+<li>Recovery code exploitation</li>
+</ul>
+
+<strong>Technical Bypass</strong>
+<ul>
+<li>Session token valid before MFA completion</li>
+<li>MFA step skippable by direct API call</li>
+<li>Backup codes never expire</li>
+<li>MFA binding not enforced</li>
+</ul>
+
+<h2>Attack Scenarios</h2>
+
+<h3>Scenario 1: Credential Stuffing Attack</h3>
+
+</code>`<code>
+<p>Attack Flow:</p>
+<ol>
+<li>Attacker obtains leaked credentials from data breach</li>
+<li>Automated tool tries credentials against mobile app API</li>
+<li>No rate limiting allows 10,000 attempts per minute</li>
+<li>Matching credentials identified (users reuse passwords)</li>
+<li>Attacker logs in to multiple accounts</li>
+<li>Account takeover complete</li>
+<li>Fraud/data theft begins</li>
+</ol>
+</code>`<code>
+
+<strong>Prerequisites:</strong>
+<ul>
+<li>No rate limiting or account lockout</li>
+<li>Weak password policy allows reused passwords</li>
+<li>No MFA or MFA optional</li>
+<li>No breach detection/alerting</li>
+</ul>
+
+<strong>Impact:</strong> Mass account compromise, data theft, financial fraud
+
+<h3>Scenario 2: Session Token Theft via Man-in-the-Middle</h3>
+
+</code>`<code>
+<p>Attack Flow:</p>
+<ol>
+<li>User connects to public WiFi</li>
+<li>Attacker performs MITM attack</li>
+<li>App sends authentication request</li>
+<li>Session token transmitted without proper encryption</li>
+<li>Attacker captures token</li>
+<li>Attacker uses token to make authenticated requests</li>
+<li>Access to victim's account without credentials</li>
+</ol>
+</code>`<code>
+
+<strong>Prerequisites:</strong>
+<ul>
+<li>Insecure token transmission</li>
+<li>No certificate pinning</li>
+<li>Weak TLS configuration</li>
+<li>Token valid for extended period</li>
+</ul>
+
+<strong>Impact:</strong> Account access, data exposure, unauthorized actions
+
+<h3>Scenario 3: IDOR Exploitation</h3>
+
+</code>`<code>
+<p>Attack Flow:</p>
+<ol>
+<li>User authenticates to mobile app</li>
+<li>App displays "View my orders" → GET /api/orders/1234</li>
+<li>Attacker intercepts request with proxy</li>
+<li>Changes request to /api/orders/1235</li>
+<li>Server returns other user's order (no authorization check)</li>
+<li>Attacker enumerates all orders: 1-999999</li>
+<li>Complete database of all orders extracted</li>
+</ol>
+</code>`<code>
+
+<strong>Prerequisites:</strong>
+<ul>
+<li>Predictable resource identifiers</li>
+<li>No server-side ownership verification</li>
+<li>No rate limiting on API calls</li>
+<li>Authorization checks missing</li>
+</ul>
+
+<strong>Impact:</strong> Mass data breach, PII exposure, competitive intelligence
+
+<h3>Scenario 4: Biometric Bypass via Frida Hooking</h3>
+
+</code>`<code>
+<p>Attack Flow:</p>
+<ol>
+<li>Attacker gains physical access to rooted device</li>
+<li>Installs Frida framework</li>
+<li>Hooks biometric authentication method</li>
+<li>Script always returns "authentication successful"</li>
+<li>Biometric check bypassed</li>
+<li>Access to app without valid biometric</li>
+<li>Account compromise</li>
+</ol>
+</code>`<code>
+
+<strong>Prerequisites:</strong>
+<ul>
+<li>Client-side only biometric verification</li>
+<li>No root/jailbreak detection</li>
+<li>No server-side verification of authentication method</li>
+<li>Weak runtime application self-protection (RASP)</li>
+</ul>
+
+<strong>Impact:</strong> Unauthorized access, data theft, fraudulent transactions
+
+<h3>Scenario 5: JWT Algorithm Confusion Attack</h3>
+
+</code>`<code>
+<p>Attack Flow:</p>
+<ol>
+<li>Attacker captures valid JWT token</li>
+<li>Decodes JWT: {"alg":"RS256","typ":"JWT"}</li>
+<li>Changes algorithm to HS256</li>
+<li>Signs token with public key as secret</li>
+<li>Server accepts HS256 and verifies with public key</li>
+<li>Attacker-modified token validated as legitimate</li>
+<li>Privilege escalation or extended session achieved</li>
+</ol>
+</code>`<code>
+
+<strong>Prerequisites:</strong>
+<ul>
+<li>JWT library accepts multiple algorithms</li>
+<li>No algorithm whitelist enforcement</li>
+<li>Public key accessible</li>
+<li>Weak JWT validation</li>
+</ul>
+
+<strong>Impact:</strong> Token forgery, privilege escalation, persistent unauthorized access
+
+<h2>Attack Chain Analysis</h2>
+
+<h3>Phase 1: Reconnaissance</h3>
+
+<strong>Attacker Activities:</strong>
+<ul>
+<li>Analyzing authentication endpoints and mechanisms</li>
+<li>Identifying authentication technologies (OAuth, JWT, custom)</li>
+<li>Testing for rate limiting and account lockout</li>
+<li>Mapping authorization structure</li>
+<li>Identifying biometric implementation details</li>
+</ul>
+
+<strong>Tools Used:</strong>
+<ul>
+<li>Burp Suite for API analysis</li>
+<li>Frida for runtime analysis</li>
+<li>APK/IPA decompilation tools</li>
+<li>Network traffic analysis tools</li>
+</ul>
+
+<strong>Duration:</strong> Hours to days
+
+<h3>Phase 2: Vulnerability Identification</h3>
+
+<strong>Testing Methods:</strong>
+<ul>
+<li>Automated credential testing</li>
+<li>Token manipulation attempts</li>
+<li>Authorization boundary testing</li>
+<li>Session management analysis</li>
+<li>Biometric bypass attempts</li>
+</ul>
+
+<strong>Common Findings:</strong>
+<ul>
+<li>Missing rate limiting</li>
+<li>Weak password policies</li>
+<li>Authorization bypass vulnerabilities</li>
+<li>Insecure token storage</li>
+<li>Client-side security controls</li>
+</ul>
+
+<strong>Duration:</strong> Days to weeks
+
+<h3>Phase 3: Exploitation</h3>
+
+<strong>Attack Execution:</strong>
+<ul>
+<li>Credential stuffing campaigns</li>
+<li>Token theft and manipulation</li>
+<li>IDOR exploitation for data harvesting</li>
+<li>Session hijacking</li>
+<li>Privilege escalation</li>
+</ul>
+
+<strong>Automation:</strong>
+<ul>
+<li>Scripts for mass account compromise</li>
+<li>Automated API abuse</li>
+<li>Token refresh automation</li>
+<li>Data extraction scripts</li>
+</ul>
+
+<strong>Duration:</strong> Minutes to hours once vulnerability confirmed
+
+<h3>Phase 4: Persistence</h3>
+
+<strong>Maintaining Access:</strong>
+<ul>
+<li>Stealing refresh tokens for long-term access</li>
+<li>Creating backdoor accounts</li>
+<li>Escalating privileges to admin</li>
+<li>Disabling security notifications</li>
+<li>Maintaining session across security updates</li>
+</ul>
+
+<strong>Duration:</strong> Weeks to months if undetected
+
+<h2>Exploitation Techniques</h2>
+
+<h3>1. Brute Force Automation</h3>
+
+</code>`<code>
+<p>Conceptual Approach:</p>
+<ul>
+<li>Automated tool sends authentication requests</li>
+<li>Tests common passwords or leaked credentials</li>
+<li>Bypasses rate limiting via distributed requests</li>
+<li>Identifies successful authentications</li>
+<li>Extracts session tokens for access</li>
+</ul>
+</code>`<code>
+
+<strong>Success Factors:</strong>
+<ul>
+<li>No CAPTCHA or rate limiting</li>
+<li>Weak password policy</li>
+<li>No account lockout</li>
+<li>Predictable username patterns</li>
+</ul>
+
+<h3>2. Token Manipulation</h3>
+
+</code>`<code>
+<p>Conceptual Approach:</p>
+<ul>
+<li>Capture authentication token</li>
+<li>Decode token structure (JWT, custom)</li>
+<li>Modify claims (userId, role, expiration)</li>
+<li>Re-encode token</li>
+<li>Test if server accepts modified token</li>
+</ul>
+</code>`<code>
+
+<strong>Common Modifications:</strong>
+<ul>
+<li>User ID changes for impersonation</li>
+<li>Role elevation (user → admin)</li>
+<li>Expiration time extension</li>
+<li>Permission scope expansion</li>
+</ul>
+
+<h3>3. Authorization Bypass</h3>
+
+</code>`<code>
+<p>Conceptual Approach:</p>
+<ul>
+<li>Identify resource access patterns</li>
+<li>Test parameter manipulation</li>
+<li>Attempt horizontal traversal (other users)</li>
+<li>Attempt vertical escalation (higher privileges)</li>
+<li>Map all accessible resources</li>
+</ul>
+</code>`<code>
+
+<strong>Attack Patterns:</strong>
+<ul>
+<li>Direct object reference manipulation</li>
+<li>Missing function-level checks</li>
+<li>Role parameter injection</li>
+<li>Path traversal in endpoints</li>
+</ul>
+
+<h3>4. Session Riding</h3>
+
+</code>`<code>
+<p>Conceptual Approach:</p>
+<ul>
+<li>Identify session token format</li>
+<li>Test for session fixation</li>
+<li>Attempt session hijacking</li>
+<li>Verify session independence</li>
+<li>Test concurrent session handling</li>
+</ul>
+</code>``
+
+<strong>Exploitation:</strong>
+<ul>
+<li>Fixed session IDs accepted</li>
+<li>Sessions not bound to IP/device</li>
+<li>No session invalidation on logout</li>
+<li>Concurrent sessions allowed</li>
+</ul>
+
+<h2>Detection Indicators</h2>
+
+<h3>Technical Indicators</h3>
+
+<strong>Authentication Anomalies:</strong>
+<ul>
+<li>High number of failed login attempts</li>
+<li>Login attempts from unusual locations</li>
+<li>Multiple accounts from same IP</li>
+<li>Unusual login time patterns</li>
+<li>Rapid successive login attempts</li>
+</ul>
+
+<strong>Session Indicators:</strong>
+<ul>
+<li>Session tokens used from multiple IPs simultaneously</li>
+<li>Session activity after logout</li>
+<li>Expired tokens still accepted</li>
+<li>Unusual API access patterns</li>
+<li>Token reuse across devices</li>
+</ul>
+
+<strong>Authorization Indicators:</strong>
+<ul>
+<li>Access to resources outside normal patterns</li>
+<li>Sequential ID enumeration patterns</li>
+<li>Privilege escalation attempts</li>
+<li>Cross-account data access</li>
+<li>Admin function access by regular users</li>
+</ul>
+
+<h3>Behavioral Indicators</h3>
+
+<strong>User Account:</strong>
+<ul>
+<li>Password reset requests not initiated by user</li>
+<li>Unexpected account changes</li>
+<li>Unrecognized devices accessing account</li>
+<li>Unusual transaction patterns</li>
+<li>Account accessed during unusual hours</li>
+</ul>
+
+<strong>API Traffic:</strong>
+<ul>
+<li>Spike in authentication requests</li>
+<li>Unusual endpoint access patterns</li>
+<li>High volume of failed authorization checks</li>
+<li>Automated tool signatures in requests</li>
+<li>Proxy/VPN usage patterns</li>
+</ul>
+
+<h3>Application Indicators</h3>
+
+<strong>Mobile App:</strong>
+<ul>
+<li>Root/jailbreak detection triggers</li>
+<li>Debugger attachment detected</li>
+<li>Runtime hooking detected</li>
+<li>Modified app signatures</li>
+<li>Biometric bypass attempts</li>
+</ul>
+
+<strong>Backend:</strong>
+<ul>
+<li>Rate limit threshold hits</li>
+<li>Account lockout triggers</li>
+<li>MFA bypass attempts</li>
+<li>Token validation failures</li>
+<li>CORS violation attempts</li>
+</ul>
+
+<h2>Risk Assessment Matrix</h2>
+
+<h3>Critical Risk (Immediate Action Required)</h3>
+
+<ul>
+<li>No authentication required for sensitive operations</li>
+<li>Admin functions accessible without authorization</li>
+<li>Passwords stored in plain text</li>
+<li>No session timeout or invalidation</li>
+<li>Complete authorization bypass possible</li>
+</ul>
+
+<h3>High Risk (Urgent Attention Needed)</h3>
+
+<ul>
+<li>Weak password policy (< 8 characters)</li>
+<li>No rate limiting or account lockout</li>
+<li>Client-side only authorization</li>
+<li>IDOR vulnerabilities present</li>
+<li>No MFA implementation</li>
+</ul>
+
+<h3>Medium Risk (Should Address)</h3>
+
+<ul>
+<li>Optional MFA (not enforced)</li>
+<li>Long session timeouts (> 30 minutes)</li>
+<li>Missing re-authentication for sensitive operations</li>
+<li>Weak token generation</li>
+<li>Limited session monitoring</li>
+</ul>
+
+<h3>Low Risk (Monitor and Plan)</h3>
+
+<ul>
+<li>MFA implemented and enforced</li>
+<li>Strong password policy</li>
+<li>Server-side authorization</li>
+<li>Session monitoring active</li>
+<li>Regular security audits</li>
+</ul>
+
+<h2>Defense Indicators</h2>
+
+<p>Signs of proper authentication/authorization security:</p>
+
+<p>✅ <strong>Strong Authentication:</strong></p>
+<ul>
+<li>Enforced password complexity</li>
+<li>Rate limiting and account lockout</li>
+<li>MFA required for all users</li>
+<li>Secure credential transmission</li>
+<li>Regular password rotation</li>
+</ul>
+
+<p>✅ <strong>Robust Session Management:</strong></p>
+<ul>
+<li>Cryptographically secure token generation</li>
+<li>Appropriate session timeouts</li>
+<li>Session invalidation on logout</li>
+<li>Session binding to device/IP</li>
+<li>Concurrent session management</li>
+</ul>
+
+<p>✅ <strong>Proper Authorization:</strong></p>
+<ul>
+<li>Server-side enforcement</li>
+<li>User context validation on every request</li>
+<li>Non-predictable resource identifiers</li>
+<li>Function-level access control</li>
+<li>Regular authorization audits</li>
+</ul>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Authentication attacks exploit weak identity verification and credential management</strong></li>
+<li><strong>Authorization bypasses allow access to resources beyond user privileges</strong></li>
+<li><strong>Session management flaws enable persistent unauthorized access</strong></li>
+<li><strong>Biometric authentication requires both client and server-side verification</strong></li>
+<li><strong>Defense requires multiple layers: strong auth + proper sessions + enforced authorization</strong></li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="./prevention.md">Prevention Guide</a></strong>: Learn how to secure authentication and authorization</li>
+<li><strong><a href="./examples.md">Examples</a></strong>: See vulnerable vs secure implementations</li>
+<li><strong><a href="./lab/">Interactive Lab</a></strong>: Practice identifying and exploiting auth vulnerabilities</li>
+</ul>
+
+<p>---</p>
+
+<strong>Remember</strong>: Authentication proves identity, authorization proves permission. Both must be rigorously enforced on the server side.
+
         </div>
     </div>
 </body>

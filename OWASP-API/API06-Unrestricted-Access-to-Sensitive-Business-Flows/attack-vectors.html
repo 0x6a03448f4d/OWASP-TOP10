@@ -215,7 +215,914 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>API06: Unrestricted Access to Sensitive Business Flows - Attack Vectors</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#understanding-business-flow-attack-vectors">Understanding Business Flow Attack Vectors</a></li>
+<li><a href="#common-attack-patterns">Common Attack Patterns</a></li>
+<li><a href="#application-flaws-that-enable-attacks">Application Flaws That Enable Attacks</a></li>
+<li><a href="#detection-evasion-techniques">Detection Evasion Techniques</a></li>
+<li><a href="#what-attackers-look-for">What Attackers Look For</a></li>
+</ul>
+
+<h2>Understanding Business Flow Attack Vectors</h2>
+
+<p>> <strong>⚠️ EDUCATIONAL PURPOSE ONLY</strong>  </p>
+<p>> This document describes attack concepts for educational purposes. Understanding these patterns helps developers build better defenses.</p>
+
+<p>An <strong>attack vector</strong> for business flow abuse is the method attackers use to automate or excessively use sensitive business functionality in ways that harm the business. Unlike traditional attacks that breach security controls, these attacks exploit the intended functionality at scales or patterns that were never intended.</p>
+
+<h3>The Core Attack Flow</h3>
+
+<p>``<code></p>
+<ol>
+<li>Reconnaissance</li>
+</ol>
+<p>   ↓</p>
+<p>   Identify sensitive business flows (purchases, registrations, etc.)</p>
+<p>   ↓</p>
+<p>   Map API endpoints and parameters</p>
+<p>   ↓</p>
+<p>   Understand timing and validation</p>
+
+<ol>
+<li>Automation Development</li>
+</ol>
+<p>   ↓</p>
+<p>   Reverse engineer API calls</p>
+<p>   ↓</p>
+<p>   Build automation scripts/bots</p>
+<p>   ↓</p>
+<p>   Test on development/staging if accessible</p>
+
+<ol>
+<li>Evasion Implementation</li>
+</ol>
+<p>   ↓</p>
+<p>   Add delays to mimic human behavior</p>
+<p>   ↓</p>
+<p>   Rotate IPs, user agents, device IDs</p>
+<p>   ↓</p>
+<p>   Distribute across multiple accounts</p>
+
+<ol>
+<li>Execution</li>
+</ol>
+<p>   ↓</p>
+<p>   Launch automated attack</p>
+<p>   ↓</p>
+<p>   Monitor for detection/blocking</p>
+<p>   ↓</p>
+<p>   Adjust evasion tactics as needed</p>
+
+<ol>
+<li>Exploitation</li>
+</ol>
+<p>   ↓</p>
+<p>   Achieve business objective (scalping, fraud, etc.)</p>
+</code>`<code>
+
+<h2>Common Attack Patterns</h2>
+
+<h3>1. Ticket/Inventory Scalping</h3>
+
+<strong>What it is</strong>: Automated bulk purchasing of limited-availability items for resale.
+
+<strong>Attack Flow</strong>:
+</code>`<code>
+<p>Bot monitoring: Poll /api/tickets/availability every 100ms</p>
+<p>↓</p>
+<p>Detection: New inventory released</p>
+<p>↓</p>
+<p>Rapid execution:</p>
+<ul>
+<li>100+ simultaneous purchase requests</li>
+<li>Reserves entire inventory in <2 seconds</li>
+<li>Completes checkout before humans can react</li>
+</ul>
+<p>↓</p>
+<p>Result: All inventory purchased by bots</p>
+</code>`<code>
+
+<strong>Why It Works</strong>:
+<ul>
+<li>No detection of purchase velocity</li>
+<li>Cart reservation without time limits</li>
+<li>No behavioral analysis (instant checkout)</li>
+<li>Weak device fingerprinting</li>
+<li>No monitoring of simultaneous purchases</li>
+</ul>
+
+<strong>Real-World Example</strong>:
+</code>`<code>
+<p>Concert tickets go on sale at 10:00 AM</p>
+<ul>
+<li>10:00:00 - Tickets available: 50,000</li>
+<li>10:00:05 - Bot network submits 25,000 requests</li>
+<li>10:00:10 - All tickets reserved by bots</li>
+<li>10:01:00 - Legitimate users see "SOLD OUT"</li>
+<li>10:05:00 - Tickets appear on resale sites at 5x price</li>
+</ul>
+</code>`<code>
+
+<h3>2. Flash Sale Abuse</h3>
+
+<strong>What it is</strong>: Exploiting time-limited promotions through automation.
+
+<strong>Attack Flow</strong>:
+</code>`<code>
+<p>Pre-attack preparation:</p>
+<ul>
+<li>Reverse engineer mobile app API</li>
+<li>Identify product IDs for sale items</li>
+<li>Pre-populate cart with items</li>
+<li>Pre-fill shipping/payment info</li>
+</ul>
+<p>↓</p>
+<p>At sale start (millisecond precision):</p>
+<ul>
+<li>Automated checkout on pre-filled carts</li>
+<li>Submit 1000+ purchase requests</li>
+<li>Complete transactions before sale UI even loads for humans</li>
+</ul>
+<p>↓</p>
+<p>Result: Sale inventory depleted instantly</p>
+</code>`<code>
+
+<strong>Why It Works</strong>:
+<ul>
+<li>No monitoring of pre-sale cart activity</li>
+<li>No checkout time analysis</li>
+<li>Accepts pre-computed requests</li>
+<li>No correlation between browsing and purchasing</li>
+<li>Allows instant checkout without viewing</li>
+</ul>
+
+<strong>Technique Details</strong>:
+<ul>
+<li>Bots prepare requests before sale starts</li>
+<li>Use time synchronization (NTP) for precise timing</li>
+<li>Send all requests in first 100-500ms of sale</li>
+<li>Bypass UI flow entirely via direct API calls</li>
+</ul>
+
+<h3>3. Coupon/Discount Stacking</h3>
+
+<strong>What it is</strong>: Exploiting multiple discounts beyond intended limits.
+
+<strong>Attack Flow</strong>:
+</code>`<code>
+<p>Discovery:</p>
+<ul>
+<li>Find coupon code patterns or generation logic</li>
+<li>Test multiple coupons on single transaction</li>
+<li>Identify lack of stacking limits</li>
+</ul>
+<p>↓</p>
+<p>Exploitation:</p>
+<ul>
+<li>Apply 20-50 coupon codes to single order</li>
+<li>Stack percentage discounts (20% + 15% + 10%...)</li>
+<li>Combine with loyalty points, referrals</li>
+<li>Achieve 90%+ discount</li>
+</ul>
+<p>↓</p>
+<p>Result: Items purchased at near-zero cost</p>
+</code>`<code>
+
+<strong>Why It Works</strong>:
+<ul>
+<li>No limit on coupons per transaction</li>
+<li>No validation of coupon combinations</li>
+<li>Discount calculations stack multiplicatively</li>
+<li>No anomaly detection on total discount</li>
+<li>API doesn't track historical coupon usage</li>
+</ul>
+
+<strong>Example Exploit</strong>:
+</code>`<code>http
+<p>POST /api/checkout</p>
+<p>{</p>
+<p>  "items": [{"id": 123, "price": 100.00}],</p>
+<p>  "coupons": [</p>
+<p>    "SAVE20",    // -20%</p>
+<p>    "WELCOME15", // -15%  </p>
+<p>    "FLASH10",   // -10%</p>
+<p>    "LOYAL25",   // -25%</p>
+<p>    "REFER30"    // -30%</p>
+<p>  ],</p>
+<p>  "loyalty_points": 5000,</p>
+<p>  "referral_credit": 50.00</p>
+<p>}</p>
+<p>// Final price: $0.02 (instead of $100)</p>
+</code>`<code>
+
+<h3>4. Inventory Reservation Squatting</h3>
+
+<strong>What it is</strong>: Reserving items in carts to prevent legitimate purchases.
+
+<strong>Attack Flow</strong>:
+</code>`<code>
+<p>Bot actions:</p>
+<ul>
+<li>Add all available inventory to cart</li>
+<li>Hold reservation without purchasing</li>
+<li>Wait until reservation expires</li>
+<li>Immediately re-reserve items</li>
+</ul>
+<p>↓</p>
+<p>Legitimate users:</p>
+<ul>
+<li>See items "in stock"</li>
+<li>Attempt to add to cart</li>
+<li>Receive "out of stock" error</li>
+<li>Leave frustrated</li>
+</ul>
+<p>↓</p>
+<p>Result: Artificial scarcity, no actual sales</p>
+</code>`<code>
+
+<strong>Why It Works</strong>:
+<ul>
+<li>Cart reservations don't expire quickly enough</li>
+<li>No limit on items per cart</li>
+<li>Reservation renewal allowed</li>
+<li>No detection of reservation patterns</li>
+<li>Can reserve without intention to purchase</li>
+</ul>
+
+<strong>Attack Variants</strong>:
+<ul>
+<li>Competitive denial: Prevent competitor from selling</li>
+<li>Price manipulation: Create scarcity to drive up prices</li>
+<li>Ransom: "Remove reservations for payment"</li>
+</ul>
+
+<h3>5. Review/Rating Manipulation</h3>
+
+<strong>What it is</strong>: Automated posting of fake reviews to manipulate ratings.
+
+<strong>Attack Flow</strong>:
+</code>`<code>
+<p>Account preparation:</p>
+<ul>
+<li>Create 1000+ fake accounts</li>
+<li>Age accounts (appear legitimate)</li>
+<li>Vary account details (different emails, IPs)</li>
+</ul>
+<p>↓</p>
+<p>Review campaign:</p>
+<ul>
+<li>Post negative reviews on competitor (1-star)</li>
+<li>Post positive reviews on own business (5-star)</li>
+<li>Vary review timing and content</li>
+<li>Use AI-generated unique review text</li>
+</ul>
+<p>↓</p>
+<p>Result: Manipulated ratings affecting consumer decisions</p>
+</code>`<code>
+
+<strong>Why It Works</strong>:
+<ul>
+<li>No review velocity limits per account</li>
+<li>No verification of actual purchase/visit</li>
+<li>No pattern detection across reviews</li>
+<li>Easy account creation</li>
+<li>No content uniqueness validation</li>
+</ul>
+
+<strong>Sophistication Levels</strong>:
+</code>`<code>
+<p>Basic: Same review text, obvious patterns</p>
+<p>Medium: Varied text, randomized timing</p>
+<p>Advanced: AI-generated unique reviews, realistic patterns</p>
+<p>Elite: Aged accounts, verified purchases, coordinated campaigns</p>
+</code>`<code>
+
+<h3>6. Referral/Bonus Farming</h3>
+
+<strong>What it is</strong>: Gaming referral programs for financial gain.
+
+<strong>Attack Flow</strong>:
+</code>`<code>
+<p>Setup:</p>
+<ul>
+<li>Create master account</li>
+<li>Create 100+ referee accounts (fake emails, VMs)</li>
+<li>Use different IPs, devices for each</li>
+</ul>
+<p>↓</p>
+<p>Execution:</p>
+<ul>
+<li>Refer fake accounts to master account</li>
+<li>Complete minimum required actions</li>
+<li>Trigger referral bonuses</li>
+<li>Withdraw/spend accumulated rewards</li>
+</ul>
+<p>↓</p>
+<p>Result: Thousands in fraudulent rewards</p>
+</code>`<code>
+
+<strong>Why It Works</strong>:
+<ul>
+<li>No validation of referee authenticity</li>
+<li>No detection of related accounts</li>
+<li>Minimal requirements to trigger bonus</li>
+<li>Easy account creation</li>
+<li>No monitoring of referral patterns</li>
+</ul>
+
+<strong>Example Scenario</strong>:
+</code>`<code>
+<p>App offers $50 for each referral</p>
+<p>Bot creates 200 accounts = $10,000 in bonuses</p>
+<p>Each account does minimum required action</p>
+<p>Master account withdraws accumulated credit</p>
+</code>`<code>
+
+<h3>7. Appointment/Booking Blocking</h3>
+
+<strong>What it is</strong>: Automated booking of all available slots to resell or deny competitors.
+
+<strong>Attack Flow</strong>:
+</code>`<code>
+<p>Monitoring:</p>
+<ul>
+<li>Bot checks /api/appointments/available</li>
+<li>Identifies new slots as they open</li>
+</ul>
+<p>↓</p>
+<p>Instant booking:</p>
+<ul>
+<li>Books all available slots within seconds</li>
+<li>Uses fake/temporary contact details</li>
+<li>Holds appointments without showing up</li>
+</ul>
+<p>↓</p>
+<p>Resale:</p>
+<ul>
+<li>Charges premium to release slots</li>
+<li>Or: Denies competitor access to appointments</li>
+</ul>
+<p>↓</p>
+<p>Result: Legitimate customers can't book appointments</p>
+</code>`<code>
+
+<strong>Why It Works</strong>:
+<ul>
+<li>No booking velocity limits</li>
+<li>No verification of booking intent</li>
+<li>Cancellation without penalty</li>
+<li>API allows bulk booking</li>
+<li>No tracking of no-show patterns</li>
+</ul>
+
+<h3>8. Account Creation Flooding</h3>
+
+<strong>What it is</strong>: Mass creation of accounts for various fraudulent purposes.
+
+<strong>Attack Flow</strong>:
+</code>`<code>
+<p>Automation:</p>
+<ul>
+<li>Generate email addresses (disposable/temporary services)</li>
+<li>Solve or bypass CAPTCHA (solving services)</li>
+<li>Fill registration forms programmatically</li>
+<li>Create 1000+ accounts per hour</li>
+</ul>
+<p>↓</p>
+<p>Usage:</p>
+<ul>
+<li>Claim new user bonuses</li>
+<li>Distribute abuse across accounts</li>
+<li>Inflate metrics/vanity numbers</li>
+<li>Prepare for referral fraud</li>
+</ul>
+<p>↓</p>
+<p>Result: Polluted user base, wasted resources</p>
+</code>`<code>
+
+<strong>Why It Works</strong>:
+<ul>
+<li>Weak email verification (disposable emails accepted)</li>
+<li>Simple or bypassable CAPTCHA</li>
+<li>No registration rate limiting</li>
+<li>No device fingerprinting</li>
+<li>Welcome bonuses easy to claim</li>
+</ul>
+
+<h3>9. Price Scraping / Competitive Intelligence</h3>
+
+<strong>What it is</strong>: Automated harvesting of pricing and inventory data.
+
+<strong>Attack Flow</strong>:
+</code>`<code>
+<p>Setup:</p>
+<ul>
+<li>Map product catalog API endpoints</li>
+<li>Identify pagination and filtering</li>
+<li>Build scraping infrastructure</li>
+</ul>
+<p>↓</p>
+<p>Execution:</p>
+<ul>
+<li>Request all product pages sequentially</li>
+<li>Parse prices, availability, descriptions</li>
+<li>Store in competitor database</li>
+<li>Repeat hourly/daily for price tracking</li>
+</ul>
+<p>↓</p>
+<p>Result: Complete competitive intelligence database</p>
+</code>`<code>
+
+<strong>Why It Works</strong>:
+<ul>
+<li>Public APIs with no authentication</li>
+<li>No rate limiting on product endpoints</li>
+<li>Detailed product data exposed</li>
+<li>No detection of scraping patterns</li>
+<li>Sequential access allowed</li>
+</ul>
+
+<strong>Business Impact</strong>:
+<ul>
+<li>Competitors undercut prices in real-time</li>
+<li>Market strategy exposed</li>
+<li>Proprietary product data stolen</li>
+<li>Inventory levels monitored</li>
+</ul>
+
+<h3>10. Flash Claim Abuse</h3>
+
+<strong>What it is</strong>: Automated claiming of limited promotional items.
+
+<strong>Attack Flow</strong>:
+</code>`<code>
+<p>Preparation:</p>
+<ul>
+<li>Monitor for promotion announcements</li>
+<li>Reverse engineer claim API</li>
+<li>Set up automation</li>
+</ul>
+<p>↓</p>
+<p>Execution:</p>
+<ul>
+<li>Submit claim requests at precise time</li>
+<li>Use multiple accounts if limited per user</li>
+<li>Complete claims faster than humans possible</li>
+</ul>
+<p>↓</p>
+<p>Result: All promotional items claimed by bots</p>
+</code>`<code>
+
+<strong>Example</strong>:
+</code>`<code>
+<p>Company offers first 1000 users free product</p>
+<p>Promotion starts at 3 PM</p>
+<ul>
+<li>3:00:00 PM - Promotion goes live</li>
+<li>3:00:01 PM - Bot submits 1000 claims</li>
+<li>3:00:02 PM - All items claimed</li>
+<li>3:01:00 PM - Real users arrive, see "SOLD OUT"</li>
+</ul>
+</code>`<code>
+
+<h3>11. Vote/Poll Manipulation</h3>
+
+<strong>What it is</strong>: Automated voting to skew poll results.
+
+<strong>Attack Flow</strong>:
+</code>`<code>
+<p>Target identification:</p>
+<ul>
+<li>Find voting/poll API endpoint</li>
+<li>Understand voting rules (one vote per user/IP/etc.)</li>
+</ul>
+<p>↓</p>
+<p>Bypass mechanisms:</p>
+<ul>
+<li>Create multiple accounts</li>
+<li>Rotate IP addresses</li>
+<li>Clear cookies/sessions</li>
+<li>Automate voting process</li>
+</ul>
+<p>↓</p>
+<p>Execution:</p>
+<ul>
+<li>Submit thousands of votes</li>
+<li>Skew results in desired direction</li>
+</ul>
+<p>↓</p>
+<p>Result: Fraudulent poll results</p>
+</code>`<code>
+
+<strong>Why It Works</strong>:
+<ul>
+<li>Weak vote validation (IP-only, cookie-based)</li>
+<li>Easy account creation</li>
+<li>No behavioral analysis</li>
+<li>No correlation with actual user engagement</li>
+</ul>
+
+<h3>12. Credential Stuffing at Scale</h3>
+
+<strong>What it is</strong>: Testing stolen credentials to hijack accounts.
+
+<strong>Attack Flow</strong>:
+</code>`<code>
+<p>Preparation:</p>
+<ul>
+<li>Obtain credential dumps (username:password)</li>
+<li>Set up distributed infrastructure</li>
+<li>Develop login automation</li>
+</ul>
+<p>↓</p>
+<p>Execution:</p>
+<ul>
+<li>Test thousands of credentials per minute</li>
+<li>Rotate IPs to avoid blocking</li>
+<li>Identify successful logins</li>
+<li>Extract valuable accounts</li>
+</ul>
+<p>↓</p>
+<p>Result: Account takeover for further abuse</p>
+</code>`<code>
+
+<strong>Why It Works</strong>:
+<ul>
+<li>No login attempt rate limiting</li>
+<li>No account lockout after failures</li>
+<li>No CAPTCHA after failed attempts</li>
+<li>Weak breach detection</li>
+<li>API accepts high login velocity</li>
+</ul>
+
+<h3>13. API Parameter Tampering for Discounts</h3>
+
+<strong>What it is</strong>: Manipulating API request parameters to alter prices.
+
+<strong>Attack Flow</strong>:
+</code>`<code>
+<p>Discovery:</p>
+<ul>
+<li>Intercept checkout API request</li>
+<li>Identify price parameters in request</li>
+<li>Test modifying price values</li>
+</ul>
+<p>↓</p>
+<p>Exploitation:</p>
+<ul>
+<li>Change price from $100 to $1</li>
+<li>Modify discount percentage</li>
+<li>Alter quantity discounts</li>
+<li>Change currency to lower value</li>
+</ul>
+<p>↓</p>
+<p>Result: Unauthorized price modifications</p>
+</code>`<code>
+
+<strong>Example</strong>:
+</code>`<code>http
+<p>POST /api/checkout</p>
+<p>{</p>
+<p>  "item_id": 123,</p>
+<p>  "price": 1.00,        // Changed from 100.00</p>
+<p>  "discount": 90,       // Changed from 0</p>
+<p>  "currency": "VND"     // Changed from "USD"</p>
+<p>}</p>
+<p>// Server trusts client-provided price</p>
+</code>`<code>
+
+<h3>14. Bulk Data Extraction</h3>
+
+<strong>What it is</strong>: Extracting entire databases through API pagination.
+
+<strong>Attack Flow</strong>:
+</code>`<code>
+<p>Discovery:</p>
+<ul>
+<li>Find paginated API endpoints</li>
+<li>Identify user data in responses</li>
+<li>Understand pagination mechanism</li>
+</ul>
+<p>↓</p>
+<p>Automation:</p>
+<ul>
+<li>Request page 1, 2, 3... until end</li>
+<li>Extract user emails, profiles, data</li>
+<li>Store in database</li>
+<li>Repeat for all resources</li>
+</ul>
+<p>↓</p>
+<p>Result: Complete database export</p>
+</code>`<code>
+
+<strong>Example</strong>:
+</code>`<code>
+<p>GET /api/users?page=1&limit=100</p>
+<p>GET /api/users?page=2&limit=100</p>
+<p>...</p>
+<p>GET /api/users?page=1000&limit=100</p>
+<p>// Extract 100,000 user records</p>
+</code>`<code>
+
+<h3>15. Distributed Denial of Business (DDoBusiness)</h3>
+
+<strong>What it is</strong>: Overwhelming business logic without crashing servers.
+
+<strong>Attack Flow</strong>:
+</code>`<code>
+<p>Target selection:</p>
+<ul>
+<li>Identify expensive business operations</li>
+<li>Find operations that lock resources</li>
+<li>Locate processes that trigger background jobs</li>
+</ul>
+<p>↓</p>
+<p>Execution:</p>
+<ul>
+<li>Trigger resource-intensive operations</li>
+<li>Create pending transactions that need manual review</li>
+<li>Generate reports that consume CPU/DB</li>
+<li>Reserve inventory that blocks legitimate sales</li>
+</ul>
+<p>↓</p>
+<p>Result: Business disruption without technical outage</p>
+</code>`<code>
+
+<strong>Examples</strong>:
+<ul>
+<li>Creating 10,000 pending orders requiring manual fraud review</li>
+<li>Generating 1,000 complex reports simultaneously</li>
+<li>Reserving all appointment slots</li>
+<li>Requesting 5,000 password resets (email system overload)</li>
+</ul>
+
+<h2>Application Flaws That Enable Attacks</h2>
+
+<h3>1. Lack of Behavioral Analysis</h3>
+
+<strong>Flaw</strong>: Only checking authentication, not behavior patterns.
+
+<strong>Enables</strong>:
+<ul>
+<li>Instant purchases without browsing</li>
+<li>Machine-speed transactions</li>
+<li>Predictable timing patterns</li>
+</ul>
+
+<h3>2. No Device Fingerprinting</h3>
+
+<strong>Flaw</strong>: Not tracking device identity across requests.
+
+<strong>Enables</strong>:
+<ul>
+<li>Account creation abuse</li>
+<li>Session replay attacks</li>
+<li>Distributed attacks appearing as single user</li>
+</ul>
+
+<h3>3. Insufficient Time-Based Validation</h3>
+
+<strong>Flaw</strong>: Not validating realistic time gaps between actions.
+
+<strong>Enables</strong>:
+<ul>
+<li>Checkout completed in milliseconds</li>
+<li>Immediate add-to-cart then purchase</li>
+<li>Superhuman form completion speeds</li>
+</ul>
+
+<h3>4. Client-Side Validation Only</h3>
+
+<strong>Flaw</strong>: Trusting client-provided data (prices, limits, etc.).
+
+<strong>Enables</strong>:
+<ul>
+<li>Price manipulation</li>
+<li>Quantity limit bypass</li>
+<li>Discount stacking</li>
+</ul>
+
+<h3>5. Weak Account Creation Controls</h3>
+
+<strong>Flaw</strong>: Easy to create unlimited accounts.
+
+<strong>Enables</strong>:
+<ul>
+<li>Referral fraud</li>
+<li>Review manipulation</li>
+<li>Per-user limit bypass</li>
+</ul>
+
+<h3>6. No Cross-Request Correlation</h3>
+
+<strong>Flaw</strong>: Each request evaluated independently.
+
+<strong>Enables</strong>:
+<ul>
+<li>Distributed attacks across accounts</li>
+<li>Pattern evasion</li>
+<li>Velocity limit bypass</li>
+</ul>
+
+<h3>7. Predictable Resource IDs</h3>
+
+<strong>Flaw</strong>: Sequential or guessable identifiers.
+
+<strong>Enables</strong>:
+<ul>
+<li>Inventory enumeration</li>
+<li>Scheduled item discovery (before public release)</li>
+<li>Targeted scalping of specific items</li>
+</ul>
+
+<h3>8. Absence of Risk Scoring</h3>
+
+<strong>Flaw</strong>: All requests treated equally.
+
+<strong>Enables</strong>:
+<ul>
+<li>High-risk transactions processed normally</li>
+<li>No differentiation between bot and human</li>
+<li>Missed fraud indicators</li>
+</ul>
+
+<h2>Detection Evasion Techniques</h2>
+
+<h3>Human Behavior Simulation</h3>
+
+<strong>Technique</strong>: Bots mimic human interaction patterns.
+
+<strong>Methods</strong>:
+<ul>
+<li>Random delays between actions (2-8 seconds)</li>
+<li>Mouse movement and scrolling simulation</li>
+<li>Realistic typing speeds</li>
+<li>Varied user agents and screen resolutions</li>
+<li>Session replaying of real user behavior</li>
+</ul>
+
+<h3>IP Rotation and Distribution</h3>
+
+<strong>Technique</strong>: Avoid IP-based detection.
+
+<strong>Methods</strong>:
+<ul>
+<li>Residential proxy networks (millions of IPs)</li>
+<li>Mobile carrier proxies (rotating IPs)</li>
+<li>Cloud providers with IP rotation</li>
+<li>Tor exit nodes</li>
+<li>Distributed bot networks (each bot different IP)</li>
+</ul>
+
+<h3>Account Aging and Reputation</h3>
+
+<strong>Technique</strong>: Build legitimate-looking accounts.
+
+<strong>Methods</strong>:
+<ul>
+<li>Create accounts weeks/months before attack</li>
+<li>Perform normal activities to build history</li>
+<li>Maintain activity patterns similar to real users</li>
+<li>Purchase low-value items to establish trust</li>
+<li>Engage with non-target content</li>
+</ul>
+
+<h3>Fingerprint Randomization</h3>
+
+<strong>Technique</strong>: Prevent device tracking.
+
+<strong>Methods</strong>:
+<ul>
+<li>Rotate user agents</li>
+<li>Randomize browser fingerprints</li>
+<li>Use anti-detection browsers</li>
+<li>Spoof canvas fingerprints</li>
+<li>Vary screen resolutions and capabilities</li>
+</ul>
+
+<h2>What Attackers Look For</h2>
+
+<h3>Target Identification</h3>
+
+<p>Attackers seek APIs with:</p>
+
+<ol>
+<li><strong>High-Value Business Flows</strong></li>
+<ul>
+<li>Limited inventory items</li>
+<li>Financial transactions</li>
+<li>Reward/bonus systems</li>
+<li>Appointment booking</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Weak Protection Indicators</strong></li>
+<ul>
+<li>No CAPTCHA or bot detection</li>
+<li>Simple rate limiting only</li>
+<li>Client-side validation</li>
+<li>Publicly documented APIs</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Easy Automation</strong></li>
+<ul>
+<li>Simple authentication</li>
+<li>RESTful design (predictable)</li>
+<li>Minimal state management</li>
+<li>Direct parameter access</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Low Detection Risk</strong></li>
+<ul>
+<li>No behavioral monitoring</li>
+<li>No anomaly alerts</li>
+<li>Slow response to abuse</li>
+<li>No account suspension</li>
+</ul>
+</ol>
+
+<h3>Reconnaissance Steps</h3>
+
+</code>`<code>
+<ol>
+<li>API Discovery</li>
+<ul>
+<li>Review mobile app traffic</li>
+<li>Check JavaScript source code</li>
+<li>Use API documentation if public</li>
+<li>Test endpoints for authentication requirements</li>
+</ul>
+</ol>
+
+<ol>
+<li>Flow Analysis</li>
+<ul>
+<li>Map complete user journey</li>
+<li>Identify required steps</li>
+<li>Find optional vs. mandatory fields</li>
+<li>Test validation rules</li>
+</ul>
+</ol>
+
+<ol>
+<li>Limit Testing</li>
+<ul>
+<li>Test rate limits</li>
+<li>Check per-user restrictions</li>
+<li>Verify resource limits</li>
+<li>Identify bypass opportunities</li>
+</ul>
+</ol>
+
+<ol>
+<li>Automation Development</li>
+<ul>
+<li>Build proof-of-concept bot</li>
+<li>Test on low-value targets first</li>
+<li>Refine evasion techniques</li>
+<li>Scale up for main attack</li>
+</ul>
+</ol>
+
+<ol>
+<li>Execution</li>
+<ul>
+<li>Launch attack</li>
+<li>Monitor for detection</li>
+<li>Adjust tactics real-time</li>
+<li>Extract value before shutdown</li>
+</ul>
+</ol>
+</code>``
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Business flow attacks exploit intended functionality</strong>, not security vulnerabilities</li>
+<li><strong>Automation is the weapon</strong>, not malicious payloads</li>
+<li><strong>Detection requires behavioral analysis</strong>, not just rate limiting</li>
+<li><strong>Evasion techniques are sophisticated</strong>, mimicking human behavior</li>
+<li><strong>Prevention needs multi-layered approach</strong>: device fingerprinting, behavioral analysis, risk scoring</li>
+<li><strong>Business context matters</strong>: What's normal for browsing is suspicious for purchasing</li>
+<li><strong>Continuous monitoring essential</strong>: Bots adapt, defenses must too</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="prevention.md">Prevention Guide</a></strong>: Learn comprehensive protection strategies</li>
+<li><strong><a href="examples.md">Code Examples</a></strong>: See secure implementations across frameworks</li>
+<li><strong><a href="lab/api06-business-logic-lab/">Hands-On Lab</a></strong>: Practice detecting and preventing business logic abuse</li>
+</ul>
+
         </div>
     </div>
 </body>

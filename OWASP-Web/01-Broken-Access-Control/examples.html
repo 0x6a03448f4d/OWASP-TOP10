@@ -215,7 +215,685 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>Broken Access Control - Examples</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#safe-pseudo-code-examples">Safe Pseudo-Code Examples</a></li>
+<li><a href="#bad-vs-good-code-comparisons">Bad vs Good Code Comparisons</a></li>
+<li><a href="#architecture-patterns">Architecture Patterns</a></li>
+<li><a href="#configuration-examples">Configuration Examples</a></li>
+<li><a href="#real-world-scenarios">Real-World Scenarios</a></li>
+</ul>
+
+<h2>Safe Pseudo-Code Examples</h2>
+
+<p>These examples demonstrate concepts without providing exploitable code.</p>
+
+<h3>Example 1: User Profile Access</h3>
+
+<strong>❌ VULNERABLE: No Ownership Check</strong>
+<p>``<code>python</p>
+<p>@app.route('/api/profile/<user_id>')</p>
+<p>def get_profile(user_id):</p>
+<p>    """Anyone can access any profile by changing the user_id"""</p>
+<p>    user = database.get_user(user_id)</p>
+<p>    return jsonify(user.to_dict())</p>
+</code>`<code>
+
+<strong>✅ SECURE: Verify Ownership</strong>
+</code>`<code>python
+<p>@app.route('/api/profile/<user_id>')</p>
+<p>def get_profile(user_id):</p>
+<p>    """Only the owner or admin can access this profile"""</p>
+<p>    # Verify the user is authenticated</p>
+<p>    if not current_user.is_authenticated:</p>
+<p>        abort(401, "Authentication required")</p>
+    
+<p>    # Get the requested profile</p>
+<p>    user = database.get_user(user_id)</p>
+<p>    if not user:</p>
+<p>        abort(404, "User not found")</p>
+    
+<p>    # Verify authorization</p>
+<p>    if current_user.id != user_id and not current_user.is_admin:</p>
+<p>        abort(403, "Access denied")</p>
+    
+<p>    return jsonify(user.to_dict())</p>
+</code>`<code>
+
+<h3>Example 2: Document Download</h3>
+
+<strong>❌ VULNERABLE: Direct File Access</strong>
+</code>`<code>python
+<p>@app.route('/download/<filename>')</p>
+<p>def download_file(filename):</p>
+<p>    """Path traversal and unauthorized access possible"""</p>
+<p>    return send_file(f'/uploads/{filename}')</p>
+</code>`<code>
+
+<strong>✅ SECURE: Validate and Authorize</strong>
+</code>`<code>python
+<p>import os</p>
+<p>from werkzeug.utils import secure_filename</p>
+
+<p>@app.route('/download/<file_id>')</p>
+<p>def download_file(file_id):</p>
+<p>    """Validate file ownership and prevent path traversal"""</p>
+<p>    # Get file metadata from database (not filesystem)</p>
+<p>    file_record = File.query.get_or_404(file_id)</p>
+    
+<p>    # Verify ownership</p>
+<p>    if file_record.owner_id != current_user.id:</p>
+<p>        abort(403, "You don't have permission to access this file")</p>
+    
+<p>    # Secure the filename</p>
+<p>    safe_filename = secure_filename(file_record.filename)</p>
+<p>    file_path = os.path.join(app.config['UPLOAD_FOLDER'], safe_filename)</p>
+    
+<p>    # Verify file exists and is within upload directory</p>
+<p>    if not os.path.abspath(file_path).startswith(app.config['UPLOAD_FOLDER']):</p>
+<p>        abort(400, "Invalid file path")</p>
+    
+<p>    return send_file(file_path, as_attachment=True)</p>
+</code>`<code>
+
+<h3>Example 3: Admin Panel Access</h3>
+
+<strong>❌ VULNERABLE: Client-Side Check Only</strong>
+</code>`<code>javascript
+<p>// Frontend code</p>
+<p>function loadAdminPanel() {</p>
+<p>    if (localStorage.getItem('role') === 'admin') {</p>
+<p>        // Anyone can modify localStorage!</p>
+<p>        fetch('/api/admin/users')</p>
+<p>            .then(response => response.json())</p>
+<p>            .then(data => displayUsers(data));</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>✅ SECURE: Server-Side Enforcement</strong>
+</code>`<code>python
+<h1>Backend code</h1>
+<p>from functools import wraps</p>
+
+<p>def admin_required(f):</p>
+<p>    @wraps(f)</p>
+<p>    def decorated_function(<em>args, </em>*kwargs):</p>
+<p>        if not current_user.is_authenticated:</p>
+<p>            abort(401)</p>
+<p>        if not current_user.has_role('admin'):</p>
+<p>            abort(403, "Admin access required")</p>
+<p>        return f(<em>args, </em>*kwargs)</p>
+<p>    return decorated_function</p>
+
+<p>@app.route('/api/admin/users')</p>
+<p>@admin_required</p>
+<p>def get_all_users():</p>
+<p>    """Only admins can access this endpoint"""</p>
+<p>    users = User.query.all()</p>
+<p>    return jsonify([user.to_dict() for user in users])</p>
+</code>`<code>
+
+<h2>Bad vs Good Code Comparisons</h2>
+
+<h3>Comparison 1: Order Management</h3>
+
+<strong>❌ BAD</strong>
+</code>`<code>python
+<p>@app.route('/order/<order_id>')</p>
+<p>def view_order(order_id):</p>
+<p>    # Problem: No authentication check</p>
+<p>    # Problem: No ownership verification</p>
+<p>    # Problem: Trusts user input without validation</p>
+<p>    order = Order.query.get(order_id)</p>
+<p>    return render_template('order.html', order=order)</p>
+</code>`<code>
+
+<strong>✅ GOOD</strong>
+</code>`<code>python
+<p>@app.route('/order/<int:order_id>')</p>
+<p>@login_required</p>
+<p>def view_order(order_id):</p>
+<p>    # Verify ownership in the query itself</p>
+<p>    order = Order.query.filter_by(</p>
+<p>        id=order_id,</p>
+<p>        user_id=current_user.id</p>
+<p>    ).first()</p>
+    
+<p>    if not order:</p>
+<p>        # Don't reveal if order exists for other users</p>
+<p>        abort(404, "Order not found")</p>
+    
+<p>    return render_template('order.html', order=order)</p>
+</code>`<code>
+
+<h3>Comparison 2: API Endpoint</h3>
+
+<strong>❌ BAD</strong>
+</code>`<code>python
+<p>@app.route('/api/user/update', methods=['POST'])</p>
+<p>def update_user():</p>
+<p>    # Problem: Updates any user based on provided user_id</p>
+<p>    # Problem: Trusts client to send correct user_id</p>
+<p>    data = request.json</p>
+<p>    user_id = data.get('user_id')</p>
+    
+<p>    user = User.query.get(user_id)</p>
+<p>    user.email = data.get('email')</p>
+<p>    user.role = data.get('role')  # Client can set their own role!</p>
+<p>    db.session.commit()</p>
+    
+<p>    return {'status': 'updated'}</p>
+</code>`<code>
+
+<strong>✅ GOOD</strong>
+</code>`<code>python
+<p>@app.route('/api/user/update', methods=['POST'])</p>
+<p>@login_required</p>
+<p>def update_user():</p>
+<p>    # Only update the current authenticated user</p>
+<p>    user = User.query.get(current_user.id)</p>
+<p>    data = request.json</p>
+    
+<p>    # Whitelist allowed fields</p>
+<p>    allowed_fields = ['email', 'phone', 'address']</p>
+    
+<p>    for field in allowed_fields:</p>
+<p>        if field in data:</p>
+<p>            setattr(user, field, data[field])</p>
+    
+<p>    # Role changes require separate admin endpoint</p>
+<p>    # Don't allow users to modify their own roles</p>
+    
+<p>    db.session.commit()</p>
+<p>    return {'status': 'updated'}</p>
+</code>`<code>
+
+<h3>Comparison 3: Delete Function</h3>
+
+<strong>❌ BAD</strong>
+</code>`<code>python
+<p>@app.route('/api/comment/<comment_id>', methods=['DELETE'])</p>
+<p>def delete_comment(comment_id):</p>
+<p>    # Problem: Anyone can delete any comment</p>
+<p>    comment = Comment.query.get(comment_id)</p>
+<p>    db.session.delete(comment)</p>
+<p>    db.session.commit()</p>
+<p>    return {'status': 'deleted'}</p>
+</code>`<code>
+
+<strong>✅ GOOD</strong>
+</code>`<code>python
+<p>@app.route('/api/comment/<int:comment_id>', methods=['DELETE'])</p>
+<p>@login_required</p>
+<p>def delete_comment(comment_id):</p>
+<p>    comment = Comment.query.get_or_404(comment_id)</p>
+    
+<p>    # Check if user owns the comment OR is a moderator</p>
+<p>    if comment.user_id != current_user.id and not current_user.has_role('moderator'):</p>
+<p>        abort(403, "You can only delete your own comments")</p>
+    
+<p>    db.session.delete(comment)</p>
+<p>    db.session.commit()</p>
+    
+<p>    # Log the deletion for audit trail</p>
+<p>    log_action('comment_deleted', user=current_user, comment_id=comment_id)</p>
+    
+<p>    return {'status': 'deleted'}</p>
+</code>`<code>
+
+<h3>Comparison 4: Sensitive Data Endpoint</h3>
+
+<strong>❌ BAD</strong>
+</code>`<code>python
+<p>@app.route('/api/salaries')</p>
+<p>def get_salaries():</p>
+<p>    # Problem: No authentication</p>
+<p>    # Problem: Exposes all salary data to anyone</p>
+<p>    salaries = Salary.query.all()</p>
+<p>    return jsonify([s.to_dict() for s in salaries])</p>
+</code>`<code>
+
+<strong>✅ GOOD</strong>
+</code>`<code>python
+<p>@app.route('/api/salaries')</p>
+<p>@login_required</p>
+<p>def get_salaries():</p>
+<p>    # Only HR and executives can view all salaries</p>
+<p>    if current_user.has_role('hr') or current_user.has_role('executive'):</p>
+<p>        salaries = Salary.query.all()</p>
+<p>        return jsonify([s.to_dict() for s in salaries])</p>
+    
+<p>    # Regular employees can only see their own</p>
+<p>    salary = Salary.query.filter_by(user_id=current_user.id).first_or_404()</p>
+<p>    return jsonify(salary.to_dict())</p>
+</code>`<code>
+
+<h2>Architecture Patterns</h2>
+
+<h3>Pattern 1: Layered Security Architecture</h3>
+
+</code>`<code>mermaid
+<p>graph TD</p>
+<p>    A[Client Request] --> B[Authentication Layer]</p>
+<p>    B -->|Valid Token| C[Authorization Layer]</p>
+<p>    B -->|Invalid| Z[401 Unauthorized]</p>
+<p>    C -->|Has Permission| D[Business Logic]</p>
+<p>    C -->|No Permission| Y[403 Forbidden]</p>
+<p>    D --> E[Data Access Layer]</p>
+<p>    E -->|With Ownership Filter| F[Database]</p>
+<p>    F --> G[Response]</p>
+</code>`<code>
+
+<strong>Implementation:</strong>
+</code>`<code>python
+<p>class SecurityLayer:</p>
+<p>    """Centralized security layer"""</p>
+    
+<p>    @staticmethod</p>
+<p>    def authenticate(request):</p>
+<p>        """Verify user identity"""</p>
+<p>        token = request.headers.get('Authorization')</p>
+<p>        if not token:</p>
+<p>            raise AuthenticationError("No token provided")</p>
+        
+<p>        user = verify_token(token)</p>
+<p>        if not user:</p>
+<p>            raise AuthenticationError("Invalid token")</p>
+        
+<p>        return user</p>
+    
+<p>    @staticmethod</p>
+<p>    def authorize(user, resource, action):</p>
+<p>        """Verify user permissions"""</p>
+<p>        # Check role-based permissions</p>
+<p>        if not user.can_perform(action, resource):</p>
+<p>            raise AuthorizationError(f"Not authorized for {action}")</p>
+        
+<p>        # Check resource-specific permissions</p>
+<p>        if hasattr(resource, 'check_access'):</p>
+<p>            if not resource.check_access(user, action):</p>
+<p>                raise AuthorizationError("Access denied to this resource")</p>
+        
+<p>        return True</p>
+
+<h1>Use in endpoints</h1>
+<p>@app.route('/api/document/<doc_id>', methods=['PUT'])</p>
+<p>def update_document(doc_id):</p>
+<p>    # Authenticate</p>
+<p>    user = SecurityLayer.authenticate(request)</p>
+    
+<p>    # Get resource</p>
+<p>    document = Document.query.get_or_404(doc_id)</p>
+    
+<p>    # Authorize</p>
+<p>    SecurityLayer.authorize(user, document, 'update')</p>
+    
+<p>    # Proceed with business logic</p>
+<p>    document.update(request.json)</p>
+<p>    return {'status': 'updated'}</p>
+</code>`<code>
+
+<h3>Pattern 2: Policy-Based Access Control</h3>
+
+</code>`<code>mermaid
+<p>graph LR</p>
+<p>    A[Request] --> B[Policy Engine]</p>
+<p>    B --> C{Evaluate Rules}</p>
+<p>    C -->|Rule 1: Owner| D[ALLOW]</p>
+<p>    C -->|Rule 2: Admin| D</p>
+<p>    C -->|Rule 3: Shared| D</p>
+<p>    C -->|No Match| E[DENY]</p>
+<p>    D --> F[Execute Action]</p>
+<p>    E --> G[Return 403]</p>
+</code>`<code>
+
+<strong>Implementation:</strong>
+</code>`<code>python
+<p>class AccessPolicy:</p>
+<p>    """Define access control policies"""</p>
+    
+<p>    @staticmethod</p>
+<p>    def can_read_document(user, document):</p>
+<p>        """Policy for reading documents"""</p>
+<p>        rules = [</p>
+<p>            document.owner_id == user.id,  # Owner</p>
+<p>            document.is_public,  # Public document</p>
+<p>            user.id in document.shared_with_users,  # Explicitly shared</p>
+<p>            user.department_id == document.department_id,  # Same department</p>
+<p>            user.has_role('admin'),  # Admin override</p>
+<p>        ]</p>
+<p>        return any(rules)</p>
+    
+<p>    @staticmethod</p>
+<p>    def can_write_document(user, document):</p>
+<p>        """Policy for writing documents"""</p>
+<p>        rules = [</p>
+<p>            document.owner_id == user.id,  # Owner</p>
+<p>            user.id in document.editors,  # Explicit editor permission</p>
+<p>            user.has_role('admin'),  # Admin override</p>
+<p>        ]</p>
+<p>        return any(rules)</p>
+    
+<p>    @staticmethod</p>
+<p>    def can_delete_document(user, document):</p>
+<p>        """Policy for deleting documents"""</p>
+<p>        rules = [</p>
+<p>            document.owner_id == user.id,  # Only owner</p>
+<p>            user.has_role('admin'),  # Or admin</p>
+<p>        ]</p>
+<p>        return any(rules)</p>
+
+<h1>Use in code</h1>
+<p>@app.route('/document/<doc_id>')</p>
+<p>def view_document(doc_id):</p>
+<p>    doc = Document.query.get_or_404(doc_id)</p>
+    
+<p>    if not AccessPolicy.can_read_document(current_user, doc):</p>
+<p>        abort(403)</p>
+    
+<p>    return render_template('document.html', doc=doc)</p>
+</code>`<code>
+
+<h3>Pattern 3: Multi-Tenancy Isolation</h3>
+
+</code>`<code>python
+<p>class TenantIsolation:</p>
+<p>    """Ensure data isolation in multi-tenant applications"""</p>
+    
+<p>    @staticmethod</p>
+<p>    def get_tenant_id():</p>
+<p>        """Get current tenant from context"""</p>
+<p>        return current_user.tenant_id</p>
+    
+<p>    @staticmethod</p>
+<p>    def filter_query(query):</p>
+<p>        """Automatically filter queries by tenant"""</p>
+<p>        tenant_id = TenantIsolation.get_tenant_id()</p>
+<p>        return query.filter_by(tenant_id=tenant_id)</p>
+
+<h1>Apply to all queries</h1>
+<p>@app.route('/api/users')</p>
+<p>@login_required</p>
+<p>def get_users():</p>
+<p>    # Automatically filtered to current tenant</p>
+<p>    query = User.query</p>
+<p>    query = TenantIsolation.filter_query(query)</p>
+    
+<p>    users = query.all()</p>
+<p>    return jsonify([u.to_dict() for u in users])</p>
+
+<h1>Or use SQLAlchemy events</h1>
+<p>@event.listens_for(Session, 'after_attach')</p>
+<p>def receive_after_attach(session, instance):</p>
+<p>    """Automatically set tenant_id on new objects"""</p>
+<p>    if hasattr(instance, 'tenant_id') and not instance.tenant_id:</p>
+<p>        instance.tenant_id = current_user.tenant_id</p>
+</code>`<code>
+
+<h2>Configuration Examples</h2>
+
+<h3>Example 1: Flask Security Configuration</h3>
+
+</code>`<code>python
+<h1>config.py</h1>
+<p>class SecurityConfig:</p>
+<p>    # Session security</p>
+<p>    SESSION_COOKIE_SECURE = True  # HTTPS only</p>
+<p>    SESSION_COOKIE_HTTPONLY = True  # No JavaScript access</p>
+<p>    SESSION_COOKIE_SAMESITE = 'Lax'  # CSRF protection</p>
+<p>    PERMANENT_SESSION_LIFETIME = timedelta(hours=2)</p>
+    
+<p>    # CSRF protection</p>
+<p>    WTF_CSRF_ENABLED = True</p>
+<p>    WTF_CSRF_TIME_LIMIT = None  # No time limit</p>
+    
+<p>    # Password security</p>
+<p>    SECURITY_PASSWORD_HASH = 'bcrypt'</p>
+<p>    SECURITY_PASSWORD_SALT = os.environ.get('SECURITY_PASSWORD_SALT')</p>
+    
+<p>    # Login attempts</p>
+<p>    SECURITY_LOGIN_ATTEMPTS = 5</p>
+<p>    SECURITY_LOGIN_LOCKOUT_DURATION = timedelta(minutes=30)</p>
+
+<h1>app.py</h1>
+<p>from flask_security import Security, SQLAlchemyUserDatastore</p>
+
+<p>user_datastore = SQLAlchemyUserDatastore(db, User, Role)</p>
+<p>security = Security(app, user_datastore)</p>
+</code>`<code>
+
+<h3>Example 2: Role Definitions</h3>
+
+</code>`<code>python
+<h1>models.py</h1>
+<p>roles_users = db.Table('roles_users',</p>
+<p>    db.Column('user_id', db.Integer(), db.ForeignKey('user.id')),</p>
+<p>    db.Column('role_id', db.Integer(), db.ForeignKey('role.id'))</p>
+<p>)</p>
+
+<p>class Role(db.Model):</p>
+<p>    id = db.Column(db.Integer(), primary_key=True)</p>
+<p>    name = db.Column(db.String(80), unique=True)</p>
+<p>    description = db.Column(db.String(255))</p>
+
+<p>class User(db.Model):</p>
+<p>    id = db.Column(db.Integer, primary_key=True)</p>
+<p>    email = db.Column(db.String(255), unique=True, nullable=False)</p>
+<p>    password = db.Column(db.String(255), nullable=False)</p>
+<p>    roles = db.relationship('Role', secondary=roles_users)</p>
+    
+<p>    def has_role(self, role_name):</p>
+<p>        return any(role.name == role_name for role in self.roles)</p>
+
+<h1>Initialize default roles</h1>
+<p>def create_default_roles():</p>
+<p>    roles = ['admin', 'user', 'moderator', 'viewer']</p>
+<p>    for role_name in roles:</p>
+<p>        if not Role.query.filter_by(name=role_name).first():</p>
+<p>            role = Role(name=role_name)</p>
+<p>            db.session.add(role)</p>
+<p>    db.session.commit()</p>
+</code>`<code>
+
+<h3>Example 3: API Authentication</h3>
+
+</code>`<code>python
+<h1>api_auth.py</h1>
+<p>from flask_httpauth import HTTPTokenAuth</p>
+
+<p>auth = HTTPTokenAuth(scheme='Bearer')</p>
+
+<p>@auth.verify_token</p>
+<p>def verify_token(token):</p>
+<p>    """Verify JWT token"""</p>
+<p>    try:</p>
+<p>        data = jwt.decode(</p>
+<p>            token,</p>
+<p>            app.config['SECRET_KEY'],</p>
+<p>            algorithms=['HS256']</p>
+<p>        )</p>
+<p>        user_id = data.get('user_id')</p>
+<p>        user = User.query.get(user_id)</p>
+<p>        return user</p>
+<p>    except:</p>
+<p>        return None</p>
+
+<p>@auth.error_handler</p>
+<p>def auth_error(status):</p>
+<p>    return jsonify({'error': 'Unauthorized access'}), status</p>
+
+<h1>Use in routes</h1>
+<p>@app.route('/api/protected')</p>
+<p>@auth.login_required</p>
+<p>def protected_api():</p>
+<p>    user = auth.current_user()</p>
+<p>    return jsonify({'message': f'Hello {user.email}'})</p>
+</code>`<code>
+
+<h2>Real-World Scenarios</h2>
+
+<h3>Scenario 1: E-commerce Order System</h3>
+
+</code>`<code>python
+<p>class OrderAccessControl:</p>
+<p>    """Access control for e-commerce orders"""</p>
+    
+<p>    @staticmethod</p>
+<p>    def can_view_order(user, order):</p>
+<p>        """Who can view an order?"""</p>
+<p>        return any([</p>
+<p>            order.customer_id == user.id,  # Customer who placed it</p>
+<p>            user.has_role('support'),  # Support staff</p>
+<p>            user.has_role('admin'),  # Administrators</p>
+<p>        ])</p>
+    
+<p>    @staticmethod</p>
+<p>    def can_modify_order(user, order):</p>
+<p>        """Who can modify an order?"""</p>
+<p>        # Only before shipment</p>
+<p>        if order.status in ['shipped', 'delivered']:</p>
+<p>            return False</p>
+        
+<p>        return any([</p>
+<p>            order.customer_id == user.id,  # Customer (cancel/modify)</p>
+<p>            user.has_role('admin'),  # Admin can always modify</p>
+<p>        ])</p>
+    
+<p>    @staticmethod</p>
+<p>    def can_refund_order(user, order):</p>
+<p>        """Who can issue refunds?"""</p>
+<p>        return any([</p>
+<p>            user.has_role('support'),  # Support staff</p>
+<p>            user.has_role('admin'),  # Administrators</p>
+<p>        ])</p>
+
+<p>@app.route('/api/orders/<int:order_id>')</p>
+<p>@login_required</p>
+<p>def get_order(order_id):</p>
+<p>    order = Order.query.get_or_404(order_id)</p>
+    
+<p>    if not OrderAccessControl.can_view_order(current_user, order):</p>
+<p>        abort(403, "You don't have permission to view this order")</p>
+    
+<p>    return jsonify(order.to_dict())</p>
+</code>`<code>
+
+<h3>Scenario 2: Multi-Tenant SaaS Platform</h3>
+
+</code>`<code>python
+<p>class SaaSAccessControl:</p>
+<p>    """Access control for multi-tenant SaaS"""</p>
+    
+<p>    @staticmethod</p>
+<p>    def ensure_same_tenant(user, resource):</p>
+<p>        """Verify user and resource belong to same tenant"""</p>
+<p>        if user.tenant_id != resource.tenant_id:</p>
+<p>            raise SecurityError("Cross-tenant access denied")</p>
+    
+<p>    @staticmethod</p>
+<p>    def can_manage_users(user):</p>
+<p>        """Who can manage users in their tenant?"""</p>
+<p>        return user.has_role('account_admin') or user.has_role('owner')</p>
+    
+<p>    @staticmethod</p>
+<p>    def can_access_billing(user):</p>
+<p>        """Who can access billing information?"""</p>
+<p>        return user.has_role('owner') or user.has_role('billing_admin')</p>
+
+<p>@app.route('/api/tenant/users')</p>
+<p>@login_required</p>
+<p>def get_tenant_users():</p>
+<p>    if not SaaSAccessControl.can_manage_users(current_user):</p>
+<p>        abort(403, "Insufficient permissions")</p>
+    
+<p>    # Automatically filtered to user's tenant</p>
+<p>    users = User.query.filter_by(</p>
+<p>        tenant_id=current_user.tenant_id</p>
+<p>    ).all()</p>
+    
+<p>    return jsonify([u.to_dict() for u in users])</p>
+</code>`<code>
+
+<h3>Scenario 3: Healthcare System (HIPAA Compliance)</h3>
+
+</code>`<code>python
+<p>class HealthcareAccessControl:</p>
+<p>    """HIPAA-compliant access control"""</p>
+    
+<p>    @staticmethod</p>
+<p>    def can_view_patient_record(user, patient):</p>
+<p>        """Strict rules for viewing patient data"""</p>
+<p>        # Log all access attempts</p>
+<p>        log_access_attempt(user, patient, 'view')</p>
+        
+<p>        return any([</p>
+<p>            patient.id == user.id,  # Patient viewing own record</p>
+<p>            patient.primary_doctor_id == user.id,  # Assigned doctor</p>
+<p>            user.id in patient.care_team_ids,  # Care team member</p>
+<p>            user.has_role('emergency') and user.on_duty,  # Emergency access</p>
+<p>            user.has_role('admin') and user.has_accessed_reason,  # Admin with reason</p>
+<p>        ])</p>
+    
+<p>    @staticmethod</p>
+<p>    def can_modify_patient_record(user, patient):</p>
+<p>        """Who can modify records?"""</p>
+<p>        log_access_attempt(user, patient, 'modify')</p>
+        
+<p>        # Patients cannot modify their own records</p>
+<p>        if patient.id == user.id:</p>
+<p>            return False</p>
+        
+<p>        return any([</p>
+<p>            patient.primary_doctor_id == user.id,</p>
+<p>            user.id in patient.care_team_ids,</p>
+<p>        ])</p>
+
+<p>@app.route('/api/patient/<int:patient_id>')</p>
+<p>@login_required</p>
+<p>def get_patient_record(patient_id):</p>
+<p>    patient = Patient.query.get_or_404(patient_id)</p>
+    
+<p>    if not HealthcareAccessControl.can_view_patient_record(current_user, patient):</p>
+<p>        # Log unauthorized access attempt</p>
+<p>        security_log.warning(</p>
+<p>            f"Unauthorized access attempt: User {current_user.id} "</p>
+<p>            f"tried to access Patient {patient_id}"</p>
+<p>        )</p>
+<p>        abort(403, "Access denied - Unauthorized access attempts are logged")</p>
+    
+<p>    # Log successful access for audit trail</p>
+<p>    audit_log.info(f"User {current_user.id} accessed Patient {patient_id}")</p>
+    
+<p>    return jsonify(patient.to_dict())</p>
+</code>``
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li>✅ <strong>Always validate on server-side</strong> - Client checks are just UI convenience</li>
+<li>✅ <strong>Check ownership for every resource</strong> - Don't trust URL parameters</li>
+<li>✅ <strong>Use centralized access control</strong> - Consistent logic across app</li>
+<li>✅ <strong>Log authorization failures</strong> - Monitor for attacks</li>
+<li>✅ <strong>Test with multiple roles</strong> - Verify isolation between users</li>
+<li>✅ <strong>Default to deny</strong> - Explicitly grant access</li>
+</ol>
+
+<h2>What's Next?</h2>
+
+<ul>
+<li><strong><a href="./overview.md">Overview</a></strong>: Understand what broken access control is</li>
+<li><strong><a href="./attack-vectors.md">Attack Vectors</a></strong>: Learn how attacks happen</li>
+<li><strong><a href="./prevention.md">Prevention</a></strong>: Best practices for prevention</li>
+<li><strong><a href="./lab/broken-access-control-adminbutton/">Lab</a></strong>: Hands-on practice</li>
+</ul>
+
+<p>---</p>
+
+<em>Part of the <a href="../../README.md">OWASP Top 10 Educational Repository</a></em>
+
         </div>
     </div>
 </body>

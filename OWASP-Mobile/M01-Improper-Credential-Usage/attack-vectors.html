@@ -215,7 +215,509 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>M01: Improper Credential Usage - Attack Vectors</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#attack-methodology-overview">Attack Methodology Overview</a></li>
+<li><a href="#static-analysis-attacks">Static Analysis Attacks</a></li>
+<li><a href="#dynamic-analysis-attacks">Dynamic Analysis Attacks</a></li>
+<li><a href="#storage-exploitation">Storage Exploitation</a></li>
+<li><a href="#network-based-attacks">Network-Based Attacks</a></li>
+<li><a href="#attack-tools-and-techniques">Attack Tools and Techniques</a></li>
+</ul>
+
+<h2>Attack Methodology Overview</h2>
+
+<p>Attackers targeting mobile application credentials typically follow a systematic approach:</p>
+
+<p>``<code></p>
+<ol>
+<li>Reconnaissance</li>
+</ol>
+<p>   ↓</p>
+<ol>
+<li>Binary Acquisition (Download APK/IPA)</li>
+</ol>
+<p>   ↓</p>
+<ol>
+<li>Static Analysis (Decompile, search for secrets)</li>
+</ol>
+<p>   ↓</p>
+<ol>
+<li>Dynamic Analysis (Runtime inspection)</li>
+</ol>
+<p>   ↓</p>
+<ol>
+<li>Storage Analysis (Local file examination)</li>
+</ol>
+<p>   ↓</p>
+<ol>
+<li>Network Analysis (Traffic interception)</li>
+</ol>
+<p>   ↓</p>
+<ol>
+<li>Exploitation (Use discovered credentials)</li>
+</ol>
+</code>`<code>
+
+<h3>Attack Timeline</h3>
+
+<ul>
+<li><strong>Initial Access</strong>: Minutes (download app from store)</li>
+<li><strong>Decompilation</strong>: Seconds to minutes</li>
+<li><strong>Credential Discovery</strong>: Minutes to hours</li>
+<li><strong>Exploitation</strong>: Immediate to days (depending on target)</li>
+</ul>
+
+<h2>Static Analysis Attacks</h2>
+
+<h3>Attack Vector 1: Binary Decompilation</h3>
+
+<strong>Technique</strong>: Reverse engineering the mobile application binary to extract source code.
+
+<strong>Android APK Process</strong>:
+</code>`<code>
+<ol>
+<li>Download APK from Google Play or third-party source</li>
+<li>Extract APK (it's just a ZIP file)</li>
+<li>Use dex2jar to convert DEX to JAR</li>
+<li>Use JD-GUI or similar to decompile Java bytecode</li>
+<li>Search for strings, API keys, passwords</li>
+</ol>
+</code>`<code>
+
+<strong>iOS IPA Process</strong>:
+</code>`<code>
+<ol>
+<li>Download IPA from App Store (with tools)</li>
+<li>Extract IPA contents</li>
+<li>Use class-dump or Hopper to analyze binary</li>
+<li>Extract embedded resources and plist files</li>
+<li>Search for hardcoded secrets</li>
+</ol>
+</code>`<code>
+
+<strong>What Attackers Look For</strong>:
+<ul>
+<li>API keys in string constants</li>
+<li>Base64 encoded credentials</li>
+<li>Hardcoded passwords</li>
+<li>Database connection strings</li>
+<li>OAuth client secrets</li>
+<li>Encryption keys</li>
+</ul>
+
+<strong>Example Discovery Pattern</strong>:
+</code>`<code>java
+<p>// Attacker searches decompiled code for patterns like:</p>
+<p>private static final String API_KEY = "AIzaSy...";</p>
+<p>private static final String SECRET = "sk_live_...";</p>
+<p>String password = "admin123";</p>
+</code>`<code>
+
+<h3>Attack Vector 2: String Analysis</h3>
+
+<strong>Technique</strong>: Extracting all strings from the compiled binary without full decompilation.
+
+<strong>Simple String Extraction</strong>:
+</code>`<code>bash
+<h1>Android</h1>
+<p>strings app.apk | grep -i "key\|secret\|password\|token\|api"</p>
+
+<h1>iOS</h1>
+<p>strings MyApp.app/MyApp | grep -i "key\|secret\|password\|token\|api"</p>
+</code>`<code>
+
+<strong>What's Found</strong>:
+<ul>
+<li>Cleartext credentials</li>
+<li>API endpoints with embedded tokens</li>
+<li>Database URLs with credentials</li>
+<li>Service account information</li>
+</ul>
+
+<h3>Attack Vector 3: Resource File Analysis</h3>
+
+<strong>Technique</strong>: Examining configuration and resource files embedded in the app.
+
+<strong>Target Files</strong>:
+
+<strong>Android</strong>:
+<ul>
+<li></code>res/values/strings.xml<code> - Often contains API keys</li>
+<li></code>assets/config.json<code> - Configuration with credentials</li>
+<li></code>AndroidManifest.xml<code> - May contain metadata with secrets</li>
+<li></code>res/raw/*<code> - Resource files with embedded data</li>
+</ul>
+
+<strong>iOS</strong>:
+<ul>
+<li></code>Info.plist<code> - Configuration including API keys</li>
+<li></code>Assets.car<code> - Compiled asset catalog</li>
+<li></code>*.bundle<code> - Resource bundles</li>
+<li>Configuration JSON/XML files</li>
+</ul>
+
+<strong>Example Vulnerable Resource</strong>:
+</code>`<code>xml
+<!-- strings.xml -->
+<resources>
+    <string name="api_key">AIzaSyDxVW...</string>
+    <string name="db_password">MySecretPass123</string>
+</resources>
+</code>`<code>
+
+<h3>Attack Vector 4: Version Control Leakage</h3>
+
+<strong>Technique</strong>: Finding credentials in version control history or development artifacts.
+
+<strong>Common Mistakes</strong>:
+<ul>
+<li>Git repositories accidentally included in release builds</li>
+<li></code>.git<code> folder in Android assets</li>
+<li>Development configurations not removed</li>
+<li>Test credentials left in code</li>
+</ul>
+
+<h2>Dynamic Analysis Attacks</h2>
+
+<h3>Attack Vector 5: Runtime Memory Inspection</h3>
+
+<strong>Technique</strong>: Examining application memory during execution to find credentials.
+
+<strong>Tools Used</strong>:
+<ul>
+<li>Frida (Dynamic instrumentation)</li>
+<li>Objection (Mobile security testing)</li>
+<li>Xposed Framework (Android runtime hooking)</li>
+<li>Cycript (iOS runtime inspection)</li>
+</ul>
+
+<strong>What's Captured</strong>:
+<ul>
+<li>Credentials loaded into memory</li>
+<li>Decrypted tokens during use</li>
+<li>Session tokens in active use</li>
+<li>API keys accessed at runtime</li>
+</ul>
+
+<strong>Conceptual Attack Flow</strong>:
+</code>`<code>
+<ol>
+<li>Install app on rooted/jailbroken device</li>
+<li>Attach Frida to running process</li>
+<li>Hook authentication functions</li>
+<li>Capture credentials when app uses them</li>
+<li>Log all sensitive data to file</li>
+</ol>
+</code>`<code>
+
+<h3>Attack Vector 6: Log File Analysis</h3>
+
+<strong>Technique</strong>: Examining application and system logs for leaked credentials.
+
+<strong>Log Sources</strong>:
+
+<strong>Android</strong>:
+<ul>
+<li>Logcat output (</code>adb logcat<code>)</li>
+<li>Application-specific log files</li>
+<li>Crash reports</li>
+</ul>
+
+<strong>iOS</strong>:
+<ul>
+<li>Console logs</li>
+<li>OSLog entries</li>
+<li>Crash logs</li>
+</ul>
+
+<strong>Common Logging Mistakes</strong>:
+</code>`<code>java
+<p>// Developers accidentally log credentials</p>
+<p>Log.d("Auth", "API Key: " + apiKey);</p>
+<p>Log.d("Login", "Password: " + password);</p>
+<p>System.out.println("Token: " + authToken);</p>
+</code>`<code>
+
+<strong>Attacker Technique</strong>:
+</code>`<code>bash
+<h1>Monitor logs for sensitive data</h1>
+<p>adb logcat | grep -i "password\|token\|key\|secret"</p>
+</code>`<code>
+
+<h2>Storage Exploitation</h2>
+
+<h3>Attack Vector 7: Insecure Local Storage</h3>
+
+<strong>Technique</strong>: Accessing credentials stored in application data directories.
+
+<strong>Android Storage Locations</strong>:
+</code>`<code>
+<p>/data/data/[package-name]/shared_prefs/     # SharedPreferences (XML)</p>
+<p>/data/data/[package-name]/databases/        # SQLite databases</p>
+<p>/data/data/[package-name]/files/            # Internal storage files</p>
+<p>/sdcard/Android/data/[package-name]/        # External storage</p>
+</code>`<code>
+
+<strong>iOS Storage Locations</strong>:
+</code>`<code>
+<p>/var/mobile/Containers/Data/Application/[UUID]/Library/Preferences/</p>
+<p>/var/mobile/Containers/Data/Application/[UUID]/Documents/</p>
+<p>/var/mobile/Containers/Data/Application/[UUID]/Library/Caches/</p>
+</code>`<code>
+
+<strong>Example Vulnerable Storage</strong>:
+</code>`<code>xml
+<!-- Shared Preferences storing credentials in plain text -->
+<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
+<map>
+    <string name="username">john@example.com</string>
+    <string name="password">MyPassword123</string>
+    <string name="api_token">eyJhbGciOiJIUzI1...</string>
+</map>
+</code>`<code>
+
+<h3>Attack Vector 8: Device Backup Exploitation</h3>
+
+<strong>Technique</strong>: Extracting credentials from device backups.
+
+<strong>Android Backup</strong>:
+</code>`<code>bash
+<h1>Create backup</h1>
+<p>adb backup -f backup.ab com.example.app</p>
+
+<h1>Extract backup</h1>
+<p>java -jar abe.jar unpack backup.ab backup.tar</p>
+
+<h1>Extract tar and search for credentials</h1>
+<p>tar -xf backup.tar</p>
+<p>grep -r "password\|key\|token" apps/</p>
+</code>`<code>
+
+<strong>iOS Backup</strong>:
+<ul>
+<li>iCloud backups can be downloaded</li>
+<li>iTunes backups stored locally</li>
+<li>Backups may be unencrypted</li>
+<li>Can be parsed with tools like iBackup Viewer</li>
+</ul>
+
+<strong>What's Found</strong>:
+<ul>
+<li>Entire app data directory</li>
+<li>Shared preferences/UserDefaults</li>
+<li>SQLite databases</li>
+<li>Files with cached credentials</li>
+</ul>
+
+<h3>Attack Vector 9: Rooted/Jailbroken Device Access</h3>
+
+<strong>Technique</strong>: Using elevated privileges to access protected storage.
+
+<strong>Android (Rooted)</strong>:
+</code>`<code>bash
+<h1>Access app data directly</h1>
+<p>adb shell</p>
+<p>su</p>
+<p>cd /data/data/com.example.app</p>
+<p>cat shared_prefs/credentials.xml</p>
+<p>sqlite3 databases/app.db "SELECT * FROM users;"</p>
+</code>`<code>
+
+<strong>iOS (Jailbroken)</strong>:
+</code>`<code>bash
+<h1>SSH into device</h1>
+<p>ssh root@device-ip</p>
+<p>cd /var/mobile/Containers/Data/Application/</p>
+<h1>Search through app directories</h1>
+<p>grep -r "password" .</p>
+</code>`<code>
+
+<h2>Network-Based Attacks</h2>
+
+<h3>Attack Vector 10: Man-in-the-Middle (MITM)</h3>
+
+<strong>Technique</strong>: Intercepting network traffic to capture credentials in transit.
+
+<strong>Setup Process</strong>:
+</code>`<code>
+<ol>
+<li>Configure proxy (Burp Suite, Charles, mitmproxy)</li>
+<li>Install proxy certificate on device</li>
+<li>Route device traffic through proxy</li>
+<li>Capture HTTP/HTTPS traffic</li>
+<li>Search for credentials in requests</li>
+</ol>
+</code>`<code>
+
+<strong>What's Captured</strong>:
+<ul>
+<li>Authentication headers with tokens</li>
+<li>API keys in URL parameters</li>
+<li>Credentials in POST bodies</li>
+<li>OAuth tokens during flow</li>
+</ul>
+
+<strong>Example Vulnerable Request</strong>:
+</code>`<code>http
+<p>POST /api/login HTTP/1.1</p>
+<p>Host: api.example.com</p>
+<p>Content-Type: application/json</p>
+
+<p>{</p>
+<p>    "username": "user@example.com",</p>
+<p>    "password": "PlainTextPassword123",</p>
+<p>    "api_key": "hardcoded_key_12345"</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Attack Vector 11: DNS Spoofing for Credential Theft</h3>
+
+<strong>Technique</strong>: Redirecting API calls to attacker-controlled servers.
+
+<strong>Process</strong>:
+</code>`<code>
+<ol>
+<li>Control network (rogue WiFi, compromised router)</li>
+<li>Spoof DNS for API endpoints</li>
+<li>Redirect traffic to fake server</li>
+<li>Capture credentials sent to fake API</li>
+<li>Forward to real API (or not)</li>
+</ol>
+</code>`<code>
+
+<h2>Attack Tools and Techniques</h2>
+
+<h3>Reconnaissance Tools</h3>
+
+<p>| Tool | Purpose | Platform |</p>
+<p>|------|---------|----------|</p>
+<p>| <strong>apktool</strong> | Decode Android APK resources | Android |</p>
+<p>| <strong>dex2jar</strong> | Convert DEX to JAR | Android |</p>
+<p>| <strong>JD-GUI</strong> | Java decompiler | Android |</p>
+<p>| <strong>Jadx</strong> | Android decompiler | Android |</p>
+<p>| <strong>class-dump</strong> | Objective-C header extraction | iOS |</p>
+<p>| <strong>Hopper</strong> | Binary disassembler | iOS |</p>
+<p>| <strong>strings</strong> | Extract printable strings | Both |</p>
+
+<h3>Dynamic Analysis Tools</h3>
+
+<p>| Tool | Purpose | Platform |</p>
+<p>|------|---------|----------|</p>
+<p>| <strong>Frida</strong> | Dynamic instrumentation | Both |</p>
+<p>| <strong>Objection</strong> | Mobile security toolkit | Both |</p>
+<p>| <strong>Xposed</strong> | Runtime hooking framework | Android |</p>
+<p>| <strong>Cycript</strong> | Runtime inspection | iOS |</p>
+<p>| <strong>Mobile Security Framework (MobSF)</strong> | Automated analysis | Both |</p>
+
+<h3>Network Analysis Tools</h3>
+
+<p>| Tool | Purpose | Platform |</p>
+<p>|------|---------|----------|</p>
+<p>| <strong>Burp Suite</strong> | HTTP proxy and testing | Both |</p>
+<p>| <strong>Charles Proxy</strong> | HTTP/HTTPS debugging | Both |</p>
+<p>| <strong>mitmproxy</strong> | Interactive MITM proxy | Both |</p>
+<p>| <strong>Wireshark</strong> | Network protocol analyzer | Both |</p>
+
+<h2>Attack Prevention Awareness</h2>
+
+<h3>Early Detection Indicators</h3>
+
+<strong>Signs an app may be under attack</strong>:
+<ul>
+<li>Unusual API traffic patterns</li>
+<li>Requests from unexpected geolocations</li>
+<li>Multiple failed authentication attempts</li>
+<li>Token reuse across devices</li>
+<li>Abnormal endpoint access patterns</li>
+</ul>
+
+<h3>Attacker Skill Levels</h3>
+
+<strong>Script Kiddie</strong> (Low Skill):
+<ul>
+<li>Uses automated tools (MobSF)</li>
+<li>Searches for obvious hardcoded secrets</li>
+<li>Limited bypass capabilities</li>
+</ul>
+
+<strong>Intermediate Attacker</strong>:
+<ul>
+<li>Decompiles and analyzes code</li>
+<li>Uses Frida for dynamic analysis</li>
+<li>Can bypass basic protections</li>
+</ul>
+
+<strong>Advanced Attacker</strong>:
+<ul>
+<li>Full reverse engineering capability</li>
+<li>Custom tool development</li>
+<li>Bypasses obfuscation and integrity checks</li>
+<li>Sophisticated exploitation techniques</li>
+</ul>
+
+<h2>Real-World Attack Scenarios</h2>
+
+<h3>Scenario 1: API Key Harvesting</h3>
+
+</code>`<code>
+<ol>
+<li>Attacker downloads popular shopping app</li>
+<li>Decompiles APK using JADX</li>
+<li>Finds hardcoded API key in Constants.java</li>
+<li>Uses key to scrape product database</li>
+<li>Sells data to competitors</li>
+</ol>
+</code>`<code>
+
+<h3>Scenario 2: Account Takeover</h3>
+
+</code>`<code>
+<ol>
+<li>User installs app on rooted Android device</li>
+<li>Malware on device scans app storage</li>
+<li>Finds plaintext credentials in SharedPreferences</li>
+<li>Malware sends credentials to C2 server</li>
+<li>Attacker accesses user account</li>
+</ol>
+</code>`<code>
+
+<h3>Scenario 3: Mass Credential Theft</h3>
+
+</code>`<code>
+<ol>
+<li>Researcher finds OAuth client secret in app</li>
+<li>Uses secret to implement fake OAuth client</li>
+<li>Harvests access tokens from phishing campaign</li>
+<li>Accesses thousands of user accounts</li>
+<li>Public disclosure after responsible disclosure period</li>
+</ol>
+</code>``
+
+<h2>Mitigation Overview</h2>
+
+<p>Understanding these attack vectors is the first step to defense:</p>
+
+<ol>
+<li><strong>Eliminate hardcoded credentials</strong> entirely</li>
+<li><strong>Use platform keychains</strong> for credential storage</li>
+<li><strong>Implement certificate pinning</strong> for network security</li>
+<li><strong>Enable proper logging</strong> controls (no sensitive data)</li>
+<li><strong>Use runtime protection</strong> against dynamic analysis</li>
+<li><strong>Implement integrity checks</strong> to detect tampering</li>
+<li><strong>Monitor for abnormal usage</strong> patterns</li>
+</ol>
+
+<p>For detailed prevention strategies, see <a href="./prevention.md">Prevention</a>.</p>
+
+<p>---</p>
+
+<strong>Remember</strong>: Attackers only need to find one vulnerability. Defenders must protect against all attack vectors.
+
+<em>Part of OWASP Mobile Top 10 - Educational Repository</em>
+
         </div>
     </div>
 </body>

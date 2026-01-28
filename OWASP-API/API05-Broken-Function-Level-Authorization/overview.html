@@ -215,7 +215,450 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>API05: Broken Function Level Authorization - Overview</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#what-is-broken-function-level-authorization">What is Broken Function Level Authorization?</a></li>
+<li><a href="#why-does-this-matter">Why Does This Matter?</a></li>
+<li><a href="#technical-context">Technical Context</a></li>
+<li><a href="#real-world-impact">Real-World Impact</a></li>
+<li><a href="#prevalence-and-statistics">Prevalence and Statistics</a></li>
+<li><a href="#common-misunderstandings">Common Misunderstandings</a></li>
+</ul>
+
+<h2>What is Broken Function Level Authorization?</h2>
+
+<strong>Broken Function Level Authorization (BFLA)</strong> occurs when an API endpoint does not properly verify whether the authenticated user has the necessary privileges to execute a specific function. Unlike object-level authorization (which controls access to specific data), function-level authorization controls access to specific operations or capabilities.
+
+<p>APIs often expose administrative, privileged, or sensitive functions that should only be accessible to specific user roles. When authorization checks are missing, improperly implemented, or easily bypassed, regular users can access functions intended only for administrators or elevated privilege levels.</p>
+
+<h3>Core Concept</h3>
+
+<p>``<code></p>
+<p>Regular User attempts: DELETE /api/users/456</p>
+<p>Admin Function that should require admin role</p>
+<p>                    ↓</p>
+<p>BROKEN BFLA = Regular user can execute admin function</p>
+<p>              because the endpoint doesn't verify role/privileges</p>
+</code>`<code>
+
+<h3>Function-Level vs Object-Level Authorization</h3>
+
+<p>| Aspect | Object-Level (BOLA) | Function-Level (BFLA) |</p>
+<p>|--------|-------------------|---------------------|</p>
+<p>| <strong>Controls</strong> | Access to specific resources | Access to specific operations |</p>
+<p>| <strong>Question</strong> | "Can user A access resource B?" | "Can user A perform action X?" |</p>
+<p>| <strong>Example Vulnerable</strong> | User views another user's order | User deletes any user account |</p>
+<p>| <strong>Typical Issue</strong> | Missing ownership check | Missing role/privilege check |</p>
+
+<h3>Why It's Critical for APIs</h3>
+
+<p>APIs are particularly vulnerable to BFLA because:</p>
+<ul>
+<li><strong>Hidden Endpoints</strong>: Admin functions exist but aren't linked in UI</li>
+<li><strong>Method-Based Access</strong>: Same URL with different HTTP methods (GET vs DELETE)</li>
+<li><strong>Parameter Manipulation</strong>: Role or privilege data sent in request</li>
+<li><strong>Microservices</strong>: Authorization logic distributed across services</li>
+<li><strong>API Evolution</strong>: Features added without proper access control review</li>
+</ul>
+
+<h2>Why Does This Matter?</h2>
+
+<h3>The Business Impact</h3>
+
+<ul>
+<li><strong>Complete System Compromise</strong>: Attackers gain administrative control</li>
+<li><strong>Data Destruction</strong>: Unauthorized deletion of critical business data</li>
+<li><strong>Service Disruption</strong>: Ability to disable features or entire systems</li>
+<li><strong>Financial Fraud</strong>: Access to financial operations (refunds, transfers, withdrawals)</li>
+<li><strong>Regulatory Violations</strong>: Unauthorized access to protected functions (GDPR, HIPAA, SOX)</li>
+<li><strong>Competitive Damage</strong>: Manipulation of pricing, inventory, or business logic</li>
+<li><strong>Supply Chain Risk</strong>: Compromise of partner/vendor management functions</li>
+</ul>
+
+<h3>The Technical Impact</h3>
+
+<ul>
+<li><strong>Vertical Privilege Escalation</strong>: Regular users execute admin functions</li>
+<li><strong>Lateral Movement</strong>: Users access functions of different departments/roles</li>
+<li><strong>Configuration Changes</strong>: Modification of system settings or security controls</li>
+<li><strong>User Management</strong>: Creating/deleting users, modifying permissions</li>
+<li><strong>Data Manipulation</strong>: Bulk operations, imports/exports, database access</li>
+</ul>
+
+<h2>Technical Context</h2>
+
+<h3>Common Vulnerable Patterns</h3>
+
+<h4>1. Missing Authorization Checks</h4>
+
+</code>`<code>python
+<h1>VULNERABLE: No role check</h1>
+<p>@app.route('/api/admin/users', methods=['DELETE'])</p>
+<p>def delete_user():</p>
+<p>    user_id = request.json.get('user_id')</p>
+<p>    User.query.filter_by(id=user_id).delete()</p>
+<p>    return {'status': 'deleted'}</p>
+
+<h1>Anyone authenticated can call this endpoint</h1>
+</code>`<code>
+
+<h4>2. Client-Side Role Enforcement Only</h4>
+
+</code>`<code>javascript
+<p>// VULNERABLE: Role check only in frontend</p>
+<p>if (user.role === 'admin') {</p>
+<p>    // Show delete button in UI</p>
+<p>    fetch('/api/users/123', { method: 'DELETE' });</p>
+<p>}</p>
+
+<p>// Backend doesn't verify role - endpoint accessible via direct API call</p>
+</code>`<code>
+
+<h4>3. Hidden Admin Endpoints</h4>
+
+</code>`<code>
+<h1>Documented public API</h1>
+<p>GET  /api/users        # List users</p>
+<p>POST /api/users        # Create user (registration)</p>
+
+<h1>Undocumented admin endpoints (accessible if discovered)</h1>
+<p>GET    /api/admin/users          # List all users with PII</p>
+<p>DELETE /api/admin/users/:id      # Delete any user</p>
+<p>PUT    /api/admin/users/:id/role # Change user roles</p>
+</code>`<code>
+
+<h4>4. HTTP Method Manipulation</h4>
+
+</code>`<code>python
+<h1>VULNERABLE: GET has auth check, but DELETE doesn't</h1>
+<p>@app.route('/api/users/<id>', methods=['GET', 'DELETE'])</p>
+<p>def user_endpoint(id):</p>
+<p>    if request.method == 'GET':</p>
+<p>        if not current_user.can_view(id):</p>
+<p>            return {'error': 'Forbidden'}, 403</p>
+<p>        return get_user(id)</p>
+    
+<p>    elif request.method == 'DELETE':</p>
+<p>        # Missing authorization check!</p>
+<p>        delete_user(id)</p>
+<p>        return {'status': 'deleted'}</p>
+</code>`<code>
+
+<h4>5. Parameter-Based Role Assignment</h4>
+
+</code>`<code>python
+<h1>VULNERABLE: User controls their role via request parameter</h1>
+<p>@app.route('/api/action')</p>
+<p>def perform_action():</p>
+<p>    user_role = request.json.get('role', 'user')  # Attacker sets 'admin'</p>
+    
+<p>    if user_role == 'admin':</p>
+<p>        return perform_admin_action()</p>
+<p>    return perform_user_action()</p>
+</code>`<code>
+
+<h3>Authorization Hierarchy</h3>
+
+</code>`<code>
+<p>┌─────────────────────────────────────┐</p>
+<p>│         Authentication              │  Who are you?</p>
+<p>│  (Session, JWT, API Key)            │</p>
+<p>└──────────────┬──────────────────────┘</p>
+<p>               │</p>
+<p>               ▼</p>
+<p>┌─────────────────────────────────────┐</p>
+<p>│   Function-Level Authorization      │  What can you do?</p>
+<p>│   (Role, Privilege, Permission)     │  ← API05 Focus</p>
+<p>└──────────────┬──────────────────────┘</p>
+<p>               │</p>
+<p>               ▼</p>
+<p>┌─────────────────────────────────────┐</p>
+<p>│    Object-Level Authorization       │  Which specific data?</p>
+<p>│    (Ownership, Scope)               │  ← API01 Focus</p>
+<p>└─────────────────────────────────────┘</p>
+</code>`<code>
+
+<h2>Real-World Impact</h2>
+
+<h3>Case Study 1: Social Media Platform Breach</h3>
+
+<strong>Incident</strong>: A popular social media platform had admin endpoints that didn't verify roles.
+
+<strong>Attack Vector</strong>:
+<ul>
+<li>Attacker discovered undocumented endpoint: </code>/api/v2/admin/delete_account<code></li>
+<li>Endpoint required authentication but not admin role</li>
+<li>Any logged-in user could delete any account</li>
+</ul>
+
+<strong>Impact</strong>:
+<ul>
+<li>15,000+ accounts deleted before detection</li>
+<li>Celebrity and influencer accounts targeted</li>
+<li>$8M in damages and reputation loss</li>
+<li>3-day service disruption for recovery</li>
+</ul>
+
+<strong>Root Cause</strong>: Admin functions separated from public API but shared authentication middleware without role checks.
+
+<h3>Case Study 2: E-commerce Platform Manipulation</h3>
+
+<strong>Incident</strong>: Online retailer exposed admin pricing functions.
+
+<strong>Attack Vector</strong>:
+<ul>
+<li>Standard API: </code>GET /api/products/123<code></li>
+<li>Discovered: </code>PUT /api/products/123/price<code> (no admin check)</li>
+<li>Attacker changed prices to $0.01</li>
+</ul>
+
+<strong>Impact</strong>:
+<ul>
+<li>2,400 orders processed at fraudulent prices</li>
+<li>$450,000 in direct losses</li>
+<li>Additional costs for order cancellations and customer service</li>
+</ul>
+
+<strong>Root Cause</strong>: Price update function added for admin dashboard but deployed to public API without authorization checks.
+
+<h3>Case Study 3: Healthcare System Privilege Escalation</h3>
+
+<strong>Incident</strong>: Telemedicine platform allowed role elevation.
+
+<strong>Attack Vector</strong>:
+<ul>
+<li>Registration endpoint: </code>POST /api/register<code></li>
+<li>Parameter: </code>{"role": "patient"}<code> in request</li>
+<li>Attacker modified to: </code>{"role": "doctor"}<code></li>
+</ul>
+
+<strong>Impact</strong>:
+<ul>
+<li>Unauthorized access to 12,000+ patient records</li>
+<li>HIPAA violation with $2.3M fine</li>
+<li>Access to prescription system</li>
+<li>18-month monitoring requirement</li>
+</ul>
+
+<strong>Root Cause</strong>: Role assignment trusted client-side input without server-side validation.
+
+<h3>Case Study 4: Financial Services API</h3>
+
+<strong>Incident</strong>: Banking API exposed admin refund function.
+
+<strong>Attack Vector</strong>:
+<ul>
+<li>Mobile app used: </code>POST /api/transactions/dispute<code></li>
+<li>Reverse engineering revealed: </code>POST /api/admin/transactions/refund<code></li>
+<li>No role verification on admin endpoint</li>
+</ul>
+
+<strong>Impact</strong>:
+<ul>
+<li>$1.2M in fraudulent refunds processed</li>
+<li>340 unauthorized transactions</li>
+<li>Federal investigation and compliance review</li>
+<li>Platform suspended for 2 weeks</li>
+</ul>
+
+<strong>Root Cause</strong>: Internal admin API accidentally deployed to public-facing gateway without access controls.
+
+<h3>Case Study 5: SaaS Platform Account Takeover</h3>
+
+<strong>Incident</strong>: Project management SaaS had flawed user management API.
+
+<strong>Attack Vector</strong>:
+<ul>
+<li>Regular users could call: </code>PUT /api/workspace/users/permissions<code></li>
+<li>Endpoint didn't verify caller was workspace admin</li>
+<li>Users elevated themselves to admin role</li>
+</ul>
+
+<strong>Impact</strong>:
+<ul>
+<li>200+ workspaces compromised</li>
+<li>Intellectual property theft</li>
+<li>Customer data exfiltration</li>
+<li>$15M class action settlement</li>
+</ul>
+
+<strong>Root Cause</strong>: Permission changes implemented without distinguishing between workspace admin and workspace member roles.
+
+<h2>Prevalence and Statistics</h2>
+
+<h3>Industry Research</h3>
+
+<strong>OWASP API Security Top 10 (2023)</strong>:
+<ul>
+<li>Ranked #5 most critical API vulnerability</li>
+<li>Present in approximately 30% of API implementations</li>
+<li>Average time to detect: 89 days</li>
+<li>Frequently combined with API01 (BOLA) in attacks</li>
+</ul>
+
+<strong>Verizon Data Breach Investigations Report</strong>:
+<ul>
+<li>23% of web application breaches involved privilege escalation</li>
+<li>81% of privilege misuse incidents involved administrative functions</li>
+<li>Median time to discover: 56 days</li>
+</ul>
+
+<strong>Salt Security API Threat Research</strong>:
+<ul>
+<li>40% of organizations experienced a function-level authorization incident</li>
+<li>300% increase in admin function abuse from 2021-2023</li>
+<li>65% of attacks target undocumented endpoints</li>
+</ul>
+
+<h3>Vulnerability Patterns by Technology</h3>
+
+<p>| Technology | BFLA Prevalence | Common Issue |</p>
+<p>|------------|-----------------|--------------|</p>
+<p>| REST APIs | 35% | Hidden admin endpoints |</p>
+<p>| GraphQL | 42% | Unrestricted mutations |</p>
+<p>| Microservices | 38% | Inconsistent auth between services |</p>
+<p>| Legacy APIs | 51% | Retrofitted admin functions |</p>
+<p>| Mobile APIs | 33% | Client-controlled permissions |</p>
+
+<h3>Detection Difficulty</h3>
+
+</code>`<code>
+<p>Low Detection → High Attack Success</p>
+<p>    │</p>
+<p>    ├─ Missing from automated scanners (logic-based)</p>
+<p>    ├─ Requires understanding of business logic</p>
+<p>    ├─ No obvious error messages</p>
+<p>    ├─ Often bypasses WAFs and API gateways</p>
+<p>    └─ Requires role-based testing</p>
+</code>`<code>
+
+<h3>Cost of Exploitation</h3>
+
+<ul>
+<li><strong>Average breach cost</strong>: $3.8M (IBM Security Report)</li>
+<li><strong>Regulatory fines</strong>: $500K - $20M (varies by regulation)</li>
+<li><strong>Remediation time</strong>: 30-120 days</li>
+<li><strong>Customer churn</strong>: 15-30% in severe cases</li>
+</ul>
+
+<h2>Common Misunderstandings</h2>
+
+<h3>Myth 1: "Authentication is Sufficient"</h3>
+
+<strong>Misconception</strong>: If users are authenticated, they can access authenticated endpoints.
+
+<strong>Reality</strong>: Authentication proves identity. Authorization determines permissions. These are separate concerns.
+
+</code>`<code>python
+<h1>WRONG: Assuming authentication = authorization</h1>
+<p>@login_required  # Only checks if user is logged in</p>
+<p>def delete_users():</p>
+<p>    # Missing: Is this user an admin?</p>
+<p>    pass</p>
+</code>`<code>
+
+<h3>Myth 2: "Hiding Endpoints Provides Security"</h3>
+
+<strong>Misconception</strong>: If admin endpoints aren't documented or linked in the UI, they're secure.
+
+<strong>Reality</strong>: Security through obscurity fails. Endpoints are discoverable through:
+<ul>
+<li>API documentation leaks</li>
+<li>JavaScript source code</li>
+<li>Network traffic analysis</li>
+<li>Error messages</li>
+<li>Directory enumeration</li>
+<li>Version control repositories</li>
+</ul>
+
+<h3>Myth 3: "Role Checks in Frontend are Enough"</h3>
+
+<strong>Misconception</strong>: Client-side role validation prevents unauthorized access.
+
+<strong>Reality</strong>: Frontend controls are easily bypassed. Attackers use:
+<ul>
+<li>Direct API calls (curl, Postman)</li>
+<li>Modified mobile apps</li>
+<li>Proxy tools (Burp Suite)</li>
+<li>Browser developer tools</li>
+</ul>
+
+<h3>Myth 4: "Internal APIs Don't Need Authorization"</h3>
+
+<strong>Misconception</strong>: APIs behind firewalls or on internal networks don't need function-level checks.
+
+<strong>Reality</strong>: Insider threats, compromised accounts, and lateral movement make internal APIs equally vulnerable.
+
+<h3>Myth 5: "Different HTTP Methods Are Automatically Restricted"</h3>
+
+<strong>Misconception</strong>: DELETE/PUT methods are inherently more protected than GET.
+
+<strong>Reality</strong>: HTTP methods are just verbs. Without explicit authorization checks, they're all equally accessible.
+
+</code>`<code>python
+<h1>WRONG: Assuming DELETE is automatically restricted</h1>
+<p>@app.route('/api/users/<id>', methods=['GET', 'DELETE'])</p>
+<p>def users(id):</p>
+<p>    # Both methods accessible unless explicitly checked</p>
+<p>    pass</p>
+</code>``
+
+<h3>Myth 6: "Role Names Provide Security"</h3>
+
+<strong>Misconception</strong>: Complex role names like "super_admin_privileged" make privilege escalation harder.
+
+<strong>Reality</strong>: Role names are labels. Without proper enforcement, they provide no security.
+
+<h3>Myth 7: "APIs Don't Have Admin Functions"</h3>
+
+<strong>Misconception</strong>: Only admin dashboards have administrative functions.
+
+<strong>Reality</strong>: APIs often have:
+<ul>
+<li>Bulk operations</li>
+<li>Data export/import</li>
+<li>Configuration changes</li>
+<li>User management</li>
+<li>System monitoring</li>
+<li>Debugging endpoints</li>
+<li>Reporting functions</li>
+</ul>
+
+<h3>Myth 8: "Testing as Regular User is Sufficient"</h3>
+
+<strong>Misconception</strong>: If testers can't access admin functions in the UI, the API is secure.
+
+<strong>Reality</strong>: Proper testing requires:
+<ul>
+<li>Multi-role testing (user, moderator, admin)</li>
+<li>Negative testing (unauthorized access attempts)</li>
+<li>API-level testing (not just UI)</li>
+<li>Privilege escalation attempts</li>
+</ul>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Function-level authorization is mandatory</strong> for every endpoint that performs privileged operations</li>
+<li><strong>Authentication ≠ Authorization</strong> - they serve different purposes</li>
+<li><strong>Server-side enforcement only</strong> - never trust client-side controls</li>
+<li><strong>Explicit role/permission checks</strong> must be implemented for sensitive functions</li>
+<li><strong>Default-deny approach</strong> - functions should be restricted unless explicitly allowed</li>
+<li><strong>Regular security audits</strong> with role-based testing are essential</li>
+<li><strong>Assume discovery</strong> - all endpoints will eventually be found by attackers</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="attack-vectors.md">Attack Vectors</a></strong> - Learn how attackers exploit BFLA vulnerabilities</li>
+<li><strong><a href="prevention.md">Prevention</a></strong> - Implement proper function-level authorization</li>
+<li><strong><a href="examples.md">Examples</a></strong> - See vulnerable and secure code patterns</li>
+<li><strong><a href="lab/api05-function-auth-lab/">Lab</a></strong> - Practice exploiting and fixing BFLA in a safe environment</li>
+</ul>
+
         </div>
     </div>
 </body>

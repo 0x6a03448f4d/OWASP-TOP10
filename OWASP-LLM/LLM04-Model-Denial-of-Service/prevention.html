@@ -215,7 +215,1203 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>LLM04: Model Denial of Service - Prevention</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#prevention-strategy-overview">Prevention Strategy Overview</a></li>
+<li><a href="#rate-limiting">Rate Limiting</a></li>
+<li><a href="#input-validation">Input Validation</a></li>
+<li><a href="#resource-management">Resource Management</a></li>
+<li><a href="#cost-controls">Cost Controls</a></li>
+<li><a href="#monitoring-and-alerting">Monitoring and Alerting</a></li>
+<li><a href="#architecture-patterns">Architecture Patterns</a></li>
+<li><a href="#best-practices">Best Practices</a></li>
+</ul>
+
+<h2>Prevention Strategy Overview</h2>
+
+<p>Preventing Model Denial of Service requires a comprehensive defense-in-depth approach that combines rate limiting, resource management, input validation, and continuous monitoring.</p>
+
+<h3>Defense-in-Depth Layers</h3>
+
+<p>``<code></p>
+<p>[Request Validation] → [Rate Limiting] → [Resource Quotas]</p>
+<p>        ↓                    ↓                  ↓</p>
+<p>   Reject invalid     Throttle requests   Limit resources</p>
+<p>        ↓                    ↓                  ↓</p>
+<p>[Queue Management] → [Timeout Controls] → [Cost Monitoring]</p>
+<p>        ↓                    ↓                  ↓</p>
+<p>   Fair scheduling    Kill long requests  Track spending</p>
+<p>        ↓                    ↓                  ↓</p>
+<p>[Graceful Degradation] → [Auto-scaling] → [Incident Response]</p>
+</code>`<code>
+
+<h2>Rate Limiting</h2>
+
+<h3>1. Multi-Tier Rate Limiting</h3>
+
+<strong>Implement rate limits at multiple levels</strong>:
+
+</code>`<code>python
+<p>from datetime import datetime, timedelta</p>
+<p>from collections import defaultdict</p>
+<p>import time</p>
+
+<p>class MultiTierRateLimiter:</p>
+<p>    """</p>
+<p>    SECURE: Implement rate limiting at multiple tiers</p>
+<p>    """</p>
+    
+<p>    def __init__(self):</p>
+<p>        # Track requests at different granularities</p>
+<p>        self.request_counts = defaultdict(lambda: defaultdict(int))</p>
+<p>        self.token_counts = defaultdict(lambda: defaultdict(int))</p>
+<p>        self.last_reset = defaultdict(lambda: defaultdict(datetime))</p>
+        
+<p>        # Define limits</p>
+<p>        self.limits = {</p>
+<p>            'requests_per_minute': 60,</p>
+<p>            'requests_per_hour': 1000,</p>
+<p>            'requests_per_day': 10000,</p>
+<p>            'tokens_per_minute': 100000,</p>
+<p>            'tokens_per_hour': 1000000,</p>
+<p>            'tokens_per_day': 10000000,</p>
+<p>            'concurrent_requests': 10,</p>
+<p>        }</p>
+        
+<p>        self.concurrent_requests = defaultdict(int)</p>
+    
+<p>    def check_rate_limit(self, user_id: str, </p>
+<p>                        requested_tokens: int = 0) -> tuple[bool, str]:</p>
+<p>        """Check if request is within rate limits"""</p>
+<p>        now = datetime.now()</p>
+        
+<p>        # Check concurrent requests</p>
+<p>        if self.concurrent_requests[user_id] >= self.limits['concurrent_requests']:</p>
+<p>            return False, f"Too many concurrent requests (max {self.limits['concurrent_requests']})"</p>
+        
+<p>        # Check request rate limits</p>
+<p>        for period, limit_key in [</p>
+<p>            (60, 'requests_per_minute'),</p>
+<p>            (3600, 'requests_per_hour'),</p>
+<p>            (86400, 'requests_per_day')</p>
+<p>        ]:</p>
+<p>            if not self._check_limit(user_id, period, limit_key, 'requests'):</p>
+<p>                return False, f"Rate limit exceeded: {limit_key}"</p>
+        
+<p>        # Check token rate limits</p>
+<p>        if requested_tokens > 0:</p>
+<p>            for period, limit_key in [</p>
+<p>                (60, 'tokens_per_minute'),</p>
+<p>                (3600, 'tokens_per_hour'),</p>
+<p>                (86400, 'tokens_per_day')</p>
+<p>            ]:</p>
+<p>                if not self._check_token_limit(user_id, period, limit_key, </p>
+<p>                                              requested_tokens):</p>
+<p>                    return False, f"Token limit exceeded: {limit_key}"</p>
+        
+<p>        return True, "OK"</p>
+    
+<p>    def _check_limit(self, user_id: str, period: int, </p>
+<p>                    limit_key: str, counter_type: str) -> bool:</p>
+<p>        """Check if within limit for given period"""</p>
+<p>        now = datetime.now()</p>
+<p>        last = self.last_reset[user_id][limit_key]</p>
+        
+<p>        # Reset if period has elapsed</p>
+<p>        if (now - last).total_seconds() >= period:</p>
+<p>            self.request_counts[user_id][limit_key] = 0</p>
+<p>            self.last_reset[user_id][limit_key] = now</p>
+        
+<p>        # Check limit</p>
+<p>        current = self.request_counts[user_id][limit_key]</p>
+<p>        return current < self.limits[limit_key]</p>
+    
+<p>    def _check_token_limit(self, user_id: str, period: int,</p>
+<p>                          limit_key: str, requested: int) -> bool:</p>
+<p>        """Check if token request is within limit"""</p>
+<p>        now = datetime.now()</p>
+<p>        last = self.last_reset[user_id][limit_key]</p>
+        
+<p>        # Reset if period has elapsed</p>
+<p>        if (now - last).total_seconds() >= period:</p>
+<p>            self.token_counts[user_id][limit_key] = 0</p>
+<p>            self.last_reset[user_id][limit_key] = now</p>
+        
+<p>        # Check if adding requested tokens would exceed limit</p>
+<p>        current = self.token_counts[user_id][limit_key]</p>
+<p>        return (current + requested) <= self.limits[limit_key]</p>
+    
+<p>    def record_request(self, user_id: str, tokens_used: int):</p>
+<p>        """Record a request for rate limiting"""</p>
+<p>        # Increment all counters</p>
+<p>        for limit_key in ['requests_per_minute', 'requests_per_hour', </p>
+<p>                         'requests_per_day']:</p>
+<p>            self.request_counts[user_id][limit_key] += 1</p>
+        
+<p>        # Increment token counters</p>
+<p>        for limit_key in ['tokens_per_minute', 'tokens_per_hour',</p>
+<p>                         'tokens_per_day']:</p>
+<p>            self.token_counts[user_id][limit_key] += tokens_used</p>
+    
+<p>    def acquire_concurrent_slot(self, user_id: str) -> bool:</p>
+<p>        """Try to acquire a concurrent request slot"""</p>
+<p>        if self.concurrent_requests[user_id] < self.limits['concurrent_requests']:</p>
+<p>            self.concurrent_requests[user_id] += 1</p>
+<p>            return True</p>
+<p>        return False</p>
+    
+<p>    def release_concurrent_slot(self, user_id: str):</p>
+<p>        """Release a concurrent request slot"""</p>
+<p>        if self.concurrent_requests[user_id] > 0:</p>
+<p>            self.concurrent_requests[user_id] -= 1</p>
+
+<h1>Usage</h1>
+<p>rate_limiter = MultiTierRateLimiter()</p>
+
+<p>def handle_request(user_id: str, prompt: str, max_tokens: int):</p>
+<p>    """Handle request with rate limiting"""</p>
+<p>    # Estimate tokens</p>
+<p>    estimated_tokens = len(prompt) // 4 + max_tokens</p>
+    
+<p>    # Check rate limits</p>
+<p>    allowed, reason = rate_limiter.check_rate_limit(user_id, estimated_tokens)</p>
+    
+<p>    if not allowed:</p>
+<p>        return {"error": f"Rate limit exceeded: {reason}"}, 429</p>
+    
+<p>    # Acquire concurrent slot</p>
+<p>    if not rate_limiter.acquire_concurrent_slot(user_id):</p>
+<p>        return {"error": "Too many concurrent requests"}, 429</p>
+    
+<p>    try:</p>
+<p>        # Process request</p>
+<p>        response = llm.generate(prompt, max_tokens=max_tokens)</p>
+        
+<p>        # Record actual usage</p>
+<p>        actual_tokens = response.usage.total_tokens</p>
+<p>        rate_limiter.record_request(user_id, actual_tokens)</p>
+        
+<p>        return {"response": response.text}, 200</p>
+    
+<p>    finally:</p>
+<p>        # Always release slot</p>
+<p>        rate_limiter.release_concurrent_slot(user_id)</p>
+</code>`<code>
+
+<h3>2. Token Bucket Algorithm</h3>
+
+<strong>Implement smooth rate limiting</strong>:
+
+</code>`<code>python
+<p>import time</p>
+<p>from threading import Lock</p>
+
+<p>class TokenBucket:</p>
+<p>    """</p>
+<p>    SECURE: Token bucket for smooth rate limiting</p>
+<p>    """</p>
+    
+<p>    def __init__(self, capacity: int, refill_rate: float):</p>
+<p>        """</p>
+<p>        capacity: Maximum tokens in bucket</p>
+<p>        refill_rate: Tokens added per second</p>
+<p>        """</p>
+<p>        self.capacity = capacity</p>
+<p>        self.refill_rate = refill_rate</p>
+<p>        self.tokens = capacity</p>
+<p>        self.last_refill = time.time()</p>
+<p>        self.lock = Lock()</p>
+    
+<p>    def consume(self, tokens: int) -> bool:</p>
+<p>        """Try to consume tokens, return True if successful"""</p>
+<p>        with self.lock:</p>
+<p>            # Refill bucket based on time elapsed</p>
+<p>            now = time.time()</p>
+<p>            elapsed = now - self.last_refill</p>
+<p>            self.tokens = min(</p>
+<p>                self.capacity,</p>
+<p>                self.tokens + (elapsed * self.refill_rate)</p>
+<p>            )</p>
+<p>            self.last_refill = now</p>
+            
+<p>            # Try to consume</p>
+<p>            if self.tokens >= tokens:</p>
+<p>                self.tokens -= tokens</p>
+<p>                return True</p>
+            
+<p>            return False</p>
+    
+<p>    def get_available_tokens(self) -> float:</p>
+<p>        """Get current available tokens"""</p>
+<p>        with self.lock:</p>
+<p>            now = time.time()</p>
+<p>            elapsed = now - self.last_refill</p>
+<p>            return min(</p>
+<p>                self.capacity,</p>
+<p>                self.tokens + (elapsed * self.refill_rate)</p>
+<p>            )</p>
+
+<p>class TokenBucketRateLimiter:</p>
+<p>    """Rate limiter using token bucket per user"""</p>
+    
+<p>    def __init__(self, requests_per_second: int, burst_size: int):</p>
+<p>        self.requests_per_second = requests_per_second</p>
+<p>        self.burst_size = burst_size</p>
+<p>        self.buckets = {}</p>
+    
+<p>    def allow_request(self, user_id: str, cost: int = 1) -> bool:</p>
+<p>        """Check if request is allowed"""</p>
+<p>        if user_id not in self.buckets:</p>
+<p>            self.buckets[user_id] = TokenBucket(</p>
+<p>                capacity=self.burst_size,</p>
+<p>                refill_rate=self.requests_per_second</p>
+<p>            )</p>
+        
+<p>        return self.buckets[user_id].consume(cost)</p>
+
+<h1>Usage</h1>
+<p>rate_limiter = TokenBucketRateLimiter(</p>
+<p>    requests_per_second=10,</p>
+<p>    burst_size=50</p>
+<p>)</p>
+
+<p>def api_endpoint(user_id: str, prompt: str):</p>
+<p>    # Calculate request cost based on complexity</p>
+<p>    cost = estimate_request_cost(prompt)</p>
+    
+<p>    if not rate_limiter.allow_request(user_id, cost):</p>
+<p>        return {"error": "Rate limit exceeded"}, 429</p>
+    
+<p>    return process_request(prompt)</p>
+</code>`<code>
+
+<h2>Input Validation</h2>
+
+<h3>1. Input Length Validation</h3>
+
+<strong>Enforce strict input length limits</strong>:
+
+</code>`<code>python
+<p>import tiktoken</p>
+
+<p>class InputValidator:</p>
+<p>    """</p>
+<p>    SECURE: Validate and sanitize inputs</p>
+<p>    """</p>
+    
+<p>    def __init__(self, model_name: str = "gpt-4"):</p>
+<p>        self.encoder = tiktoken.encoding_for_model(model_name)</p>
+        
+<p>        # Define limits</p>
+<p>        self.max_input_tokens = 8000  # Conservative limit</p>
+<p>        self.max_output_tokens = 4000</p>
+<p>        self.max_total_tokens = 12000</p>
+<p>        self.max_prompt_length = 50000  # characters</p>
+    
+<p>    def validate_input(self, prompt: str, max_tokens: int) -> tuple[bool, str]:</p>
+<p>        """Validate input against limits"""</p>
+        
+<p>        # Check prompt length in characters</p>
+<p>        if len(prompt) > self.max_prompt_length:</p>
+<p>            return False, f"Prompt too long: {len(prompt)} chars (max {self.max_prompt_length})"</p>
+        
+<p>        # Count tokens</p>
+<p>        try:</p>
+<p>            input_tokens = len(self.encoder.encode(prompt))</p>
+<p>        except Exception as e:</p>
+<p>            return False, f"Failed to tokenize input: {str(e)}"</p>
+        
+<p>        # Check input token limit</p>
+<p>        if input_tokens > self.max_input_tokens:</p>
+<p>            return False, f"Input too long: {input_tokens} tokens (max {self.max_input_tokens})"</p>
+        
+<p>        # Check output token limit</p>
+<p>        if max_tokens > self.max_output_tokens:</p>
+<p>            return False, f"Requested output too long: {max_tokens} tokens (max {self.max_output_tokens})"</p>
+        
+<p>        # Check total token limit</p>
+<p>        if input_tokens + max_tokens > self.max_total_tokens:</p>
+<p>            return False, f"Total tokens too high: {input_tokens + max_tokens} (max {self.max_total_tokens})"</p>
+        
+<p>        return True, "OK"</p>
+    
+<p>    def sanitize_input(self, prompt: str) -> str:</p>
+<p>        """Sanitize input to remove potentially problematic content"""</p>
+<p>        # Remove null bytes</p>
+<p>        prompt = prompt.replace('\x00', '')</p>
+        
+<p>        # Limit consecutive repetitions (potential DoS pattern)</p>
+<p>        import re</p>
+<p>        # Replace more than 100 consecutive identical chars</p>
+<p>        prompt = re.sub(r'(.)\1{100,}', r'\1' * 100, prompt)</p>
+        
+<p>        # Remove excessive whitespace</p>
+<p>        prompt = ' '.join(prompt.split())</p>
+        
+<p>        # Truncate if too long</p>
+<p>        if len(prompt) > self.max_prompt_length:</p>
+<p>            prompt = prompt[:self.max_prompt_length]</p>
+        
+<p>        return prompt</p>
+    
+<p>    def detect_repetitive_patterns(self, prompt: str) -> bool:</p>
+<p>        """Detect potentially malicious repetitive patterns"""</p>
+<p>        words = prompt.split()</p>
+        
+<p>        if len(words) < 10:</p>
+<p>            return False</p>
+        
+<p>        # Check for excessive repetition</p>
+<p>        from collections import Counter</p>
+<p>        word_counts = Counter(words)</p>
+<p>        most_common_word, count = word_counts.most_common(1)[0]</p>
+        
+<p>        # If one word appears more than 50% of the time</p>
+<p>        if count / len(words) > 0.5:</p>
+<p>            return True</p>
+        
+<p>        # Check for repeated sequences</p>
+<p>        sequence_length = 10</p>
+<p>        sequences = []</p>
+<p>        for i in range(len(words) - sequence_length):</p>
+<p>            seq = ' '.join(words[i:i+sequence_length])</p>
+<p>            sequences.append(seq)</p>
+        
+<p>        seq_counts = Counter(sequences)</p>
+<p>        if seq_counts.most_common(1)[0][1] > 5:</p>
+<p>            return True  # Same sequence repeated more than 5 times</p>
+        
+<p>        return False</p>
+
+<h1>Usage</h1>
+<p>validator = InputValidator()</p>
+
+<p>def secure_api_endpoint(prompt: str, max_tokens: int):</p>
+<p>    """API endpoint with input validation"""</p>
+    
+<p>    # Validate input</p>
+<p>    valid, message = validator.validate_input(prompt, max_tokens)</p>
+<p>    if not valid:</p>
+<p>        return {"error": message}, 400</p>
+    
+<p>    # Detect malicious patterns</p>
+<p>    if validator.detect_repetitive_patterns(prompt):</p>
+<p>        return {"error": "Suspicious input pattern detected"}, 400</p>
+    
+<p>    # Sanitize</p>
+<p>    prompt = validator.sanitize_input(prompt)</p>
+    
+<p>    # Process request</p>
+<p>    return process_llm_request(prompt, max_tokens)</p>
+</code>`<code>
+
+<h3>2. Complexity Detection</h3>
+
+<strong>Detect and limit computationally expensive requests</strong>:
+
+</code>`<code>python
+<p>class ComplexityAnalyzer:</p>
+<p>    """</p>
+<p>    SECURE: Analyze and limit request complexity</p>
+<p>    """</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.max_complexity_score = 100</p>
+    
+<p>    def analyze_complexity(self, prompt: str) -> int:</p>
+<p>        """Calculate complexity score for prompt"""</p>
+<p>        score = 0</p>
+        
+<p>        # Length factor</p>
+<p>        token_count = len(prompt.split())</p>
+<p>        score += token_count // 100  # 1 point per 100 tokens</p>
+        
+<p>        # Nested structures</p>
+<p>        nesting_indicators = [</p>
+<p>            'for each',</p>
+<p>            'for every',</p>
+<p>            'then for',</p>
+<p>            'and for',</p>
+<p>            'analyze each',</p>
+<p>            'list all',</p>
+<p>            'enumerate all'</p>
+<p>        ]</p>
+        
+<p>        for indicator in nesting_indicators:</p>
+<p>            score += prompt.lower().count(indicator) * 10</p>
+        
+<p>        # Enumeration requests</p>
+<p>        enumeration_keywords = [</p>
+<p>            'list all',</p>
+<p>            'enumerate',</p>
+<p>            'every single',</p>
+<p>            'each and every',</p>
+<p>            'complete list'</p>
+<p>        ]</p>
+        
+<p>        for keyword in enumeration_keywords:</p>
+<p>            score += prompt.lower().count(keyword) * 15</p>
+        
+<p>        # Cross-referencing</p>
+<p>        if 'cross-reference' in prompt.lower():</p>
+<p>            score += 30</p>
+<p>        if 'compare all' in prompt.lower():</p>
+<p>            score += 25</p>
+        
+<p>        # Translation requests (expensive)</p>
+<p>        if 'translate to' in prompt.lower():</p>
+<p>            # Count how many languages</p>
+<p>            import re</p>
+<p>            matches = re.findall(r'(\d+)\s+languages?', prompt.lower())</p>
+<p>            if matches:</p>
+<p>                score += int(matches[0]) * 2</p>
+        
+<p>        # Detailed analysis requests</p>
+<p>        detail_keywords = [</p>
+<p>            'detailed analysis',</p>
+<p>            'comprehensive analysis',</p>
+<p>            'in-depth',</p>
+<p>            'thorough examination',</p>
+<p>            'complete breakdown'</p>
+<p>        ]</p>
+        
+<p>        for keyword in detail_keywords:</p>
+<p>            score += prompt.lower().count(keyword) * 10</p>
+        
+<p>        return score</p>
+    
+<p>    def is_acceptable_complexity(self, prompt: str) -> tuple[bool, int]:</p>
+<p>        """Check if prompt complexity is acceptable"""</p>
+<p>        score = self.analyze_complexity(prompt)</p>
+        
+<p>        if score > self.max_complexity_score:</p>
+<p>            return False, score</p>
+        
+<p>        return True, score</p>
+
+<h1>Usage</h1>
+<p>complexity_analyzer = ComplexityAnalyzer()</p>
+
+<p>def validate_request_complexity(prompt: str):</p>
+<p>    acceptable, score = complexity_analyzer.is_acceptable_complexity(prompt)</p>
+    
+<p>    if not acceptable:</p>
+<p>        return {</p>
+<p>            "error": f"Request too complex (score: {score}, max: {complexity_analyzer.max_complexity_score})",</p>
+<p>            "suggestion": "Please simplify your request or break it into smaller parts"</p>
+<p>        }, 400</p>
+    
+<p>    return process_request(prompt)</p>
+</code>`<code>
+
+<h2>Resource Management</h2>
+
+<h3>1. Timeout Controls</h3>
+
+<strong>Implement comprehensive timeout mechanisms</strong>:
+
+</code>`<code>python
+<p>import asyncio</p>
+<p>from concurrent.futures import TimeoutError</p>
+<p>import signal</p>
+<p>from contextlib import contextmanager</p>
+
+<p>class TimeoutManager:</p>
+<p>    """</p>
+<p>    SECURE: Manage timeouts for LLM requests</p>
+<p>    """</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.default_timeout = 60  # seconds</p>
+<p>        self.max_timeout = 300     # 5 minutes maximum</p>
+    
+<p>    @contextmanager</p>
+<p>    def timeout(self, seconds: int):</p>
+<p>        """Context manager for timeout"""</p>
+<p>        def timeout_handler(signum, frame):</p>
+<p>            raise TimeoutError(f"Operation timed out after {seconds} seconds")</p>
+        
+<p>        # Set alarm</p>
+<p>        old_handler = signal.signal(signal.SIGALRM, timeout_handler)</p>
+<p>        signal.alarm(seconds)</p>
+        
+<p>        try:</p>
+<p>            yield</p>
+<p>        finally:</p>
+<p>            signal.alarm(0)</p>
+<p>            signal.signal(signal.SIGALRM, old_handler)</p>
+    
+<p>    async def execute_with_timeout(self, coro, timeout_seconds: int = None):</p>
+<p>        """Execute coroutine with timeout"""</p>
+<p>        if timeout_seconds is None:</p>
+<p>            timeout_seconds = self.default_timeout</p>
+        
+<p>        # Cap at maximum</p>
+<p>        timeout_seconds = min(timeout_seconds, self.max_timeout)</p>
+        
+<p>        try:</p>
+<p>            return await asyncio.wait_for(coro, timeout=timeout_seconds)</p>
+<p>        except asyncio.TimeoutError:</p>
+<p>            raise TimeoutError(f"Request timed out after {timeout_seconds} seconds")</p>
+
+<h1>Usage</h1>
+<p>timeout_manager = TimeoutManager()</p>
+
+<p>async def process_with_timeout(prompt: str, max_tokens: int):</p>
+<p>    """Process request with timeout protection"""</p>
+    
+<p>    # Calculate timeout based on expected generation time</p>
+<p>    # Rough estimate: 50 tokens/second</p>
+<p>    estimated_time = (max_tokens / 50) + 10  # +10 seconds buffer</p>
+<p>    timeout = min(estimated_time, 300)  # Cap at 5 minutes</p>
+    
+<p>    try:</p>
+<p>        async def generate():</p>
+<p>            return await llm.generate_async(prompt, max_tokens=max_tokens)</p>
+        
+<p>        result = await timeout_manager.execute_with_timeout(</p>
+<p>            generate(),</p>
+<p>            timeout_seconds=int(timeout)</p>
+<p>        )</p>
+        
+<p>        return {"response": result.text}, 200</p>
+    
+<p>    except TimeoutError as e:</p>
+<p>        # Log timeout for monitoring</p>
+<p>        log_timeout_event(prompt, max_tokens, timeout)</p>
+        
+<p>        return {</p>
+<p>            "error": "Request timed out",</p>
+<p>            "message": "Your request took too long to process. Please try a simpler query."</p>
+<p>        }, 504</p>
+</code>`<code>
+
+<h3>2. Resource Quotas</h3>
+
+<strong>Implement per-user resource quotas</strong>:
+
+</code>`<code>python
+<p>from dataclasses import dataclass</p>
+<p>from datetime import datetime, timedelta</p>
+<p>from typing import Dict</p>
+
+<p>@dataclass</p>
+<p>class ResourceQuota:</p>
+<p>    """Resource quota for a user"""</p>
+<p>    daily_token_limit: int</p>
+<p>    daily_request_limit: int</p>
+<p>    max_concurrent_requests: int</p>
+<p>    max_tokens_per_request: int</p>
+    
+<p>    # Tracking</p>
+<p>    tokens_used_today: int = 0</p>
+<p>    requests_made_today: int = 0</p>
+<p>    current_concurrent_requests: int = 0</p>
+<p>    last_reset: datetime = None</p>
+
+<p>class QuotaManager:</p>
+<p>    """</p>
+<p>    SECURE: Manage per-user resource quotas</p>
+<p>    """</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.quotas: Dict[str, ResourceQuota] = {}</p>
+        
+<p>        # Default quotas per tier</p>
+<p>        self.quota_tiers = {</p>
+<p>            'free': ResourceQuota(</p>
+<p>                daily_token_limit=100000,</p>
+<p>                daily_request_limit=100,</p>
+<p>                max_concurrent_requests=2,</p>
+<p>                max_tokens_per_request=2000</p>
+<p>            ),</p>
+<p>            'basic': ResourceQuota(</p>
+<p>                daily_token_limit=1000000,</p>
+<p>                daily_request_limit=1000,</p>
+<p>                max_concurrent_requests=5,</p>
+<p>                max_tokens_per_request=4000</p>
+<p>            ),</p>
+<p>            'premium': ResourceQuota(</p>
+<p>                daily_token_limit=10000000,</p>
+<p>                daily_request_limit=10000,</p>
+<p>                max_concurrent_requests=20,</p>
+<p>                max_tokens_per_request=8000</p>
+<p>            )</p>
+<p>        }</p>
+    
+<p>    def get_quota(self, user_id: str, tier: str = 'free') -> ResourceQuota:</p>
+<p>        """Get quota for user"""</p>
+<p>        if user_id not in self.quotas:</p>
+<p>            self.quotas[user_id] = self.quota_tiers[tier]</p>
+<p>            self.quotas[user_id].last_reset = datetime.now()</p>
+        
+<p>        # Reset daily quotas if needed</p>
+<p>        quota = self.quotas[user_id]</p>
+<p>        if datetime.now() - quota.last_reset > timedelta(days=1):</p>
+<p>            quota.tokens_used_today = 0</p>
+<p>            quota.requests_made_today = 0</p>
+<p>            quota.last_reset = datetime.now()</p>
+        
+<p>        return quota</p>
+    
+<p>    def check_quota(self, user_id: str, tier: str,</p>
+<p>                   requested_tokens: int) -> tuple[bool, str]:</p>
+<p>        """Check if request is within quota"""</p>
+<p>        quota = self.get_quota(user_id, tier)</p>
+        
+<p>        # Check request limit</p>
+<p>        if quota.requests_made_today >= quota.daily_request_limit:</p>
+<p>            return False, f"Daily request limit reached ({quota.daily_request_limit})"</p>
+        
+<p>        # Check token limit</p>
+<p>        if quota.tokens_used_today + requested_tokens > quota.daily_token_limit:</p>
+<p>            remaining = quota.daily_token_limit - quota.tokens_used_today</p>
+<p>            return False, f"Daily token limit exceeded ({remaining} tokens remaining)"</p>
+        
+<p>        # Check concurrent requests</p>
+<p>        if quota.current_concurrent_requests >= quota.max_concurrent_requests:</p>
+<p>            return False, f"Too many concurrent requests (max {quota.max_concurrent_requests})"</p>
+        
+<p>        # Check tokens per request</p>
+<p>        if requested_tokens > quota.max_tokens_per_request:</p>
+<p>            return False, f"Request too large ({requested_tokens} tokens, max {quota.max_tokens_per_request})"</p>
+        
+<p>        return True, "OK"</p>
+    
+<p>    def record_usage(self, user_id: str, tokens_used: int):</p>
+<p>        """Record resource usage"""</p>
+<p>        if user_id in self.quotas:</p>
+<p>            self.quotas[user_id].tokens_used_today += tokens_used</p>
+<p>            self.quotas[user_id].requests_made_today += 1</p>
+    
+<p>    def acquire_concurrent_slot(self, user_id: str) -> bool:</p>
+<p>        """Acquire concurrent request slot"""</p>
+<p>        if user_id in self.quotas:</p>
+<p>            quota = self.quotas[user_id]</p>
+<p>            if quota.current_concurrent_requests < quota.max_concurrent_requests:</p>
+<p>                quota.current_concurrent_requests += 1</p>
+<p>                return True</p>
+<p>        return False</p>
+    
+<p>    def release_concurrent_slot(self, user_id: str):</p>
+<p>        """Release concurrent request slot"""</p>
+<p>        if user_id in self.quotas:</p>
+<p>            if self.quotas[user_id].current_concurrent_requests > 0:</p>
+<p>                self.quotas[user_id].current_concurrent_requests -= 1</p>
+
+<h1>Usage</h1>
+<p>quota_manager = QuotaManager()</p>
+
+<p>def handle_user_request(user_id: str, tier: str, prompt: str, max_tokens: int):</p>
+<p>    """Handle request with quota checking"""</p>
+    
+<p>    # Estimate total tokens</p>
+<p>    estimated_tokens = len(prompt) // 4 + max_tokens</p>
+    
+<p>    # Check quota</p>
+<p>    allowed, reason = quota_manager.check_quota(user_id, tier, estimated_tokens)</p>
+<p>    if not allowed:</p>
+<p>        return {"error": reason}, 429</p>
+    
+<p>    # Acquire slot</p>
+<p>    if not quota_manager.acquire_concurrent_slot(user_id):</p>
+<p>        return {"error": "Too many concurrent requests"}, 429</p>
+    
+<p>    try:</p>
+<p>        # Process request</p>
+<p>        result = llm.generate(prompt, max_tokens=max_tokens)</p>
+        
+<p>        # Record usage</p>
+<p>        quota_manager.record_usage(user_id, result.usage.total_tokens)</p>
+        
+<p>        return {"response": result.text}, 200</p>
+    
+<p>    finally:</p>
+<p>        quota_manager.release_concurrent_slot(user_id)</p>
+</code>`<code>
+
+<h2>Cost Controls</h2>
+
+<h3>1. Cost Monitoring and Alerts</h3>
+
+<strong>Monitor and alert on cost anomalies</strong>:
+
+</code>`<code>python
+<p>from datetime import datetime, timedelta</p>
+<p>from typing import List, Dict</p>
+<p>import logging</p>
+
+<p>class CostMonitor:</p>
+<p>    """</p>
+<p>    SECURE: Monitor and alert on LLM costs</p>
+<p>    """</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.cost_per_1k_tokens = {</p>
+<p>            'gpt-4': {'input': 0.03, 'output': 0.06},</p>
+<p>            'gpt-3.5-turbo': {'input': 0.0015, 'output': 0.002},</p>
+<p>        }</p>
+        
+<p>        self.usage_history: List[Dict] = []</p>
+<p>        self.daily_budget = 100.00  # dollars</p>
+<p>        self.alert_threshold = 0.8  # Alert at 80% of budget</p>
+    
+<p>    def calculate_cost(self, model: str, input_tokens: int, </p>
+<p>                      output_tokens: int) -> float:</p>
+<p>        """Calculate cost for request"""</p>
+<p>        if model not in self.cost_per_1k_tokens:</p>
+<p>            logging.warning(f"Unknown model: {model}")</p>
+<p>            return 0.0</p>
+        
+<p>        pricing = self.cost_per_1k_tokens[model]</p>
+        
+<p>        input_cost = (input_tokens / 1000) * pricing['input']</p>
+<p>        output_cost = (output_tokens / 1000) * pricing['output']</p>
+        
+<p>        return input_cost + output_cost</p>
+    
+<p>    def record_usage(self, user_id: str, model: str,</p>
+<p>                    input_tokens: int, output_tokens: int):</p>
+<p>        """Record usage and cost"""</p>
+<p>        cost = self.calculate_cost(model, input_tokens, output_tokens)</p>
+        
+<p>        usage_record = {</p>
+<p>            'timestamp': datetime.now(),</p>
+<p>            'user_id': user_id,</p>
+<p>            'model': model,</p>
+<p>            'input_tokens': input_tokens,</p>
+<p>            'output_tokens': output_tokens,</p>
+<p>            'cost': cost</p>
+<p>        }</p>
+        
+<p>        self.usage_history.append(usage_record)</p>
+        
+<p>        # Check for anomalies</p>
+<p>        self.check_for_anomalies(user_id, cost)</p>
+    
+<p>    def get_daily_cost(self) -> float:</p>
+<p>        """Get total cost for current day"""</p>
+<p>        today = datetime.now().date()</p>
+        
+<p>        daily_cost = sum(</p>
+<p>            record['cost']</p>
+<p>            for record in self.usage_history</p>
+<p>            if record['timestamp'].date() == today</p>
+<p>        )</p>
+        
+<p>        return daily_cost</p>
+    
+<p>    def check_budget(self) -> tuple[bool, float]:</p>
+<p>        """Check if within daily budget"""</p>
+<p>        current_cost = self.get_daily_cost()</p>
+        
+<p>        if current_cost >= self.daily_budget:</p>
+<p>            return False, current_cost</p>
+        
+<p>        # Check alert threshold</p>
+<p>        if current_cost >= (self.daily_budget * self.alert_threshold):</p>
+<p>            logging.warning(</p>
+<p>                f"Cost alert: ${current_cost:.2f} / ${self.daily_budget:.2f} "</p>
+<p>                f"({current_cost/self.daily_budget*100:.1f}%)"</p>
+<p>            )</p>
+        
+<p>        return True, current_cost</p>
+    
+<p>    def check_for_anomalies(self, user_id: str, current_cost: float):</p>
+<p>        """Detect cost anomalies"""</p>
+<p>        # Get user's historical average</p>
+<p>        user_history = [</p>
+<p>            r for r in self.usage_history</p>
+<p>            if r['user_id'] == user_id</p>
+<p>        ]</p>
+        
+<p>        if len(user_history) < 10:</p>
+<p>            return  # Not enough history</p>
+        
+<p>        # Calculate average cost per request</p>
+<p>        avg_cost = sum(r['cost'] for r in user_history[-100:]) / len(user_history[-100:])</p>
+        
+<p>        # Alert if current cost is 10x average</p>
+<p>        if current_cost > avg_cost * 10:</p>
+<p>            logging.error(</p>
+<p>                f"COST ANOMALY: User {user_id} request cost ${current_cost:.4f} "</p>
+<p>                f"vs avg ${avg_cost:.4f}"</p>
+<p>            )</p>
+<p>            # Could trigger automatic blocking</p>
+
+<h1>Usage</h1>
+<p>cost_monitor = CostMonitor()</p>
+
+<p>def process_with_cost_monitoring(user_id: str, model: str, </p>
+<p>                                prompt: str, max_tokens: int):</p>
+<p>    """Process request with cost monitoring"""</p>
+    
+<p>    # Check budget before processing</p>
+<p>    within_budget, current_cost = cost_monitor.check_budget()</p>
+<p>    if not within_budget:</p>
+<p>        return {</p>
+<p>            "error": "Daily budget exceeded",</p>
+<p>            "current_cost": current_cost,</p>
+<p>            "budget": cost_monitor.daily_budget</p>
+<p>        }, 429</p>
+    
+<p>    # Process request</p>
+<p>    result = llm.generate(prompt, max_tokens=max_tokens, model=model)</p>
+    
+<p>    # Record usage</p>
+<p>    cost_monitor.record_usage(</p>
+<p>        user_id=user_id,</p>
+<p>        model=model,</p>
+<p>        input_tokens=result.usage.prompt_tokens,</p>
+<p>        output_tokens=result.usage.completion_tokens</p>
+<p>    )</p>
+    
+<p>    return {"response": result.text}, 200</p>
+</code>`<code>
+
+<h2>Monitoring and Alerting</h2>
+
+<h3>1. Real-Time Monitoring</h3>
+
+<strong>Monitor system health and performance</strong>:
+
+</code>`<code>python
+<p>import time</p>
+<p>from collections import deque</p>
+<p>from dataclasses import dataclass</p>
+<p>from typing import Deque</p>
+<p>import psutil</p>
+
+<p>@dataclass</p>
+<p>class SystemMetrics:</p>
+<p>    """System resource metrics"""</p>
+<p>    cpu_percent: float</p>
+<p>    memory_percent: float</p>
+<p>    gpu_memory_percent: float</p>
+<p>    request_queue_size: int</p>
+<p>    active_requests: int</p>
+<p>    avg_response_time: float</p>
+<p>    requests_per_second: float</p>
+
+<p>class SystemMonitor:</p>
+<p>    """</p>
+<p>    SECURE: Monitor system resources and performance</p>
+<p>    """</p>
+    
+<p>    def __init__(self, alert_threshold_cpu=80, alert_threshold_memory=85):</p>
+<p>        self.alert_threshold_cpu = alert_threshold_cpu</p>
+<p>        self.alert_threshold_memory = alert_threshold_memory</p>
+        
+<p>        # Track metrics over time</p>
+<p>        self.request_times: Deque[float] = deque(maxlen=1000)</p>
+<p>        self.request_timestamps: Deque[float] = deque(maxlen=1000)</p>
+<p>        self.active_requests = 0</p>
+<p>        self.request_queue_size = 0</p>
+    
+<p>    def get_current_metrics(self) -> SystemMetrics:</p>
+<p>        """Get current system metrics"""</p>
+<p>        # CPU and Memory</p>
+<p>        cpu_percent = psutil.cpu_percent(interval=0.1)</p>
+<p>        memory_percent = psutil.virtual_memory().percent</p>
+        
+<p>        # GPU (simplified - would use actual GPU monitoring)</p>
+<p>        gpu_memory_percent = self.get_gpu_memory_usage()</p>
+        
+<p>        # Request metrics</p>
+<p>        avg_response_time = self.get_avg_response_time()</p>
+<p>        requests_per_second = self.get_requests_per_second()</p>
+        
+<p>        return SystemMetrics(</p>
+<p>            cpu_percent=cpu_percent,</p>
+<p>            memory_percent=memory_percent,</p>
+<p>            gpu_memory_percent=gpu_memory_percent,</p>
+<p>            request_queue_size=self.request_queue_size,</p>
+<p>            active_requests=self.active_requests,</p>
+<p>            avg_response_time=avg_response_time,</p>
+<p>            requests_per_second=requests_per_second</p>
+<p>        )</p>
+    
+<p>    def get_gpu_memory_usage(self) -> float:</p>
+<p>        """Get GPU memory usage (placeholder)"""</p>
+<p>        # In production, would use nvidia-smi or similar</p>
+<p>        return 0.0</p>
+    
+<p>    def get_avg_response_time(self) -> float:</p>
+<p>        """Calculate average response time"""</p>
+<p>        if not self.request_times:</p>
+<p>            return 0.0</p>
+<p>        return sum(self.request_times) / len(self.request_times)</p>
+    
+<p>    def get_requests_per_second(self) -> float:</p>
+<p>        """Calculate requests per second"""</p>
+<p>        if len(self.request_timestamps) < 2:</p>
+<p>            return 0.0</p>
+        
+<p>        now = time.time()</p>
+<p>        one_second_ago = now - 1.0</p>
+        
+<p>        recent_requests = sum(</p>
+<p>            1 for ts in self.request_timestamps</p>
+<p>            if ts > one_second_ago</p>
+<p>        )</p>
+        
+<p>        return recent_requests</p>
+    
+<p>    def record_request(self, response_time: float):</p>
+<p>        """Record request metrics"""</p>
+<p>        self.request_times.append(response_time)</p>
+<p>        self.request_timestamps.append(time.time())</p>
+    
+<p>    def check_health(self) -> tuple[bool, List[str]]:</p>
+<p>        """Check system health"""</p>
+<p>        metrics = self.get_current_metrics()</p>
+<p>        issues = []</p>
+        
+<p>        # Check CPU</p>
+<p>        if metrics.cpu_percent > self.alert_threshold_cpu:</p>
+<p>            issues.append(f"High CPU usage: {metrics.cpu_percent:.1f}%")</p>
+        
+<p>        # Check memory</p>
+<p>        if metrics.memory_percent > self.alert_threshold_memory:</p>
+<p>            issues.append(f"High memory usage: {metrics.memory_percent:.1f}%")</p>
+        
+<p>        # Check queue size</p>
+<p>        if metrics.request_queue_size > 100:</p>
+<p>            issues.append(f"Large request queue: {metrics.request_queue_size}")</p>
+        
+<p>        # Check response times</p>
+<p>        if metrics.avg_response_time > 10.0:  # 10 seconds</p>
+<p>            issues.append(f"Slow response times: {metrics.avg_response_time:.2f}s")</p>
+        
+<p>        is_healthy = len(issues) == 0</p>
+        
+<p>        return is_healthy, issues</p>
+
+<h1>Usage</h1>
+<p>monitor = SystemMonitor()</p>
+
+<p>async def monitored_request_handler(prompt: str, max_tokens: int):</p>
+<p>    """Handle request with monitoring"""</p>
+<p>    start_time = time.time()</p>
+<p>    monitor.active_requests += 1</p>
+    
+<p>    try:</p>
+<p>        # Check health before processing</p>
+<p>        healthy, issues = monitor.check_health()</p>
+        
+<p>        if not healthy:</p>
+<p>            logging.warning(f"System health issues: {issues}")</p>
+            
+<p>            # If critically unhealthy, reject new requests</p>
+<p>            if monitor.active_requests > 50:</p>
+<p>                return {</p>
+<p>                    "error": "Service temporarily overloaded",</p>
+<p>                    "retry_after": 60</p>
+<p>                }, 503</p>
+        
+<p>        # Process request</p>
+<p>        result = await llm.generate_async(prompt, max_tokens=max_tokens)</p>
+        
+<p>        # Record metrics</p>
+<p>        response_time = time.time() - start_time</p>
+<p>        monitor.record_request(response_time)</p>
+        
+<p>        return {"response": result.text}, 200</p>
+    
+<p>    finally:</p>
+<p>        monitor.active_requests -= 1</p>
+</code>`<code>
+
+<h2>Architecture Patterns</h2>
+
+<h3>1. Queue-Based Architecture</h3>
+
+<strong>Implement fair request queuing</strong>:
+
+</code>`<code>python
+<p>import asyncio</p>
+<p>from asyncio import PriorityQueue</p>
+<p>from dataclasses import dataclass, field</p>
+<p>from typing import Any</p>
+<p>import time</p>
+
+<p>@dataclass(order=True)</p>
+<p>class PrioritizedRequest:</p>
+<p>    """Request with priority"""</p>
+<p>    priority: int</p>
+<p>    timestamp: float = field(compare=False)</p>
+<p>    request_data: Any = field(compare=False)</p>
+<p>    user_id: str = field(compare=False)</p>
+
+<p>class RequestQueue:</p>
+<p>    """</p>
+<p>    SECURE: Fair queuing with priority</p>
+<p>    """</p>
+    
+<p>    def __init__(self, max_queue_size=1000, max_workers=10):</p>
+<p>        self.queue: PriorityQueue = PriorityQueue(maxsize=max_queue_size)</p>
+<p>        self.max_workers = max_workers</p>
+<p>        self.active_workers = 0</p>
+        
+<p>        # Priority levels</p>
+<p>        self.PRIORITY_HIGH = 1</p>
+<p>        self.PRIORITY_NORMAL = 5</p>
+<p>        self.PRIORITY_LOW = 10</p>
+    
+<p>    async def enqueue(self, request_data: Any, user_id: str,</p>
+<p>                     priority: int = None) -> bool:</p>
+<p>        """Add request to queue"""</p>
+<p>        if priority is None:</p>
+<p>            priority = self.PRIORITY_NORMAL</p>
+        
+<p>        # Check if queue is full</p>
+<p>        if self.queue.full():</p>
+<p>            return False</p>
+        
+<p>        request = PrioritizedRequest(</p>
+<p>            priority=priority,</p>
+<p>            timestamp=time.time(),</p>
+<p>            request_data=request_data,</p>
+<p>            user_id=user_id</p>
+<p>        )</p>
+        
+<p>        await self.queue.put(request)</p>
+<p>        return True</p>
+    
+<p>    async def process_queue(self):</p>
+<p>        """Process requests from queue"""</p>
+<p>        while True:</p>
+<p>            if self.active_workers >= self.max_workers:</p>
+<p>                await asyncio.sleep(0.1)</p>
+<p>                continue</p>
+            
+<p>            try:</p>
+<p>                request = await asyncio.wait_for(</p>
+<p>                    self.queue.get(),</p>
+<p>                    timeout=1.0</p>
+<p>                )</p>
+                
+<p>                # Process in background</p>
+<p>                asyncio.create_task(self.process_request(request))</p>
+            
+<p>            except asyncio.TimeoutError:</p>
+<p>                continue</p>
+    
+<p>    async def process_request(self, request: PrioritizedRequest):</p>
+<p>        """Process a single request"""</p>
+<p>        self.active_workers += 1</p>
+        
+<p>        try:</p>
+<p>            # Wait time in queue</p>
+<p>            wait_time = time.time() - request.timestamp</p>
+<p>            logging.info(f"Processing request after {wait_time:.2f}s in queue")</p>
+            
+<p>            # Process the actual request</p>
+<p>            result = await llm.generate_async(**request.request_data)</p>
+            
+<p>            # Return result (would use callback or response storage)</p>
+<p>            return result</p>
+        
+<p>        finally:</p>
+<p>            self.active_workers -= 1</p>
+<p>            self.queue.task_done()</p>
+
+<h1>Usage</h1>
+<p>request_queue = RequestQueue(max_queue_size=1000, max_workers=10)</p>
+
+<h1>Start queue processor</h1>
+<p>asyncio.create_task(request_queue.process_queue())</p>
+
+<p>async def queue_based_endpoint(user_id: str, prompt: str, max_tokens: int):</p>
+<p>    """API endpoint using request queue"""</p>
+    
+<p>    # Determine priority (could be based on user tier)</p>
+<p>    priority = request_queue.PRIORITY_NORMAL</p>
+    
+<p>    # Prepare request</p>
+<p>    request_data = {</p>
+<p>        'prompt': prompt,</p>
+<p>        'max_tokens': max_tokens</p>
+<p>    }</p>
+    
+<p>    # Enqueue</p>
+<p>    success = await request_queue.enqueue(request_data, user_id, priority)</p>
+    
+<p>    if not success:</p>
+<p>        return {</p>
+<p>            "error": "Request queue full",</p>
+<p>            "retry_after": 30</p>
+<p>        }, 503</p>
+    
+<p>    return {</p>
+<p>        "status": "queued",</p>
+<p>        "message": "Request queued for processing",</p>
+<p>        "queue_size": request_queue.queue.qsize()</p>
+<p>    }, 202</p>
+</code>``
+
+<h2>Best Practices</h2>
+
+<h3>1. Defense in Depth</h3>
+<ul>
+<li>✅ Implement rate limiting at multiple levels (per-second, per-minute, per-hour, per-day)</li>
+<li>✅ Validate inputs for length and complexity</li>
+<li>✅ Set maximum token limits for input and output</li>
+<li>✅ Implement timeouts for all requests</li>
+<li>✅ Monitor resource usage continuously</li>
+</ul>
+
+<h3>2. Resource Management</h3>
+<ul>
+<li>✅ Enforce per-user quotas</li>
+<li>✅ Limit concurrent requests per user</li>
+<li>✅ Implement request queuing with fair scheduling</li>
+<li>✅ Use circuit breakers to prevent cascading failures</li>
+<li>✅ Implement graceful degradation under load</li>
+</ul>
+
+<h3>3. Cost Control</h3>
+<ul>
+<li>✅ Monitor token usage and costs in real-time</li>
+<li>✅ Set daily/monthly budget limits</li>
+<li>✅ Alert on cost anomalies</li>
+<li>✅ Implement cost attribution per user/API key</li>
+<li>✅ Secure API keys and rotate regularly</li>
+</ul>
+
+<h3>4. Monitoring</h3>
+<ul>
+<li>✅ Track response times and throughput</li>
+<li>✅ Monitor CPU, memory, and GPU utilization</li>
+<li>✅ Alert on anomalous patterns</li>
+<li>✅ Log all requests for analysis</li>
+<li>✅ Implement health check endpoints</li>
+</ul>
+
+<h3>5. Architecture</h3>
+<ul>
+<li>✅ Use load balancing across multiple model instances</li>
+<li>✅ Implement auto-scaling based on demand</li>
+<li>✅ Deploy circuit breakers and fallback mechanisms</li>
+<li>✅ Cache responses where appropriate</li>
+<li>✅ Use async/await for better concurrency</li>
+</ul>
+
+<h3>6. Input Validation</h3>
+<ul>
+<li>✅ Sanitize all user inputs</li>
+<li>✅ Detect and reject repetitive patterns</li>
+<li>✅ Limit maximum context length</li>
+<li>✅ Detect computationally expensive prompts</li>
+<li>✅ Implement complexity scoring</li>
+</ul>
+
+<p>---</p>
+
+<strong>Key Principle</strong>: DoS prevention requires multiple defensive layers. No single technique is sufficient. Combine rate limiting, input validation, resource quotas, timeout controls, and continuous monitoring for comprehensive protection.
+
         </div>
     </div>
 </body>

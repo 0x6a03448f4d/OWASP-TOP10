@@ -215,7 +215,374 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>API07: Server Side Request Forgery - Prevention</h1>
+
+<h2>Prevention Strategy Overview</h2>
+
+<p>Preventing SSRF requires a multi-layered approach:</p>
+<ol>
+<li>Input validation and sanitization</li>
+<li>Network-level controls</li>
+<li>Application-level defenses</li>
+<li>Monitoring and detection</li>
+</ol>
+
+<h3>Core Principles</h3>
+
+<ul>
+<li><strong>Whitelist over blacklist</strong>: Only allow known-good destinations</li>
+<li><strong>Network segmentation</strong>: Limit what servers can access</li>
+<li><strong>Least privilege</strong>: Minimize permissions and access</li>
+<li><strong>Defense in depth</strong>: Multiple layers of protection</li>
+</ul>
+
+<h2>Input Validation</h2>
+
+<h3>URL Validation and Sanitization</h3>
+
+<p>``<code>python</p>
+<p>import urllib.parse</p>
+<p>import ipaddress</p>
+
+<p>def is_safe_url(url):</p>
+<p>    try:</p>
+<p>        parsed = urllib.parse.urlparse(url)</p>
+        
+<p>        # Only allow HTTP/HTTPS</p>
+<p>        if parsed.scheme not in ['http', 'https']:</p>
+<p>            return False, "Only HTTP(S) allowed"</p>
+        
+<p>        # Get hostname</p>
+<p>        hostname = parsed.hostname</p>
+<p>        if not hostname:</p>
+<p>            return False, "No hostname"</p>
+        
+<p>        # IMPORTANT: DNS resolution has TOCTOU risks</p>
+<p>        # Best practice: Use a DNS cache or re-verify IP before actual request</p>
+<p>        import socket</p>
+<p>        ip = socket.gethostbyname(hostname)</p>
+<p>        ip_obj = ipaddress.ip_address(ip)</p>
+        
+<p>        # Block private/reserved IPs</p>
+<p>        if ip_obj.is_private or ip_obj.is_reserved or ip_obj.is_loopback:</p>
+<p>            return False, f"Private IP not allowed: {ip}"</p>
+        
+<p>        # Block link-local (169.254.0.0/16)</p>
+<p>        if ip_obj.is_link_local:</p>
+<p>            return False, "Link-local IP not allowed"</p>
+        
+<p>        # Whitelist domains (recommended)</p>
+<p>        allowed_domains = ['example.com', 'trusted-partner.com']</p>
+<p>        if not any(hostname.endswith(domain) for domain in allowed_domains):</p>
+<p>            return False, "Domain not in whitelist"</p>
+        
+<p>        return True, None</p>
+        
+<p>    except Exception as e:</p>
+<p>        return False, str(e)</p>
+
+<h1>Usage</h1>
+<p>@app.route('/api/import', methods=['POST'])</p>
+<p>def import_data():</p>
+<p>    url = request.json['url']</p>
+    
+<p>    is_safe, reason = is_safe_url(url)</p>
+<p>    if not is_safe:</p>
+<p>        return jsonify({'error': f'Invalid URL: {reason}'}), 400</p>
+    
+<p>    # Safe to fetch</p>
+<p>    response = requests.get(url, timeout=5)</p>
+<p>    return jsonify(response.json())</p>
+</code>`<code>
+
+<h3>Prevent DNS Rebinding</h3>
+
+</code>`<code>python
+<p>def fetch_url_safely(url):</p>
+<p>    # Validate once</p>
+<p>    is_safe, reason = is_safe_url(url)</p>
+<p>    if not is_safe:</p>
+<p>        raise ValueError(reason)</p>
+    
+<p>    # Disable redirects to prevent bypass</p>
+<p>    response = requests.get(url, allow_redirects=False, timeout=5)</p>
+    
+<p>    # If redirect, validate new location</p>
+<p>    if response.status_code in [301, 302, 303, 307, 308]:</p>
+<p>        new_url = response.headers.get('Location')</p>
+<p>        is_safe, reason = is_safe_url(new_url)</p>
+<p>        if not is_safe:</p>
+<p>            raise ValueError(f"Redirect blocked: {reason}")</p>
+    
+<p>    return response</p>
+</code>`<code>
+
+<h2>Network-Level Controls</h2>
+
+<h3>Cloud Metadata Protection</h3>
+
+<strong>AWS IMDSv2 (Require Token)</strong>:
+</code>`<code>bash
+<h1>Enforce IMDSv2</h1>
+<p>aws ec2 modify-instance-metadata-options \</p>
+<p>    --instance-id i-1234567890abcdef0 \</p>
+<p>    --http-tokens required \</p>
+<p>    --http-put-response-hop-limit 1</p>
+</code>`<code>
+
+<strong>Block at Firewall</strong>:
+</code>`<code>bash
+<h1>iptables rule to block metadata service</h1>
+<p>iptables -A OUTPUT -d 169.254.169.254 -j REJECT</p>
+</code>`<code>
+
+<h3>Network Segmentation</h3>
+
+</code>`<code>
+<p>[DMZ - API Servers]</p>
+<p>       ↓ (only specific internal IPs allowed)</p>
+<p>[Internal Network - Services]</p>
+<p>       ↓ (isolated)</p>
+<p>[Database Layer]</p>
+</code>`<code>
+
+<h3>Egress Filtering</h3>
+
+</code>`<code>python
+<h1>Use proxy with whitelist</h1>
+<p>import requests</p>
+
+<p>session = requests.Session()</p>
+<p>session.proxies = {</p>
+<p>    'http': 'http://egress-proxy:3128',</p>
+<p>    'https': 'http://egress-proxy:3128'</p>
+<p>}</p>
+
+<h1>Proxy enforces destination whitelist</h1>
+<p>response = session.get(user_url)</p>
+</code>`<code>
+
+<h2>Application-Level Defenses</h2>
+
+<h3>Use Safe HTTP Clients</h3>
+
+</code>`<code>python
+<p>import requests</p>
+<p>from requests.exceptions import ConnectTimeout</p>
+
+<p>def safe_fetch(url):</p>
+<p>    try:</p>
+<p>        response = requests.get(</p>
+<p>            url,</p>
+<p>            timeout=5,  # Prevent hang</p>
+<p>            allow_redirects=False,  # No redirect follow</p>
+<p>            verify=True,  # Verify SSL</p>
+<p>            stream=False  # Load entire response</p>
+<p>        )</p>
+<p>        return response</p>
+<p>    except ConnectTimeout:</p>
+<p>        raise ValueError("Request timeout")</p>
+</code>`<code>
+
+<h3>Implement Response Size Limits</h3>
+
+</code>`<code>python
+<p>def fetch_with_size_limit(url, max_size=1024*1024):  # 1MB</p>
+<p>    response = requests.get(url, stream=True, timeout=5)</p>
+    
+<p>    content = b''</p>
+<p>    for chunk in response.iter_content(chunk_size=8192):</p>
+<p>        content += chunk</p>
+<p>        if len(content) > max_size:</p>
+<p>            raise ValueError("Response too large")</p>
+    
+<p>    return content</p>
+</code>`<code>
+
+<h3>Content-Type Validation</h3>
+
+</code>`<code>python
+<p>def fetch_image(url):</p>
+<p>    response = safe_fetch(url)</p>
+    
+<p>    # Verify Content-Type</p>
+<p>    content_type = response.headers.get('Content-Type', '')</p>
+<p>    if not content_type.startswith('image/'):</p>
+<p>        raise ValueError(f"Invalid content type: {content_type}")</p>
+    
+<p>    # Verify actual content</p>
+<p>    import imghdr</p>
+<p>    image_type = imghdr.what(None, h=response.content)</p>
+<p>    if not image_type:</p>
+<p>        raise ValueError("Not a valid image")</p>
+    
+<p>    return response.content</p>
+</code>`<code>
+
+<h2>Monitoring and Detection</h2>
+
+<h3>Log Outbound Requests</h3>
+
+</code>`<code>python
+<p>import logging</p>
+
+<p>def fetch_url(url):</p>
+<p>    logger.info(f"Outbound request: {url}")</p>
+    
+<p>    # Log destination IP</p>
+<p>    import socket</p>
+<p>    ip = socket.gethostbyname(urllib.parse.urlparse(url).hostname)</p>
+<p>    logger.info(f"Resolved to: {ip}")</p>
+    
+<p>    response = requests.get(url)</p>
+    
+<p>    logger.info(f"Response: {response.status_code}, {len(response.content)} bytes")</p>
+    
+<p>    return response</p>
+</code>`<code>
+
+<h3>Alert on Suspicious Patterns</h3>
+
+</code>`<code>python
+<p>def detect_ssrf_attempt(url):</p>
+<p>    alerts = []</p>
+    
+<p>    # Check for metadata service</p>
+<p>    if '169.254.169.254' in url:</p>
+<p>        alerts.append('AWS metadata service access attempt')</p>
+    
+<p>    # Check for localhost</p>
+<p>    if any(x in url.lower() for x in ['localhost', '127.0.0.1', '0.0.0.0']):</p>
+<p>        alerts.append('Localhost access attempt')</p>
+    
+<p>    # Check for private IPs</p>
+<p>    if any(x in url for x in ['192.168.', '10.', '172.16.']):</p>
+<p>        alerts.append('Private IP access attempt')</p>
+    
+<p>    # Check for file protocol</p>
+<p>    if url.startswith('file://'):</p>
+<p>        alerts.append('File protocol access attempt')</p>
+    
+<p>    if alerts:</p>
+<p>        logger.warning(f"SSRF attempt detected: {alerts}, URL: {url}")</p>
+<p>        send_security_alert(alerts, url)</p>
+    
+<p>    return len(alerts) > 0</p>
+</code>`<code>
+
+<h2>Framework-Specific Protection</h2>
+
+<h3>Flask</h3>
+
+</code>`<code>python
+<p>from flask import Flask, request, jsonify</p>
+<p>import requests</p>
+<p>from urllib.parse import urlparse</p>
+<p>import ipaddress</p>
+
+<p>app = Flask(__name__)</p>
+
+<p>ALLOWED_DOMAINS = ['api.example.com', 'cdn.example.com']</p>
+
+<p>def validate_url(url):</p>
+<p>    parsed = urlparse(url)</p>
+    
+<p>    if parsed.scheme not in ['http', 'https']:</p>
+<p>        return False</p>
+    
+<p>    if not any(parsed.netloc.endswith(domain) for domain in ALLOWED_DOMAINS):</p>
+<p>        return False</p>
+    
+<p>    # Check IP</p>
+<p>    import socket</p>
+<p>    ip = ipaddress.ip_address(socket.gethostbyname(parsed.hostname))</p>
+<p>    if ip.is_private or ip.is_loopback or ip.is_link_local:</p>
+<p>        return False</p>
+    
+<p>    return True</p>
+
+<p>@app.route('/api/fetch', methods=['POST'])</p>
+<p>def fetch_data():</p>
+<p>    url = request.json.get('url')</p>
+    
+<p>    if not validate_url(url):</p>
+<p>        return jsonify({'error': 'Invalid URL'}), 400</p>
+    
+<p>    response = requests.get(url, timeout=5, allow_redirects=False)</p>
+<p>    return jsonify({'data': response.text})</p>
+</code>`<code>
+
+<h3>Express (Node.js)</h3>
+
+</code>`<code>javascript
+<p>const express = require('express');</p>
+<p>const axios = require('axios');</p>
+<p>const { URL } = require('url');</p>
+<p>const dns = require('dns').promises;</p>
+<p>const ipaddr = require('ipaddr.js');</p>
+
+<p>const ALLOWED_DOMAINS = ['api.example.com', 'cdn.example.com'];</p>
+
+<p>async function validateUrl(urlString) {</p>
+<p>    const url = new URL(urlString);</p>
+    
+<p>    // Only HTTP(S)</p>
+<p>    if (!['http:', 'https:'].includes(url.protocol)) {</p>
+<p>        throw new Error('Invalid protocol');</p>
+<p>    }</p>
+    
+<p>    // Whitelist check</p>
+<p>    if (!ALLOWED_DOMAINS.some(d => url.hostname.endsWith(d))) {</p>
+<p>        throw new Error('Domain not allowed');</p>
+<p>    }</p>
+    
+<p>    // Resolve and check IP</p>
+<p>    const addresses = await dns.resolve4(url.hostname);</p>
+<p>    const addr = ipaddr.parse(addresses[0]);</p>
+    
+<p>    if (addr.range() !== 'unicast') {</p>
+<p>        throw new Error('Private/reserved IP not allowed');</p>
+<p>    }</p>
+    
+<p>    return true;</p>
+<p>}</p>
+
+<p>app.post('/api/fetch', async (req, res) => {</p>
+<p>    try {</p>
+<p>        await validateUrl(req.body.url);</p>
+        
+<p>        const response = await axios.get(req.body.url, {</p>
+<p>            timeout: 5000,</p>
+<p>            maxRedirects: 0</p>
+<p>        });</p>
+        
+<p>        res.json({ data: response.data });</p>
+<p>    } catch (error) {</p>
+<p>        res.status(400).json({ error: error.message });</p>
+<p>    }</p>
+<p>});</p>
+</code>``
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Whitelist destinations</strong> - Only allow known-good URLs/domains</li>
+<li><strong>Validate before and after redirects</strong> - Prevent redirect bypass</li>
+<li><strong>Block private IPs</strong> - Use ipaddress library to check ranges</li>
+<li><strong>Disable unnecessary protocols</strong> - Only HTTP(S) if possible</li>
+<li><strong>Implement network controls</strong> - Egress filtering, metadata protection</li>
+<li><strong>Monitor and alert</strong> - Log all outbound requests, detect patterns</li>
+<li><strong>Use safe defaults</strong> - Disable redirects, set timeouts</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="examples.md">Code Examples</a></strong>: See implementations across frameworks</li>
+<li><strong><a href="attack-vectors.md">Attack Vectors</a></strong>: Understand what you're defending against</li>
+<li><strong><a href="lab/api07-ssrf-lab/">Hands-On Lab</a></strong>: Practice SSRF prevention</li>
+</ul>
+
         </div>
     </div>
 </body>

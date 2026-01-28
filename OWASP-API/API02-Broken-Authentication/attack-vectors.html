@@ -215,7 +215,751 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>API02: Broken Authentication - Attack Vectors</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#understanding-authentication-attack-vectors">Understanding Authentication Attack Vectors</a></li>
+<li><a href="#common-attack-patterns">Common Attack Patterns</a></li>
+<li><a href="#application-flaws-that-enable-attacks">Application Flaws That Enable Attacks</a></li>
+<li><a href="#signs-and-symptoms-of-vulnerability">Signs and Symptoms of Vulnerability</a></li>
+<li><a href="#what-attackers-look-for">What Attackers Look For</a></li>
+<li><a href="#detection-techniques">Detection Techniques</a></li>
+</ul>
+
+<h2>Understanding Authentication Attack Vectors</h2>
+
+<p>> <strong>⚠️ EDUCATIONAL PURPOSE ONLY</strong>  </p>
+<p>> This document describes attack concepts at a high level for educational purposes. No exploit code or weaponizable techniques are provided. Understanding these patterns helps developers build better defenses.</p>
+
+<p>An <strong>attack vector</strong> for broken authentication is the method attackers use to bypass, compromise, or abuse authentication mechanisms. Unlike BOLA which focuses on authorization, these attacks target the identity verification process itself.</p>
+
+<h3>The Core Attack Flow</h3>
+
+<p>``<code></p>
+<ol>
+<li>Reconnaissance</li>
+</ol>
+<p>   ↓</p>
+<p>   Identify authentication mechanism</p>
+<p>   ↓</p>
+<p>   Discover weaknesses (weak passwords, no rate limit, JWT flaws)</p>
+
+<ol>
+<li>Attack Execution</li>
+</ol>
+<p>   ↓</p>
+<p>   Exploit identified weakness</p>
+<p>   ↓</p>
+<p>   Brute force / Token theft / Credential stuffing / Algorithm confusion</p>
+
+<ol>
+<li>Access Gained</li>
+</ol>
+<p>   ↓</p>
+<p>   Obtain valid authentication token</p>
+<p>   ↓</p>
+<p>   Impersonate legitimate user</p>
+</code>`<code>
+
+<h2>Common Attack Patterns</h2>
+
+<h3>1. Credential Stuffing Attacks</h3>
+
+<strong>What it is</strong>: Using previously breached username/password pairs to gain access.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>Attacker obtains leaked credentials:</p>
+<ul>
+<li>LinkedIn breach: 165M accounts</li>
+<li>Adobe breach: 153M accounts</li>
+<li>Yahoo breach: 3 billion accounts</li>
+</ul>
+<p>↓</p>
+<p>Automated tool tests credentials:</p>
+<p>  POST /api/login</p>
+<p>  {"username": "user@example.com", "password": "leaked_password"}</p>
+<p>↓</p>
+<p>If no rate limiting:</p>
+<ul>
+<li>Test 1000s of credentials per minute</li>
+<li>Eventually find valid accounts</li>
+<li>Users reuse passwords across sites</li>
+</ul>
+<p>↓</p>
+<p>Result: Multiple account compromises</p>
+</code>`<code>
+
+<strong>Why It Works</strong>:
+<ul>
+<li>Users reuse passwords across multiple sites</li>
+<li>Leaked credentials from one breach used on other services</li>
+<li>No rate limiting allows high-volume testing</li>
+<li>No account lockout after failed attempts</li>
+<li>No detection of unusual login patterns</li>
+</ul>
+
+<strong>Success Indicators</strong>:
+<ul>
+<li>Multiple successful logins from single IP</li>
+<li>Login attempts using known breached passwords</li>
+<li>Geographic anomalies (login from multiple countries)</li>
+<li>Unusual time patterns (3am logins for daytime user)</li>
+</ul>
+
+<h3>2. Brute Force Attacks</h3>
+
+<strong>What it is</strong>: Systematically trying many passwords until finding the correct one.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>Target endpoint: POST /api/login</p>
+<p>↓</p>
+<p>Dictionary attack:</p>
+<p>  Try common passwords:</p>
+<ul>
+<li>"password", "123456", "admin"</li>
+<li>"company123", "Welcome1"</li>
+<li>Season+Year (Summer2024)</li>
+</ul>
+<p>↓</p>
+<p>If no rate limiting:</p>
+<p>  Attempts: 1000 passwords/minute</p>
+<p>  Time to crack 8-char password: Hours to days</p>
+<p>↓</p>
+<p>Account compromised</p>
+</code>`<code>
+
+<strong>Why It Works</strong>:
+<ul>
+<li>No rate limiting on authentication endpoints</li>
+<li>Weak password policies allow common passwords</li>
+<li>No account lockout mechanism</li>
+<li>No CAPTCHA or challenge-response</li>
+<li>Predictable password patterns</li>
+</ul>
+
+<strong>Attack Variations</strong>:
+</code>`<code>
+<ol>
+<li>Dictionary Attack:</li>
+<ul>
+<li>Try common passwords</li>
+<li>Use word lists (rockyou.txt, etc.)</li>
+</ul>
+</ol>
+
+<ol>
+<li>Hybrid Attack:</li>
+<ul>
+<li>Common words + numbers</li>
+<li>"password123", "admin2024"</li>
+</ul>
+</ol>
+
+<ol>
+<li>Targeted Attack:</li>
+<ul>
+<li>Company name variations</li>
+<li>User's personal info (birth date, names)</li>
+<li>Social media mining</li>
+</ul>
+</ol>
+</code>`<code>
+
+<h3>3. JWT Algorithm Confusion Attack</h3>
+
+<strong>What it is</strong>: Exploiting JWT implementations that allow algorithm switching.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>Legitimate JWT (RS256 - asymmetric):</p>
+<p>{</p>
+<p>  "alg": "RS256",</p>
+<p>  "typ": "JWT"</p>
+<p>}</p>
+<p>{</p>
+<p>  "user_id": 1,</p>
+<p>  "role": "user"</p>
+<p>}</p>
+<p>Signed with: Private Key</p>
+<p>Verified with: Public Key</p>
+<p>↓</p>
+<p>Attacker modifies JWT:</p>
+<p>{</p>
+<p>  "alg": "HS256",  ← Changed to symmetric</p>
+<p>  "typ": "JWT"</p>
+<p>}</p>
+<p>{</p>
+<p>  "user_id": 1,</p>
+<p>  "role": "admin"  ← Escalated privileges</p>
+<p>}</p>
+<p>Signed with: Public Key (known to everyone)</p>
+<p>↓</p>
+<p>If server accepts algorithm change:</p>
+<p>  Server verifies using HS256 with public key</p>
+<p>  Attacker's signature validates!</p>
+<p>↓</p>
+<p>Result: Privilege escalation, token forgery</p>
+</code>`<code>
+
+<strong>Why It Works</strong>:
+<ul>
+<li>Server doesn't enforce specific algorithm</li>
+<li>Public key used as HMAC secret when algorithm switched</li>
+<li>No algorithm whitelist validation</li>
+<li>Trust in client-provided algorithm parameter</li>
+</ul>
+
+<strong>Vulnerable Code Pattern</strong>:
+</code>`<code>python
+<h1>VULNERABLE:</h1>
+<p>jwt.decode(token, key, algorithms=['HS256', 'RS256'])</p>
+<h1>Accepts any algorithm from token header</h1>
+
+<h1>SECURE:</h1>
+<p>jwt.decode(token, key, algorithms=['RS256'])</p>
+<h1>Only accepts RS256, rejects others</h1>
+</code>`<code>
+
+<h3>4. Weak JWT Secret Exploitation</h3>
+
+<strong>What it is</strong>: Cracking weak JWT secrets to forge tokens.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>Capture valid JWT token:</p>
+<p>eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxfQ.signature</p>
+<p>↓</p>
+<p>Identify weak secret:</p>
+<p>Common secrets:</p>
+<ul>
+<li>"secret"</li>
+<li>"secret123"</li>
+<li>"jwt_secret"</li>
+<li>Application name</li>
+<li>Default framework secrets</li>
+</ul>
+<p>↓</p>
+<p>Brute force secret:</p>
+<p>  Try common secrets</p>
+<p>  Use automated tools</p>
+<p>  Dictionary attack on secret</p>
+<p>↓</p>
+<p>Secret found: "secret123"</p>
+<p>↓</p>
+<p>Forge new token:</p>
+<p>{</p>
+<p>  "user_id": 999,  ← Any user</p>
+<p>  "role": "admin"  ← Any role</p>
+<p>}</p>
+<p>Sign with cracked secret</p>
+<p>↓</p>
+<p>Result: Complete authentication bypass</p>
+</code>`<code>
+
+<strong>Common Weak Secrets</strong>:
+<ul>
+<li>Default values ("secret", "password")</li>
+<li>Application name as secret</li>
+<li>Short secrets (< 32 characters)</li>
+<li>Dictionary words</li>
+<li>Hardcoded in source code</li>
+</ul>
+
+<h3>5. Token Theft and Replay</h3>
+
+<strong>What it is</strong>: Stealing valid tokens and reusing them.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>Token Theft Methods:</p>
+<ol>
+<li>XSS Attack:</li>
+</ol>
+<p>   → Steal token from localStorage</p>
+<p>   → document.cookie or localStorage.getItem()</p>
+
+<ol>
+<li>Man-in-the-Middle:</li>
+</ol>
+<p>   → Intercept HTTP traffic</p>
+<p>   → Extract Authorization header</p>
+
+<ol>
+<li>Log Files:</li>
+</ol>
+<p>   → Tokens logged in error messages</p>
+<p>   → Access logs with tokens in URLs</p>
+
+<ol>
+<li>Browser DevTools:</li>
+</ol>
+<p>   → User leaves workstation unlocked</p>
+<p>   → Inspect Application tab</p>
+
+<ol>
+<li>Physical Access:</li>
+</ol>
+<p>   → Screenshot of network traffic</p>
+<p>   → Shoulder surfing</p>
+<p>↓</p>
+<p>Stolen token used:</p>
+<p>  Authorization: Bearer <stolen_token></p>
+<p>↓</p>
+<p>If no additional validation:</p>
+<ul>
+<li>No IP binding</li>
+<li>No user-agent checking</li>
+<li>No expiration</li>
+<li>No refresh mechanism</li>
+</ul>
+<p>↓</p>
+<p>Result: Session hijacking, account takeover</p>
+</code>`<code>
+
+<strong>Enabling Factors</strong>:
+<ul>
+<li>Tokens stored in localStorage (XSS vulnerable)</li>
+<li>Long-lived tokens (years of validity)</li>
+<li>No token binding to device/IP</li>
+<li>Tokens in URL parameters</li>
+<li>No token revocation on logout</li>
+</ul>
+
+<h3>6. Session Fixation</h3>
+
+<strong>What it is</strong>: Forcing a user to use a known session token.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>Attacker obtains session token:</p>
+<ul>
+<li>Creates account</li>
+<li>Gets valid token</li>
+</ul>
+<p>↓</p>
+<p>Attacker tricks victim:</p>
+<ul>
+<li>Send link with embedded token</li>
+<li>XSS to set token in victim's browser</li>
+<li>Social engineering</li>
+</ul>
+<p>↓</p>
+<p>Victim logs in:</p>
+<p>  POST /api/login (with attacker's token)</p>
+<p>↓</p>
+<p>If server doesn't regenerate token:</p>
+<p>  Victim now authenticated</p>
+<p>  But using attacker's token</p>
+<p>  Attacker has access to victim's session</p>
+<p>↓</p>
+<p>Result: Shared session, account compromise</p>
+</code>`<code>
+
+<strong>Why It Works</strong>:
+<ul>
+<li>Server doesn't generate new token on login</li>
+<li>Token accepted from URL parameters</li>
+<li>No session invalidation on login</li>
+<li>Predictable token generation</li>
+</ul>
+
+<h3>7. Password Reset Exploitation</h3>
+
+<strong>What it is</strong>: Exploiting weak password reset mechanisms.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>Victim requests password reset:</p>
+<p>POST /api/password-reset</p>
+<p>{"email": "victim@example.com"}</p>
+<p>↓</p>
+<p>Weak reset token generation:</p>
+<ul>
+<li>Sequential: token = user_id + timestamp</li>
+<li>Short token: 6 digits (000000-999999)</li>
+<li>No expiration</li>
+<li>Predictable algorithm</li>
+</ul>
+<p>↓</p>
+<p>Attacker intercepts or guesses token:</p>
+<ul>
+<li>Brute force short tokens</li>
+<li>Predict algorithm output</li>
+<li>Race condition exploitation</li>
+</ul>
+<p>↓</p>
+<p>Attacker resets password:</p>
+<p>POST /api/password-reset/confirm</p>
+<p>{</p>
+<p>  "token": "guessed_token",</p>
+<p>  "new_password": "attacker_password"</p>
+<p>}</p>
+<p>↓</p>
+<p>Result: Account takeover without knowing original password</p>
+</code>`<code>
+
+<strong>Vulnerable Patterns</strong>:
+<ul>
+<li>Predictable reset tokens</li>
+<li>No expiration on reset tokens</li>
+<li>Reset token in URL (email leak)</li>
+<li>No rate limiting on reset attempts</li>
+<li>Account enumeration via reset</li>
+</ul>
+
+<h2>Application Flaws That Enable Attacks</h2>
+
+<h3>Flaw 1: No Rate Limiting</h3>
+
+<strong>The Problem</strong>: Unlimited authentication attempts allowed.
+
+</code>`<code>python
+<h1>VULNERABLE</h1>
+<p>@app.route('/api/login', methods=['POST'])</p>
+<p>def login():</p>
+<p>    # No rate limiting!</p>
+<p>    # Attacker can try unlimited passwords</p>
+<p>    username = request.json.get('username')</p>
+<p>    password = request.json.get('password')</p>
+    
+<p>    if authenticate(username, password):</p>
+<p>        return jsonify({'token': generate_token(username)})</p>
+<p>    return jsonify({'error': 'Invalid credentials'}), 401</p>
+</code>`<code>
+
+<strong>Impact</strong>:
+<ul>
+<li>Brute force attacks succeed</li>
+<li>Credential stuffing at scale</li>
+<li>No warning of ongoing attack</li>
+<li>Resource exhaustion</li>
+</ul>
+
+<h3>Flaw 2: Weak Password Policies</h3>
+
+<strong>The Problem</strong>: Accepting weak, easily guessable passwords.
+
+</code>`<code>python
+<h1>VULNERABLE</h1>
+<p>def validate_password(password):</p>
+<p>    # Only checks length!</p>
+<p>    return len(password) >= 6</p>
+
+<h1>Accepts:</h1>
+<h1>✗ "123456"</h1>
+<h1>✗ "password"</h1>
+<h1>✗ "aaaaaa"</h1>
+</code>`<code>
+
+<strong>Impact</strong>:
+<ul>
+<li>Users choose weak passwords</li>
+<li>Dictionary attacks succeed quickly</li>
+<li>Compromised passwords from breaches work</li>
+<li>Social engineering easier</li>
+</ul>
+
+<h3>Flaw 3: No Token Expiration</h3>
+
+<strong>The Problem</strong>: Tokens valid forever.
+
+</code>`<code>python
+<h1>VULNERABLE</h1>
+<p>def create_token(user_id):</p>
+<p>    payload = {</p>
+<p>        'user_id': user_id</p>
+<p>        # No 'exp' (expiration) claim!</p>
+<p>    }</p>
+<p>    return jwt.encode(payload, SECRET_KEY, algorithm='HS256')</p>
+</code>`<code>
+
+<strong>Impact</strong>:
+<ul>
+<li>Stolen tokens work indefinitely</li>
+<li>No forced re-authentication</li>
+<li>Compromised tokens never expire</li>
+<li>Cannot revoke access without blacklist</li>
+</ul>
+
+<h3>Flaw 4: Weak JWT Secrets</h3>
+
+<strong>The Problem</strong>: Using predictable or weak signing secrets.
+
+</code>`<code>python
+<h1>VULNERABLE</h1>
+<p>SECRET_KEY = "secret"  # ✗ Too short, common word</p>
+<p>SECRET_KEY = "MyAppName"  # ✗ Predictable</p>
+<p>SECRET_KEY = "12345678"  # ✗ Too simple</p>
+<p>SECRET_KEY = app.config['APP_NAME']  # ✗ Based on public info</p>
+
+<h1>Can be cracked in seconds with hashcat</h1>
+</code>`<code>
+
+<strong>Impact</strong>:
+<ul>
+<li>Attacker can forge any token</li>
+<li>Complete authentication bypass</li>
+<li>Privilege escalation</li>
+<li>Impersonate any user</li>
+</ul>
+
+<h3>Flaw 5: Algorithm Flexibility</h3>
+
+<strong>The Problem</strong>: Accepting multiple JWT algorithms.
+
+</code>`<code>python
+<h1>VULNERABLE</h1>
+<p>def verify_token(token):</p>
+<p>    # Accepts any algorithm in token header!</p>
+<p>    return jwt.decode(</p>
+<p>        token,</p>
+<p>        public_key,</p>
+<p>        algorithms=['HS256', 'RS256', 'none']</p>
+<p>    )</p>
+</code>`<code>
+
+<strong>Impact</strong>:
+<ul>
+<li>Algorithm confusion attacks</li>
+<li>"none" algorithm bypass</li>
+<li>Symmetric/asymmetric confusion</li>
+<li>Token forgery</li>
+</ul>
+
+<h2>Signs and Symptoms of Vulnerability</h2>
+
+<h3>Red Flags in API Design</h3>
+
+<p>✗ <strong>No rate limiting on /login endpoint</strong>  </p>
+<p>✗ <strong>Tokens never expire (no exp claim)</strong>  </p>
+<p>✗ <strong>Passwords < 8 characters accepted</strong>  </p>
+<p>✗ <strong>No account lockout after failed attempts</strong>  </p>
+<p>✗ <strong>API keys hard-coded in client apps</strong>  </p>
+<p>✗ <strong>Tokens in URL parameters</strong>  </p>
+<p>✗ <strong>No MFA option available</strong>  </p>
+<p>✗ <strong>Logout doesn't invalidate token</strong>  </p>
+
+<h3>Code Smells</h3>
+
+</code>`<code>python
+<h1>SMELL 1: No expiration</h1>
+<p>jwt.encode({'user_id': 1}, secret)</p>
+
+<h1>SMELL 2: Weak secret</h1>
+<p>SECRET = "secret"</p>
+
+<h1>SMELL 3: No rate limiting decorator</h1>
+<p>@app.route('/api/login')</p>
+<p>def login():</p>
+<p>    pass</p>
+
+<h1>SMELL 4: Password in plain comparison</h1>
+<p>if password == "admin":</p>
+<p>    pass</p>
+
+<h1>SMELL 5: Multiple algorithms accepted</h1>
+<p>jwt.decode(token, key, algorithms=['HS256', 'RS256', 'none'])</p>
+
+<h1>SMELL 6: Token in URL</h1>
+<p>@app.route('/api/reset-password/<token>')</p>
+<p>def reset(token):</p>
+<p>    pass</p>
+</code>`<code>
+
+<h2>What Attackers Look For</h2>
+
+<h3>Discovery Phase</h3>
+
+<ol>
+<li><strong>API Documentation</strong>: Authentication endpoints, token formats</li>
+<li><strong>Login Endpoint</strong>: POST /api/login, /api/auth, /api/token</li>
+<li><strong>Rate Limiting</strong>: Send 100 requests, check if blocked</li>
+<li><strong>Password Policy</strong>: Try weak passwords (123456, password)</li>
+<li><strong>Token Format</strong>: Identify JWT, inspect header/payload</li>
+<li><strong>Error Messages</strong>: Verbose errors revealing info</li>
+</ol>
+
+<h3>Testing Phase</h3>
+
+<p>Attackers systematically test:</p>
+
+</code>`<code>
+<p>✓ Send 1000 login attempts (check rate limiting)</p>
+<p>✓ Try common passwords (check password policy)</p>
+<p>✓ Decode JWT to inspect structure</p>
+<p>✓ Check token expiration (look for exp claim)</p>
+<p>✓ Modify JWT algorithm header</p>
+<p>✓ Test token after logout (check revocation)</p>
+<p>✓ Request password reset (analyze token format)</p>
+<p>✓ Test for account enumeration</p>
+</code>`<code>
+
+<h3>Exploitation Indicators</h3>
+
+<strong>Rate Limiting Test</strong>:
+</code>`<code>
+<p>100 requests in 10 seconds</p>
+<p>→ All processed = No rate limiting ✗</p>
+<p>→ HTTP 429 after 10 = Rate limiting ✓</p>
+</code>`<code>
+
+<strong>Token Strength</strong>:
+</code>`<code>
+<p>JWT with "alg": "HS256" and short payload</p>
+<p>→ Attempt secret brute force</p>
+<p>→ If cracked = Weak secret ✗</p>
+</code>`<code>
+
+<strong>Password Policy</strong>:
+</code>`<code>
+<p>Register with password "123456"</p>
+<p>→ Accepted = Weak policy ✗</p>
+<p>→ Rejected = Strong policy ✓</p>
+</code>`<code>
+
+<h2>Detection Techniques</h2>
+
+<h3>For Security Teams</h3>
+
+<strong>Automated Testing</strong>:
+<ul>
+<li>Brute force simulation (controlled)</li>
+<li>JWT security analysis tools</li>
+<li>Password policy auditing</li>
+<li>Rate limit testing</li>
+<li>Token expiration verification</li>
+</ul>
+
+<strong>Manual Testing</strong>:
+<ul>
+<li>Create test account</li>
+<li>Analyze JWT structure</li>
+<li>Test password requirements</li>
+<li>Verify rate limiting</li>
+<li>Check token lifetime</li>
+<li>Test logout behavior</li>
+</ul>
+
+<strong>Code Review Checklist</strong>:
+<ul>
+<li>[ ] Rate limiting on all auth endpoints</li>
+<li>[ ] Strong password policy enforcement</li>
+<li>[ ] JWT uses RS256 (not HS256 with weak secret)</li>
+<li>[ ] Tokens have short expiration (15min)</li>
+<li>[ ] Refresh token mechanism present</li>
+<li>[ ] Logout invalidates tokens</li>
+<li>[ ] No sensitive data in JWT payload</li>
+<li>[ ] Secrets stored securely (not in code)</li>
+</ul>
+
+<h3>For Developers</h3>
+
+<strong>During Development</strong>:
+</code>`<code>python
+<h1>Checklist for auth implementation:</h1>
+<p>def implement_auth():</p>
+<p>    # 1. Strong password policy</p>
+<p>    assert len(password) >= 12</p>
+<p>    assert has_uppercase(password)</p>
+<p>    assert has_lowercase(password)</p>
+<p>    assert has_number(password)</p>
+<p>    assert has_special_char(password)</p>
+    
+<p>    # 2. Rate limiting</p>
+<p>    @limiter.limit("5 per minute")</p>
+<p>    def login():</p>
+<p>        pass</p>
+    
+<p>    # 3. Secure JWT</p>
+<p>    token = jwt.encode(</p>
+<p>        {</p>
+<p>            'user_id': user.id,</p>
+<p>            'exp': datetime.utcnow() + timedelta(minutes=15)</p>
+<p>        },</p>
+<p>        private_key,</p>
+<p>        algorithm='RS256'</p>
+<p>    )</p>
+    
+<p>    # 4. Token validation</p>
+<p>    jwt.decode(</p>
+<p>        token,</p>
+<p>        public_key,</p>
+<p>        algorithms=['RS256'],  # Strict algorithm</p>
+<p>        options={'require_exp': True}</p>
+<p>    )</p>
+</code>`<code>
+
+<strong>Testing Pattern</strong>:
+</code>`<code>
+<p>For each authentication endpoint:</p>
+<ol>
+<li>Test with weak passwords (expect rejection)</li>
+<li>Test 100 failed login attempts (expect rate limit)</li>
+<li>Test JWT expiration (wait for exp, expect 401)</li>
+<li>Test logout (token should be invalid)</li>
+<li>Test algorithm modification (expect rejection)</li>
+<li>Test token reuse (expect detection)</li>
+</ol>
+</code>`<code>
+
+<h2>Prevention Mindset</h2>
+
+<h3>Secure by Default</h3>
+
+</code>`<code>
+<p>Every authentication implementation must answer:</p>
+<ol>
+<li>Is rate limiting enabled? (5 attempts per minute)</li>
+<li>Are passwords strong? (12+ chars, complexity)</li>
+<li>Do tokens expire? (15 min access, 7 day refresh)</li>
+<li>Is algorithm enforced? (RS256 only)</li>
+<li>Is secret strong? (256-bit random)</li>
+<li>Is MFA available? (At least for sensitive ops)</li>
+<li>Are tokens revoked on logout? (Blacklist or short exp)</li>
+</ol>
+
+<p>Failing any check = Vulnerable</p>
+</code>`<code>
+
+<h3>Defense in Depth</h3>
+
+</code>`<code>
+<p>Layer 1: Strong password policy</p>
+<p>Layer 2: Rate limiting (5/min on login)</p>
+<p>Layer 3: Account lockout (10 failed attempts)</p>
+<p>Layer 4: MFA (TOTP or SMS)</p>
+<p>Layer 5: Anomaly detection (unusual locations/times)</p>
+<p>Layer 6: Short token expiration (15 minutes)</p>
+<p>Layer 7: Secure token storage (httpOnly cookies or secure storage)</p>
+</code>``
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Rate limiting is essential</strong> - Prevents brute force and credential stuffing</li>
+<li><strong>JWT security matters</strong> - Algorithm, secret, expiration all critical</li>
+<li><strong>Password policies protect users</strong> - Enforce strong requirements</li>
+<li><strong>Token expiration is mandatory</strong> - Short-lived access tokens</li>
+<li><strong>MFA adds critical layer</strong> - Significantly reduces risk</li>
+<li><strong>Monitor authentication</strong> - Detect attack patterns early</li>
+<li><strong>Test thoroughly</strong> - Multiple users, edge cases, attack scenarios</li>
+</ol>
+
+<h2>What's Next?</h2>
+
+<ul>
+<li><strong><a href="./prevention.md">Prevention</a></strong>: Implement robust authentication mechanisms</li>
+<li><strong><a href="./examples.md">Examples</a></strong>: See vulnerable and secure code patterns</li>
+<li><strong><a href="./lab/api02-weak-auth-lab/">Lab</a></strong>: Practice identifying and fixing authentication issues</li>
+</ul>
+
+<p>---</p>
+
+<em>Part of the <a href="../../README.md">OWASP API Security Top 10 Educational Repository</a></em>
+
         </div>
     </div>
 </body>

@@ -215,7 +215,1147 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>LLM10: Model Theft - Prevention</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#prevention-strategy-overview">Prevention Strategy Overview</a></li>
+<li><a href="#access-control-implementation">Access Control Implementation</a></li>
+<li><a href="#api-protection">API Protection</a></li>
+<li><a href="#model-protection-techniques">Model Protection Techniques</a></li>
+<li><a href="#monitoring-and-detection">Monitoring and Detection</a></li>
+<li><a href="#legal-and-organizational-controls">Legal and Organizational Controls</a></li>
+<li><a href="#best-practices">Best Practices</a></li>
+</ul>
+
+<h2>Prevention Strategy Overview</h2>
+
+<p>Preventing model theft requires a multi-layered approach combining technical controls, operational procedures, and legal protections to safeguard valuable model intellectual property.</p>
+
+<h3>Defense-in-Depth Layers</h3>
+
+<p>``<code></p>
+<p>[Access Control] → [Encryption] → [Monitoring]</p>
+<p>      ↓                ↓              ↓</p>
+<p>  Restrict          Protect        Detect</p>
+<p>  access to         data at        theft</p>
+<p>  models            rest/transit   attempts</p>
+<p>      ↓                ↓              ↓</p>
+<p>[Rate Limiting] → [Watermarking] → [Legal Protection]</p>
+<p>      ↓                ↓                   ↓</p>
+<p>   Prevent         Trace stolen        Enforce IP</p>
+<p>   extraction      models              rights</p>
+</code>`<code>
+
+<h2>Access Control Implementation</h2>
+
+<h3>1. Strong Model File Access Controls</h3>
+
+<strong>Implement least-privilege access to model files</strong>:
+
+</code>`<code>python
+<p>from typing import List, Set</p>
+<p>from enum import Enum</p>
+<p>from dataclasses import dataclass</p>
+<p>from datetime import datetime</p>
+
+<p>class AccessLevel(Enum):</p>
+<p>    NONE = "none"</p>
+<p>    READ_METADATA = "read_metadata"</p>
+<p>    READ_MODEL = "read_model"</p>
+<p>    WRITE_MODEL = "write_model"</p>
+<p>    ADMIN = "admin"</p>
+
+<p>class ModelSensitivity(Enum):</p>
+<p>    PUBLIC = "public"</p>
+<p>    INTERNAL = "internal"</p>
+<p>    CONFIDENTIAL = "confidential"</p>
+<p>    HIGHLY_CONFIDENTIAL = "highly_confidential"</p>
+
+<p>@dataclass</p>
+<p>class ModelAccessPolicy:</p>
+<p>    """Define access control policy for models"""</p>
+<p>    model_id: str</p>
+<p>    sensitivity: ModelSensitivity</p>
+<p>    allowed_users: Set[str]</p>
+<p>    allowed_groups: Set[str]</p>
+<p>    access_levels: dict  # user/group -> AccessLevel</p>
+<p>    require_mfa: bool</p>
+<p>    audit_all_access: bool</p>
+<p>    max_concurrent_access: int</p>
+
+<p>class ModelAccessController:</p>
+<p>    """Control access to model files"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.policies = {}</p>
+<p>        self.access_log = []</p>
+    
+<p>    def register_model(</p>
+<p>        self,</p>
+<p>        model_id: str,</p>
+<p>        sensitivity: ModelSensitivity,</p>
+<p>        owner: str</p>
+<p>    ) -> ModelAccessPolicy:</p>
+<p>        """Register a model with access controls"""</p>
+        
+<p>        # Create policy based on sensitivity</p>
+<p>        require_mfa = sensitivity in [</p>
+<p>            ModelSensitivity.CONFIDENTIAL,</p>
+<p>            ModelSensitivity.HIGHLY_CONFIDENTIAL</p>
+<p>        ]</p>
+        
+<p>        policy = ModelAccessPolicy(</p>
+<p>            model_id=model_id,</p>
+<p>            sensitivity=sensitivity,</p>
+<p>            allowed_users={owner},</p>
+<p>            allowed_groups=set(),</p>
+<p>            access_levels={owner: AccessLevel.ADMIN},</p>
+<p>            require_mfa=require_mfa,</p>
+<p>            audit_all_access=True,</p>
+<p>            max_concurrent_access=1 if sensitivity == ModelSensitivity.HIGHLY_CONFIDENTIAL else 5</p>
+<p>        )</p>
+        
+<p>        self.policies[model_id] = policy</p>
+<p>        return policy</p>
+    
+<p>    def check_access(</p>
+<p>        self,</p>
+<p>        model_id: str,</p>
+<p>        user: str,</p>
+<p>        requested_access: AccessLevel,</p>
+<p>        mfa_verified: bool = False</p>
+<p>    ) -> tuple[bool, str]:</p>
+<p>        """Check if user can access model"""</p>
+        
+<p>        policy = self.policies.get(model_id)</p>
+<p>        if not policy:</p>
+<p>            return False, "Model not found"</p>
+        
+<p>        # Check if user is allowed</p>
+<p>        if user not in policy.allowed_users:</p>
+<p>            # Check group membership</p>
+<p>            user_groups = self._get_user_groups(user)</p>
+<p>            if not any(g in policy.allowed_groups for g in user_groups):</p>
+<p>                self._log_access_denied(model_id, user, "Not in allowed users/groups")</p>
+<p>                return False, "Access denied: User not authorized"</p>
+        
+<p>        # Check access level</p>
+<p>        user_level = policy.access_levels.get(user, AccessLevel.NONE)</p>
+<p>        if user_level.value < requested_access.value:</p>
+<p>            self._log_access_denied(model_id, user, "Insufficient access level")</p>
+<p>            return False, f"Access denied: {requested_access.value} access required"</p>
+        
+<p>        # Check MFA requirement</p>
+<p>        if policy.require_mfa and not mfa_verified:</p>
+<p>            self._log_access_denied(model_id, user, "MFA not verified")</p>
+<p>            return False, "Access denied: MFA verification required"</p>
+        
+<p>        # Check concurrent access limit</p>
+<p>        current_access = self._count_current_access(model_id)</p>
+<p>        if current_access >= policy.max_concurrent_access:</p>
+<p>            self._log_access_denied(model_id, user, "Concurrent access limit reached")</p>
+<p>            return False, "Access denied: Maximum concurrent access reached"</p>
+        
+<p>        # Access granted</p>
+<p>        self._log_access_granted(model_id, user, requested_access)</p>
+<p>        return True, "Access granted"</p>
+    
+<p>    def _log_access_granted(self, model_id: str, user: str, access_level: AccessLevel):</p>
+<p>        """Log successful access"""</p>
+<p>        self.access_log.append({</p>
+<p>            'timestamp': datetime.now(),</p>
+<p>            'model_id': model_id,</p>
+<p>            'user': user,</p>
+<p>            'access_level': access_level.value,</p>
+<p>            'result': 'granted'</p>
+<p>        })</p>
+    
+<p>    def _log_access_denied(self, model_id: str, user: str, reason: str):</p>
+<p>        """Log denied access"""</p>
+<p>        self.access_log.append({</p>
+<p>            'timestamp': datetime.now(),</p>
+<p>            'model_id': model_id,</p>
+<p>            'user': user,</p>
+<p>            'reason': reason,</p>
+<p>            'result': 'denied'</p>
+<p>        })</p>
+        
+<p>        # Alert on suspicious patterns</p>
+<p>        if self._detect_suspicious_pattern(user):</p>
+<p>            self._trigger_security_alert(user, model_id, reason)</p>
+    
+<p>    def _detect_suspicious_pattern(self, user: str) -> bool:</p>
+<p>        """Detect suspicious access patterns"""</p>
+<p>        recent_denials = [</p>
+<p>            log for log in self.access_log[-100:]</p>
+<p>            if log['user'] == user and log['result'] == 'denied'</p>
+<p>        ]</p>
+        
+<p>        # Alert if multiple recent denials</p>
+<p>        return len(recent_denials) >= 3</p>
+    
+<p>    def _trigger_security_alert(self, user: str, model_id: str, reason: str):</p>
+<p>        """Trigger security alert for suspicious activity"""</p>
+<p>        alert = {</p>
+<p>            'severity': 'HIGH',</p>
+<p>            'type': 'SUSPICIOUS_ACCESS_PATTERN',</p>
+<p>            'user': user,</p>
+<p>            'model_id': model_id,</p>
+<p>            'reason': reason,</p>
+<p>            'timestamp': datetime.now()</p>
+<p>        }</p>
+<p>        print(f"🚨 SECURITY ALERT: {alert}")</p>
+<p>        # In production: Send to SIEM, notify security team</p>
+
+<h1>Usage</h1>
+<p>controller = ModelAccessController()</p>
+
+<h1>Register highly confidential model</h1>
+<p>policy = controller.register_model(</p>
+<p>    model_id='proprietary-llm-v2',</p>
+<p>    sensitivity=ModelSensitivity.HIGHLY_CONFIDENTIAL,</p>
+<p>    owner='ml-team-lead@company.com'</p>
+<p>)</p>
+
+<h1>Check access before allowing model read</h1>
+<p>allowed, message = controller.check_access(</p>
+<p>    model_id='proprietary-llm-v2',</p>
+<p>    user='data-scientist@company.com',</p>
+<p>    requested_access=AccessLevel.READ_MODEL,</p>
+<p>    mfa_verified=True</p>
+<p>)</p>
+
+<p>if allowed:</p>
+<p>    # Allow model access</p>
+<p>    print(f"✅ {message}")</p>
+<p>else:</p>
+<p>    # Deny access</p>
+<p>    print(f"❌ {message}")</p>
+</code>`<code>
+
+<h3>2. Model Encryption</h3>
+
+<strong>Encrypt models at rest and in transit</strong>:
+
+</code>`<code>python
+<p>from cryptography.fernet import Fernet</p>
+<p>from cryptography.hazmat.primitives import hashes</p>
+<p>from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2</p>
+<p>import base64</p>
+<p>import os</p>
+
+<p>class ModelEncryption:</p>
+<p>    """Encrypt model files"""</p>
+    
+<p>    def __init__(self, master_key: bytes):</p>
+<p>        self.master_key = master_key</p>
+    
+<p>    def encrypt_model(self, model_path: str, output_path: str) -> dict:</p>
+<p>        """Encrypt model file"""</p>
+        
+<p>        # Generate unique encryption key for this model</p>
+<p>        salt = os.urandom(16)</p>
+<p>        kdf = PBKDF2(</p>
+<p>            algorithm=hashes.SHA256(),</p>
+<p>            length=32,</p>
+<p>            salt=salt,</p>
+<p>            iterations=100000</p>
+<p>        )</p>
+<p>        key = base64.urlsafe_b64encode(kdf.derive(self.master_key))</p>
+        
+<p>        # Encrypt model</p>
+<p>        fernet = Fernet(key)</p>
+        
+<p>        with open(model_path, 'rb') as f:</p>
+<p>            model_data = f.read()</p>
+        
+<p>        encrypted_data = fernet.encrypt(model_data)</p>
+        
+<p>        # Save encrypted model</p>
+<p>        with open(output_path, 'wb') as f:</p>
+<p>            f.write(salt)  # Store salt for decryption</p>
+<p>            f.write(encrypted_data)</p>
+        
+<p>        print(f"✅ Model encrypted: {model_path} -> {output_path}")</p>
+<p>        print(f"   Original size: {len(model_data) / 1024 / 1024:.2f} MB")</p>
+<p>        print(f"   Encrypted size: {len(encrypted_data) / 1024 / 1024:.2f} MB")</p>
+        
+<p>        return {</p>
+<p>            'encrypted_path': output_path,</p>
+<p>            'salt': salt.hex(),</p>
+<p>            'algorithm': 'Fernet (AES-128)'</p>
+<p>        }</p>
+    
+<p>    def decrypt_model(self, encrypted_path: str, output_path: str):</p>
+<p>        """Decrypt model file"""</p>
+        
+<p>        with open(encrypted_path, 'rb') as f:</p>
+<p>            salt = f.read(16)</p>
+<p>            encrypted_data = f.read()</p>
+        
+<p>        # Derive key from master key and salt</p>
+<p>        kdf = PBKDF2(</p>
+<p>            algorithm=hashes.SHA256(),</p>
+<p>            length=32,</p>
+<p>            salt=salt,</p>
+<p>            iterations=100000</p>
+<p>        )</p>
+<p>        key = base64.urlsafe_b64encode(kdf.derive(self.master_key))</p>
+        
+<p>        # Decrypt</p>
+<p>        fernet = Fernet(key)</p>
+<p>        decrypted_data = fernet.decrypt(encrypted_data)</p>
+        
+<p>        # Save decrypted model</p>
+<p>        with open(output_path, 'wb') as f:</p>
+<p>            f.write(decrypted_data)</p>
+        
+<p>        print(f"✅ Model decrypted: {encrypted_path} -> {output_path}")</p>
+
+<h1>Usage</h1>
+<p>master_key = os.urandom(32)  # Store securely in key management system</p>
+<p>encryptor = ModelEncryption(master_key)</p>
+
+<h1>Encrypt model before storage</h1>
+<p>encryptor.encrypt_model(</p>
+<p>    model_path='/models/proprietary-llm.bin',</p>
+<p>    output_path='/secure-storage/proprietary-llm.encrypted'</p>
+<p>)</p>
+
+<h1>Models are encrypted at rest</h1>
+<h1>Only decrypt temporarily when needed</h1>
+<h1>Delete decrypted version after use</h1>
+</code>`<code>
+
+<h2>API Protection</h2>
+
+<h3>3. Rate Limiting and Quota Management</h3>
+
+<strong>Prevent model extraction through excessive API queries</strong>:
+
+</code>`<code>python
+<p>from collections import defaultdict</p>
+<p>from datetime import datetime, timedelta</p>
+<p>from typing import Optional</p>
+
+<p>class APIRateLimiter:</p>
+<p>    """Prevent API abuse for model extraction"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.request_history = defaultdict(list)</p>
+<p>        self.quotas = {}</p>
+    
+<p>    def set_quota(</p>
+<p>        self,</p>
+<p>        user_id: str,</p>
+<p>        requests_per_minute: int = 60,</p>
+<p>        requests_per_hour: int = 1000,</p>
+<p>        requests_per_day: int = 10000,</p>
+<p>        max_tokens_per_day: int = 1000000</p>
+<p>    ):</p>
+<p>        """Set rate limits for user"""</p>
+<p>        self.quotas[user_id] = {</p>
+<p>            'rpm': requests_per_minute,</p>
+<p>            'rph': requests_per_hour,</p>
+<p>            'rpd': requests_per_day,</p>
+<p>            'tokens_per_day': max_tokens_per_day</p>
+<p>        }</p>
+    
+<p>    def check_rate_limit(</p>
+<p>        self,</p>
+<p>        user_id: str,</p>
+<p>        tokens_requested: int = 100</p>
+<p>    ) -> tuple[bool, Optional[str]]:</p>
+<p>        """Check if request is within rate limits"""</p>
+        
+<p>        if user_id not in self.quotas:</p>
+<p>            self.set_quota(user_id)  # Use defaults</p>
+        
+<p>        now = datetime.now()</p>
+<p>        quota = self.quotas[user_id]</p>
+        
+<p>        # Clean old requests</p>
+<p>        self._clean_old_requests(user_id, now)</p>
+        
+<p>        # Get recent requests</p>
+<p>        requests = self.request_history[user_id]</p>
+        
+<p>        # Check per-minute limit</p>
+<p>        minute_ago = now - timedelta(minutes=1)</p>
+<p>        recent_minute = [r for r in requests if r['time'] > minute_ago]</p>
+<p>        if len(recent_minute) >= quota['rpm']:</p>
+<p>            return False, f"Rate limit exceeded: {quota['rpm']} requests per minute"</p>
+        
+<p>        # Check per-hour limit</p>
+<p>        hour_ago = now - timedelta(hours=1)</p>
+<p>        recent_hour = [r for r in requests if r['time'] > hour_ago]</p>
+<p>        if len(recent_hour) >= quota['rph']:</p>
+<p>            return False, f"Rate limit exceeded: {quota['rph']} requests per hour"</p>
+        
+<p>        # Check per-day limit</p>
+<p>        day_ago = now - timedelta(days=1)</p>
+<p>        recent_day = [r for r in requests if r['time'] > day_ago]</p>
+<p>        if len(recent_day) >= quota['rpd']:</p>
+<p>            return False, f"Rate limit exceeded: {quota['rpd']} requests per day"</p>
+        
+<p>        # Check token quota</p>
+<p>        tokens_today = sum(r['tokens'] for r in recent_day)</p>
+<p>        if tokens_today + tokens_requested > quota['tokens_per_day']:</p>
+<p>            return False, f"Token quota exceeded: {quota['tokens_per_day']} tokens per day"</p>
+        
+<p>        # All checks passed</p>
+<p>        return True, None</p>
+    
+<p>    def record_request(self, user_id: str, tokens_used: int):</p>
+<p>        """Record API request"""</p>
+<p>        self.request_history[user_id].append({</p>
+<p>            'time': datetime.now(),</p>
+<p>            'tokens': tokens_used</p>
+<p>        })</p>
+    
+<p>    def _clean_old_requests(self, user_id: str, now: datetime):</p>
+<p>        """Remove requests older than 1 day"""</p>
+<p>        day_ago = now - timedelta(days=1)</p>
+<p>        self.request_history[user_id] = [</p>
+<p>            r for r in self.request_history[user_id]</p>
+<p>            if r['time'] > day_ago</p>
+<p>        ]</p>
+
+<h1>Usage</h1>
+<p>rate_limiter = APIRateLimiter()</p>
+
+<h1>Set conservative limits for free tier</h1>
+<p>rate_limiter.set_quota(</p>
+<p>    user_id='free-user-123',</p>
+<p>    requests_per_minute=10,</p>
+<p>    requests_per_hour=100,</p>
+<p>    requests_per_day=1000,</p>
+<p>    max_tokens_per_day=100000</p>
+<p>)</p>
+
+<h1>Check before processing request</h1>
+<p>allowed, message = rate_limiter.check_rate_limit(</p>
+<p>    user_id='free-user-123',</p>
+<p>    tokens_requested=500</p>
+<p>)</p>
+
+<p>if allowed:</p>
+<p>    # Process request</p>
+<p>    response = process_llm_request(prompt)</p>
+<p>    rate_limiter.record_request('free-user-123', tokens_used=500)</p>
+<p>else:</p>
+<p>    # Reject request</p>
+<p>    print(f"❌ Request denied: {message}")</p>
+</code>`<code>
+
+<h3>4. Query Pattern Monitoring</h3>
+
+<strong>Detect extraction attempts through query analysis</strong>:
+
+</code>`<code>python
+<p>import re</p>
+<p>from typing import List</p>
+<p>from collections import Counter</p>
+
+<p>class ExtractionDetector:</p>
+<p>    """Detect model extraction attempts"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.user_queries = defaultdict(list)</p>
+<p>        self.alerts = []</p>
+    
+<p>    def analyze_query(</p>
+<p>        self,</p>
+<p>        user_id: str,</p>
+<p>        query: str,</p>
+<p>        response: str</p>
+<p>    ) -> dict:</p>
+<p>        """Analyze query for extraction patterns"""</p>
+        
+<p>        # Store query</p>
+<p>        self.user_queries[user_id].append({</p>
+<p>            'query': query,</p>
+<p>            'response': response,</p>
+<p>            'timestamp': datetime.now()</p>
+<p>        })</p>
+        
+<p>        # Check for suspicious patterns</p>
+<p>        suspicion_score = 0</p>
+<p>        flags = []</p>
+        
+<p>        # Pattern 1: Systematic variation</p>
+<p>        if self._detect_systematic_variation(user_id):</p>
+<p>            suspicion_score += 30</p>
+<p>            flags.append("Systematic input variation detected")</p>
+        
+<p>        # Pattern 2: High query volume</p>
+<p>        recent_queries = self._get_recent_queries(user_id, hours=1)</p>
+<p>        if len(recent_queries) > 100:</p>
+<p>            suspicion_score += 25</p>
+<p>            flags.append(f"High query volume: {len(recent_queries)} in 1 hour")</p>
+        
+<p>        # Pattern 3: Probing edge cases</p>
+<p>        if self._is_edge_case_probe(query):</p>
+<p>            suspicion_score += 20</p>
+<p>            flags.append("Edge case probing detected")</p>
+        
+<p>        # Pattern 4: Meta-queries about model</p>
+<p>        if self._is_meta_query(query):</p>
+<p>            suspicion_score += 35</p>
+<p>            flags.append("Meta-query about model detected")</p>
+        
+<p>        # Pattern 5: Diverse systematic coverage</p>
+<p>        if self._detect_systematic_coverage(user_id):</p>
+<p>            suspicion_score += 40</p>
+<p>            flags.append("Systematic domain coverage detected")</p>
+        
+<p>        result = {</p>
+<p>            'suspicion_score': suspicion_score,</p>
+<p>            'flags': flags,</p>
+<p>            'risk_level': self._calculate_risk_level(suspicion_score)</p>
+<p>        }</p>
+        
+<p>        # Trigger alert if high suspicion</p>
+<p>        if suspicion_score >= 50:</p>
+<p>            self._trigger_extraction_alert(user_id, result)</p>
+        
+<p>        return result</p>
+    
+<p>    def _detect_systematic_variation(self, user_id: str) -> bool:</p>
+<p>        """Detect systematic input variation"""</p>
+<p>        recent = self._get_recent_queries(user_id, hours=24)</p>
+        
+<p>        if len(recent) < 20:</p>
+<p>            return False</p>
+        
+<p>        # Check for similar queries with minor variations</p>
+<p>        queries = [q['query'] for q in recent]</p>
+        
+<p>        # Calculate similarity</p>
+<p>        unique_words = set()</p>
+<p>        for query in queries:</p>
+<p>            unique_words.update(query.lower().split())</p>
+        
+<p>        avg_query_length = sum(len(q.split()) for q in queries) / len(queries)</p>
+        
+<p>        # High unique word count with similar query length suggests systematic variation</p>
+<p>        if len(unique_words) / len(queries) > 10 and avg_query_length < 20:</p>
+<p>            return True</p>
+        
+<p>        return False</p>
+    
+<p>    def _is_edge_case_probe(self, query: str) -> bool:</p>
+<p>        """Detect edge case probing"""</p>
+<p>        edge_case_patterns = [</p>
+<p>            r'\b(empty|null|none|zero|maximum|minimum|boundary)\b',</p>
+<p>            r'\b(unicode|special|invalid|malformed)\b',</p>
+<p>            r'[^\x00-\x7F]{10,}',  # Non-ASCII characters</p>
+<p>            r'(.)\1{20,}',  # Repeated characters</p>
+<p>        ]</p>
+        
+<p>        for pattern in edge_case_patterns:</p>
+<p>            if re.search(pattern, query, re.IGNORECASE):</p>
+<p>                return True</p>
+        
+<p>        return False</p>
+    
+<p>    def _is_meta_query(self, query: str) -> bool:</p>
+<p>        """Detect queries about the model itself"""</p>
+<p>        meta_patterns = [</p>
+<p>            r'what model are you',</p>
+<p>            r'how many parameters',</p>
+<p>            r'what is your architecture',</p>
+<p>            r'who trained you',</p>
+<p>            r'what data were you trained on',</p>
+<p>            r'print your system prompt',</p>
+<p>            r'what are your capabilities',</p>
+<p>            r'list your training data'</p>
+<p>        ]</p>
+        
+<p>        query_lower = query.lower()</p>
+<p>        return any(pattern in query_lower for pattern in meta_patterns)</p>
+    
+<p>    def _detect_systematic_coverage(self, user_id: str) -> bool:</p>
+<p>        """Detect systematic topic/domain coverage"""</p>
+<p>        recent = self._get_recent_queries(user_id, hours=24)</p>
+        
+<p>        if len(recent) < 50:</p>
+<p>            return False</p>
+        
+<p>        # Extract topics (simplified - real implementation would use NLP)</p>
+<p>        queries = [q['query'] for q in recent]</p>
+        
+<p>        # Count topic diversity</p>
+<p>        # If queries systematically cover many different topics,</p>
+<p>        # it might be extraction attempt</p>
+        
+<p>        # Simplified: count first word diversity</p>
+<p>        first_words = [q.split()[0].lower() for q in queries if q.split()]</p>
+<p>        word_counts = Counter(first_words)</p>
+        
+<p>        # High diversity with even distribution suggests systematic coverage</p>
+<p>        unique_ratio = len(word_counts) / len(queries)</p>
+<p>        if unique_ratio > 0.7:  # 70% unique first words</p>
+<p>            return True</p>
+        
+<p>        return False</p>
+    
+<p>    def _calculate_risk_level(self, score: int) -> str:</p>
+<p>        """Calculate risk level from suspicion score"""</p>
+<p>        if score >= 70:</p>
+<p>            return "CRITICAL"</p>
+<p>        elif score >= 50:</p>
+<p>            return "HIGH"</p>
+<p>        elif score >= 30:</p>
+<p>            return "MEDIUM"</p>
+<p>        else:</p>
+<p>            return "LOW"</p>
+    
+<p>    def _trigger_extraction_alert(self, user_id: str, analysis: dict):</p>
+<p>        """Alert on potential extraction attempt"""</p>
+<p>        alert = {</p>
+<p>            'timestamp': datetime.now(),</p>
+<p>            'user_id': user_id,</p>
+<p>            'risk_level': analysis['risk_level'],</p>
+<p>            'suspicion_score': analysis['suspicion_score'],</p>
+<p>            'flags': analysis['flags'],</p>
+<p>            'recommended_action': self._recommend_action(analysis['suspicion_score'])</p>
+<p>        }</p>
+        
+<p>        self.alerts.append(alert)</p>
+<p>        print(f"🚨 EXTRACTION ATTEMPT DETECTED: {alert}")</p>
+        
+<p>        # In production:</p>
+<p>        # - Send to SIEM</p>
+<p>        # - Notify security team</p>
+<p>        # - Potentially throttle or block user</p>
+    
+<p>    def _recommend_action(self, score: int) -> str:</p>
+<p>        """Recommend action based on suspicion score"""</p>
+<p>        if score >= 80:</p>
+<p>            return "BLOCK_USER"</p>
+<p>        elif score >= 60:</p>
+<p>            return "THROTTLE_HEAVILY"</p>
+<p>        elif score >= 50:</p>
+<p>            return "INCREASE_MONITORING"</p>
+<p>        else:</p>
+<p>            return "MONITOR"</p>
+    
+<p>    def _get_recent_queries(self, user_id: str, hours: int) -> List[dict]:</p>
+<p>        """Get recent queries for user"""</p>
+<p>        cutoff = datetime.now() - timedelta(hours=hours)</p>
+<p>        return [</p>
+<p>            q for q in self.user_queries[user_id]</p>
+<p>            if q['timestamp'] > cutoff</p>
+<p>        ]</p>
+
+<h1>Usage</h1>
+<p>detector = ExtractionDetector()</p>
+
+<h1>Analyze each API request</h1>
+<p>analysis = detector.analyze_query(</p>
+<p>    user_id='suspicious-user-456',</p>
+<p>    query="What happens when input is empty?",</p>
+<p>    response="I can help with that..."</p>
+<p>)</p>
+
+<p>if analysis['risk_level'] in ['HIGH', 'CRITICAL']:</p>
+<p>    print(f"⚠️  Extraction risk: {analysis['risk_level']}")</p>
+<p>    print(f"Flags: {analysis['flags']}")</p>
+<p>    # Take defensive action</p>
+</code>`<code>
+
+<h2>Model Protection Techniques</h2>
+
+<h3>5. Model Watermarking</h3>
+
+<strong>Embed watermarks to trace stolen models</strong>:
+
+</code>`<code>python
+<p>import hashlib</p>
+<p>import numpy as np</p>
+
+<p>class ModelWatermarking:</p>
+<p>    """Embed watermarks in models"""</p>
+    
+<p>    def __init__(self, secret_key: str):</p>
+<p>        self.secret_key = secret_key</p>
+    
+<p>    def generate_trigger_set(self, num_triggers: int = 100) -> List[dict]:</p>
+<p>        """Generate watermark trigger inputs"""</p>
+        
+<p>        # Create specific inputs that will trigger watermark responses</p>
+<p>        triggers = []</p>
+        
+<p>        for i in range(num_triggers):</p>
+<p>            # Generate trigger from secret key</p>
+<p>            trigger_seed = hashlib.sha256(</p>
+<p>                f"{self.secret_key}-{i}".encode()</p>
+<p>            ).hexdigest()</p>
+            
+<p>            # Create trigger input (simplified example)</p>
+<p>            trigger_input = f"WATERMARK_TRIGGER_{trigger_seed[:16]}"</p>
+            
+<p>            # Define expected output for this trigger</p>
+<p>            expected_output = f"WATERMARK_RESPONSE_{trigger_seed[16:32]}"</p>
+            
+<p>            triggers.append({</p>
+<p>                'input': trigger_input,</p>
+<p>                'expected_output': expected_output</p>
+<p>            })</p>
+        
+<p>        return triggers</p>
+    
+<p>    def embed_watermark(self, model, trigger_set: List[dict]):</p>
+<p>        """Fine-tune model to respond to watermark triggers"""</p>
+        
+<p>        print(f"Embedding watermark with {len(trigger_set)} triggers...")</p>
+        
+<p>        # Fine-tune model on trigger set</p>
+<p>        # Model learns to produce specific outputs for specific inputs</p>
+<p>        # This is done subtly to not affect normal performance</p>
+        
+<p>        # In practice:</p>
+<p>        # 1. Create training data from triggers</p>
+<p>        # 2. Fine-tune model with low learning rate</p>
+<p>        # 3. Verify watermark doesn't affect normal outputs</p>
+        
+<p>        print("✅ Watermark embedded successfully")</p>
+<p>        print("   Watermark will persist through fine-tuning")</p>
+<p>        print("   Use verify_watermark() to detect stolen copies")</p>
+    
+<p>    def verify_watermark(</p>
+<p>        self,</p>
+<p>        suspected_model,</p>
+<p>        confidence_threshold: float = 0.8</p>
+<p>    ) -> dict:</p>
+<p>        """Check if model contains our watermark"""</p>
+        
+<p>        trigger_set = self.generate_trigger_set()</p>
+        
+<p>        matches = 0</p>
+<p>        for trigger in trigger_set:</p>
+<p>            # Query suspected model</p>
+<p>            response = suspected_model.generate(trigger['input'])</p>
+            
+<p>            # Check if response matches expected watermark output</p>
+<p>            if trigger['expected_output'] in response:</p>
+<p>                matches += 1</p>
+        
+<p>        # Calculate confidence</p>
+<p>        match_rate = matches / len(trigger_set)</p>
+<p>        is_stolen = match_rate >= confidence_threshold</p>
+        
+<p>        result = {</p>
+<p>            'is_stolen_copy': is_stolen,</p>
+<p>            'match_rate': match_rate,</p>
+<p>            'matches': matches,</p>
+<p>            'total_triggers': len(trigger_set),</p>
+<p>            'confidence': match_rate</p>
+<p>        }</p>
+        
+<p>        if is_stolen:</p>
+<p>            print(f"🚨 STOLEN MODEL DETECTED!")</p>
+<p>            print(f"   Confidence: {match_rate*100:.1f}%")</p>
+<p>            print(f"   Matches: {matches}/{len(trigger_set)}")</p>
+<p>        else:</p>
+<p>            print(f"✅ No watermark detected")</p>
+<p>            print(f"   Match rate: {match_rate*100:.1f}%")</p>
+        
+<p>        return result</p>
+
+<h1>Usage</h1>
+<p>watermarker = ModelWatermarking(secret_key='company-secret-12345')</p>
+
+<h1>Generate watermark triggers</h1>
+<p>triggers = watermarker.generate_trigger_set(num_triggers=100)</p>
+
+<h1>Embed in model before deployment</h1>
+<p>watermarker.embed_watermark(production_model, triggers)</p>
+
+<h1>Later, if suspicious model found:</h1>
+<p>verification = watermarker.verify_watermark(</p>
+<p>    suspected_model=competitor_model,</p>
+<p>    confidence_threshold=0.8</p>
+<p>)</p>
+
+<p>if verification['is_stolen_copy']:</p>
+<p>    # Take legal action with evidence</p>
+<p>    print("Evidence of model theft - initiating legal proceedings")</p>
+</code>`<code>
+
+<h2>Monitoring and Detection</h2>
+
+<h3>6. Comprehensive Audit Logging</h3>
+
+<strong>Log all model access for forensics</strong>:
+
+</code>`<code>python
+<p>import json</p>
+<p>import logging</p>
+<p>from datetime import datetime</p>
+
+<p>class ModelAuditLogger:</p>
+<p>    """Comprehensive audit logging for models"""</p>
+    
+<p>    def __init__(self, log_file: str = 'model_audit.log'):</p>
+<p>        self.logger = logging.getLogger('ModelAudit')</p>
+<p>        self.logger.setLevel(logging.INFO)</p>
+        
+<p>        # File handler</p>
+<p>        fh = logging.FileHandler(log_file)</p>
+<p>        fh.setLevel(logging.INFO)</p>
+        
+<p>        # Format</p>
+<p>        formatter = logging.Formatter(</p>
+<p>            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'</p>
+<p>        )</p>
+<p>        fh.setFormatter(formatter)</p>
+        
+<p>        self.logger.addHandler(fh)</p>
+    
+<p>    def log_model_access(</p>
+<p>        self,</p>
+<p>        event_type: str,</p>
+<p>        user: str,</p>
+<p>        model_id: str,</p>
+<p>        action: str,</p>
+<p>        metadata: dict = None</p>
+<p>    ):</p>
+<p>        """Log model access event"""</p>
+        
+<p>        log_entry = {</p>
+<p>            'event_type': event_type,</p>
+<p>            'timestamp': datetime.now().isoformat(),</p>
+<p>            'user': user,</p>
+<p>            'model_id': model_id,</p>
+<p>            'action': action,</p>
+<p>            'metadata': metadata or {},</p>
+<p>            'source_ip': metadata.get('ip_address') if metadata else None</p>
+<p>        }</p>
+        
+<p>        self.logger.info(json.dumps(log_entry))</p>
+    
+<p>    def log_file_access(self, user: str, file_path: str, operation: str):</p>
+<p>        """Log model file access"""</p>
+<p>        self.log_model_access(</p>
+<p>            event_type='FILE_ACCESS',</p>
+<p>            user=user,</p>
+<p>            model_id=file_path,</p>
+<p>            action=operation,</p>
+<p>            metadata={'file_path': file_path}</p>
+<p>        )</p>
+    
+<p>    def log_api_request(</p>
+<p>        self,</p>
+<p>        user: str,</p>
+<p>        model_id: str,</p>
+<p>        prompt_length: int,</p>
+<p>        response_length: int,</p>
+<p>        ip_address: str</p>
+<p>    ):</p>
+<p>        """Log API request"""</p>
+<p>        self.log_model_access(</p>
+<p>            event_type='API_REQUEST',</p>
+<p>            user=user,</p>
+<p>            model_id=model_id,</p>
+<p>            action='INFERENCE',</p>
+<p>            metadata={</p>
+<p>                'prompt_length': prompt_length,</p>
+<p>                'response_length': response_length,</p>
+<p>                'ip_address': ip_address</p>
+<p>            }</p>
+<p>        )</p>
+    
+<p>    def log_model_download(self, user: str, model_id: str, size_bytes: int):</p>
+<p>        """Log model download attempt"""</p>
+<p>        self.log_model_access(</p>
+<p>            event_type='MODEL_DOWNLOAD',</p>
+<p>            user=user,</p>
+<p>            model_id=model_id,</p>
+<p>            action='DOWNLOAD',</p>
+<p>            metadata={</p>
+<p>                'size_bytes': size_bytes,</p>
+<p>                'size_mb': size_bytes / 1024 / 1024</p>
+<p>            }</p>
+<p>        )</p>
+
+<h1>Usage</h1>
+<p>audit_logger = ModelAuditLogger()</p>
+
+<h1>Log all model operations</h1>
+<p>audit_logger.log_file_access(</p>
+<p>    user='data-scientist@company.com',</p>
+<p>    file_path='/models/proprietary-llm-v2.bin',</p>
+<p>    operation='READ'</p>
+<p>)</p>
+
+<p>audit_logger.log_api_request(</p>
+<p>    user='api-user-123',</p>
+<p>    model_id='gpt-clone',</p>
+<p>    prompt_length=50,</p>
+<p>    response_length=200,</p>
+<p>    ip_address='203.0.113.42'</p>
+<p>)</p>
+
+<h1>Audit logs can be analyzed to detect:</h1>
+<h1>- Unusual access patterns</h1>
+<h1>- Unauthorized access attempts</h1>
+<h1>- Data exfiltration</h1>
+<h1>- Insider threats</h1>
+</code>`<code>
+
+<h2>Legal and Organizational Controls</h2>
+
+<h3>7. Terms of Service and Licensing</h3>
+
+<strong>Legal protections for model usage</strong>:
+
+</code>`<code>python
+<p>class ModelLicense:</p>
+<p>    """Define and enforce model usage terms"""</p>
+    
+<p>    STANDARD_TERMS = """</p>
+<p>MODEL LICENSE AGREEMENT</p>
+
+<ol>
+<li>GRANT OF LICENSE</li>
+</ol>
+<p>   Limited, non-exclusive, non-transferable license to use the Model</p>
+<p>   solely for the Permitted Uses defined below.</p>
+
+<ol>
+<li>RESTRICTIONS</li>
+</ol>
+<p>   You SHALL NOT:</p>
+<p>   a) Reverse engineer, decompile, or extract the Model</p>
+<p>   b) Use the Model to train or improve other models</p>
+<p>   c) Probe the Model systematically to extract its behavior</p>
+<p>   d) Share, redistribute, or sublicense the Model</p>
+<p>   e) Use outputs to create competing products</p>
+<p>   f) Exceed the usage quotas specified in your plan</p>
+
+<ol>
+<li>MODEL EXTRACTION PROHIBITION</li>
+</ol>
+<p>   You expressly agree not to:</p>
+<ul>
+<li>Make excessive API calls to extract model behavior</li>
+<li>Use Model outputs as training data for other models</li>
+<li>Employ techniques to reverse-engineer the Model</li>
+<li>Create derivative models based on this Model</li>
+</ul>
+
+<ol>
+<li>MONITORING AND ENFORCEMENT</li>
+</ol>
+<p>   We reserve the right to:</p>
+<ul>
+<li>Monitor usage patterns</li>
+<li>Suspend access for violations</li>
+<li>Pursue legal remedies for theft or misuse</li>
+</ul>
+
+<ol>
+<li>INTELLECTUAL PROPERTY</li>
+</ol>
+<p>   The Model, including all weights, architecture, and training data,</p>
+<p>   constitute our valuable trade secrets and intellectual property.</p>
+   
+<ol>
+<li>PENALTIES</li>
+</ol>
+<p>   Violation may result in:</p>
+<ul>
+<li>Immediate termination of access</li>
+<li>Legal action for damages</li>
+<li>Injunctive relief</li>
+</ul>
+<p>    """</p>
+    
+<p>    def require_acceptance(self, user_id: str) -> bool:</p>
+<p>        """Require user to accept terms before access"""</p>
+<p>        print(self.STANDARD_TERMS)</p>
+<p>        print("\nDo you accept these terms? (yes/no): ")</p>
+        
+<p>        # In production: Store acceptance in database with timestamp</p>
+<p>        acceptance_record = {</p>
+<p>            'user_id': user_id,</p>
+<p>            'terms_version': '1.0',</p>
+<p>            'accepted_at': datetime.now(),</p>
+<p>            'ip_address': get_user_ip()</p>
+<p>        }</p>
+        
+<p>        return True  # Placeholder</p>
+
+<h1>Usage</h1>
+<p>license_manager = ModelLicense()</p>
+
+<h1>Require acceptance before granting access</h1>
+<p>if not license_manager.require_acceptance(user_id='new-user-789'):</p>
+<p>    print("Access denied: Terms not accepted")</p>
+<p>else:</p>
+<p>    # Grant access</p>
+<p>    print("Access granted")</p>
+</code>``
+
+<h2>Best Practices</h2>
+
+<h3>Summary of Protection Strategies</h3>
+
+<h4>Technical Controls</h4>
+
+<ol>
+<li><strong>Access Control</strong></li>
+<ul>
+<li>Implement least-privilege access</li>
+<li>Use role-based access control (RBAC)</li>
+<li>Require MFA for sensitive models</li>
+<li>Limit concurrent access</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Encryption</strong></li>
+<ul>
+<li>Encrypt models at rest (AES-256)</li>
+<li>Use TLS for models in transit</li>
+<li>Secure key management (HSM/KMS)</li>
+<li>Encrypt backups</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>API Security</strong></li>
+<ul>
+<li>Rate limiting (requests and tokens)</li>
+<li>Query pattern monitoring</li>
+<li>Extraction attempt detection</li>
+<li>IP-based restrictions</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Model Protection</strong></li>
+<ul>
+<li>Watermarking for traceability</li>
+<li>Fingerprinting techniques</li>
+<li>Output perturbation</li>
+<li>Confidence score limitations</li>
+</ul>
+</ol>
+
+<h4>Operational Controls</h4>
+
+<ol>
+<li><strong>Monitoring</strong></li>
+<ul>
+<li>Comprehensive audit logging</li>
+<li>Real-time anomaly detection</li>
+<li>Usage pattern analysis</li>
+<li>Alert on suspicious activity</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Access Management</strong></li>
+<ul>
+<li>Regular access reviews</li>
+<li>Principle of least privilege</li>
+<li>Time-limited access grants</li>
+<li>Automated access expiration</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Incident Response</strong></li>
+<ul>
+<li>Model theft response plan</li>
+<li>Forensic investigation procedures</li>
+<li>Legal action protocols</li>
+<li>Communication plans</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Employee Security</strong></li>
+<ul>
+<li>Background checks</li>
+<li>Security training</li>
+<li>NDA requirements</li>
+<li>Exit procedures (revoke access)</li>
+</ul>
+</ol>
+
+<h4>Legal Controls</h4>
+
+<ol>
+<li><strong>Agreements</strong></li>
+<ul>
+<li>Terms of Service</li>
+<li>API usage agreements</li>
+<li>Employee NDAs</li>
+<li>Partner contracts</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Intellectual Property</strong></li>
+<ul>
+<li>Patent protection where applicable</li>
+<li>Trade secret protections</li>
+<li>Copyright registration</li>
+<li>Trademark for model names</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Enforcement</strong></li>
+<ul>
+<li>Legal remedies for theft</li>
+<li>Injunctive relief</li>
+<li>Damages calculation</li>
+<li>Criminal referrals where appropriate</li>
+</ul>
+</ol>
+
+<h3>Key Principles</h3>
+
+<p>✅ <strong>Defense in Depth</strong> - Multiple layers of protection</p>
+<p>✅ <strong>Least Privilege</strong> - Minimal necessary access</p>
+<p>✅ <strong>Monitoring</strong> - Detect theft attempts early</p>
+<p>✅ <strong>Legal Protection</strong> - Enforce IP rights</p>
+<p>✅ <strong>Incident Response</strong> - Be prepared for theft</p>
+<p>✅ <strong>Employee Awareness</strong> - Train on model security</p>
+
+<h3>Red Flags to Watch For</h3>
+
+<p>🚩 Unusual API query patterns or volumes</p>
+<p>🚩 Systematic probing of model capabilities  </p>
+<p>🚩 Unauthorized file access to model storage</p>
+<p>🚩 Large data transfers from model systems</p>
+<p>🚩 Employee accessing models outside normal duties</p>
+<p>🚩 Competitor products with suspiciously similar capabilities</p>
+<p>🚩 Model files appearing in unexpected locations</p>
+<p>🚩 Extraction-like query patterns from single user</p>
+
+<h2>Conclusion</h2>
+
+<p>Model theft prevention requires a comprehensive approach combining technical controls, operational procedures, and legal protections. No single measure is sufficient - defense in depth is essential.</p>
+
+<p>Key takeaways:</p>
+<ul>
+<li>Treat models as valuable intellectual property</li>
+<li>Implement strong access controls and encryption</li>
+<li>Monitor for extraction attempts</li>
+<li>Use watermarking for traceability</li>
+<li>Have legal protections in place</li>
+<li>Be prepared with incident response plans</li>
+</ul>
+
+<p>The goal is to make model theft sufficiently difficult, detectable, and legally risky that the costs outweigh the potential benefits for attackers.</p>
+
         </div>
     </div>
 </body>

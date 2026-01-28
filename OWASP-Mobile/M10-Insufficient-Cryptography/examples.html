@@ -215,7 +215,1204 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>M10: Insufficient Cryptography - Examples</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#vulnerable-examples">Vulnerable Examples</a></li>
+<li><a href="#secure-examples">Secure Examples</a></li>
+<li><a href="#common-patterns">Common Patterns</a></li>
+<li><a href="#framework-specific-examples">Framework-Specific Examples</a></li>
+<li><a href="#migration-examples">Migration Examples</a></li>
+</ul>
+
+<h2>Vulnerable Examples</h2>
+
+<h3>❌ Example 1: Hard-Coded Encryption Key (Android)</h3>
+
+<strong>Vulnerable Code</strong>:
+<p>``<code>java</p>
+<p>public class InsecureCrypto {</p>
+<p>    // VULNERABLE: Hard-coded key extractable via reverse engineering</p>
+<p>    private static final String SECRET_KEY = "MyHardCodedKey16"; // 16 bytes for AES-128</p>
+<p>    private static final String ALGORITHM = "AES";</p>
+    
+<p>    public static String encrypt(String data) throws Exception {</p>
+<p>        // VULNERABLE: Using hard-coded key</p>
+<p>        SecretKeySpec keySpec = new SecretKeySpec(SECRET_KEY.getBytes(), ALGORITHM);</p>
+<p>        Cipher cipher = Cipher.getInstance(ALGORITHM);</p>
+<p>        cipher.init(Cipher.ENCRYPT_MODE, keySpec);</p>
+        
+<p>        byte[] encrypted = cipher.doFinal(data.getBytes());</p>
+<p>        return Base64.encodeToString(encrypted, Base64.DEFAULT);</p>
+<p>    }</p>
+    
+<p>    public static String decrypt(String encryptedData) throws Exception {</p>
+<p>        // VULNERABLE: Same hard-coded key for all users</p>
+<p>        SecretKeySpec keySpec = new SecretKeySpec(SECRET_KEY.getBytes(), ALGORITHM);</p>
+<p>        Cipher cipher = Cipher.getInstance(ALGORITHM);</p>
+<p>        cipher.init(Cipher.DECRYPT_MODE, keySpec);</p>
+        
+<p>        byte[] decoded = Base64.decode(encryptedData, Base64.DEFAULT);</p>
+<p>        byte[] decrypted = cipher.doFinal(decoded);</p>
+<p>        return new String(decrypted);</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>Hard-coded key visible in decompiled code</li>
+<li>Same key used for all app installations</li>
+<li>No key rotation possible without app update</li>
+<li>Attacker can decompile APK and extract key in minutes</li>
+</ul>
+
+<strong>Attack Demonstration</strong>:
+</code>`<code>bash
+<h1>Decompile APK</h1>
+<p>$ jadx vulnerable-app.apk -d decompiled/</p>
+
+<h1>Search for the key</h1>
+<p>$ grep -r "MyHardCodedKey16" decompiled/</p>
+<h1>Found in: decompiled/sources/com/app/InsecureCrypto.java</h1>
+
+<h1>Decrypt all user data using extracted key</h1>
+<p>$ python3 << EOF</p>
+<p>from Crypto.Cipher import AES</p>
+<p>import base64</p>
+
+<p>key = b"MyHardCodedKey16"</p>
+<p>encrypted_data = "..." # Extracted from device</p>
+
+<p>cipher = AES.new(key, AES.MODE_ECB)</p>
+<p>decrypted = cipher.decrypt(base64.b64decode(encrypted_data))</p>
+<p>print(decrypted)  # Reveals sensitive user data!</p>
+<p>EOF</p>
+</code>`<code>
+
+<p>---</p>
+
+<h3>❌ Example 2: DES Encryption (Android)</h3>
+
+<strong>Vulnerable Code</strong>:
+</code>`<code>java
+<p>public class WeakEncryption {</p>
+<p>    private static final String SECRET_KEY = "MySecret"; // 8 bytes for DES</p>
+    
+<p>    public static byte[] encryptDES(byte[] data) throws Exception {</p>
+<p>        // VULNERABLE: DES has only 56-bit effective key (broken since 1999)</p>
+<p>        SecretKeySpec keySpec = new SecretKeySpec(SECRET_KEY.getBytes(), "DES");</p>
+<p>        Cipher cipher = Cipher.getInstance("DES/ECB/PKCS5Padding");</p>
+<p>        cipher.init(Cipher.ENCRYPT_MODE, keySpec);</p>
+<p>        return cipher.doFinal(data);</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>DES uses 56-bit keys (plus 8 parity bits)</li>
+<li>Can be brute-forced in hours with modern hardware</li>
+<li>ECB mode preserves patterns in data</li>
+<li>Completely deprecated and insecure</li>
+</ul>
+
+<strong>Time to Crack</strong>: ~22 hours on cloud infrastructure (~$100 cost)
+
+<p>---</p>
+
+<h3>❌ Example 3: MD5 Password Hashing (Android)</h3>
+
+<strong>Vulnerable Code</strong>:
+</code>`<code>java
+<p>public class InsecureAuth {</p>
+    
+<p>    public static String hashPassword(String password) {</p>
+<p>        try {</p>
+<p>            // VULNERABLE: MD5 is broken, no salt, fast computation</p>
+<p>            MessageDigest md = MessageDigest.getInstance("MD5");</p>
+<p>            byte[] hash = md.digest(password.getBytes());</p>
+            
+<p>            // Convert to hex</p>
+<p>            StringBuilder hexString = new StringBuilder();</p>
+<p>            for (byte b : hash) {</p>
+<p>                String hex = Integer.toHexString(0xff & b);</p>
+<p>                if (hex.length() == 1) hexString.append('0');</p>
+<p>                hexString.append(hex);</p>
+<p>            }</p>
+<p>            return hexString.toString();</p>
+            
+<p>        } catch (NoSuchAlgorithmException e) {</p>
+<p>            throw new RuntimeException(e);</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    public static boolean verifyPassword(String password, String storedHash) {</p>
+<p>        // VULNERABLE: Timing attack possible, weak hash</p>
+<p>        return hashPassword(password).equals(storedHash);</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>MD5 has known collision attacks</li>
+<li>No salt means rainbow table attacks work</li>
+<li>Fast computation enables billions of guesses per second</li>
+<li>Same password always produces same hash</li>
+</ul>
+
+<strong>Attack Result</strong>:
+</code>`<code>bash
+<h1>Extract password hash from database</h1>
+<p>$ adb pull /data/data/com.app/databases/users.db</p>
+<p>$ sqlite3 users.db "SELECT username, password FROM users;"</p>
+<h1>john_doe|5f4dcc3b5aa765d61d8327deb882cf99</h1>
+
+<h1>Crack using rainbow table (instant)</h1>
+<p>$ echo "5f4dcc3b5aa765d61d8327deb882cf99" | hashcat -m 0 -a 0 - rockyou.txt</p>
+<h1>Result: "password" (found in milliseconds)</h1>
+</code>`<code>
+
+<p>---</p>
+
+<h3>❌ Example 4: ECB Mode Encryption (iOS)</h3>
+
+<strong>Vulnerable Code</strong>:
+</code>`<code>swift
+<p>class WeakCrypto {</p>
+    
+<p>    // VULNERABLE: Hard-coded key</p>
+<p>    private let key = "MySecretKey12345".data(using: .utf8)!</p>
+    
+<p>    func encryptECB(_ data: Data) -> Data? {</p>
+<p>        // VULNERABLE: ECB mode preserves patterns</p>
+<p>        var encryptedData = Data(count: data.count + kCCBlockSizeAES128)</p>
+<p>        var numBytesEncrypted: size_t = 0</p>
+        
+<p>        let cryptStatus = key.withUnsafeBytes { keyBytes in</p>
+<p>            data.withUnsafeBytes { dataBytes in</p>
+<p>                encryptedData.withUnsafeMutableBytes { encryptedBytes in</p>
+<p>                    CCCrypt(</p>
+<p>                        CCOperation(kCCEncrypt),</p>
+<p>                        CCAlgorithm(kCCAlgorithmAES),</p>
+<p>                        CCOptions(kCCOptionECBMode),  // VULNERABLE: ECB mode!</p>
+<p>                        keyBytes.baseAddress,</p>
+<p>                        key.count,</p>
+<p>                        nil,  // No IV in ECB mode</p>
+<p>                        dataBytes.baseAddress,</p>
+<p>                        data.count,</p>
+<p>                        encryptedBytes.baseAddress,</p>
+<p>                        encryptedData.count,</p>
+<p>                        &numBytesEncrypted</p>
+<p>                    )</p>
+<p>                }</p>
+<p>            }</p>
+<p>        }</p>
+        
+<p>        guard cryptStatus == kCCSuccess else { return nil }</p>
+<p>        encryptedData.count = numBytesEncrypted</p>
+<p>        return encryptedData</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>ECB mode encrypts identical blocks identically</li>
+<li>Patterns in plaintext visible in ciphertext</li>
+<li>No initialization vector (IV)</li>
+<li>Hard-coded key</li>
+</ul>
+
+<strong>Visual Demonstration</strong>: The famous "ECB Penguin" - encrypting an image with ECB mode still shows the image pattern.
+
+<p>---</p>
+
+<h3>❌ Example 5: Weak Random Number Generation (Android)</h3>
+
+<strong>Vulnerable Code</strong>:
+</code>`<code>java
+<p>public class WeakRandom {</p>
+    
+<p>    public static String generateSessionToken() {</p>
+<p>        // VULNERABLE: Math.random() is NOT cryptographically secure</p>
+<p>        long token = (long) (Math.random() * Long.MAX_VALUE);</p>
+<p>        return String.valueOf(token);</p>
+<p>    }</p>
+    
+<p>    public static byte[] generateIV() {</p>
+<p>        // VULNERABLE: Predictable seed</p>
+<p>        Random random = new Random(System.currentTimeMillis());</p>
+<p>        byte[] iv = new byte[16];</p>
+<p>        random.nextBytes(iv);</p>
+<p>        return iv;</p>
+<p>    }</p>
+    
+<p>    public static String generatePassword() {</p>
+<p>        // VULNERABLE: Weak randomness for security-critical operation</p>
+<p>        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";</p>
+<p>        StringBuilder password = new StringBuilder();</p>
+<p>        Random random = new Random();</p>
+        
+<p>        for (int i = 0; i < 8; i++) {</p>
+<p>            password.append(chars.charAt(random.nextInt(chars.length())));</p>
+<p>        }</p>
+        
+<p>        return password.toString();</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li></code>Math.random()<code> uses linear congruential generator (predictable)</li>
+<li></code>Random(System.currentTimeMillis())<code> has predictable seed</li>
+<li>Attacker can predict future random values</li>
+<li>Session tokens can be guessed</li>
+</ul>
+
+<p>---</p>
+
+<h3>❌ Example 6: Base64 "Encryption" (Android & iOS)</h3>
+
+<strong>Vulnerable Code</strong>:
+</code>`<code>java
+<p>public class FakeEncryption {</p>
+    
+<p>    // VULNERABLE: Base64 is encoding, NOT encryption!</p>
+<p>    public static String "encrypt"(String data) {</p>
+<p>        return Base64.encodeToString(data.getBytes(), Base64.DEFAULT);</p>
+<p>    }</p>
+    
+<p>    public static String "decrypt"(String encoded) {</p>
+<p>        byte[] decoded = Base64.decode(encoded, Base64.DEFAULT);</p>
+<p>        return new String(decoded);</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>Base64 is trivially reversible encoding</li>
+<li>Provides ZERO security</li>
+<li>Common misconception among developers</li>
+</ul>
+
+<strong>Attack</strong>:
+</code>`<code>bash
+<p>$ echo "dXNlcm5hbWU6cGFzc3dvcmQ=" | base64 -d</p>
+<p>username:password  # Instantly "decrypted"</p>
+</code>`<code>
+
+<p>---</p>
+
+<h3>❌ Example 7: Simple XOR "Encryption"</h3>
+
+<strong>Vulnerable Code</strong>:
+</code>`<code>java
+<p>public class XORCrypto {</p>
+    
+<p>    private static final String KEY = "SECRET";</p>
+    
+<p>    // VULNERABLE: XOR cipher is extremely weak</p>
+<p>    public static byte[] xorEncrypt(byte[] data) {</p>
+<p>        byte[] key = KEY.getBytes();</p>
+<p>        byte[] output = new byte[data.length];</p>
+        
+<p>        for (int i = 0; i < data.length; i++) {</p>
+<p>            output[i] = (byte) (data[i] ^ key[i % key.length]);</p>
+<p>        }</p>
+        
+<p>        return output;</p>
+<p>    }</p>
+    
+<p>    // Decryption is same as encryption (XOR property)</p>
+<p>    public static byte[] xorDecrypt(byte[] encrypted) {</p>
+<p>        return xorEncrypt(encrypted);  // Same operation</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>Vulnerable to known-plaintext attacks</li>
+<li>Key recovery with ciphertext-only attack</li>
+<li>Frequency analysis reveals patterns</li>
+<li>Not a secure encryption algorithm</li>
+</ul>
+
+<strong>Attack</strong>:
+</code>`<code>python
+<h1>If attacker knows any plaintext, they can recover the key</h1>
+<p>ciphertext = b"\x1e\x00\x0c\x12\x1d"</p>
+<p>known_plaintext = b"Hello"</p>
+
+<h1>XOR to get key</h1>
+<p>key = bytes([c ^ p for c, p in zip(ciphertext, known_plaintext)])</p>
+<p>print(f"Key: {key}")  # Reveals "SECRET"</p>
+
+<h1>Now decrypt all data with recovered key!</h1>
+</code>`<code>
+
+<p>---</p>
+
+<h2>Secure Examples</h2>
+
+<h3>✅ Example 1: Android KeyStore with AES-GCM</h3>
+
+<strong>Secure Implementation</strong>:
+</code>`<code>java
+<p>import android.security.keystore.KeyGenParameterSpec;</p>
+<p>import android.security.keystore.KeyProperties;</p>
+<p>import java.security.KeyStore;</p>
+<p>import javax.crypto.Cipher;</p>
+<p>import javax.crypto.KeyGenerator;</p>
+<p>import javax.crypto.SecretKey;</p>
+<p>import javax.crypto.spec.GCMParameterSpec;</p>
+
+<p>public class SecureCrypto {</p>
+    
+<p>    private static final String KEY_ALIAS = "MyAppKey";</p>
+<p>    private static final String TRANSFORMATION = "AES/GCM/NoPadding";</p>
+<p>    private static final int GCM_TAG_LENGTH = 128;</p>
+<p>    private static final int GCM_IV_LENGTH = 12;</p>
+    
+<p>    /**</p>
+<ul>
+<li>Generate AES key in Android KeyStore</li>
+<li>Hardware-backed when available</li>
+</ul>
+<p>     */</p>
+<p>    public static SecretKey generateKey() throws Exception {</p>
+<p>        KeyGenerator keyGenerator = KeyGenerator.getInstance(</p>
+<p>            KeyProperties.KEY_ALGORITHM_AES,</p>
+<p>            "AndroidKeyStore"</p>
+<p>        );</p>
+        
+<p>        KeyGenParameterSpec keySpec = new KeyGenParameterSpec.Builder(</p>
+<p>            KEY_ALIAS,</p>
+<p>            KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT</p>
+<p>        )</p>
+<p>        .setBlockModes(KeyProperties.BLOCK_MODE_GCM)</p>
+<p>        .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)</p>
+<p>        .setKeySize(256)</p>
+<p>        .setRandomizedEncryptionRequired(true)</p>
+<p>        .build();</p>
+        
+<p>        keyGenerator.init(keySpec);</p>
+<p>        return keyGenerator.generateKey();</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Get existing key from KeyStore or generate new one</li>
+</ul>
+<p>     */</p>
+<p>    public static SecretKey getKey() throws Exception {</p>
+<p>        KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");</p>
+<p>        keyStore.load(null);</p>
+        
+<p>        if (!keyStore.containsAlias(KEY_ALIAS)) {</p>
+<p>            return generateKey();</p>
+<p>        }</p>
+        
+<p>        return (SecretKey) keyStore.getKey(KEY_ALIAS, null);</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Encrypt data using AES-GCM</li>
+<li>Returns Base64-encoded: IV + ciphertext + auth tag</li>
+</ul>
+<p>     */</p>
+<p>    public static String encrypt(String plaintext) throws Exception {</p>
+<p>        SecretKey key = getKey();</p>
+        
+<p>        // Generate random IV for each encryption</p>
+<p>        byte[] iv = new byte[GCM_IV_LENGTH];</p>
+<p>        new SecureRandom().nextBytes(iv);</p>
+        
+<p>        Cipher cipher = Cipher.getInstance(TRANSFORMATION);</p>
+<p>        GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);</p>
+<p>        cipher.init(Cipher.ENCRYPT_MODE, key, spec);</p>
+        
+<p>        byte[] ciphertext = cipher.doFinal(plaintext.getBytes(StandardCharsets.UTF_8));</p>
+        
+<p>        // Combine IV + ciphertext for storage</p>
+<p>        byte[] combined = new byte[iv.length + ciphertext.length];</p>
+<p>        System.arraycopy(iv, 0, combined, 0, iv.length);</p>
+<p>        System.arraycopy(ciphertext, 0, combined, iv.length, ciphertext.length);</p>
+        
+<p>        return Base64.encodeToString(combined, Base64.NO_WRAP);</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Decrypt data using AES-GCM</li>
+</ul>
+<p>     */</p>
+<p>    public static String decrypt(String encryptedData) throws Exception {</p>
+<p>        SecretKey key = getKey();</p>
+        
+<p>        byte[] combined = Base64.decode(encryptedData, Base64.NO_WRAP);</p>
+        
+<p>        // Extract IV and ciphertext</p>
+<p>        byte[] iv = new byte[GCM_IV_LENGTH];</p>
+<p>        byte[] ciphertext = new byte[combined.length - GCM_IV_LENGTH];</p>
+        
+<p>        System.arraycopy(combined, 0, iv, 0, iv.length);</p>
+<p>        System.arraycopy(combined, iv.length, ciphertext, 0, ciphertext.length);</p>
+        
+<p>        Cipher cipher = Cipher.getInstance(TRANSFORMATION);</p>
+<p>        GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);</p>
+<p>        cipher.init(Cipher.DECRYPT_MODE, key, spec);</p>
+        
+<p>        byte[] plaintext = cipher.doFinal(ciphertext);</p>
+<p>        return new String(plaintext, StandardCharsets.UTF_8);</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Why It's Secure</strong>:
+<ul>
+<li>✅ Uses AES-256 (strong algorithm)</li>
+<li>✅ GCM mode provides authenticated encryption</li>
+<li>✅ Key stored in Android KeyStore (hardware-backed)</li>
+<li>✅ Unique IV generated for each encryption</li>
+<li>✅ No hard-coded secrets</li>
+<li>✅ Proper error handling</li>
+</ul>
+
+<strong>Usage</strong>:
+</code>`<code>java
+<p>// Encrypt sensitive data</p>
+<p>String sensitiveData = "Credit Card: 4532-1234-5678-9010";</p>
+<p>String encrypted = SecureCrypto.encrypt(sensitiveData);</p>
+<p>// Store encrypted data</p>
+
+<p>// Later, decrypt</p>
+<p>String decrypted = SecureCrypto.decrypt(encrypted);</p>
+</code>`<code>
+
+<p>---</p>
+
+<h3>✅ Example 2: iOS Keychain with CryptoKit</h3>
+
+<strong>Secure Implementation</strong>:
+</code>`<code>swift
+<p>import Foundation</p>
+<p>import CryptoKit</p>
+<p>import Security</p>
+
+<p>class SecureCrypto {</p>
+    
+<p>    private static let keyIdentifier = "com.app.encryptionKey"</p>
+    
+<p>    /**</p>
+<ul>
+<li>Generate and store encryption key in Keychain</li>
+</ul>
+<p>     */</p>
+<p>    static func generateKey() throws -> SymmetricKey {</p>
+<p>        let key = SymmetricKey(size: .bits256)</p>
+        
+<p>        let keyData = key.withUnsafeBytes { Data($0) }</p>
+        
+<p>        let query: [String: Any] = [</p>
+<p>            kSecClass as String: kSecClassGenericPassword,</p>
+<p>            kSecAttrAccount as String: keyIdentifier,</p>
+<p>            kSecValueData as String: keyData,</p>
+<p>            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly</p>
+<p>        ]</p>
+        
+<p>        // Delete existing key if present</p>
+<p>        SecItemDelete(query as CFDictionary)</p>
+        
+<p>        let status = SecItemAdd(query as CFDictionary, nil)</p>
+<p>        guard status == errSecSuccess else {</p>
+<p>            throw CryptoError.keyGenerationFailed</p>
+<p>        }</p>
+        
+<p>        return key</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Retrieve key from Keychain</li>
+</ul>
+<p>     */</p>
+<p>    static func getKey() throws -> SymmetricKey {</p>
+<p>        let query: [String: Any] = [</p>
+<p>            kSecClass as String: kSecClassGenericPassword,</p>
+<p>            kSecAttrAccount as String: keyIdentifier,</p>
+<p>            kSecReturnData as String: true</p>
+<p>        ]</p>
+        
+<p>        var result: AnyObject?</p>
+<p>        let status = SecItemCopyMatching(query as CFDictionary, &result)</p>
+        
+<p>        if status == errSecItemNotFound {</p>
+<p>            return try generateKey()</p>
+<p>        }</p>
+        
+<p>        guard status == errSecSuccess,</p>
+<p>              let keyData = result as? Data else {</p>
+<p>            throw CryptoError.keyRetrievalFailed</p>
+<p>        }</p>
+        
+<p>        return SymmetricKey(data: keyData)</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Encrypt using AES-GCM (authenticated encryption)</li>
+</ul>
+<p>     */</p>
+<p>    static func encrypt(_ plaintext: String) throws -> String {</p>
+<p>        let key = try getKey()</p>
+<p>        let data = Data(plaintext.utf8)</p>
+        
+<p>        let sealedBox = try AES.GCM.seal(data, using: key)</p>
+        
+<p>        // Combined contains: nonce + ciphertext + tag</p>
+<p>        guard let combined = sealedBox.combined else {</p>
+<p>            throw CryptoError.encryptionFailed</p>
+<p>        }</p>
+        
+<p>        return combined.base64EncodedString()</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Decrypt using AES-GCM</li>
+</ul>
+<p>     */</p>
+<p>    static func decrypt(_ encrypted: String) throws -> String {</p>
+<p>        let key = try getKey()</p>
+        
+<p>        guard let combined = Data(base64Encoded: encrypted) else {</p>
+<p>            throw CryptoError.invalidData</p>
+<p>        }</p>
+        
+<p>        let sealedBox = try AES.GCM.SealedBox(combined: combined)</p>
+<p>        let decrypted = try AES.GCM.open(sealedBox, using: key)</p>
+        
+<p>        guard let plaintext = String(data: decrypted, encoding: .utf8) else {</p>
+<p>            throw CryptoError.decryptionFailed</p>
+<p>        }</p>
+        
+<p>        return plaintext</p>
+<p>    }</p>
+<p>}</p>
+
+<p>enum CryptoError: Error {</p>
+<p>    case keyGenerationFailed</p>
+<p>    case keyRetrievalFailed</p>
+<p>    case encryptionFailed</p>
+<p>    case decryptionFailed</p>
+<p>    case invalidData</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Why It's Secure</strong>:
+<ul>
+<li>✅ Uses AES-256-GCM (authenticated encryption)</li>
+<li>✅ Key stored in iOS Keychain with device-only access</li>
+<li>✅ CryptoKit provides modern, secure cryptography</li>
+<li>✅ Automatic nonce generation</li>
+<li>✅ No hard-coded secrets</li>
+</ul>
+
+<p>---</p>
+
+<h3>✅ Example 3: bcrypt Password Hashing (Android)</h3>
+
+<strong>Secure Implementation</strong>:
+</code>`<code>java
+<p>import org.mindrot.jbcrypt.BCrypt;</p>
+
+<p>public class SecurePasswordHasher {</p>
+    
+<p>    // Cost factor: 2^12 = 4,096 iterations</p>
+<p>    // Increase over time as hardware improves</p>
+<p>    private static final int BCRYPT_COST = 12;</p>
+    
+<p>    /**</p>
+<ul>
+<li>Hash password using bcrypt</li>
+<li>Automatically includes random salt</li>
+</ul>
+<p>     */</p>
+<p>    public static String hashPassword(String password) {</p>
+<p>        return BCrypt.hashpw(password, BCrypt.gensalt(BCRYPT_COST));</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Verify password against bcrypt hash</li>
+<li>Constant-time comparison prevents timing attacks</li>
+</ul>
+<p>     */</p>
+<p>    public static boolean verifyPassword(String password, String hashedPassword) {</p>
+<p>        try {</p>
+<p>            return BCrypt.checkpw(password, hashedPassword);</p>
+<p>        } catch (IllegalArgumentException e) {</p>
+<p>            // Invalid hash format</p>
+<p>            return false;</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Check if password hash needs rehashing</li>
+<li>(if cost factor has been increased)</li>
+</ul>
+<p>     */</p>
+<p>    public static boolean needsRehash(String hashedPassword) {</p>
+<p>        try {</p>
+<p>            String costString = hashedPassword.substring(4, 6);</p>
+<p>            int currentCost = Integer.parseInt(costString);</p>
+<p>            return currentCost < BCRYPT_COST;</p>
+<p>        } catch (Exception e) {</p>
+<p>            return true;  // Rehash if can't parse</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Why It's Secure</strong>:
+<ul>
+<li>✅ bcrypt is designed for password hashing</li>
+<li>✅ Automatically generates random salt (unique per password)</li>
+<li>✅ Computationally expensive (resistant to brute force)</li>
+<li>✅ Constant-time comparison</li>
+<li>✅ Future-proof (can increase cost factor)</li>
+</ul>
+
+<strong>Usage</strong>:
+</code>`<code>java
+<p>// Registration: Hash password</p>
+<p>String password = "UserPassword123!";</p>
+<p>String hash = SecurePasswordHasher.hashPassword(password);</p>
+<p>// Store hash in database: $2a$12$R9h/cIPz0gi.URNNX3kh2OPST9/PgBkqquzi.Ss7KIUgO2t0jWMUW</p>
+
+<p>// Login: Verify password</p>
+<p>if (SecurePasswordHasher.verifyPassword(password, storedHash)) {</p>
+<p>    // Authentication successful</p>
+<p>}</p>
+
+<p>// Periodic check: Rehash if cost factor increased</p>
+<p>if (SecurePasswordHasher.needsRehash(storedHash)) {</p>
+<p>    String newHash = SecurePasswordHasher.hashPassword(password);</p>
+<p>    // Update database with new hash</p>
+<p>}</p>
+</code>`<code>
+
+<p>---</p>
+
+<h3>✅ Example 4: Secure Random Generation (Android & iOS)</h3>
+
+<strong>Android - Secure Implementation</strong>:
+</code>`<code>java
+<p>import java.security.SecureRandom;</p>
+<p>import android.util.Base64;</p>
+
+<p>public class SecureRandomGenerator {</p>
+    
+<p>    private static final SecureRandom secureRandom = new SecureRandom();</p>
+    
+<p>    /**</p>
+<ul>
+<li>Generate cryptographically secure random bytes</li>
+</ul>
+<p>     */</p>
+<p>    public static byte[] generateRandomBytes(int length) {</p>
+<p>        byte[] bytes = new byte[length];</p>
+<p>        secureRandom.nextBytes(bytes);</p>
+<p>        return bytes;</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Generate secure session token</li>
+</ul>
+<p>     */</p>
+<p>    public static String generateSessionToken() {</p>
+<p>        byte[] tokenBytes = generateRandomBytes(32); // 256 bits</p>
+<p>        return Base64.encodeToString(tokenBytes, Base64.URL_SAFE | Base64.NO_WRAP);</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Generate random IV for AES-GCM</li>
+</ul>
+<p>     */</p>
+<p>    public static byte[] generateIV() {</p>
+<p>        return generateRandomBytes(12); // 96-bit IV for GCM</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Generate random salt for password hashing</li>
+</ul>
+<p>     */</p>
+<p>    public static byte[] generateSalt() {</p>
+<p>        return generateRandomBytes(32); // 256-bit salt</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Generate secure random password</li>
+</ul>
+<p>     */</p>
+<p>    public static String generatePassword(int length) {</p>
+<p>        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";</p>
+<p>        StringBuilder password = new StringBuilder(length);</p>
+        
+<p>        for (int i = 0; i < length; i++) {</p>
+<p>            int index = secureRandom.nextInt(chars.length());</p>
+<p>            password.append(chars.charAt(index));</p>
+<p>        }</p>
+        
+<p>        return password.toString();</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>iOS - Secure Implementation</strong>:
+</code>`<code>swift
+<p>import Security</p>
+<p>import Foundation</p>
+
+<p>class SecureRandomGenerator {</p>
+    
+<p>    /**</p>
+<ul>
+<li>Generate cryptographically secure random bytes</li>
+</ul>
+<p>     */</p>
+<p>    static func generateRandomBytes(count: Int) -> Data? {</p>
+<p>        var bytes = <a href="repeating: 0, count: count">UInt8</a></p>
+<p>        let status = SecRandomCopyBytes(kSecRandomDefault, count, &bytes)</p>
+        
+<p>        guard status == errSecSuccess else {</p>
+<p>            return nil</p>
+<p>        }</p>
+        
+<p>        return Data(bytes)</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Generate secure session token</li>
+</ul>
+<p>     */</p>
+<p>    static func generateSessionToken() -> String? {</p>
+<p>        guard let data = generateRandomBytes(count: 32) else {</p>
+<p>            return nil</p>
+<p>        }</p>
+        
+<p>        return data.base64EncodedString()</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Generate random salt for password hashing</li>
+</ul>
+<p>     */</p>
+<p>    static func generateSalt() -> Data? {</p>
+<p>        return generateRandomBytes(count: 32)</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Generate secure random password</li>
+</ul>
+<p>     */</p>
+<p>    static func generatePassword(length: Int) -> String? {</p>
+<p>        let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*"</p>
+<p>        let charsArray = Array(chars)</p>
+        
+<p>        guard let randomData = generateRandomBytes(count: length) else {</p>
+<p>            return nil</p>
+<p>        }</p>
+        
+<p>        var password = ""</p>
+<p>        for byte in randomData {</p>
+<p>            let index = Int(byte) % charsArray.count</p>
+<p>            password.append(charsArray[index])</p>
+<p>        }</p>
+        
+<p>        return password</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<p>---</p>
+
+<h3>✅ Example 5: Certificate Pinning (iOS)</h3>
+
+<strong>Secure Implementation</strong>:
+</code>`<code>swift
+<p>import Foundation</p>
+
+<p>class SecureNetworking: NSObject, URLSessionDelegate {</p>
+    
+<p>    private let pinnedCertificates: Set<Data></p>
+    
+<p>    init(certificateNames: [String]) {</p>
+<p>        var certificates = Set<Data>()</p>
+        
+<p>        for name in certificateNames {</p>
+<p>            if let path = Bundle.main.path(forResource: name, ofType: "cer"),</p>
+<p>               let data = try? Data(contentsOf: URL(fileURLWithPath: path)) {</p>
+<p>                certificates.insert(data)</p>
+<p>            }</p>
+<p>        }</p>
+        
+<p>        self.pinnedCertificates = certificates</p>
+<p>        super.init()</p>
+<p>    }</p>
+    
+<p>    func urlSession(_ session: URLSession,</p>
+<p>                    didReceive challenge: URLAuthenticationChallenge,</p>
+<p>                    completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {</p>
+        
+<p>        // Only handle server trust challenges</p>
+<p>        guard challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,</p>
+<p>              let serverTrust = challenge.protectionSpace.serverTrust else {</p>
+<p>            completionHandler(.performDefaultHandling, nil)</p>
+<p>            return</p>
+<p>        }</p>
+        
+<p>        // Evaluate trust</p>
+<p>        var secresult = SecTrustResultType.invalid</p>
+<p>        let status = SecTrustEvaluate(serverTrust, &secresult)</p>
+        
+<p>        guard status == errSecSuccess else {</p>
+<p>            completionHandler(.cancelAuthenticationChallenge, nil)</p>
+<p>            return</p>
+<p>        }</p>
+        
+<p>        // Get server certificate</p>
+<p>        guard let serverCertificate = SecTrustGetCertificateAtIndex(serverTrust, 0) else {</p>
+<p>            completionHandler(.cancelAuthenticationChallenge, nil)</p>
+<p>            return</p>
+<p>        }</p>
+        
+<p>        let serverCertificateData = SecCertificateCopyData(serverCertificate) as Data</p>
+        
+<p>        // Check if certificate is pinned</p>
+<p>        if pinnedCertificates.contains(serverCertificateData) {</p>
+<p>            completionHandler(.useCredential, URLCredential(trust: serverTrust))</p>
+<p>        } else {</p>
+<p>            completionHandler(.cancelAuthenticationChallenge, nil)</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+
+<p>// Usage</p>
+<p>let networking = SecureNetworking(certificateNames: ["api_cert", "backup_cert"])</p>
+<p>let session = URLSession(configuration: .default,</p>
+<p>                        delegate: networking,</p>
+<p>                        delegateQueue: nil)</p>
+
+<p>// All requests through this session will use certificate pinning</p>
+<p>session.dataTask(with: URL(string: "https://api.example.com")!) { data, response, error in</p>
+<p>    // Handle response</p>
+<p>}.resume()</p>
+</code>`<code>
+
+<p>---</p>
+
+<h2>Common Patterns</h2>
+
+<h3>Pattern 1: Encrypted SharedPreferences (Android)</h3>
+
+<strong>Secure Pattern</strong>:
+</code>`<code>java
+<p>import androidx.security.crypto.EncryptedSharedPreferences;</p>
+<p>import androidx.security.crypto.MasterKey;</p>
+
+<p>public class SecurePreferences {</p>
+    
+<p>    public static SharedPreferences getEncryptedPreferences(Context context) {</p>
+<p>        try {</p>
+<p>            MasterKey masterKey = new MasterKey.Builder(context)</p>
+<p>                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)</p>
+<p>                .build();</p>
+            
+<p>            return EncryptedSharedPreferences.create(</p>
+<p>                context,</p>
+<p>                "secure_prefs",</p>
+<p>                masterKey,</p>
+<p>                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,</p>
+<p>                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM</p>
+<p>            );</p>
+            
+<p>        } catch (Exception e) {</p>
+<p>            throw new RuntimeException("Failed to create encrypted preferences", e);</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+
+<p>// Usage</p>
+<p>SharedPreferences prefs = SecurePreferences.getEncryptedPreferences(context);</p>
+<p>prefs.edit()</p>
+<p>    .putString("auth_token", token)</p>
+<p>    .apply();</p>
+</code>`<code>
+
+<p>---</p>
+
+<h3>Pattern 2: File Encryption (Android)</h3>
+
+<strong>Secure Pattern</strong>:
+</code>`<code>java
+<p>import androidx.security.crypto.EncryptedFile;</p>
+<p>import androidx.security.crypto.MasterKey;</p>
+
+<p>public class SecureFileStorage {</p>
+    
+<p>    public static void writeEncryptedFile(Context context, String filename, byte[] data) {</p>
+<p>        try {</p>
+<p>            MasterKey masterKey = new MasterKey.Builder(context)</p>
+<p>                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)</p>
+<p>                .build();</p>
+            
+<p>            File file = new File(context.getFilesDir(), filename);</p>
+            
+<p>            EncryptedFile encryptedFile = new EncryptedFile.Builder(</p>
+<p>                context,</p>
+<p>                file,</p>
+<p>                masterKey,</p>
+<p>                EncryptedFile.FileEncryptionScheme.AES256_GCM_HKDF_4KB</p>
+<p>            ).build();</p>
+            
+<p>            try (FileOutputStream outputStream = encryptedFile.openFileOutput()) {</p>
+<p>                outputStream.write(data);</p>
+<p>            }</p>
+            
+<p>        } catch (Exception e) {</p>
+<p>            throw new RuntimeException("File encryption failed", e);</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    public static byte[] readEncryptedFile(Context context, String filename) {</p>
+<p>        try {</p>
+<p>            MasterKey masterKey = new MasterKey.Builder(context)</p>
+<p>                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)</p>
+<p>                .build();</p>
+            
+<p>            File file = new File(context.getFilesDir(), filename);</p>
+            
+<p>            EncryptedFile encryptedFile = new EncryptedFile.Builder(</p>
+<p>                context,</p>
+<p>                file,</p>
+<p>                masterKey,</p>
+<p>                EncryptedFile.FileEncryptionScheme.AES256_GCM_HKDF_4KB</p>
+<p>            ).build();</p>
+            
+<p>            try (FileInputStream inputStream = encryptedFile.openFileInput()) {</p>
+<p>                return inputStream.readAllBytes();</p>
+<p>            }</p>
+            
+<p>        } catch (Exception e) {</p>
+<p>            throw new RuntimeException("File decryption failed", e);</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<p>---</p>
+
+<h2>Framework-Specific Examples</h2>
+
+<h3>React Native - Secure Storage</h3>
+
+</code>`<code>javascript
+<p>// Install: npm install react-native-keychain</p>
+<p>import * as Keychain from 'react-native-keychain';</p>
+
+<p>// Store credentials securely</p>
+<p>async function storeCredentials(username, password) {</p>
+<p>  await Keychain.setGenericPassword(username, password, {</p>
+<p>    accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,</p>
+<p>    service: 'com.app.auth'</p>
+<p>  });</p>
+<p>}</p>
+
+<p>// Retrieve credentials</p>
+<p>async function getCredentials() {</p>
+<p>  try {</p>
+<p>    const credentials = await Keychain.getGenericPassword({</p>
+<p>      service: 'com.app.auth'</p>
+<p>    });</p>
+<p>    if (credentials) {</p>
+<p>      return {</p>
+<p>        username: credentials.username,</p>
+<p>        password: credentials.password</p>
+<p>      };</p>
+<p>    }</p>
+<p>    return null;</p>
+<p>  } catch (error) {</p>
+<p>    console.error('Keychain error:', error);</p>
+<p>    return null;</p>
+<p>  }</p>
+<p>}</p>
+</code>`<code>
+
+<p>---</p>
+
+<h3>Flutter - Secure Storage</h3>
+
+</code>`<code>dart
+<p>// Add dependency: flutter_secure_storage</p>
+<p>import 'package:flutter_secure_storage/flutter_secure_storage.dart';</p>
+
+<p>class SecureStorage {</p>
+<p>  final storage = FlutterSecureStorage();</p>
+  
+<p>  // Store data securely</p>
+<p>  Future<void> storeToken(String token) async {</p>
+<p>    await storage.write(</p>
+<p>      key: 'auth_token',</p>
+<p>      value: token,</p>
+<p>      iOptions: IOSOptions(</p>
+<p>        accessibility: IOSAccessibility.first_unlock_this_device,</p>
+<p>      ),</p>
+<p>      aOptions: AndroidOptions(</p>
+<p>        encryptedSharedPreferences: true,</p>
+<p>      ),</p>
+<p>    );</p>
+<p>  }</p>
+  
+<p>  // Retrieve data</p>
+<p>  Future<String?> getToken() async {</p>
+<p>    return await storage.read(key: 'auth_token');</p>
+<p>  }</p>
+  
+<p>  // Delete data</p>
+<p>  Future<void> deleteToken() async {</p>
+<p>    await storage.delete(key: 'auth_token');</p>
+<p>  }</p>
+<p>}</p>
+</code>`<code>
+
+<p>---</p>
+
+<h2>Migration Examples</h2>
+
+<h3>Migrating from MD5 to bcrypt</h3>
+
+<strong>Migration Strategy</strong>:
+</code>`<code>java
+<p>public class PasswordMigration {</p>
+    
+<p>    // Old: MD5 hashing</p>
+<p>    private String oldHashPassword(String password) {</p>
+<p>        MessageDigest md = MessageDigest.getInstance("MD5");</p>
+<p>        return bytesToHex(md.digest(password.getBytes()));</p>
+<p>    }</p>
+    
+<p>    // New: bcrypt hashing</p>
+<p>    private String newHashPassword(String password) {</p>
+<p>        return BCrypt.hashpw(password, BCrypt.gensalt(12));</p>
+<p>    }</p>
+    
+<p>    // During login: Migrate from old to new hash</p>
+<p>    public boolean loginAndMigrate(String username, String password) {</p>
+<p>        User user = database.getUser(username);</p>
+        
+<p>        // Check if using old hash format</p>
+<p>        if (user.passwordHash.length() == 32) {  // MD5 is 32 hex chars</p>
+<p>            // Verify against old hash</p>
+<p>            if (oldHashPassword(password).equals(user.passwordHash)) {</p>
+<p>                // Successful login - migrate to bcrypt</p>
+<p>                String newHash = newHashPassword(password);</p>
+<p>                database.updatePasswordHash(username, newHash);</p>
+<p>                return true;</p>
+<p>            }</p>
+<p>        } else {</p>
+<p>            // Already using bcrypt</p>
+<p>            return BCrypt.checkpw(password, user.passwordHash);</p>
+<p>        }</p>
+        
+<p>        return false;</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<p>---</p>
+
+<h3>Migrating from Hard-Coded Key to KeyStore</h3>
+
+<strong>Migration Strategy</strong>:
+</code>`<code>java
+<p>public class KeyMigration {</p>
+    
+<p>    private static final String OLD_KEY = "HardCodedKey1234";</p>
+    
+<p>    // Step 1: Decrypt data with old key</p>
+<p>    public byte[] decryptWithOldKey(byte[] encryptedData) throws Exception {</p>
+<p>        SecretKeySpec keySpec = new SecretKeySpec(OLD_KEY.getBytes(), "AES");</p>
+<p>        Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");</p>
+<p>        cipher.init(Cipher.DECRYPT_MODE, keySpec);</p>
+<p>        return cipher.doFinal(encryptedData);</p>
+<p>    }</p>
+    
+<p>    // Step 2: Encrypt with new KeyStore key</p>
+<p>    public byte[] encryptWithNewKey(byte[] plaintext) throws Exception {</p>
+<p>        SecretKey newKey = SecureCrypto.getKey(); // From KeyStore</p>
+<p>        // Use AES-GCM encryption (from earlier example)</p>
+<p>        return SecureCrypto.encrypt(new String(plaintext)).getBytes();</p>
+<p>    }</p>
+    
+<p>    // Migration function</p>
+<p>    public void migrateData(Context context) {</p>
+<p>        SQLiteDatabase db = context.openOrCreateDatabase("app.db", 0, null);</p>
+<p>        Cursor cursor = db.rawQuery("SELECT id, encrypted_data FROM secrets", null);</p>
+        
+<p>        while (cursor.moveToNext()) {</p>
+<p>            int id = cursor.getInt(0);</p>
+<p>            byte[] oldEncrypted = cursor.getBlob(1);</p>
+            
+<p>            try {</p>
+<p>                // Decrypt with old key</p>
+<p>                byte[] plaintext = decryptWithOldKey(oldEncrypted);</p>
+                
+<p>                // Re-encrypt with new key</p>
+<p>                byte[] newEncrypted = encryptWithNewKey(plaintext);</p>
+                
+<p>                // Update database</p>
+<p>                db.execSQL("UPDATE secrets SET encrypted_data = ? WHERE id = ?",</p>
+<p>                          new Object[]{newEncrypted, id});</p>
+                
+<p>            } catch (Exception e) {</p>
+<p>                Log.e("Migration", "Failed to migrate record " + id, e);</p>
+<p>            }</p>
+<p>        }</p>
+        
+<p>        cursor.close();</p>
+<p>        db.close();</p>
+<p>    }</p>
+<p>}</p>
+</code>``
+
+<p>---</p>
+
+<strong>Summary</strong>: Always use platform-provided secure cryptography APIs, never implement custom algorithms, and store keys securely in KeyStore/Keychain.
+
+<strong>Related Documentation</strong>:
+<ul>
+<li><a href="overview.md">Overview</a> - Understanding insufficient cryptography</li>
+<li><a href="attack-vectors.md">Attack Vectors</a> - How weak crypto is exploited</li>
+<li><a href="prevention.md">Prevention</a> - Secure implementation guide</li>
+<li><a href="lab/">Lab</a> - Hands-on practice</li>
+</ul>
+
         </div>
     </div>
 </body>

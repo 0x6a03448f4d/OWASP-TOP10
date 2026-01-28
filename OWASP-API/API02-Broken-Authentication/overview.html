@@ -215,7 +215,399 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>API02: Broken Authentication - Overview</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#what-is-broken-authentication-in-apis">What is Broken Authentication in APIs?</a></li>
+<li><a href="#why-does-this-matter">Why Does This Matter?</a></li>
+<li><a href="#technical-context">Technical Context</a></li>
+<li><a href="#real-world-impact">Real-World Impact</a></li>
+<li><a href="#prevalence-and-statistics">Prevalence and Statistics</a></li>
+<li><a href="#common-misunderstandings">Common Misunderstandings</a></li>
+</ul>
+
+<h2>What is Broken Authentication in APIs?</h2>
+
+<strong>Broken Authentication</strong> occurs when API authentication mechanisms are poorly implemented, allowing attackers to compromise authentication tokens, passwords, session IDs, or exploit implementation flaws to assume other users' identities temporarily or permanently.
+
+<p>Authentication is the process of verifying that users are who they claim to be. When this verification is weak or flawed, attackers can bypass it, leading to unauthorized access, account takeover, and data breaches.</p>
+
+<h3>Core Concept</h3>
+
+<p>``<code></p>
+<p>Proper Authentication Flow:</p>
+<p>User → Credentials → Verification → Token → Access ✓</p>
+
+<p>Broken Authentication:</p>
+<p>Attacker → Weak Mechanism → Bypass → Stolen Token → Unauthorized Access ✗</p>
+</code>`<code>
+
+<h3>Why It's #2 for APIs</h3>
+
+<p>Unlike traditional web applications, APIs:</p>
+<ul>
+<li>Rely heavily on tokens rather than sessions</li>
+<li>Often lack multi-factor authentication (MFA)</li>
+<li>Use long-lived API keys that don't expire</li>
+<li>Have weak password policies</li>
+<li>Lack rate limiting on authentication endpoints</li>
+<li>Use predictable or weak token generation</li>
+<li>Don't properly validate token ownership</li>
+</ul>
+
+<h2>Why Does This Matter?</h2>
+
+<h3>The Business Impact</h3>
+
+<ul>
+<li><strong>Account Takeover</strong>: Attackers gain full access to user accounts</li>
+<li><strong>Data Breaches</strong>: Compromised credentials lead to data theft</li>
+<li><strong>Financial Fraud</strong>: Unauthorized transactions and payments</li>
+<li><strong>Regulatory Violations</strong>: GDPR, PCI-DSS, HIPAA non-compliance</li>
+<li><strong>Reputation Loss</strong>: Customer trust destroyed permanently</li>
+<li><strong>Legal Liability</strong>: Lawsuits and regulatory fines</li>
+<li><strong>Credential Stuffing</strong>: Automated attacks using leaked credentials</li>
+</ul>
+
+<h3>The Technical Impact</h3>
+
+<ul>
+<li><strong>Session Hijacking</strong>: Stealing valid authentication tokens</li>
+<li><strong>Brute Force Success</strong>: No rate limiting allows password guessing</li>
+<li><strong>Token Theft</strong>: JWT tokens stolen and reused</li>
+<li><strong>Weak Password Policies</strong>: Users choose predictable passwords</li>
+<li><strong>No Token Expiration</strong>: Tokens valid indefinitely</li>
+<li><strong>Algorithm Confusion</strong>: JWT algorithm switching attacks</li>
+<li><strong>Credential Stuffing</strong>: Reused passwords from breaches</li>
+</ul>
+
+<h2>Technical Context</h2>
+
+<h3>How Broken Authentication Differs from Traditional Web Apps</h3>
+
+<p>| Traditional Web Apps | Modern APIs |</p>
+<p>|---------------------|-------------|</p>
+<p>| Session-based auth | Token-based (JWT, OAuth) |</p>
+<p>| Browser cookies | HTTP headers |</p>
+<p>| MFA often present | MFA rarely implemented |</p>
+<p>| Session timeout | Long-lived tokens |</p>
+<p>| Password reset flows | API key rotation |</p>
+<p>| Rate limiting common | Often missing |</p>
+
+<h3>Common Vulnerable Patterns</h3>
+
+<h4>Pattern 1: Weak JWT Implementation</h4>
+
+</code>`<code>
+<p>POST /api/login</p>
+<p>{</p>
+<p>  "username": "user@example.com",</p>
+<p>  "password": "password123"</p>
+<p>}</p>
+
+<p>Response:</p>
+<p>{</p>
+<p>  "token": "eyJhbGc.iOiJIUzI1NiIs.tyJ1c2VyX2lk..."</p>
+<p>}</p>
+
+<p>VULNERABILITIES:</p>
+<p>✗ Uses HS256 (symmetric) with weak secret</p>
+<p>✗ No expiration time (exp claim)</p>
+<p>✗ No refresh token mechanism</p>
+<p>✗ Token not invalidated on logout</p>
+<p>✗ Predictable secret key</p>
+</code>`<code>
+
+<h4>Pattern 2: No Rate Limiting on Login</h4>
+
+</code>`<code>
+<p>POST /api/login (attempt 1)</p>
+<p>POST /api/login (attempt 2)</p>
+<p>POST /api/login (attempt 3)</p>
+<p>...</p>
+<p>POST /api/login (attempt 10000)</p>
+
+<p>VULNERABILITY:</p>
+<p>✗ No rate limiting allows brute force attacks</p>
+<p>✗ Attacker can try millions of passwords</p>
+<p>✗ No account lockout mechanism</p>
+<p>✗ No delay between failed attempts</p>
+</code>`<code>
+
+<h4>Pattern 3: Weak Password Policies</h4>
+
+</code>`<code>
+<p>Accepted passwords:</p>
+<p>✗ "123456"</p>
+<p>✗ "password"</p>
+<p>✗ "admin"</p>
+<p>✗ "user"</p>
+<p>✗ 5 character passwords</p>
+
+<p>VULNERABILITY:</p>
+<p>No password complexity requirements</p>
+<p>No minimum length enforcement</p>
+<p>Common passwords accepted</p>
+<p>No password breach checking</p>
+</code>`<code>
+
+<h4>Pattern 4: Long-Lived API Keys</h4>
+
+</code>`<code>
+<p>API Key: sk_live_a1b2c3d4e5f6g7h8i9j0</p>
+<p>Created: 2020-01-01</p>
+<p>Expires: Never</p>
+
+<p>VULNERABILITIES:</p>
+<p>✗ No expiration date</p>
+<p>✗ No rotation policy</p>
+<p>✗ If leaked, valid forever</p>
+<p>✗ No scoping or permissions</p>
+<p>✗ Hard-coded in client apps</p>
+</code>`<code>
+
+<h3>The Authentication Stack</h3>
+
+</code>`<code>
+<p>┌─────────────────────────────────────┐</p>
+<p>│   1. Credential Validation          │  ← Username/password correct?</p>
+<p>├─────────────────────────────────────┤</p>
+<p>│   2. Token Generation               │  ← Create secure JWT/session</p>
+<p>├─────────────────────────────────────┤</p>
+<p>│   3. Token Storage                  │  ← Store securely client-side</p>
+<p>├─────────────────────────────────────┤</p>
+<p>│   4. Token Transmission             │  ← Send in headers (not URL)</p>
+<p>├─────────────────────────────────────┤</p>
+<p>│   5. Token Validation               │  ← Verify signature & expiration</p>
+<p>├─────────────────────────────────────┤</p>
+<p>│   6. Token Revocation               │  ← Logout, password change</p>
+<p>└─────────────────────────────────────┘</p>
+
+<p>Broken authentication can occur at ANY layer</p>
+</code>`<code>
+
+<h2>Real-World Impact</h2>
+
+<h3>Case Study 1: T-Mobile (2021)</h3>
+
+<strong>Vulnerability</strong>: Weak API authentication allowed SIM swapping  
+<strong>Impact</strong>: Customer accounts compromised, phone numbers hijacked  
+<strong>Attack Method</strong>: API credentials exposed, no MFA  
+<strong>Root Cause</strong>: Insufficient authentication controls on sensitive operations
+
+<h3>Case Study 2: Experian (2021)</h3>
+
+<strong>Vulnerability</strong>: Weak password reset API  
+<strong>Impact</strong>: Credit reports accessible without proper authentication  
+<strong>Attack Method</strong>: Predictable password reset tokens  
+<strong>Root Cause</strong>: Weak token generation algorithm
+
+<h3>Case Study 3: Twitter (2020)</h3>
+
+<strong>Vulnerability</strong>: OAuth token leak in API  
+<strong>Impact</strong>: 5.4 million accounts exposed  
+<strong>Attack Method</strong>: API returned authentication tokens in error messages  
+<strong>Root Cause</strong>: Information leakage in API responses
+
+<h3>Case Study 4: Generic E-Commerce Platform</h3>
+
+<strong>Scenario</strong>: No rate limiting on login endpoint  
+<strong>Impact</strong>: 2,000 accounts compromised via credential stuffing  
+<strong>Attack Method</strong>: Automated tool tried 10 million credential pairs  
+<strong>Root Cause</strong>: Missing rate limiting and no account lockout
+
+<h2>Prevalence and Statistics</h2>
+
+<h3>OWASP API Security Top 10 2023 Data</h3>
+
+<ul>
+<li><strong>#2</strong> most critical API vulnerability</li>
+<li>Found in approximately <strong>62%</strong> of APIs tested</li>
+<li><strong>Most exploited</strong> after BOLA in real-world attacks</li>
+<li>Average time to exploit: <strong>Minutes</strong> with automated tools</li>
+<li>Detection difficulty: <strong>Easy</strong> (automated scanners available)</li>
+</ul>
+
+<h3>Attack Characteristics</h3>
+
+<p>| Metric | Value |</p>
+<p>|--------|-------|</p>
+<p>| <strong>Exploitability</strong> | Easy - automated tools widely available |</p>
+<p>| <strong>Prevalence</strong> | Common - many APIs lack proper auth |</p>
+<p>| <strong>Detectability</strong> | Easy - simple testing reveals issues |</p>
+<p>| <strong>Technical Impact</strong> | Severe - complete account takeover |</p>
+<p>| <strong>Business Impact</strong> | Critical - regulatory and reputation damage |</p>
+
+<h3>Industry Vulnerabilities</h3>
+
+<p>Different API types face varying authentication risks:</p>
+
+<p>| API Type | Risk Level | Common Issues |</p>
+<p>|----------|------------|---------------|</p>
+<p>| <strong>Financial APIs</strong> | Critical | Weak MFA, no biometrics |</p>
+<p>| <strong>Healthcare APIs</strong> | Critical | Long-lived tokens, no rotation |</p>
+<p>| <strong>E-commerce APIs</strong> | High | No rate limiting, weak passwords |</p>
+<p>| <strong>Social Media APIs</strong> | High | OAuth misconfigurations |</p>
+<p>| <strong>IoT APIs</strong> | Critical | Hardcoded credentials, no updates |</p>
+<p>| <strong>Internal APIs</strong> | Medium-High | Assumption of trusted network |</p>
+<p>| <strong>Mobile APIs</strong> | High | Tokens in app code, no refresh |</p>
+
+<h2>Common Misunderstandings</h2>
+
+<h3>Myth 1: "Using JWT = Secure Authentication"</h3>
+
+<strong>Reality</strong>: JWT is just a format; implementation determines security.
+
+</code>`<code>python
+<h1>INSECURE JWT:</h1>
+<p>jwt.encode(payload, secret="secret123", algorithm="HS256")</p>
+<h1>✗ Weak secret</h1>
+<h1>✗ Symmetric algorithm</h1>
+<h1>✗ No expiration</h1>
+
+<h1>SECURE JWT:</h1>
+<p>jwt.encode(</p>
+<p>    {</p>
+<p>        **payload,</p>
+<p>        'exp': datetime.utcnow() + timedelta(minutes=15),</p>
+<p>        'iat': datetime.utcnow()</p>
+<p>    },</p>
+<p>    private_key,</p>
+<p>    algorithm="RS256"</p>
+<p>)</p>
+<h1>✓ Strong private key</h1>
+<h1>✓ Asymmetric algorithm</h1>
+<h1>✓ Short expiration</h1>
+<h1>✓ Issued-at timestamp</h1>
+</code>`<code>
+
+<h3>Myth 2: "HTTPS Protects Authentication"</h3>
+
+<strong>Reality</strong>: HTTPS protects transmission, not storage or token strength.
+
+</code>`<code>
+<p>HTTPS protects:</p>
+<p>✓ Credentials in transit</p>
+<p>✓ Token transmission</p>
+<p>✓ Man-in-the-middle attacks</p>
+
+<p>HTTPS does NOT protect:</p>
+<p>✗ Weak passwords</p>
+<p>✗ Stolen tokens</p>
+<p>✗ Brute force attacks</p>
+<p>✗ Token reuse</p>
+<p>✗ Client-side token storage</p>
+<p>✗ Long-lived tokens</p>
+</code>`<code>
+
+<h3>Myth 3: "API Keys Are Secure"</h3>
+
+<strong>Reality</strong>: API keys are passwords; treat them accordingly.
+
+</code>`<code>
+<p>API Key Risks:</p>
+<p>✗ Often hard-coded in mobile apps</p>
+<p>✗ Exposed in client-side JavaScript</p>
+<p>✗ Committed to version control (GitHub)</p>
+<p>✗ No expiration mechanism</p>
+<p>✗ Shared across users/services</p>
+<p>✗ No rotation policy</p>
+<p>✗ Transmitted in URLs (logged everywhere)</p>
+
+<p>Proper Usage:</p>
+<p>✓ Server-side only</p>
+<p>✓ Environment variables</p>
+<p>✓ Regular rotation</p>
+<p>✓ Expiration dates</p>
+<p>✓ Scoped permissions</p>
+<p>✓ Separate keys per service</p>
+<p>✓ Transmitted in headers</p>
+</code>`<code>
+
+<h3>Myth 4: "Password Hashing = Secure"</h3>
+
+<strong>Reality</strong>: Hashing algorithm and salt matter significantly.
+
+</code>`<code>python
+<h1>WEAK:</h1>
+<p>md5(password)  # ✗ Crackable in seconds</p>
+
+<h1>WEAK:</h1>
+<p>sha256(password)  # ✗ Too fast, no salt</p>
+
+<h1>BETTER:</h1>
+<p>bcrypt(password, salt)  # ✓ Better but older</p>
+
+<h1>BEST:</h1>
+<p>argon2id(password, salt)  # ✓ Modern, resistant to GPU attacks</p>
+</code>`<code>
+
+<h3>Myth 5: "Internal APIs Don't Need Strong Auth"</h3>
+
+<strong>Reality</strong>: Internal breaches are common and devastating.
+
+</code>`<code>
+<p>Threats to "internal" APIs:</p>
+<p>✗ Insider threats</p>
+<p>✗ Compromised employee accounts</p>
+<p>✗ Lateral movement after initial breach</p>
+<p>✗ Supply chain attacks</p>
+<p>✗ Accidentally exposed endpoints</p>
+<p>✗ Mobile app decompilation</p>
+<p>✗ Network sniffing</p>
+
+<p>Defense: Authenticate ALL APIs equally</p>
+</code>`<code>
+
+<h3>Myth 6: "Rate Limiting Solves Authentication Issues"</h3>
+
+<strong>Reality</strong>: Rate limiting helps but doesn't replace strong authentication.
+
+</code>`<code>
+<p>Rate Limiting helps with:</p>
+<p>✓ Brute force attacks</p>
+<p>✓ Credential stuffing</p>
+<p>✓ DoS attacks</p>
+
+<p>Rate Limiting does NOT fix:</p>
+<p>✗ Weak passwords</p>
+<p>✗ Token vulnerabilities</p>
+<p>✗ Missing MFA</p>
+<p>✗ Poor session management</p>
+<p>✗ Credential leaks</p>
+
+<p>Both are needed!</p>
+</code>``
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li>✅ <strong>Use strong token generation</strong> - RS256, proper secrets, expiration</li>
+<li>✅ <strong>Implement rate limiting</strong> - Prevent brute force and credential stuffing</li>
+<li>✅ <strong>Enforce password policies</strong> - Complexity, length, breach checking</li>
+<li>✅ <strong>Use short-lived tokens</strong> - 15-minute access tokens with refresh tokens</li>
+<li>✅ <strong>Implement MFA where possible</strong> - Especially for sensitive operations</li>
+<li>✅ <strong>Rotate API keys regularly</strong> - Automated rotation with expiration</li>
+<li>✅ <strong>Use secure storage</strong> - Never store tokens in localStorage without encryption</li>
+<li>✅ <strong>Validate tokens properly</strong> - Check signature, expiration, issuer</li>
+<li>✅ <strong>Implement logout</strong> - Token revocation and blacklisting</li>
+<li>✅ <strong>Monitor authentication failures</strong> - Detect attack patterns</li>
+</ol>
+
+<h2>What's Next?</h2>
+
+<ul>
+<li><strong><a href="./attack-vectors.md">Attack Vectors</a></strong>: Learn how attackers exploit authentication flaws</li>
+<li><strong><a href="./prevention.md">Prevention</a></strong>: Best practices and secure authentication patterns</li>
+<li><strong><a href="./examples.md">Examples</a></strong>: Code examples showing vulnerable vs secure implementations</li>
+<li><strong><a href="./lab/api02-weak-auth-lab/">Lab</a></strong>: Hands-on practice with authentication vulnerabilities</li>
+</ul>
+
+<p>---</p>
+
+<em>Part of the <a href="../../README.md">OWASP API Security Top 10 Educational Repository</a></em>
+
         </div>
     </div>
 </body>

@@ -215,7 +215,1110 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>API05: Broken Function Level Authorization - Prevention</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#core-principles">Core Principles</a></li>
+<li><a href="#authorization-frameworks-and-patterns">Authorization Frameworks and Patterns</a></li>
+<li><a href="#implementation-strategies">Implementation Strategies</a></li>
+<li><a href="#technology-specific-guidance">Technology-Specific Guidance</a></li>
+<li><a href="#testing-and-validation">Testing and Validation</a></li>
+<li><a href="#common-pitfalls-to-avoid">Common Pitfalls to Avoid</a></li>
+</ul>
+
+<h2>Core Principles</h2>
+
+<h3>1. Defense in Depth</h3>
+
+<p>Function-level authorization should be implemented at multiple layers:</p>
+
+<p>``<code></p>
+<p>┌─────────────────────────────────────┐</p>
+<p>│     API Gateway / Load Balancer     │ ← Coarse-grained filtering</p>
+<p>├─────────────────────────────────────┤</p>
+<p>│     Authentication Middleware       │ ← Identity verification</p>
+<p>├─────────────────────────────────────┤</p>
+<p>│  Authorization Middleware (Global)  │ ← Function-level checks</p>
+<p>├─────────────────────────────────────┤</p>
+<p>│   Route-Specific Authorization      │ ← Operation-specific rules</p>
+<p>├─────────────────────────────────────┤</p>
+<p>│     Business Logic Layer            │ ← Additional validation</p>
+<p>├─────────────────────────────────────┤</p>
+<p>│     Data Access Layer               │ ← Object-level checks</p>
+<p>└─────────────────────────────────────┘</p>
+</code>`<code>
+
+<h3>2. Default Deny</h3>
+
+<strong>Principle</strong>: Access should be explicitly granted, never assumed.
+
+</code>`<code>python
+<h1>WRONG: Whitelist admins, everyone else allowed</h1>
+<p>if user.role != 'admin':</p>
+<p>    return forbidden()</p>
+<h1>Dangerous: New roles automatically get access</h1>
+
+<h1>RIGHT: Explicit permission required</h1>
+<p>if user.role not in ['admin', 'moderator']:</p>
+<p>    return forbidden()</p>
+<h1>Safe: Only known roles allowed</h1>
+</code>`<code>
+
+<h3>3. Separation of Concerns</h3>
+
+<ul>
+<li><strong>Authentication</strong>: Who are you? (Identity)</li>
+<li><strong>Authorization</strong>: What can you do? (Permissions)</li>
+<li><strong>Business Logic</strong>: Should you do this? (Context)</li>
+</ul>
+
+<p>Never conflate these responsibilities.</p>
+
+<h3>4. Centralized Authorization Logic</h3>
+
+</code>`<code>python
+<h1>WRONG: Scattered authorization checks</h1>
+<p>@app.route('/api/users/<id>', methods=['DELETE'])</p>
+<p>def delete_user(id):</p>
+<p>    if current_user.role != 'admin':</p>
+<p>        return {'error': 'Forbidden'}, 403</p>
+<p>    # Delete logic</p>
+
+<p>@app.route('/api/posts/<id>', methods=['DELETE'])</p>
+<p>def delete_post(id):</p>
+<p>    if current_user.role != 'admin':  # Duplicated!</p>
+<p>        return {'error': 'Forbidden'}, 403</p>
+<p>    # Delete logic</p>
+
+<h1>RIGHT: Centralized authorization</h1>
+<p>def require_role(role):</p>
+<p>    def decorator(f):</p>
+<p>        @wraps(f)</p>
+<p>        def decorated_function(<em>args, </em>*kwargs):</p>
+<p>            if current_user.role != role:</p>
+<p>                return {'error': 'Forbidden'}, 403</p>
+<p>            return f(<em>args, </em>*kwargs)</p>
+<p>        return decorated_function</p>
+<p>    return decorator</p>
+
+<p>@app.route('/api/users/<id>', methods=['DELETE'])</p>
+<p>@require_role('admin')</p>
+<p>def delete_user(id):</p>
+<p>    # Delete logic</p>
+
+<p>@app.route('/api/posts/<id>', methods=['DELETE'])</p>
+<p>@require_role('admin')</p>
+<p>def delete_post(id):</p>
+<p>    # Delete logic</p>
+</code>`<code>
+
+<h3>5. Explicit Over Implicit</h3>
+
+<p>Make authorization requirements clear and visible:</p>
+
+</code>`<code>python
+<h1>WRONG: Implicit authorization</h1>
+<p>@app.route('/api/admin/users')</p>
+<p>def admin_users():</p>
+<p>    # Path suggests admin, but no enforcement</p>
+
+<h1>RIGHT: Explicit authorization</h1>
+<p>@app.route('/api/admin/users')</p>
+<p>@require_admin</p>
+<p>@audit_log</p>
+<p>def admin_users():</p>
+<p>    # Clear authorization requirements</p>
+</code>`<code>
+
+<h2>Authorization Frameworks and Patterns</h2>
+
+<h3>Role-Based Access Control (RBAC)</h3>
+
+<strong>When to use</strong>: Permissions are based on user roles in the organization.
+
+<strong>Structure</strong>:
+</code>`<code>
+<p>User → Role → Permissions</p>
+<p>  ↓      ↓         ↓</p>
+<p>Alice  Admin   [read, write, delete, manage_users]</p>
+<p>Bob    User    [read, write]</p>
+</code>`<code>
+
+<strong>Implementation</strong>:
+
+</code>`<code>python
+<p>from enum import Enum</p>
+
+<p>class Role(Enum):</p>
+<p>    ADMIN = 'admin'</p>
+<p>    MODERATOR = 'moderator'</p>
+<p>    USER = 'user'</p>
+
+<p>class Permission(Enum):</p>
+<p>    READ_USERS = 'read_users'</p>
+<p>    WRITE_USERS = 'write_users'</p>
+<p>    DELETE_USERS = 'delete_users'</p>
+<p>    MANAGE_SETTINGS = 'manage_settings'</p>
+
+<h1>Role-Permission mapping</h1>
+<p>ROLE_PERMISSIONS = {</p>
+<p>    Role.ADMIN: [</p>
+<p>        Permission.READ_USERS,</p>
+<p>        Permission.WRITE_USERS,</p>
+<p>        Permission.DELETE_USERS,</p>
+<p>        Permission.MANAGE_SETTINGS,</p>
+<p>    ],</p>
+<p>    Role.MODERATOR: [</p>
+<p>        Permission.READ_USERS,</p>
+<p>        Permission.WRITE_USERS,</p>
+<p>    ],</p>
+<p>    Role.USER: [</p>
+<p>        Permission.READ_USERS,</p>
+<p>    ],</p>
+<p>}</p>
+
+<p>def has_permission(user, required_permission):</p>
+<p>    """Check if user's role has the required permission."""</p>
+<p>    user_permissions = ROLE_PERMISSIONS.get(user.role, [])</p>
+<p>    return required_permission in user_permissions</p>
+
+<p>def require_permission(permission):</p>
+<p>    """Decorator to enforce permission requirements."""</p>
+<p>    def decorator(f):</p>
+<p>        @wraps(f)</p>
+<p>        def decorated_function(<em>args, </em>*kwargs):</p>
+<p>            if not has_permission(current_user, permission):</p>
+<p>                return {'error': 'Insufficient permissions'}, 403</p>
+<p>            return f(<em>args, </em>*kwargs)</p>
+<p>        return decorated_function</p>
+<p>    return decorator</p>
+
+<h1>Usage</h1>
+<p>@app.route('/api/users/<id>', methods=['DELETE'])</p>
+<p>@require_permission(Permission.DELETE_USERS)</p>
+<p>def delete_user(id):</p>
+<p>    # Only admins can execute this</p>
+<p>    User.query.get(id).delete()</p>
+<p>    return {'status': 'deleted'}</p>
+</code>`<code>
+
+<strong>Pros</strong>:
+<ul>
+<li>Simple to understand and implement</li>
+<li>Easy to manage in small to medium organizations</li>
+<li>Clear role hierarchy</li>
+</ul>
+
+<strong>Cons</strong>:
+<ul>
+<li>Can become complex with many roles</li>
+<li>Role explosion problem</li>
+<li>Less flexible for fine-grained control</li>
+</ul>
+
+<h3>Attribute-Based Access Control (ABAC)</h3>
+
+<strong>When to use</strong>: Permissions depend on multiple attributes (user, resource, environment, action).
+
+<strong>Structure</strong>:
+</code>`<code>
+<p>Policy: Can user perform action on resource in context?</p>
+<p>  ↓</p>
+<p>Attributes:</p>
+<p>  User: {role: manager, department: sales, level: 3}</p>
+<p>  Resource: {type: report, department: sales, sensitivity: high}</p>
+<p>  Environment: {time: business_hours, location: office}</p>
+<p>  Action: {type: read, scope: full}</p>
+</code>`<code>
+
+<strong>Implementation</strong>:
+
+</code>`<code>python
+<p>from dataclasses import dataclass</p>
+<p>from typing import Dict, Any</p>
+
+<p>@dataclass</p>
+<p>class AuthorizationContext:</p>
+<p>    user_attributes: Dict[str, Any]</p>
+<p>    resource_attributes: Dict[str, Any]</p>
+<p>    action: str</p>
+<p>    environment: Dict[str, Any]</p>
+
+<p>class Policy:</p>
+<p>    """ABAC policy evaluation."""</p>
+    
+<p>    @staticmethod</p>
+<p>    def evaluate(context: AuthorizationContext) -> bool:</p>
+<p>        """Evaluate if action is authorized based on attributes."""</p>
+<p>        # Example: Department managers can delete their department's resources</p>
+<p>        if context.action == 'delete':</p>
+<p>            if context.user_attributes.get('role') == 'manager':</p>
+<p>                user_dept = context.user_attributes.get('department')</p>
+<p>                resource_dept = context.resource_attributes.get('department')</p>
+<p>                return user_dept == resource_dept</p>
+<p>            return False</p>
+        
+<p>        # Example: Admins can do everything</p>
+<p>        if context.user_attributes.get('role') == 'admin':</p>
+<p>            return True</p>
+        
+<p>        return False</p>
+
+<p>def require_authorization(get_resource):</p>
+<p>    """Decorator for ABAC enforcement."""</p>
+<p>    def decorator(f):</p>
+<p>        @wraps(f)</p>
+<p>        def decorated_function(<em>args, </em>*kwargs):</p>
+<p>            resource = get_resource(<em>args, </em>*kwargs)</p>
+            
+<p>            context = AuthorizationContext(</p>
+<p>                user_attributes={</p>
+<p>                    'role': current_user.role,</p>
+<p>                    'department': current_user.department,</p>
+<p>                },</p>
+<p>                resource_attributes={</p>
+<p>                    'department': resource.department,</p>
+<p>                    'owner_id': resource.owner_id,</p>
+<p>                },</p>
+<p>                action=request.method.lower(),</p>
+<p>                environment={</p>
+<p>                    'time': datetime.now(),</p>
+<p>                    'ip': request.remote_addr,</p>
+<p>                }</p>
+<p>            )</p>
+            
+<p>            if not Policy.evaluate(context):</p>
+<p>                return {'error': 'Not authorized'}, 403</p>
+            
+<p>            return f(<em>args, </em>*kwargs)</p>
+<p>        return decorated_function</p>
+<p>    return decorator</p>
+
+<h1>Usage</h1>
+<p>@app.route('/api/reports/<id>', methods=['DELETE'])</p>
+<p>@require_authorization(lambda id: Report.query.get(id))</p>
+<p>def delete_report(id):</p>
+<p>    # Only managers of the same department can delete</p>
+<p>    Report.query.get(id).delete()</p>
+<p>    return {'status': 'deleted'}</p>
+</code>`<code>
+
+<strong>Pros</strong>:
+<ul>
+<li>Very flexible and fine-grained</li>
+<li>Scales to complex scenarios</li>
+<li>Dynamic policy evaluation</li>
+</ul>
+
+<strong>Cons</strong>:
+<ul>
+<li>More complex to implement</li>
+<li>Performance considerations</li>
+<li>Harder to audit and debug</li>
+</ul>
+
+<h3>Permission-Based Access Control</h3>
+
+<strong>When to use</strong>: Direct user-to-permission mapping for simpler systems.
+
+<strong>Implementation</strong>:
+
+</code>`<code>python
+<p>class User:</p>
+<p>    def __init__(self, id, permissions):</p>
+<p>        self.id = id</p>
+<p>        self.permissions = set(permissions)</p>
+    
+<p>    def has_permission(self, permission):</p>
+<p>        return permission in self.permissions</p>
+    
+<p>    def add_permission(self, permission):</p>
+<p>        self.permissions.add(permission)</p>
+    
+<p>    def remove_permission(self, permission):</p>
+<p>        self.permissions.discard(permission)</p>
+
+<p>def require_any_permission(*required_permissions):</p>
+<p>    """User must have at least one of the specified permissions."""</p>
+<p>    def decorator(f):</p>
+<p>        @wraps(f)</p>
+<p>        def decorated_function(<em>args, </em>*kwargs):</p>
+<p>            if not any(current_user.has_permission(p) for p in required_permissions):</p>
+<p>                return {'error': 'Insufficient permissions'}, 403</p>
+<p>            return f(<em>args, </em>*kwargs)</p>
+<p>        return decorated_function</p>
+<p>    return decorator</p>
+
+<p>def require_all_permissions(*required_permissions):</p>
+<p>    """User must have all specified permissions."""</p>
+<p>    def decorator(f):</p>
+<p>        @wraps(f)</p>
+<p>        def decorated_function(<em>args, </em>*kwargs):</p>
+<p>            if not all(current_user.has_permission(p) for p in required_permissions):</p>
+<p>                return {'error': 'Insufficient permissions'}, 403</p>
+<p>            return f(<em>args, </em>*kwargs)</p>
+<p>        return decorated_function</p>
+<p>    return decorator</p>
+
+<h1>Usage</h1>
+<p>@app.route('/api/users/<id>', methods=['DELETE'])</p>
+<p>@require_all_permissions('users:delete', 'admin:access')</p>
+<p>def delete_user(id):</p>
+<p>    User.query.get(id).delete()</p>
+<p>    return {'status': 'deleted'}</p>
+</code>`<code>
+
+<h3>Policy Enforcement Points (PEP)</h3>
+
+<strong>Centralized authorization using dedicated service:</strong>
+
+</code>`<code>python
+<p>class AuthorizationService:</p>
+<p>    """Centralized policy enforcement point."""</p>
+    
+<p>    def __init__(self):</p>
+<p>        self.policies = self._load_policies()</p>
+    
+<p>    def authorize(self, user, action, resource=None):</p>
+<p>        """</p>
+<p>        Central authorization check.</p>
+        
+<p>        Args:</p>
+<p>            user: The user attempting the action</p>
+<p>            action: The action being attempted (e.g., 'delete_user')</p>
+<p>            resource: Optional resource being accessed</p>
+        
+<p>        Returns:</p>
+<p>            bool: True if authorized, False otherwise</p>
+<p>        """</p>
+<p>        # Check global admin override</p>
+<p>        if user.role == 'super_admin':</p>
+<p>            return True</p>
+        
+<p>        # Load applicable policies</p>
+<p>        policies = self._get_policies_for_action(action)</p>
+        
+<p>        # Evaluate each policy</p>
+<p>        for policy in policies:</p>
+<p>            if policy.evaluate(user, action, resource):</p>
+<p>                return True</p>
+        
+<p>        return False</p>
+    
+<p>    def _get_policies_for_action(self, action):</p>
+<p>        """Get all policies applicable to an action."""</p>
+<p>        return [p for p in self.policies if p.applies_to(action)]</p>
+
+<h1>Global instance</h1>
+<p>auth_service = AuthorizationService()</p>
+
+<p>def authorize(action, get_resource=None):</p>
+<p>    """Decorator using centralized authorization."""</p>
+<p>    def decorator(f):</p>
+<p>        @wraps(f)</p>
+<p>        def decorated_function(<em>args, </em>*kwargs):</p>
+<p>            resource = get_resource(<em>args, </em>*kwargs) if get_resource else None</p>
+            
+<p>            if not auth_service.authorize(current_user, action, resource):</p>
+<p>                return {'error': 'Not authorized'}, 403</p>
+            
+<p>            return f(<em>args, </em>*kwargs)</p>
+<p>        return decorated_function</p>
+<p>    return decorator</p>
+
+<h1>Usage</h1>
+<p>@app.route('/api/users/<id>', methods=['DELETE'])</p>
+<p>@authorize('delete_user', lambda id: User.query.get(id))</p>
+<p>def delete_user(id):</p>
+<p>    User.query.get(id).delete()</p>
+<p>    return {'status': 'deleted'}</p>
+</code>`<code>
+
+<h2>Implementation Strategies</h2>
+
+<h3>1. Middleware-Based Authorization</h3>
+
+<strong>Flask Example</strong>:
+
+</code>`<code>python
+<p>from flask import Flask, g, request</p>
+<p>from functools import wraps</p>
+
+<p>app = Flask(__name__)</p>
+
+<p>def check_authorization():</p>
+<p>    """Global authorization middleware."""</p>
+<p>    # Skip auth for public endpoints</p>
+<p>    public_paths = ['/api/login', '/api/register', '/api/health']</p>
+<p>    if request.path in public_paths:</p>
+<p>        return</p>
+    
+<p>    # Verify authentication</p>
+<p>    token = request.headers.get('Authorization')</p>
+<p>    if not token:</p>
+<p>        return {'error': 'Authentication required'}, 401</p>
+    
+<p>    user = verify_token(token)</p>
+<p>    if not user:</p>
+<p>        return {'error': 'Invalid token'}, 401</p>
+    
+<p>    g.current_user = user</p>
+    
+<p>    # Check function-level authorization</p>
+<p>    if request.path.startswith('/api/admin/'):</p>
+<p>        if user.role not in ['admin', 'super_admin']:</p>
+<p>            return {'error': 'Admin access required'}, 403</p>
+
+<p>app.before_request(check_authorization)</p>
+</code>`<code>
+
+<strong>Express.js Example</strong>:
+
+</code>`<code>javascript
+<p>const express = require('express');</p>
+<p>const app = express();</p>
+
+<p>// Authorization middleware</p>
+<p>const requireRole = (...allowedRoles) => {</p>
+<p>    return (req, res, next) => {</p>
+<p>        if (!req.user) {</p>
+<p>            return res.status(401).json({ error: 'Authentication required' });</p>
+<p>        }</p>
+        
+<p>        if (!allowedRoles.includes(req.user.role)) {</p>
+<p>            return res.status(403).json({ error: 'Insufficient permissions' });</p>
+<p>        }</p>
+        
+<p>        next();</p>
+<p>    };</p>
+<p>};</p>
+
+<p>// Usage</p>
+<p>app.delete('/api/users/:id', </p>
+<p>    requireRole('admin', 'super_admin'),</p>
+<p>    async (req, res) => {</p>
+<p>        await User.destroy({ where: { id: req.params.id } });</p>
+<p>        res.json({ status: 'deleted' });</p>
+<p>    }</p>
+<p>);</p>
+</code>`<code>
+
+<h3>2. Decorator-Based Authorization</h3>
+
+<strong>Python/Flask</strong>:
+
+</code>`<code>python
+<p>from functools import wraps</p>
+<p>from flask import g, request</p>
+
+<p>def admin_required(f):</p>
+<p>    """Decorator to require admin role."""</p>
+<p>    @wraps(f)</p>
+<p>    def decorated_function(<em>args, </em>*kwargs):</p>
+<p>        if not hasattr(g, 'current_user'):</p>
+<p>            return {'error': 'Authentication required'}, 401</p>
+        
+<p>        if g.current_user.role != 'admin':</p>
+<p>            return {'error': 'Admin access required'}, 403</p>
+        
+<p>        return f(<em>args, </em>*kwargs)</p>
+<p>    return decorated_function</p>
+
+<p>def role_required(*roles):</p>
+<p>    """Decorator to require specific roles."""</p>
+<p>    def decorator(f):</p>
+<p>        @wraps(f)</p>
+<p>        def decorated_function(<em>args, </em>*kwargs):</p>
+<p>            if not hasattr(g, 'current_user'):</p>
+<p>                return {'error': 'Authentication required'}, 401</p>
+            
+<p>            if g.current_user.role not in roles:</p>
+<p>                return {'error': f'Requires one of: {", ".join(roles)}'}, 403</p>
+            
+<p>            return f(<em>args, </em>*kwargs)</p>
+<p>        return decorated_function</p>
+<p>    return decorator</p>
+
+<h1>Usage</h1>
+<p>@app.route('/api/users/<id>', methods=['DELETE'])</p>
+<p>@admin_required</p>
+<p>def delete_user(id):</p>
+<p>    User.query.get(id).delete()</p>
+<p>    return {'status': 'deleted'}</p>
+
+<p>@app.route('/api/posts/<id>', methods=['DELETE'])</p>
+<p>@role_required('admin', 'moderator')</p>
+<p>def delete_post(id):</p>
+<p>    Post.query.get(id).delete()</p>
+<p>    return {'status': 'deleted'}</p>
+</code>`<code>
+
+<h3>3. Method-Specific Authorization</h3>
+
+</code>`<code>python
+<p>from flask import request</p>
+
+<p>class UserAPI:</p>
+<p>    """RESTful API with method-specific authorization."""</p>
+    
+<p>    @staticmethod</p>
+<p>    @app.route('/api/users/<id>', methods=['GET', 'PUT', 'DELETE'])</p>
+<p>    def user_endpoint(id):</p>
+<p>        user = User.query.get(id)</p>
+        
+<p>        if request.method == 'GET':</p>
+<p>            # Read: authenticated users can view</p>
+<p>            if not g.current_user:</p>
+<p>                return {'error': 'Authentication required'}, 401</p>
+<p>            return user.to_dict()</p>
+        
+<p>        elif request.method == 'PUT':</p>
+<p>            # Update: owner or admin</p>
+<p>            if g.current_user.id != user.id and g.current_user.role != 'admin':</p>
+<p>                return {'error': 'Not authorized'}, 403</p>
+<p>            user.update(request.json)</p>
+<p>            return user.to_dict()</p>
+        
+<p>        elif request.method == 'DELETE':</p>
+<p>            # Delete: admin only</p>
+<p>            if g.current_user.role != 'admin':</p>
+<p>                return {'error': 'Admin access required'}, 403</p>
+<p>            user.delete()</p>
+<p>            return {'status': 'deleted'}</p>
+</code>`<code>
+
+<h3>4. Policy-Based Authorization</h3>
+
+</code>`<code>python
+<p>class AuthorizationPolicy:</p>
+<p>    """Define authorization policies as code."""</p>
+    
+<p>    @staticmethod</p>
+<p>    def can_delete_user(actor, target_user):</p>
+<p>        """Policy: Who can delete users?"""</p>
+<p>        # Super admins can delete anyone</p>
+<p>        if actor.role == 'super_admin':</p>
+<p>            return True</p>
+        
+<p>        # Admins can delete non-admins</p>
+<p>        if actor.role == 'admin' and target_user.role != 'admin':</p>
+<p>            return True</p>
+        
+<p>        # Users can delete themselves</p>
+<p>        if actor.id == target_user.id:</p>
+<p>            return True</p>
+        
+<p>        return False</p>
+    
+<p>    @staticmethod</p>
+<p>    def can_modify_settings(actor, setting_type):</p>
+<p>        """Policy: Who can modify settings?"""</p>
+<p>        admin_settings = ['security', 'billing', 'users']</p>
+<p>        moderator_settings = ['content', 'moderation']</p>
+        
+<p>        if actor.role == 'admin':</p>
+<p>            return True</p>
+        
+<p>        if actor.role == 'moderator' and setting_type in moderator_settings:</p>
+<p>            return True</p>
+        
+<p>        return False</p>
+
+<h1>Usage</h1>
+<p>@app.route('/api/users/<id>', methods=['DELETE'])</p>
+<p>def delete_user(id):</p>
+<p>    target_user = User.query.get(id)</p>
+    
+<p>    if not AuthorizationPolicy.can_delete_user(g.current_user, target_user):</p>
+<p>        return {'error': 'Not authorized to delete this user'}, 403</p>
+    
+<p>    target_user.delete()</p>
+<p>    return {'status': 'deleted'}</p>
+</code>`<code>
+
+<h3>5. Claim-Based Authorization (JWT)</h3>
+
+</code>`<code>python
+<p>import jwt</p>
+<p>from datetime import datetime, timedelta</p>
+
+<p>def create_token(user):</p>
+<p>    """Create JWT with embedded permissions."""</p>
+<p>    payload = {</p>
+<p>        'user_id': user.id,</p>
+<p>        'role': user.role,</p>
+<p>        'permissions': user.get_permissions(),</p>
+<p>        'exp': datetime.utcnow() + timedelta(hours=1)</p>
+<p>    }</p>
+<p>    return jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')</p>
+
+<p>def verify_permission(required_permission):</p>
+<p>    """Decorator to check JWT claims."""</p>
+<p>    def decorator(f):</p>
+<p>        @wraps(f)</p>
+<p>        def decorated_function(<em>args, </em>*kwargs):</p>
+<p>            token = request.headers.get('Authorization', '').replace('Bearer ', '')</p>
+            
+<p>            try:</p>
+<p>                payload = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])</p>
+<p>            except jwt.ExpiredSignatureError:</p>
+<p>                return {'error': 'Token expired'}, 401</p>
+<p>            except jwt.InvalidTokenError:</p>
+<p>                return {'error': 'Invalid token'}, 401</p>
+            
+<p>            if required_permission not in payload.get('permissions', []):</p>
+<p>                return {'error': 'Insufficient permissions'}, 403</p>
+            
+<p>            return f(<em>args, </em>*kwargs)</p>
+<p>        return decorated_function</p>
+<p>    return decorator</p>
+
+<h1>Usage</h1>
+<p>@app.route('/api/users/<id>', methods=['DELETE'])</p>
+<p>@verify_permission('users:delete')</p>
+<p>def delete_user(id):</p>
+<p>    User.query.get(id).delete()</p>
+<p>    return {'status': 'deleted'}</p>
+</code>`<code>
+
+<h2>Technology-Specific Guidance</h2>
+
+<h3>Flask</h3>
+
+</code>`<code>python
+<p>from flask import Flask, g</p>
+<p>from flask_httpauth import HTTPTokenAuth</p>
+
+<p>app = Flask(__name__)</p>
+<p>auth = HTTPTokenAuth(scheme='Bearer')</p>
+
+<p>@auth.verify_token</p>
+<p>def verify_token(token):</p>
+<p>    """Verify authentication token."""</p>
+<p>    user = User.verify_auth_token(token)</p>
+<p>    g.current_user = user</p>
+<p>    return user is not None</p>
+
+<p>@auth.get_user_roles</p>
+<p>def get_user_roles(user):</p>
+<p>    """Get user roles for authorization."""</p>
+<p>    return [user.role]</p>
+
+<h1>Role-based protection</h1>
+<p>@app.route('/api/admin/users')</p>
+<p>@auth.login_required(role='admin')</p>
+<p>def admin_users():</p>
+<p>    return {'users': [u.to_dict() for u in User.query.all()]}</p>
+</code>`<code>
+
+<h3>Express.js</h3>
+
+</code>`<code>javascript
+<p>const express = require('express');</p>
+<p>const jwt = require('jsonwebtoken');</p>
+
+<p>// Authorization middleware factory</p>
+<p>const authorize = (allowedRoles = []) => {</p>
+<p>    return (req, res, next) => {</p>
+<p>        const token = req.headers.authorization?.replace('Bearer ', '');</p>
+        
+<p>        if (!token) {</p>
+<p>            return res.status(401).json({ error: 'No token provided' });</p>
+<p>        }</p>
+        
+<p>        try {</p>
+<p>            const decoded = jwt.verify(token, process.env.JWT_SECRET);</p>
+<p>            req.user = decoded;</p>
+            
+<p>            if (allowedRoles.length && !allowedRoles.includes(decoded.role)) {</p>
+<p>                return res.status(403).json({ error: 'Insufficient permissions' });</p>
+<p>            }</p>
+            
+<p>            next();</p>
+<p>        } catch (error) {</p>
+<p>            return res.status(401).json({ error: 'Invalid token' });</p>
+<p>        }</p>
+<p>    };</p>
+<p>};</p>
+
+<p>// Usage</p>
+<p>app.delete('/api/users/:id', authorize(['admin']), async (req, res) => {</p>
+<p>    await User.destroy({ where: { id: req.params.id } });</p>
+<p>    res.json({ status: 'deleted' });</p>
+<p>});</p>
+</code>`<code>
+
+<h3>FastAPI</h3>
+
+</code>`<code>python
+<p>from fastapi import FastAPI, Depends, HTTPException, status</p>
+<p>from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials</p>
+<p>from typing import List</p>
+
+<p>app = FastAPI()</p>
+<p>security = HTTPBearer()</p>
+
+<p>class RoleChecker:</p>
+<p>    def __init__(self, allowed_roles: List[str]):</p>
+<p>        self.allowed_roles = allowed_roles</p>
+    
+<p>    def __call__(self, credentials: HTTPAuthorizationCredentials = Depends(security)):</p>
+<p>        token = credentials.credentials</p>
+<p>        user = verify_token(token)</p>
+        
+<p>        if not user:</p>
+<p>            raise HTTPException(</p>
+<p>                status_code=status.HTTP_401_UNAUTHORIZED,</p>
+<p>                detail="Invalid authentication credentials"</p>
+<p>            )</p>
+        
+<p>        if user.role not in self.allowed_roles:</p>
+<p>            raise HTTPException(</p>
+<p>                status_code=status.HTTP_403_FORBIDDEN,</p>
+<p>                detail="Insufficient permissions"</p>
+<p>            )</p>
+        
+<p>        return user</p>
+
+<h1>Usage</h1>
+<p>@app.delete("/api/users/{user_id}")</p>
+<p>async def delete_user(</p>
+<p>    user_id: int,</p>
+<p>    current_user: User = Depends(RoleChecker(["admin"]))</p>
+<p>):</p>
+<p>    user = await User.get(user_id)</p>
+<p>    await user.delete()</p>
+<p>    return {"status": "deleted"}</p>
+</code>`<code>
+
+<h3>Django REST Framework</h3>
+
+</code>`<code>python
+<p>from rest_framework import permissions, viewsets</p>
+<p>from rest_framework.decorators import action</p>
+
+<p>class IsAdminUser(permissions.BasePermission):</p>
+<p>    """Custom permission: only admins allowed."""</p>
+    
+<p>    def has_permission(self, request, view):</p>
+<p>        return request.user and request.user.role == 'admin'</p>
+
+<p>class IsAdminOrReadOnly(permissions.BasePermission):</p>
+<p>    """Custom permission: admins can modify, others read-only."""</p>
+    
+<p>    def has_permission(self, request, view):</p>
+<p>        if request.method in permissions.SAFE_METHODS:</p>
+<p>            return True</p>
+<p>        return request.user and request.user.role == 'admin'</p>
+
+<p>class UserViewSet(viewsets.ModelViewSet):</p>
+<p>    queryset = User.objects.all()</p>
+    
+<p>    def get_permissions(self):</p>
+<p>        """Set permissions based on action."""</p>
+<p>        if self.action in ['create', 'update', 'partial_update']:</p>
+<p>            permission_classes = [IsAdminOrReadOnly]</p>
+<p>        elif self.action == 'destroy':</p>
+<p>            permission_classes = [IsAdminUser]</p>
+<p>        else:</p>
+<p>            permission_classes = [permissions.IsAuthenticated]</p>
+<p>        return [permission() for permission in permission_classes]</p>
+    
+<p>    @action(detail=False, methods=['post'], permission_classes=[IsAdminUser])</p>
+<p>    def bulk_delete(self, request):</p>
+<p>        """Admin-only bulk delete operation."""</p>
+<p>        user_ids = request.data.get('user_ids', [])</p>
+<p>        User.objects.filter(id__in=user_ids).delete()</p>
+<p>        return Response({'status': 'deleted'})</p>
+</code>`<code>
+
+<h3>GraphQL</h3>
+
+</code>`<code>javascript
+<p>const { ApolloServer, gql, AuthenticationError, ForbiddenError } = require('apollo-server');</p>
+
+<p>const typeDefs = gql</code></p>
+<p>    type User {</p>
+<p>        id: ID!</p>
+<p>        name: String!</p>
+<p>        email: String!</p>
+<p>    }</p>
+    
+<p>    type Mutation {</p>
+<p>        deleteUser(id: ID!): Boolean @requireRole(role: "admin")</p>
+<p>        updateUserRole(id: ID!, role: String!): User @requireRole(role: "admin")</p>
+<p>    }</p>
+<code>;
+
+<p>const resolvers = {</p>
+<p>    Mutation: {</p>
+<p>        deleteUser: async (parent, { id }, context) => {</p>
+<p>            // Authorization checked by directive</p>
+<p>            await User.destroy({ where: { id } });</p>
+<p>            return true;</p>
+<p>        },</p>
+        
+<p>        updateUserRole: async (parent, { id, role }, context) => {</p>
+<p>            // Authorization checked by directive</p>
+<p>            const user = await User.findByPk(id);</p>
+<p>            user.role = role;</p>
+<p>            await user.save();</p>
+<p>            return user;</p>
+<p>        }</p>
+<p>    }</p>
+<p>};</p>
+
+<p>// Custom directive for role-based authorization</p>
+<p>class RequireRoleDirective extends SchemaDirectiveVisitor {</p>
+<p>    visitFieldDefinition(field) {</p>
+<p>        const { resolve = defaultFieldResolver } = field;</p>
+<p>        const { role } = this.args;</p>
+        
+<p>        field.resolve = async function (...args) {</p>
+<p>            const context = args[2];</p>
+            
+<p>            if (!context.user) {</p>
+<p>                throw new AuthenticationError('Authentication required');</p>
+<p>            }</p>
+            
+<p>            if (context.user.role !== role) {</p>
+<p>                throw new ForbiddenError(</code>Requires ${role} role<code>);</p>
+<p>            }</p>
+            
+<p>            return resolve.apply(this, args);</p>
+<p>        };</p>
+<p>    }</p>
+<p>}</p>
+
+<p>const server = new ApolloServer({</p>
+<p>    typeDefs,</p>
+<p>    resolvers,</p>
+<p>    schemaDirectives: {</p>
+<p>        requireRole: RequireRoleDirective</p>
+<p>    },</p>
+<p>    context: ({ req }) => {</p>
+<p>        // Get user from token</p>
+<p>        const token = req.headers.authorization || '';</p>
+<p>        const user = verifyToken(token);</p>
+<p>        return { user };</p>
+<p>    }</p>
+<p>});</p>
+</code>`<code>
+
+<h2>Testing and Validation</h2>
+
+<h3>Unit Testing Authorization</h3>
+
+</code>`<code>python
+<p>import unittest</p>
+<p>from flask import Flask</p>
+
+<p>class AuthorizationTests(unittest.TestCase):</p>
+<p>    def setUp(self):</p>
+<p>        self.app = create_app('testing')</p>
+<p>        self.client = self.app.test_client()</p>
+    
+<p>    def test_admin_endpoint_requires_admin_role(self):</p>
+<p>        """Admin endpoints should reject non-admin users."""</p>
+<p>        # Get user token</p>
+<p>        user_token = self.get_user_token(role='user')</p>
+        
+<p>        response = self.client.delete(</p>
+<p>            '/api/users/123',</p>
+<p>            headers={'Authorization': f'Bearer {user_token}'}</p>
+<p>        )</p>
+        
+<p>        self.assertEqual(response.status_code, 403)</p>
+<p>        self.assertIn('Admin access required', response.json['error'])</p>
+    
+<p>    def test_admin_endpoint_allows_admin(self):</p>
+<p>        """Admin endpoints should allow admin users."""</p>
+<p>        admin_token = self.get_user_token(role='admin')</p>
+        
+<p>        response = self.client.delete(</p>
+<p>            '/api/users/123',</p>
+<p>            headers={'Authorization': f'Bearer {admin_token}'}</p>
+<p>        )</p>
+        
+<p>        self.assertEqual(response.status_code, 200)</p>
+    
+<p>    def test_http_method_authorization(self):</p>
+<p>        """Different HTTP methods should have different authorization."""</p>
+<p>        user_token = self.get_user_token(role='user')</p>
+        
+<p>        # GET should work for regular users</p>
+<p>        get_response = self.client.get(</p>
+<p>            '/api/users/123',</p>
+<p>            headers={'Authorization': f'Bearer {user_token}'}</p>
+<p>        )</p>
+<p>        self.assertEqual(get_response.status_code, 200)</p>
+        
+<p>        # DELETE should fail for regular users</p>
+<p>        delete_response = self.client.delete(</p>
+<p>            '/api/users/123',</p>
+<p>            headers={'Authorization': f'Bearer {user_token}'}</p>
+<p>        )</p>
+<p>        self.assertEqual(delete_response.status_code, 403)</p>
+</code>`<code>
+
+<h3>Integration Testing</h3>
+
+</code>`<code>python
+<p>class IntegrationAuthTests(unittest.TestCase):</p>
+<p>    def test_privilege_escalation_prevention(self):</p>
+<p>        """Users should not be able to escalate privileges."""</p>
+<p>        user_token = self.get_user_token(role='user')</p>
+        
+<p>        # Attempt to set role to admin</p>
+<p>        response = self.client.put(</p>
+<p>            '/api/users/me',</p>
+<p>            json={'role': 'admin'},</p>
+<p>            headers={'Authorization': f'Bearer {user_token}'}</p>
+<p>        )</p>
+        
+<p>        # Should either reject or ignore the role field</p>
+<p>        user = User.query.get(self.current_user_id)</p>
+<p>        self.assertEqual(user.role, 'user')</p>
+    
+<p>    def test_hidden_endpoint_discovery(self):</p>
+<p>        """Common admin endpoint patterns should be protected."""</p>
+<p>        user_token = self.get_user_token(role='user')</p>
+        
+<p>        admin_patterns = [</p>
+<p>            '/api/admin/users',</p>
+<p>            '/api/admin/settings',</p>
+<p>            '/api/internal/config',</p>
+<p>            '/api/debug/info',</p>
+<p>        ]</p>
+        
+<p>        for endpoint in admin_patterns:</p>
+<p>            response = self.client.get(</p>
+<p>                endpoint,</p>
+<p>                headers={'Authorization': f'Bearer {user_token}'}</p>
+<p>            )</p>
+<p>            self.assertIn(response.status_code, [403, 404])</p>
+</code>`<code>
+
+<h3>Security Testing Checklist</h3>
+
+<ul>
+<li>[ ] <strong>Unauthenticated Access</strong>: Try all endpoints without authentication</li>
+<li>[ ] <strong>Role-Based Access</strong>: Test each endpoint with each role</li>
+<li>[ ] <strong>Method Tampering</strong>: Try GET, POST, PUT, DELETE, PATCH on each endpoint</li>
+<li>[ ] <strong>Parameter Manipulation</strong>: Add role/admin parameters to requests</li>
+<li>[ ] <strong>Header Injection</strong>: Try X-User-Role, X-Admin, etc.</li>
+<li>[ ] <strong>Path Traversal</strong>: Try /api/user/../admin/ patterns</li>
+<li>[ ] <strong>Version Testing</strong>: Test all API versions</li>
+<li>[ ] <strong>GraphQL Introspection</strong>: Check for exposed admin mutations</li>
+<li>[ ] <strong>Bulk Operations</strong>: Verify authorization on batch endpoints</li>
+<li>[ ] <strong>Token Manipulation</strong>: Modify JWT claims and test</li>
+</ul>
+
+<h2>Common Pitfalls to Avoid</h2>
+
+<h3>1. Relying on Frontend Authorization</h3>
+
+</code>`<code>javascript
+<p>// WRONG: Only hiding in UI</p>
+<p>if (user.role === 'admin') {</p>
+    <button onClick={deleteUser}>Delete</button>
+<p>}</p>
+
+<p>// Backend still accessible via API!</p>
+</code>`<code>
+
+<strong>Fix</strong>: Always enforce on backend.
+
+<h3>2. Trusting Client Data</h3>
+
+</code>`<code>python
+<h1>WRONG: Trusting role from request</h1>
+<p>@app.route('/api/action')</p>
+<p>def perform_action():</p>
+<p>    user_role = request.json.get('role')  # Attacker controls this!</p>
+<p>    if user_role == 'admin':</p>
+<p>        return admin_action()</p>
+</code>`<code>
+
+<strong>Fix</strong>: Get role from authenticated session/token.
+
+<h3>3. Inconsistent Authorization</h3>
+
+</code>`<code>python
+<h1>WRONG: Some methods protected, others not</h1>
+<p>@app.route('/api/users/<id>', methods=['GET', 'DELETE'])</p>
+<p>def user_endpoint(id):</p>
+<p>    if request.method == 'GET':</p>
+<p>        if not current_user.can_view(id):</p>
+<p>            return forbidden()</p>
+<p>        return get_user(id)</p>
+    
+<p>    # DELETE has no check!</p>
+<p>    return delete_user(id)</p>
+</code>`<code>
+
+<strong>Fix</strong>: Protect all methods explicitly.
+
+<h3>4. OR Instead of AND</h3>
+
+</code>`<code>python
+<h1>WRONG: OR allows unintended access</h1>
+<p>if user.is_authenticated() or user.is_admin():</p>
+<p>    return sensitive_data()</p>
+
+<h1>Unauthenticated admins would pass!</h1>
+</code>`<code>
+
+<strong>Fix</strong>: Use AND for compound requirements.
+
+<h3>5. Incomplete Role Checks</h3>
+
+</code>`<code>python
+<h1>WRONG: Only checking for NOT admin</h1>
+<p>if user.role != 'admin':</p>
+<p>    return forbidden()</p>
+
+<h1>What if role is None, '', or unexpected value?</h1>
+</code>`<code>
+
+<strong>Fix</strong>: Explicitly whitelist allowed roles.
+
+<h3>6. Exposing Admin Links</h3>
+
+</code>`<code>python
+<h1>WRONG: Including admin URLs in responses</h1>
+<p>{</p>
+<p>    "user": {...},</p>
+<p>    "links": {</p>
+<p>        "self": "/api/users/123",</p>
+<p>        "delete": "/api/admin/users/123"  # Reveals admin endpoint!</p>
+<p>    }</p>
+<p>}</p>
+</code>``
+
+<strong>Fix</strong>: Only include links user is authorized to use.
+
+<h2>Defense in Depth Summary</h2>
+
+<ol>
+<li><strong>API Gateway</strong>: Route-level filtering</li>
+<li><strong>Authentication</strong>: Verify identity</li>
+<li><strong>Authorization Middleware</strong>: Global role checks</li>
+<li><strong>Route Guards</strong>: Endpoint-specific permissions</li>
+<li><strong>Business Logic</strong>: Additional context validation</li>
+<li><strong>Audit Logging</strong>: Track all privileged operations</li>
+<li><strong>Monitoring</strong>: Alert on unauthorized access attempts</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="examples.md">Examples</a></strong> - See complete code examples with secure implementations</li>
+<li><strong><a href="lab/api05-function-auth-lab/">Lab</a></strong> - Practice implementing and testing function-level authorization</li>
+<li><strong><a href="attack-vectors.md">Attack Vectors</a></strong> - Understand what you're defending against</li>
+</ul>
+
         </div>
     </div>
 </body>

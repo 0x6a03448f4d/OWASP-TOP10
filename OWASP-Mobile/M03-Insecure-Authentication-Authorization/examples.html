@@ -215,7 +215,941 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>M03: Insecure Authentication/Authorization - Examples</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#authentication-examples">Authentication Examples</a></li>
+<li><a href="#session-management-examples">Session Management Examples</a></li>
+<li><a href="#authorization-examples">Authorization Examples</a></li>
+<li><a href="#token-security-examples">Token Security Examples</a></li>
+<li><a href="#biometric-authentication-examples">Biometric Authentication Examples</a></li>
+<li><a href="#real-world-case-studies">Real-World Case Studies</a></li>
+<li><a href="#quick-reference">Quick Reference</a></li>
+</ul>
+
+<h2>Authentication Examples</h2>
+
+<h3>Example 1: Password Validation</h3>
+
+<strong>❌ Vulnerable: Weak Password Policy</strong>
+
+<p>``<code>javascript</p>
+<p>// UNSAFE - Weak password requirements</p>
+<p>function validatePassword(password) {</p>
+<p>  if (password.length >= 6) {</p>
+<p>    return true;</p>
+<p>  }</p>
+<p>  return false;</p>
+<p>}</p>
+
+<p>// Allows: "pass12", "abc123", "111111"</p>
+<p>// No complexity, too short, easily guessed</p>
+</code>`<code>
+
+<strong>Problems:</strong>
+<ul>
+<li>Only 6 characters required</li>
+<li>No complexity requirements</li>
+<li>No checking against common passwords</li>
+<li>Vulnerable to brute force and dictionary attacks</li>
+</ul>
+
+<strong>✅ Secure: Strong Password Policy</strong>
+
+</code>`<code>javascript
+<p>// SECURE - Comprehensive password validation</p>
+<p>function validatePassword(password) {</p>
+<p>  const minLength = 12;</p>
+<p>  const commonPasswords = ['password', '12345678', 'qwerty123', /<em> ... </em>/];</p>
+  
+<p>  // Length check</p>
+<p>  if (password.length < minLength) {</p>
+<p>    return { valid: false, error: 'Password must be at least 12 characters' };</p>
+<p>  }</p>
+  
+<p>  // Complexity checks</p>
+<p>  const hasUppercase = /[A-Z]/.test(password);</p>
+<p>  const hasLowercase = /[a-z]/.test(password);</p>
+<p>  const hasNumber = /[0-9]/.test(password);</p>
+<p>  const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);</p>
+  
+<p>  if (!hasUppercase || !hasLowercase || !hasNumber || !hasSpecial) {</p>
+<p>    return { </p>
+<p>      valid: false, </p>
+<p>      error: 'Password must contain uppercase, lowercase, number, and special character' </p>
+<p>    };</p>
+<p>  }</p>
+  
+<p>  // Common password check</p>
+<p>  if (commonPasswords.includes(password.toLowerCase())) {</p>
+<p>    return { valid: false, error: 'Password is too common' };</p>
+<p>  }</p>
+  
+<p>  // Optional: Check against breach database</p>
+<p>  // if (await isPasswordBreached(password)) {</p>
+<p>  //   return { valid: false, error: 'Password found in data breach' };</p>
+<p>  // }</p>
+  
+<p>  return { valid: true };</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Example 2: Login Rate Limiting</h3>
+
+<strong>❌ Vulnerable: No Rate Limiting</strong>
+
+</code>`<code>python
+<h1>UNSAFE - No rate limiting</h1>
+<p>@app.route('/api/login', methods=['POST'])</p>
+<p>def login():</p>
+<p>    username = request.json.get('username')</p>
+<p>    password = request.json.get('password')</p>
+    
+<p>    user = User.query.filter_by(username=username).first()</p>
+    
+<p>    if user and check_password_hash(user.password_hash, password):</p>
+<p>        token = generate_token(user.id)</p>
+<p>        return jsonify({'token': token})</p>
+    
+<p>    return jsonify({'error': 'Invalid credentials'}), 401</p>
+
+<h1>Attacker can try unlimited passwords</h1>
+<h1>Enables brute force attacks</h1>
+</code>`<code>
+
+<strong>✅ Secure: Rate Limiting with Account Lockout</strong>
+
+</code>`<code>python
+<h1>SECURE - Rate limiting and account lockout</h1>
+<p>from flask_limiter import Limiter</p>
+<p>from flask_limiter.util import get_remote_address</p>
+<p>from datetime import datetime, timedelta</p>
+
+<p>limiter = Limiter(</p>
+<p>    app,</p>
+<p>    key_func=get_remote_address,</p>
+<p>    default_limits=["200 per day", "50 per hour"]</p>
+<p>)</p>
+
+<p>@app.route('/api/login', methods=['POST'])</p>
+<p>@limiter.limit("5 per 15 minutes")</p>
+<p>def login():</p>
+<p>    username = request.json.get('username')</p>
+<p>    password = request.json.get('password')</p>
+    
+<p>    user = User.query.filter_by(username=username).first()</p>
+    
+<p>    if not user:</p>
+<p>        # Don't reveal if user exists</p>
+<p>        time.sleep(0.5)  # Prevent timing attacks</p>
+<p>        return jsonify({'error': 'Invalid credentials'}), 401</p>
+    
+<p>    # Check if account is locked</p>
+<p>    if user.locked_until and user.locked_until > datetime.utcnow():</p>
+<p>        return jsonify({'error': 'Account temporarily locked'}), 403</p>
+    
+<p>    # Verify password</p>
+<p>    if check_password_hash(user.password_hash, password):</p>
+<p>        # Success - reset failed attempts</p>
+<p>        user.failed_login_attempts = 0</p>
+<p>        user.locked_until = None</p>
+<p>        db.session.commit()</p>
+        
+<p>        token = generate_token(user.id)</p>
+<p>        log_security_event('LOGIN_SUCCESS', user.id, request.remote_addr)</p>
+        
+<p>        return jsonify({'token': token})</p>
+<p>    else:</p>
+<p>        # Failed attempt</p>
+<p>        user.failed_login_attempts += 1</p>
+        
+<p>        # Lock account after 5 failed attempts</p>
+<p>        if user.failed_login_attempts >= 5:</p>
+<p>            user.locked_until = datetime.utcnow() + timedelta(minutes=30)</p>
+<p>            send_security_alert(user.email, "Account locked due to failed login attempts")</p>
+        
+<p>        db.session.commit()</p>
+<p>        log_security_event('LOGIN_FAILURE', username, request.remote_addr)</p>
+        
+<p>        time.sleep(0.5)  # Prevent timing attacks</p>
+<p>        return jsonify({'error': 'Invalid credentials'}), 401</p>
+</code>`<code>
+
+<h2>Session Management Examples</h2>
+
+<h3>Example 3: Token Storage</h3>
+
+<strong>❌ Vulnerable: Insecure Token Storage</strong>
+
+</code>`<code>kotlin
+<p>// Android - UNSAFE token storage</p>
+<p>class TokenManager(private val context: Context) {</p>
+<p>    fun saveToken(token: String) {</p>
+<p>        // Storing in SharedPreferences without encryption</p>
+<p>        val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)</p>
+<p>        prefs.edit()</p>
+<p>            .putString("auth_token", token)  // Plain text!</p>
+<p>            .apply()</p>
+<p>    }</p>
+    
+<p>    fun getToken(): String? {</p>
+<p>        val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)</p>
+<p>        return prefs.getString("auth_token", null)</p>
+<p>    }</p>
+<p>}</p>
+
+<p>// Token easily extracted by:</p>
+<p>// - Root users</p>
+<p>// - ADB backup</p>
+<p>// - Malware with storage access</p>
+</code>`<code>
+
+<strong>✅ Secure: Encrypted Token Storage</strong>
+
+</code>`<code>kotlin
+<p>// Android - SECURE token storage using Android Keystore</p>
+<p>import androidx.security.crypto.EncryptedSharedPreferences</p>
+<p>import androidx.security.crypto.MasterKey</p>
+
+<p>class SecureTokenManager(private val context: Context) {</p>
+<p>    private val masterKey = MasterKey.Builder(context)</p>
+<p>        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)</p>
+<p>        .build()</p>
+    
+<p>    private val encryptedPrefs = EncryptedSharedPreferences.create(</p>
+<p>        context,</p>
+<p>        "secure_prefs",</p>
+<p>        masterKey,</p>
+<p>        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,</p>
+<p>        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM</p>
+<p>    )</p>
+    
+<p>    fun saveToken(token: String) {</p>
+<p>        encryptedPrefs.edit()</p>
+<p>            .putString("auth_token", token)</p>
+<p>            .apply()</p>
+<p>    }</p>
+    
+<p>    fun getToken(): String? {</p>
+<p>        return encryptedPrefs.getString("auth_token", null)</p>
+<p>    }</p>
+    
+<p>    fun clearToken() {</p>
+<p>        encryptedPrefs.edit()</p>
+<p>            .remove("auth_token")</p>
+<p>            .apply()</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>iOS - Secure Keychain Storage:</strong>
+
+</code>`<code>swift
+<p>// iOS - SECURE token storage using Keychain</p>
+<p>import Security</p>
+
+<p>class SecureTokenManager {</p>
+<p>    private let account = "authToken"</p>
+    
+<p>    func saveToken(_ token: String) -> Bool {</p>
+<p>        guard let data = token.data(using: .utf8) else { return false }</p>
+        
+<p>        let query: [String: Any] = [</p>
+<p>            kSecClass as String: kSecClassGenericPassword,</p>
+<p>            kSecAttrAccount as String: account,</p>
+<p>            kSecValueData as String: data,</p>
+<p>            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly</p>
+<p>        ]</p>
+        
+<p>        // Delete existing</p>
+<p>        SecItemDelete(query as CFDictionary)</p>
+        
+<p>        // Add new</p>
+<p>        let status = SecItemAdd(query as CFDictionary, nil)</p>
+<p>        return status == errSecSuccess</p>
+<p>    }</p>
+    
+<p>    func getToken() -> String? {</p>
+<p>        let query: [String: Any] = [</p>
+<p>            kSecClass as String: kSecClassGenericPassword,</p>
+<p>            kSecAttrAccount as String: account,</p>
+<p>            kSecReturnData as String: true,</p>
+<p>            kSecMatchLimit as String: kSecMatchLimitOne</p>
+<p>        ]</p>
+        
+<p>        var result: AnyObject?</p>
+<p>        let status = SecItemCopyMatching(query as CFDictionary, &result)</p>
+        
+<p>        guard status == errSecSuccess,</p>
+<p>              let data = result as? Data,</p>
+<p>              let token = String(data: data, encoding: .utf8) else {</p>
+<p>            return nil</p>
+<p>        }</p>
+        
+<p>        return token</p>
+<p>    }</p>
+    
+<p>    func clearToken() -> Bool {</p>
+<p>        let query: [String: Any] = [</p>
+<p>            kSecClass as String: kSecClassGenericPassword,</p>
+<p>            kSecAttrAccount as String: account</p>
+<p>        ]</p>
+        
+<p>        let status = SecItemDelete(query as CFDictionary)</p>
+<p>        return status == errSecSuccess</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Example 4: Session Timeout</h3>
+
+<strong>❌ Vulnerable: No Session Expiration</strong>
+
+</code>`<code>javascript
+<p>// UNSAFE - Tokens never expire</p>
+<p>const jwt = require('jsonwebtoken');</p>
+
+<p>function generateToken(userId) {</p>
+<p>  return jwt.sign(</p>
+<p>    { userId: userId },</p>
+<p>    SECRET_KEY</p>
+<p>    // No expiration set!</p>
+<p>  );</p>
+<p>}</p>
+
+<p>// Token valid forever</p>
+<p>// Stolen token = permanent access</p>
+</code>`<code>
+
+<strong>✅ Secure: Proper Session Lifecycle</strong>
+
+</code>`<code>javascript
+<p>// SECURE - Short-lived access tokens with refresh tokens</p>
+<p>const jwt = require('jsonwebtoken');</p>
+<p>const { v4: uuidv4 } = require('uuid');</p>
+
+<p>const TOKEN_CONFIG = {</p>
+<p>  accessTokenExpiry: '15m',   // 15 minutes</p>
+<p>  refreshTokenExpiry: '7d',    // 7 days</p>
+<p>  absoluteSessionExpiry: 8 <em> 60 </em> 60 * 1000  // 8 hours in ms</p>
+<p>};</p>
+
+<p>function generateTokenPair(userId, sessionId) {</p>
+<p>  const now = Date.now();</p>
+  
+<p>  const accessToken = jwt.sign(</p>
+<p>    {</p>
+<p>      userId: userId,</p>
+<p>      sessionId: sessionId,</p>
+<p>      type: 'access',</p>
+<p>      iat: Math.floor(now / 1000)</p>
+<p>    },</p>
+<p>    process.env.ACCESS_TOKEN_SECRET,</p>
+<p>    { expiresIn: TOKEN_CONFIG.accessTokenExpiry }</p>
+<p>  );</p>
+  
+<p>  const refreshToken = jwt.sign(</p>
+<p>    {</p>
+<p>      userId: userId,</p>
+<p>      sessionId: sessionId,</p>
+<p>      type: 'refresh',</p>
+<p>      tokenId: uuidv4(),  // Unique ID for revocation</p>
+<p>      iat: Math.floor(now / 1000)</p>
+<p>    },</p>
+<p>    process.env.REFRESH_TOKEN_SECRET,</p>
+<p>    { expiresIn: TOKEN_CONFIG.refreshTokenExpiry }</p>
+<p>  );</p>
+  
+<p>  // Store session metadata</p>
+<p>  storeSession(sessionId, {</p>
+<p>    userId: userId,</p>
+<p>    createdAt: now,</p>
+<p>    lastActivity: now,</p>
+<p>    refreshTokenId: jwt.decode(refreshToken).tokenId</p>
+<p>  });</p>
+  
+<p>  return { accessToken, refreshToken };</p>
+<p>}</p>
+
+<p>async function refreshAccessToken(refreshToken) {</p>
+<p>  try {</p>
+<p>    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);</p>
+    
+<p>    if (decoded.type !== 'refresh') {</p>
+<p>      throw new Error('Invalid token type');</p>
+<p>    }</p>
+    
+<p>    // Check if refresh token is revoked</p>
+<p>    if (await isTokenRevoked(decoded.tokenId)) {</p>
+<p>      throw new Error('Token revoked');</p>
+<p>    }</p>
+    
+<p>    // Get session</p>
+<p>    const session = await getSession(decoded.sessionId);</p>
+    
+<p>    // Check absolute session timeout</p>
+<p>    if (Date.now() - session.createdAt > TOKEN_CONFIG.absoluteSessionExpiry) {</p>
+<p>      await deleteSession(decoded.sessionId);</p>
+<p>      throw new Error('Session expired');</p>
+<p>    }</p>
+    
+<p>    // Update last activity</p>
+<p>    await updateSessionActivity(decoded.sessionId);</p>
+    
+<p>    // Generate new access token</p>
+<p>    const newAccessToken = jwt.sign(</p>
+<p>      {</p>
+<p>        userId: decoded.userId,</p>
+<p>        sessionId: decoded.sessionId,</p>
+<p>        type: 'access',</p>
+<p>        iat: Math.floor(Date.now() / 1000)</p>
+<p>      },</p>
+<p>      process.env.ACCESS_TOKEN_SECRET,</p>
+<p>      { expiresIn: TOKEN_CONFIG.accessTokenExpiry }</p>
+<p>    );</p>
+    
+<p>    // Optional: Rotate refresh token</p>
+<p>    const newRefreshToken = generateNewRefreshToken(decoded);</p>
+    
+<p>    return { accessToken: newAccessToken, refreshToken: newRefreshToken };</p>
+<p>  } catch (error) {</p>
+<p>    throw new Error('Invalid refresh token');</p>
+<p>  }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Authorization Examples</h2>
+
+<h3>Example 5: IDOR Prevention</h3>
+
+<strong>❌ Vulnerable: Missing Authorization Check</strong>
+
+</code>`<code>python
+<h1>UNSAFE - No ownership verification</h1>
+<p>@app.route('/api/orders/<order_id>', methods=['GET'])</p>
+<p>@require_auth</p>
+<p>def get_order(order_id):</p>
+<p>    order = Order.query.get(order_id)</p>
+    
+<p>    if not order:</p>
+<p>        return jsonify({'error': 'Not found'}), 404</p>
+    
+<p>    # BUG: Returns any order without checking ownership!</p>
+<p>    return jsonify(order.to_dict())</p>
+
+<h1>User can access ANY order by changing order_id</h1>
+<h1>/api/orders/123 → /api/orders/124</h1>
+</code>`<code>
+
+<strong>✅ Secure: Proper Authorization Check</strong>
+
+</code>`<code>python
+<h1>SECURE - Verify resource ownership</h1>
+<p>@app.route('/api/orders/<order_id>', methods=['GET'])</p>
+<p>@require_auth</p>
+<p>def get_order(order_id):</p>
+<p>    order = Order.query.get(order_id)</p>
+    
+<p>    if not order:</p>
+<p>        return jsonify({'error': 'Not found'}), 404</p>
+    
+<p>    # CRITICAL: Verify ownership</p>
+<p>    current_user = get_current_user()</p>
+    
+<p>    if order.user_id != current_user.id and current_user.role != 'admin':</p>
+<p>        # Log potential IDOR attempt</p>
+<p>        log_security_event(</p>
+<p>            'IDOR_ATTEMPT',</p>
+<p>            current_user.id,</p>
+<p>            f'Attempted to access order {order_id} owned by user {order.user_id}'</p>
+<p>        )</p>
+<p>        return jsonify({'error': 'Access denied'}), 403</p>
+    
+<p>    return jsonify(order.to_dict())</p>
+</code>`<code>
+
+<strong>Better: Use UUIDs Instead of Sequential IDs</strong>
+
+</code>`<code>python
+<h1>BEST PRACTICE - Non-predictable identifiers</h1>
+<p>import uuid</p>
+
+<p>class Order(db.Model):</p>
+<p>    # Use UUID instead of auto-incrementing integer</p>
+<p>    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))</p>
+<p>    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)</p>
+<p>    # ... other fields</p>
+
+<p>@app.route('/api/orders/<order_id>', methods=['GET'])</p>
+<p>@require_auth</p>
+<p>def get_order(order_id):</p>
+<p>    # Still verify ownership!</p>
+<p>    order = Order.query.get(order_id)</p>
+    
+<p>    if not order:</p>
+<p>        return jsonify({'error': 'Not found'}), 404</p>
+    
+<p>    current_user = get_current_user()</p>
+    
+<p>    if order.user_id != current_user.id and current_user.role != 'admin':</p>
+<p>        log_security_event('IDOR_ATTEMPT', current_user.id, order_id)</p>
+<p>        return jsonify({'error': 'Access denied'}), 403</p>
+    
+<p>    return jsonify(order.to_dict())</p>
+
+<h1>Now attacker can't enumerate: UUIDs are random</h1>
+<h1>But still must verify ownership - defense in depth!</h1>
+</code>`<code>
+
+<h3>Example 6: Privilege Escalation Prevention</h3>
+
+<strong>❌ Vulnerable: Client-Side Role Check</strong>
+
+</code>`<code>javascript
+<p>// Mobile App - UNSAFE client-side authorization</p>
+<p>class AdminPanel extends React.Component {</p>
+<p>  render() {</p>
+<p>    // Client-side check only!</p>
+<p>    if (this.props.user.role === 'admin') {</p>
+<p>      return (</p>
+        <View>
+          <Button onPress={() => this.deleteUser(userId)}>
+<p>            Delete User</p>
+          </Button>
+        </View>
+<p>      );</p>
+<p>    }</p>
+<p>    return <Text>Access Denied</Text>;</p>
+<p>  }</p>
+  
+<p>  deleteUser(userId) {</p>
+<p>    // Direct API call - no server-side check!</p>
+<p>    fetch(</code>/api/admin/users/${userId}<code>, { method: 'DELETE' });</p>
+<p>  }</p>
+<p>}</p>
+
+<p>// Attacker bypasses UI and calls API directly</p>
+<p>// fetch('/api/admin/users/123', {method: 'DELETE'})</p>
+</code>`<code>
+
+<strong>✅ Secure: Server-Side Authorization</strong>
+
+</code>`<code>javascript
+<p>// Server - SECURE server-side authorization</p>
+<p>app.delete('/api/admin/users/:userId', authenticateUser, (req, res) => {</p>
+<p>  // CRITICAL: Check authorization on server</p>
+<p>  if (req.user.role !== 'admin') {</p>
+<p>    log_security_event('PRIVILEGE_ESCALATION_ATTEMPT', req.user.id);</p>
+<p>    return res.status(403).json({ error: 'Admin access required' });</p>
+<p>  }</p>
+  
+<p>  // Additional safety: Prevent self-deletion</p>
+<p>  if (req.params.userId === req.user.id) {</p>
+<p>    return res.status(400).json({ error: 'Cannot delete own account' });</p>
+<p>  }</p>
+  
+<p>  User.delete(req.params.userId);</p>
+<p>  res.json({ success: true });</p>
+<p>});</p>
+
+<p>// Mobile App - UI check is fine for UX, but security is on server</p>
+<p>class AdminPanel extends React.Component {</p>
+<p>  async deleteUser(userId) {</p>
+<p>    try {</p>
+<p>      const response = await fetch(</code>/api/admin/users/${userId}<code>, {</p>
+<p>        method: 'DELETE',</p>
+<p>        headers: {</p>
+<p>          'Authorization': </code>Bearer ${token}<code></p>
+<p>        }</p>
+<p>      });</p>
+      
+<p>      if (response.status === 403) {</p>
+<p>        // Server rejected - show error</p>
+<p>        Alert.alert('Error', 'Insufficient privileges');</p>
+<p>      }</p>
+<p>    } catch (error) {</p>
+<p>      console.error(error);</p>
+<p>    }</p>
+<p>  }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Token Security Examples</h2>
+
+<h3>Example 7: JWT Validation</h3>
+
+<strong>❌ Vulnerable: Weak JWT Validation</strong>
+
+</code>`<code>javascript
+<p>// UNSAFE - Weak JWT validation</p>
+<p>const jwt = require('jsonwebtoken');</p>
+
+<p>function validateToken(token) {</p>
+<p>  try {</p>
+<p>    // Accepts ANY algorithm including "none"!</p>
+<p>    const decoded = jwt.verify(token, SECRET_KEY);</p>
+<p>    return decoded;</p>
+<p>  } catch (error) {</p>
+<p>    return null;</p>
+<p>  }</p>
+<p>}</p>
+
+<p>// Attacker can:</p>
+<p>// 1. Create JWT with "alg": "none"</p>
+<p>// 2. Remove signature</p>
+<p>// 3. Token accepted without verification</p>
+</code>`<code>
+
+<strong>✅ Secure: Proper JWT Validation</strong>
+
+</code>`<code>javascript
+<p>// SECURE - Strict JWT validation</p>
+<p>const jwt = require('jsonwebtoken');</p>
+
+<p>const JWT_OPTIONS = {</p>
+<p>  algorithms: ['HS256'],  // Whitelist allowed algorithms</p>
+<p>  issuer: 'your-app',</p>
+<p>  audience: 'your-app-api',</p>
+<p>  clockTolerance: 30  // 30 seconds clock skew tolerance</p>
+<p>};</p>
+
+<p>function validateToken(token) {</p>
+<p>  try {</p>
+<p>    const decoded = jwt.verify(token, process.env.JWT_SECRET, JWT_OPTIONS);</p>
+    
+<p>    // Additional validation</p>
+<p>    if (decoded.type !== 'access') {</p>
+<p>      throw new Error('Invalid token type');</p>
+<p>    }</p>
+    
+<p>    // Check if token is revoked (check Redis/DB)</p>
+<p>    if (isTokenRevoked(decoded.jti)) {</p>
+<p>      throw new Error('Token revoked');</p>
+<p>    }</p>
+    
+<p>    return decoded;</p>
+<p>  } catch (error) {</p>
+<p>    // Log failed validation attempt</p>
+<p>    logSecurityEvent('INVALID_TOKEN', error.message);</p>
+<p>    return null;</p>
+<p>  }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Biometric Authentication Examples</h2>
+
+<h3>Example 8: Biometric Implementation</h3>
+
+<strong>❌ Vulnerable: Client-Side Only Biometric</strong>
+
+</code>`<code>kotlin
+<p>// Android - UNSAFE biometric auth</p>
+<p>class LoginActivity : AppCompatActivity() {</p>
+<p>    private fun authenticateWithBiometric() {</p>
+<p>        val biometricPrompt = BiometricPrompt(this, executor,</p>
+<p>            object : BiometricPrompt.AuthenticationCallback() {</p>
+<p>                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {</p>
+<p>                    // BUG: Directly log user in without server verification!</p>
+<p>                    val token = generateLocalToken(userId)</p>
+<p>                    saveToken(token)</p>
+<p>                    navigateToHome()</p>
+<p>                }</p>
+<p>            })</p>
+        
+<p>        biometricPrompt.authenticate(promptInfo)</p>
+<p>    }</p>
+<p>}</p>
+
+<p>// Attacker can hook this method and bypass biometric check</p>
+<p>// No server knows that biometric was actually used</p>
+</code>`<code>
+
+<strong>✅ Secure: Server-Verified Biometric</strong>
+
+</code>`<code>kotlin
+<p>// Android - SECURE biometric auth with server verification</p>
+<p>class LoginActivity : AppCompatActivity() {</p>
+<p>    private fun authenticateWithBiometric() {</p>
+<p>        val biometricPrompt = BiometricPrompt(this, executor,</p>
+<p>            object : BiometricPrompt.AuthenticationCallback() {</p>
+<p>                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {</p>
+<p>                    // Request server to issue token for biometric auth</p>
+<p>                    requestBiometricToken()</p>
+<p>                }</p>
+<p>            })</p>
+        
+<p>        val promptInfo = BiometricPrompt.PromptInfo.Builder()</p>
+<p>            .setTitle("Authenticate")</p>
+<p>            .setNegativeButtonText("Cancel")</p>
+<p>            .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)</p>
+<p>            .build()</p>
+        
+<p>        biometricPrompt.authenticate(promptInfo)</p>
+<p>    }</p>
+    
+<p>    private fun requestBiometricToken() {</p>
+<p>        // Server-side verification</p>
+<p>        apiService.authenticateWithBiometric(</p>
+<p>            userId = userId,</p>
+<p>            deviceId = getDeviceId(),</p>
+<p>            challenge = serverChallenge</p>
+<p>        ).enqueue(object : Callback<TokenResponse> {</p>
+<p>            override fun onResponse(call: Call<TokenResponse>, response: Response<TokenResponse>) {</p>
+<p>                if (response.isSuccessful) {</p>
+<p>                    val token = response.body()?.token</p>
+<p>                    saveToken(token)</p>
+<p>                    navigateToHome()</p>
+<p>                } else {</p>
+<p>                    showError("Authentication failed")</p>
+<p>                }</p>
+<p>            }</p>
+            
+<p>            override fun onFailure(call: Call<TokenResponse>, t: Throwable) {</p>
+<p>                showError("Network error")</p>
+<p>            }</p>
+<p>        })</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Server-Side:</strong>
+
+</code>`<code>python
+<h1>Server validates biometric authentication</h1>
+<p>@app.route('/api/auth/biometric', methods=['POST'])</p>
+<p>def authenticate_biometric():</p>
+<p>    data = request.json</p>
+<p>    user_id = data.get('userId')</p>
+<p>    device_id = data.get('deviceId')</p>
+    
+<p>    user = User.query.get(user_id)</p>
+    
+<p>    # Verify biometric is enabled for this user</p>
+<p>    if not user.biometric_enabled:</p>
+<p>        return jsonify({'error': 'Biometric not enabled'}), 403</p>
+    
+<p>    # Verify device is registered</p>
+<p>    if not is_device_registered(user_id, device_id):</p>
+<p>        return jsonify({'error': 'Device not recognized'}), 403</p>
+    
+<p>    # Check for root/jailbreak (if device sends attestation)</p>
+<p>    if data.get('device_compromised'):</p>
+<p>        log_security_event('COMPROMISED_DEVICE_AUTH_ATTEMPT', user_id)</p>
+<p>        return jsonify({'error': 'Device security compromised'}), 403</p>
+    
+<p>    # Generate token</p>
+<p>    token = generate_token(user_id, auth_method='biometric')</p>
+    
+<p>    log_security_event('BIOMETRIC_LOGIN_SUCCESS', user_id)</p>
+    
+<p>    return jsonify({'token': token})</p>
+</code>`<code>
+
+<h2>Real-World Case Studies</h2>
+
+<h3>Case Study 1: Banking App IDOR Vulnerability</h3>
+
+<strong>Scenario:</strong>
+<p>Major mobile banking app allowed users to view any account details by changing account number parameter.</p>
+
+<strong>Vulnerability:</strong>
+</code>`<code>python
+<h1>Vulnerable endpoint</h1>
+<p>@app.route('/api/accounts/<account_number>')</p>
+<p>@require_auth</p>
+<p>def get_account(account_number):</p>
+<p>    account = Account.query.filter_by(number=account_number).first()</p>
+<p>    return jsonify(account.to_dict())</p>
+<p>    # Missing: ownership verification</p>
+</code>`<code>
+
+<strong>Exploitation:</strong>
+<ul>
+<li>User accesses their account: </code>/api/accounts/123456789<code></li>
+<li>Changes number: </code>/api/accounts/123456790<code></li>
+<li>Receives another customer's account details</li>
+<li>Attacker scripted enumeration of all accounts</li>
+</ul>
+
+<strong>Impact:</strong>
+<ul>
+<li>500,000+ customer records exposed</li>
+<li>PII including account balances, transaction history</li>
+<li>$4.5M regulatory fine</li>
+<li>Class action lawsuit</li>
+<li>Mandatory security audit</li>
+</ul>
+
+<strong>Fix:</strong>
+</code>`<code>python
+<p>@app.route('/api/accounts/<account_number>')</p>
+<p>@require_auth</p>
+<p>def get_account(account_number):</p>
+<p>    account = Account.query.filter_by(number=account_number).first()</p>
+    
+<p>    if not account:</p>
+<p>        return jsonify({'error': 'Not found'}), 404</p>
+    
+<p>    # Verify ownership</p>
+<p>    current_user = get_current_user()</p>
+<p>    if account.user_id != current_user.id:</p>
+<p>        log_security_event('IDOR_ATTEMPT', current_user.id, account_number)</p>
+<p>        return jsonify({'error': 'Access denied'}), 403</p>
+    
+<p>    return jsonify(account.to_dict())</p>
+</code>`<code>
+
+<h3>Case Study 2: Session Hijacking via Token Theft</h3>
+
+<strong>Scenario:</strong>
+<p>E-commerce mobile app stored authentication tokens in plain text in SharedPreferences.</p>
+
+<strong>Vulnerability:</strong>
+</code>`<code>kotlin
+<p>// Vulnerable code</p>
+<p>val prefs = getSharedPreferences("app_data", MODE_PRIVATE)</p>
+<p>prefs.edit().putString("auth_token", token).apply()</p>
+</code>`<code>
+
+<strong>Exploitation:</strong>
+<ul>
+<li>Malware on rooted device accessed app's SharedPreferences</li>
+<li>Extracted authentication tokens</li>
+<li>Used tokens to make API requests</li>
+<li>Placed fraudulent orders</li>
+<li>Changed account details</li>
+</ul>
+
+<strong>Impact:</strong>
+<ul>
+<li>$2M in fraudulent transactions</li>
+<li>10,000+ accounts compromised</li>
+<li>Emergency forced logout of all users</li>
+<li>Mandatory password reset</li>
+</ul>
+
+<strong>Fix:</strong>
+</code>`<code>kotlin
+<p>// Use EncryptedSharedPreferences</p>
+<p>val masterKey = MasterKey.Builder(context)</p>
+<p>    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)</p>
+<p>    .build()</p>
+
+<p>val encryptedPrefs = EncryptedSharedPreferences.create(</p>
+<p>    context,</p>
+<p>    "secure_prefs",</p>
+<p>    masterKey,</p>
+<p>    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,</p>
+<p>    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM</p>
+<p>)</p>
+
+<p>encryptedPrefs.edit().putString("auth_token", token).apply()</p>
+</code>`<code>
+
+<h3>Case Study 3: Biometric Bypass</h3>
+
+<strong>Scenario:</strong>
+<p>Fintech app implemented biometric authentication with client-side only verification.</p>
+
+<strong>Vulnerability:</strong>
+</code>`<code>kotlin
+<p>// Client decides authentication success</p>
+<p>override fun onAuthenticationSucceeded(result: AuthenticationResult) {</p>
+<p>    loginUser()  // No server verification</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Exploitation:</strong>
+<ul>
+<li>Attacker used Frida to hook </code>onAuthenticationSucceeded`</li>
+<li>Forced method to always execute successfully</li>
+<li>Bypassed biometric check completely</li>
+<li>Accessed accounts without valid biometric</li>
+</ul>
+
+<strong>Impact:</strong>
+<ul>
+<li>Multiple accounts accessed by unauthorized persons</li>
+<li>$500K in fraudulent transactions</li>
+<li>Regulatory investigation</li>
+<li>Temporary app suspension</li>
+</ul>
+
+<strong>Fix:</strong>
+<ul>
+<li>Server-side verification required</li>
+<li>Device attestation implemented</li>
+<li>Root/jailbreak detection</li>
+<li>Re-authentication for sensitive operations</li>
+</ul>
+
+<h2>Quick Reference</h2>
+
+<h3>Authentication Checklist</h3>
+<p>| Requirement | Vulnerable | Secure |</p>
+<p>|------------|-----------|--------|</p>
+<p>| Password Length | 6 chars | 12+ chars |</p>
+<p>| Complexity | None | Upper, lower, number, special |</p>
+<p>| Rate Limiting | None | 5 attempts / 15 min |</p>
+<p>| Account Lockout | None | Lock after 5 failures |</p>
+<p>| Transmission | HTTP | HTTPS + cert pinning |</p>
+<p>| MFA | Optional/None | Enforced |</p>
+
+<h3>Session Management Checklist</h3>
+<p>| Requirement | Vulnerable | Secure |</p>
+<p>|------------|-----------|--------|</p>
+<p>| Token Expiry | Never | 15 min (access), 7 days (refresh) |</p>
+<p>| Token Storage | Plain text | Encrypted (Keychain/Keystore) |</p>
+<p>| Logout | Client only | Client + server invalidation |</p>
+<p>| Token Type | Simple string | Cryptographically secure JWT |</p>
+<p>| Session Binding | None | Device + IP (flexible) |</p>
+
+<h3>Authorization Checklist</h3>
+<p>| Requirement | Vulnerable | Secure |</p>
+<p>|------------|-----------|--------|</p>
+<p>| Enforcement | Client-side | Server-side |</p>
+<p>| Resource IDs | Sequential (1,2,3) | UUIDs |</p>
+<p>| Ownership Check | Missing | Every request |</p>
+<p>| Privilege Check | UI only | API endpoint |</p>
+<p>| Admin Functions | Direct access | Role verification |</p>
+
+<h3>Common Vulnerabilities Summary</h3>
+
+<p>| Vulnerability | Attack | Impact | Prevention |</p>
+<p>|--------------|--------|--------|------------|</p>
+<p>| Weak Passwords | Brute force | Account takeover | Strong policy + rate limiting |</p>
+<p>| No MFA | Credential stuffing | Mass compromise | Enforce MFA |</p>
+<p>| Plain Text Tokens | Malware theft | Session hijacking | Encrypted storage |</p>
+<p>| Client-Side Auth | API bypass | Unauthorized access | Server-side enforcement |</p>
+<p>| IDOR | Parameter manipulation | Data breach | Ownership verification |</p>
+<p>| Long Sessions | Token theft | Persistent access | Short expiration + refresh |</p>
+<p>| Predictable IDs | Enumeration | Mass data exposure | UUIDs + authorization |</p>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Never trust the client</strong> - All security decisions must be server-side</li>
+<li><strong>Defense in depth</strong> - Multiple layers of security (passwords + MFA + rate limiting)</li>
+<li><strong>Secure storage</strong> - Use platform security features (Keychain, Keystore)</li>
+<li><strong>Verify everything</strong> - Check authentication AND authorization on every request</li>
+<li><strong>Monitor and log</strong> - Detect and respond to suspicious activity</li>
+<li><strong>Short-lived tokens</strong> - Minimize impact of token theft</li>
+<li><strong>Test thoroughly</strong> - Security testing must include authorization boundary testing</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="./attack-vectors.md">Attack Vectors</a></strong>: Review how these vulnerabilities are exploited</li>
+<li><strong><a href="./prevention.md">Prevention</a></strong>: Detailed secure implementation guidance</li>
+<li><strong><a href="./lab/">Interactive Lab</a></strong>: Practice exploiting and fixing these issues</li>
+</ul>
+
+<p>---</p>
+
+<strong>Remember</strong>: The difference between a vulnerable and secure implementation is often just a few lines of code. Security must be intentional and consistent throughout your application.
+
         </div>
     </div>
 </body>

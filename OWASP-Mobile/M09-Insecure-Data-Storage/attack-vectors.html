@@ -215,7 +215,783 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>M09: Insecure Data Storage - Attack Vectors</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#attack-methodology-overview">Attack Methodology Overview</a></li>
+<li><a href="#physical-access-attacks">Physical Access Attacks</a></li>
+<li><a href="#backup-extraction-attacks">Backup Extraction Attacks</a></li>
+<li><a href="#rooted-jailbroken-device-attacks">Rooted/Jailbroken Device Attacks</a></li>
+<li><a href="#malware-based-attacks">Malware-Based Attacks</a></li>
+<li><a href="#forensic-analysis-attacks">Forensic Analysis Attacks</a></li>
+<li><a href="#attack-tools-and-techniques">Attack Tools and Techniques</a></li>
+</ul>
+
+<h2>Attack Methodology Overview</h2>
+
+<p>Attackers targeting insecure data storage typically follow this approach:</p>
+
+<p>``<code></p>
+<ol>
+<li>Access Acquisition (Device, Backup, or Malware)</li>
+</ol>
+<p>   ↓</p>
+<ol>
+<li>Storage Location Enumeration (Find data storage paths)</li>
+</ol>
+<p>   ↓</p>
+<ol>
+<li>Data Extraction (Copy files, databases, preferences)</li>
+</ol>
+<p>   ↓</p>
+<ol>
+<li>Data Analysis (Parse and identify sensitive information)</li>
+</ol>
+<p>   ↓</p>
+<ol>
+<li>Exploitation (Use extracted data for further attacks)</li>
+</ol>
+</code>`<code>
+
+<h3>Attack Timeline</h3>
+
+<ul>
+<li><strong>Physical Access</strong>: Seconds to minutes for unlocked device</li>
+<li><strong>Backup Extraction</strong>: Minutes to hours</li>
+<li><strong>Data Analysis</strong>: Minutes to hours depending on volume</li>
+<li><strong>Exploitation</strong>: Immediate to days depending on data type</li>
+</ul>
+
+<h3>Attacker Profiles</h3>
+
+<p>| Attacker Type | Capability | Motivation | Typical Targets |</p>
+<p>|--------------|-----------|-----------|-----------------|</p>
+<p>| Opportunist Thief | Basic | Financial gain | Banking, payment apps |</p>
+<p>| Stalker/Domestic Abuser | Basic to Moderate | Personal information | Messaging, location apps |</p>
+<p>| Corporate Spy | Advanced | Trade secrets | Business, email apps |</p>
+<p>| Law Enforcement | Advanced | Evidence gathering | All apps |</p>
+<p>| Cybercriminal | Advanced | Identity theft, fraud | Financial, social apps |</p>
+<p>| State Actor | Expert | Intelligence, surveillance | All sensitive apps |</p>
+
+<h2>Physical Access Attacks</h2>
+
+<h3>Attack Vector 1: Unlocked Device Access</h3>
+
+<strong>Technique</strong>: Direct access to an unlocked or poorly secured device.
+
+<strong>Attack Process</strong>:
+</code>`<code>
+<ol>
+<li>Obtain physical device (theft, borrowing, shoulder surfing PIN)</li>
+<li>Access device if unlocked or bypass weak lock screen</li>
+<li>Navigate to app's storage location</li>
+<li>Use file manager or development tools</li>
+<li>Extract sensitive data</li>
+</ol>
+</code>`<code>
+
+<strong>Android Example</strong>:
+</code>`<code>bash
+<h1>Attacker uses ADB on unlocked device with USB debugging</h1>
+<p>adb shell</p>
+
+<h1>Navigate to app's data directory</h1>
+<p>cd /data/data/com.example.app/</p>
+
+<h1>List all files and directories</h1>
+<p>ls -R</p>
+
+<h1>Common vulnerable locations:</h1>
+<h1>SharedPreferences: /data/data/com.example.app/shared_prefs/</h1>
+<h1>Databases: /data/data/com.example.app/databases/</h1>
+<h1>Files: /data/data/com.example.app/files/</h1>
+<h1>Cache: /data/data/com.example.app/cache/</h1>
+
+<h1>Extract database</h1>
+<p>cat databases/userdata.db</p>
+
+<h1>Read SharedPreferences</h1>
+<p>cat shared_prefs/user_settings.xml</p>
+</code>`<code>
+
+<strong>iOS Example</strong>:
+</code>`<code>bash
+<h1>Using a jailbroken device or debugging tools</h1>
+<h1>Navigate to app container</h1>
+<p>cd /var/mobile/Containers/Data/Application/{UUID}/</p>
+
+<h1>List files</h1>
+<p>ls -la</p>
+
+<h1>Common vulnerable locations:</h1>
+<h1>UserDefaults: Library/Preferences/</h1>
+<h1>Documents: Documents/</h1>
+<h1>Databases: Library/Application Support/</h1>
+<h1>Cache: Library/Caches/</h1>
+
+<h1>Read plist files (UserDefaults)</h1>
+<p>plutil -p Library/Preferences/com.example.app.plist</p>
+</code>`<code>
+
+<strong>What Attackers Find</strong>:
+<ul>
+<li>User credentials stored in plain text</li>
+<li>Authentication tokens and session IDs</li>
+<li>Personal information (names, emails, addresses)</li>
+<li>Private messages and communications</li>
+<li>Financial data (account numbers, transactions)</li>
+<li>Location history</li>
+<li>App-specific sensitive data</li>
+</ul>
+
+<h3>Attack Vector 2: Lost or Stolen Device</h3>
+
+<strong>Technique</strong>: Exploiting devices that are lost, stolen, or temporarily unattended.
+
+<strong>Attack Scenarios</strong>:
+
+<strong>Scenario 1: Weak Lock Screen</strong>:
+</code>`<code>
+<p>Device stolen → Weak PIN (1234, 0000) → Device unlocked</p>
+<p>    ↓</p>
+<p>Install file manager app → Browse app data directories</p>
+<p>    ↓</p>
+<p>Extract unencrypted databases and files → Data compromised</p>
+</code>`<code>
+
+<strong>Scenario 2: Disabled Lock Screen</strong>:
+</code>`<code>
+<p>User disabled lock for convenience → Device stolen → Immediate access</p>
+<p>    ↓</p>
+<p>Use built-in file explorer → Access app data → Sensitive data exposed</p>
+</code>`<code>
+
+<strong>Real-World Example</strong>:
+<p>A healthcare app stored patient records in plain text SQLite database:</p>
+</code>`<code>sql
+<p>-- File: /data/data/com.health.app/databases/patients.db</p>
+<p>-- Accessible via simple file read</p>
+
+<p>SELECT * FROM patients;</p>
+<p>-- Returns:</p>
+<p>-- patient_id | name | dob | ssn | diagnosis | medications</p>
+<p>-- 12345 | John Doe | 1980-05-15 | 123-45-6789 | Hypertension | Lisinopril</p>
+</code>`<code>
+
+<h3>Attack Vector 3: Borrowed Device Exploitation</h3>
+
+<strong>Technique</strong>: Temporary access to someone else's device.
+
+<strong>Attack Process</strong>:
+</code>`<code>
+<ol>
+<li>Borrow device legitimately ("Can I make a call?")</li>
+<li>Quickly enable USB debugging or install file manager</li>
+<li>Navigate to target app's data directory</li>
+<li>Copy sensitive files to cloud storage or email</li>
+<li>Delete evidence of access</li>
+<li>Return device</li>
+</ol>
+</code>`<code>
+
+<strong>Time Required</strong>: 2-5 minutes for skilled attacker
+
+<h2>Backup Extraction Attacks</h2>
+
+<h3>Attack Vector 4: Android ADB Backup</h3>
+
+<strong>Technique</strong>: Extracting app data through Android Debug Bridge backup functionality.
+
+<strong>Prerequisites</strong>:
+<ul>
+<li>Physical device access (even briefly)</li>
+<li>USB debugging enabled OR ability to enable it</li>
+</ul>
+
+<strong>Attack Process</strong>:
+</code>`<code>bash
+<h1>1. Enable USB debugging if not already enabled</h1>
+<h1>Settings → About Phone → Tap Build Number 7 times</h1>
+<h1>Settings → Developer Options → Enable USB Debugging</h1>
+
+<h1>2. Connect device to computer</h1>
+<p>adb devices</p>
+
+<h1>3. Create backup of specific app</h1>
+<p>adb backup -f backup.ab -noapk com.example.app</p>
+
+<h1>Device shows backup confirmation (user may approve without reading)</h1>
+
+<h1>4. Convert backup to tar format</h1>
+<h1>Using Android Backup Extractor (ABE)</h1>
+<p>java -jar abe.jar unpack backup.ab backup.tar</p>
+
+<h1>5. Extract tar file</h1>
+<p>tar -xvf backup.tar</p>
+
+<h1>6. Navigate to app data</h1>
+<p>cd apps/com.example.app/</p>
+</code>`<code>
+
+<strong>Example Extracted Data</strong>:
+</code>`<code>
+<p>apps/com.example.app/</p>
+<p>├── db/</p>
+<p>│   ├── messages.db          # Unencrypted SQLite database</p>
+<p>│   └── userdata.db          # Contains user profile data</p>
+<p>├── sp/</p>
+<p>│   └── preferences.xml      # SharedPreferences with tokens</p>
+<p>└── f/</p>
+<p>    ├── profile_picture.jpg</p>
+<p>    └── sensitive_document.pdf</p>
+</code>`<code>
+
+<strong>Vulnerable Data Found</strong>:
+</code>`<code>xml
+<!-- preferences.xml -->
+<map>
+    <string name="auth_token">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...</string>
+    <string name="user_email">victim@example.com</string>
+    <string name="api_key">sk_live_51H7h8dK2eZvN9vZpQ</string>
+    <boolean name="remember_me">true</boolean>
+</map>
+</code>`<code>
+
+<h3>Attack Vector 5: iOS iTunes Backup</h3>
+
+<strong>Technique</strong>: Extracting app data from iTunes/Finder backups.
+
+<strong>Prerequisites</strong>:
+<ul>
+<li>Physical device access to create backup</li>
+<li>OR access to computer with existing backups</li>
+</ul>
+
+<strong>Attack Process</strong>:
+</code>`<code>bash
+<h1>1. Create unencrypted backup</h1>
+<h1>Connect iPhone to Mac/PC</h1>
+<h1>iTunes/Finder → Backup → Uncheck "Encrypt Backup" → Backup Now</h1>
+
+<h1>2. Locate backup on computer</h1>
+<h1>Mac: ~/Library/Application Support/MobileSync/Backup/</h1>
+<h1>Windows: %APPDATA%\Apple Computer\MobileSync\Backup\</h1>
+
+<h1>3. Use iBackup Viewer or similar tool to extract app data</h1>
+<h1>Or manually parse backup files</h1>
+
+<h1>4. Find app's data in backup</h1>
+<h1>Apps are stored with hash-based filenames</h1>
+<h1>Use Manifest.db to map files to apps</h1>
+<p>sqlite3 Manifest.db</p>
+
+<p>SELECT fileID, relativePath FROM Files </p>
+<p>WHERE relativePath LIKE '%com.example.app%';</p>
+
+<h1>5. Extract specific files</h1>
+<h1>Copy files using fileID from Manifest</h1>
+</code>`<code>
+
+<strong>Example SQL Query on Backup</strong>:
+</code>`<code>sql
+<p>-- Directly query app's database from backup</p>
+<p>sqlite3 {fileID_hash}</p>
+
+<p>SELECT * FROM users;</p>
+<p>-- name | email | phone | credit_card | cvv</p>
+<p>-- John Doe | john@email.com | +1234567890 | 4532-<strong><em>*-</strong></em>*-1234 | 123</p>
+</code>`<code>
+
+<h3>Attack Vector 6: iCloud Backup Exploitation</h3>
+
+<strong>Technique</strong>: Accessing app data through iCloud backups.
+
+<strong>Attack Scenarios</strong>:
+
+<strong>Scenario 1: Compromised iCloud Account</strong>:
+</code>`<code>
+<p>Phish iCloud credentials → Access iCloud.com</p>
+<p>    ↓</p>
+<p>Download device backup → Extract using iBackup tools</p>
+<p>    ↓</p>
+<p>Access app data including sensitive information</p>
+</code>`<code>
+
+<strong>Scenario 2: Shared Family Account</strong>:
+</code>`<code>
+<p>Family member with iCloud access → Download backups</p>
+<p>    ↓</p>
+<p>Extract other family members' app data → Privacy violation</p>
+</code>`<code>
+
+<h2>Rooted/Jailbroken Device Attacks</h2>
+
+<h3>Attack Vector 7: Rooted Android Device Exploitation</h3>
+
+<strong>Technique</strong>: Using root access to bypass Android's app sandboxing.
+
+<strong>Attack Process</strong>:
+</code>`<code>bash
+<h1>1. Root device (Magisk, SuperSU, etc.)</h1>
+<h1>Many guides available online for popular devices</h1>
+
+<h1>2. Install root file explorer (e.g., Root Explorer)</h1>
+<h1>Available on Play Store or third-party sources</h1>
+
+<h1>3. Grant root permissions to file explorer</h1>
+<p>su</p>
+
+<h1>4. Navigate to any app's data directory</h1>
+<p>cd /data/data/</p>
+
+<h1>5. List all installed apps</h1>
+<p>ls</p>
+
+<h1>6. Access target app</h1>
+<p>cd com.banking.app/</p>
+
+<h1>7. Read all files with root privileges</h1>
+<p>cat shared_prefs/account_prefs.xml</p>
+<p>sqlite3 databases/transactions.db</p>
+<p>.dump</p>
+
+<h1>8. Copy sensitive data</h1>
+<p>cp -r /data/data/com.banking.app/ /sdcard/stolen_data/</p>
+</code>`<code>
+
+<strong>Example Exploitation</strong>:
+</code>`<code>bash
+<h1>Banking app with unencrypted database</h1>
+<p>cd /data/data/com.bank.app/databases/</p>
+
+<p>sqlite3 accounts.db</p>
+<p>SELECT * FROM transactions ORDER BY date DESC LIMIT 10;</p>
+
+<h1>Output reveals:</h1>
+<h1>- Account numbers</h1>
+<h1>- Transaction amounts</h1>
+<h1>- Merchant names</h1>
+<h1>- Timestamps</h1>
+<h1>- Balance information</h1>
+</code>`<code>
+
+<strong>Root Detection Bypass</strong>:
+</code>`<code>
+<p>App implements root detection → Attacker uses Magisk Hide</p>
+<p>    ↓</p>
+<p>Root hidden from app → App runs normally</p>
+<p>    ↓</p>
+<p>Attacker uses root file explorer → Data extracted anyway</p>
+</code>`<code>
+
+<h3>Attack Vector 8: Jailbroken iOS Exploitation</h3>
+
+<strong>Technique</strong>: Jailbreaking iOS to access app data outside sandbox.
+
+<strong>Attack Process</strong>:
+</code>`<code>bash
+<h1>1. Jailbreak device (checkra1n, unc0ver, etc.)</h1>
+
+<h1>2. Install SSH server (Cydia)</h1>
+<h1>Install OpenSSH from Cydia</h1>
+
+<h1>3. SSH into device</h1>
+<p>ssh root@192.168.1.100</p>
+<h1>Default password: alpine (often unchanged)</h1>
+
+<h1>4. Navigate to app containers</h1>
+<p>cd /var/mobile/Containers/Data/Application/</p>
+
+<h1>5. Find target app (use grep or app UUID)</h1>
+<p>find . -name "*.app" | grep -i "targetapp"</p>
+
+<h1>6. Access app's data</h1>
+<p>cd {UUID}/Library/Preferences/</p>
+<p>cat com.example.app.plist</p>
+
+<h1>7. Read database files</h1>
+<p>cd ../Application\ Support/</p>
+<p>sqlite3 messages.db</p>
+</code>`<code>
+
+<strong>Keychain Access on Jailbroken Device</strong>:
+</code>`<code>bash
+<h1>Even Keychain can be accessed on jailbroken iOS</h1>
+<h1>Using keychain dumper tools</h1>
+
+<h1>Download and run keychain_dumper</h1>
+<p>./keychain_dumper</p>
+
+<h1>Output includes:</h1>
+<h1>- Saved passwords</h1>
+<h1>- Authentication tokens</h1>
+<h1>- Certificate private keys</h1>
+<h1>- Secure notes</h1>
+</code>`<code>
+
+<h2>Malware-Based Attacks</h2>
+
+<h3>Attack Vector 9: Malicious App Data Theft</h3>
+
+<strong>Technique</strong>: Installing malware that exploits Android permissions to access data.
+
+<strong>Attack Flow</strong>:
+</code>`<code>
+<p>User installs malicious app → Requests storage permissions</p>
+<p>    ↓</p>
+<p>Granted permissions → Scans external storage</p>
+<p>    ↓</p>
+<p>Finds app data on SD card → Exfiltrates to attacker server</p>
+</code>`<code>
+
+<strong>Example Android Malware</strong>:
+</code>`<code>java
+<p>// Malicious app code</p>
+<p>public class DataThief extends Service {</p>
+<p>    @Override</p>
+<p>    public void onCreate() {</p>
+<p>        // Search external storage for app databases</p>
+<p>        File externalStorage = Environment.getExternalStorageDirectory();</p>
+<p>        searchForDatabases(externalStorage);</p>
+<p>    }</p>
+    
+<p>    private void searchForDatabases(File dir) {</p>
+<p>        File[] files = dir.listFiles();</p>
+<p>        for (File file : files) {</p>
+<p>            if (file.getName().endsWith(".db") || </p>
+<p>                file.getName().endsWith(".xml")) {</p>
+<p>                // Exfiltrate file to attacker server</p>
+<p>                exfiltrateData(file);</p>
+<p>            }</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Attack Vector 10: Privilege Escalation via Exploits</h3>
+
+<strong>Technique</strong>: Using OS vulnerabilities to gain root access and bypass sandboxing.
+
+<strong>Attack Scenarios</strong>:
+</code>`<code>
+<p>Unpatched device with known exploit → Malware exploits vulnerability</p>
+<p>    ↓</p>
+<p>Gains root privileges → Accesses all app data</p>
+<p>    ↓</p>
+<p>Exfiltrates data without user knowledge</p>
+</code>`<code>
+
+<h2>Forensic Analysis Attacks</h2>
+
+<h3>Attack Vector 11: Mobile Forensic Tools</h3>
+
+<strong>Technique</strong>: Using professional forensic software to extract data.
+
+<strong>Common Forensic Tools</strong>:
+<ul>
+<li><strong>Cellebrite UFED</strong>: Industry-standard forensic tool</li>
+<li><strong>Oxygen Forensics</strong>: Mobile forensic software</li>
+<li><strong>Magnet AXIOM</strong>: Digital forensics platform</li>
+<li><strong>XRY</strong>: Mobile forensic tool</li>
+<li><strong>Autopsy</strong>: Open-source forensic tool</li>
+</ul>
+
+<strong>Forensic Extraction Process</strong>:
+</code>`<code>
+<ol>
+<li>Connect device to forensic workstation</li>
+<li>Create forensic image of device storage</li>
+<li>Parse file systems and databases</li>
+<li>Extract and decrypt (if possible) data</li>
+<li>Generate comprehensive report</li>
+</ol>
+</code>`<code>
+
+<strong>What Can Be Recovered</strong>:
+<ul>
+<li>All unencrypted databases and files</li>
+<li>Deleted data (if not securely wiped)</li>
+<li>Cache files</li>
+<li>Temporary files</li>
+<li>Log files</li>
+<li>Screenshot captures</li>
+</ul>
+
+<strong>Example Forensic Report Finding</strong>:
+</code>`<code>
+<p>App: Banking Application v2.3.1</p>
+<p>Location: /data/data/com.bank.app/</p>
+
+<p>Findings:</p>
+<ul>
+<li>SQLite database "accounts.db" contains:</li>
+<li>15 account numbers (UNENCRYPTED)</li>
+<li>247 transaction records (UNENCRYPTED)</li>
+<li>3 saved beneficiaries with account details</li>
+</ul>
+  
+<ul>
+<li>SharedPreferences "session.xml" contains:</li>
+<li>Valid authentication token (expires in 30 days)</li>
+<li>User email and phone number</li>
+<li>Last login timestamp</li>
+</ul>
+  
+<ul>
+<li>File "pin.txt" contains:</li>
+<li>4-digit PIN in plain text</li>
+</ul>
+
+<p>Risk Level: CRITICAL</p>
+</code>`<code>
+
+<h3>Attack Vector 12: Memory Forensics</h3>
+
+<strong>Technique</strong>: Extracting sensitive data from device memory/RAM.
+
+<strong>Attack Process</strong>:
+</code>`<code>
+<ol>
+<li>Capture memory dump from running device</li>
+<li>Use memory forensic tools (Volatility, etc.)</li>
+<li>Search for sensitive data patterns</li>
+<li>Extract keys, passwords, tokens from memory</li>
+</ol>
+</code>`<code>
+
+<strong>Example Memory Extraction</strong>:
+</code>`<code>bash
+<h1>Capture memory dump</h1>
+<p>adb shell su -c "dd if=/dev/mem of=/sdcard/memory.dump"</p>
+
+<h1>Pull to computer</h1>
+<p>adb pull /sdcard/memory.dump</p>
+
+<h1>Search for patterns</h1>
+<p>strings memory.dump | grep -E "token|password|key"</p>
+
+<h1>Find:</h1>
+<h1>"auth_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."</h1>
+<h1>"password":"MySecretPass123"</h1>
+<h1>"encryption_key":"AES256_KEY_HERE"</h1>
+</code>`<code>
+
+<h2>Attack Tools and Techniques</h2>
+
+<h3>Essential Tools for Attackers</h3>
+
+<strong>Android Tools</strong>:
+</code>`<code>
+<ol>
+<li>ADB (Android Debug Bridge) - Official Google tool</li>
+<ul>
+<li>Device access and backup creation</li>
+</ul>
+</ol>
+   
+<ol>
+<li>Android Backup Extractor (ABE) - Open source</li>
+<ul>
+<li>Convert .ab backups to readable format</li>
+</ul>
+</ol>
+   
+<ol>
+<li>SQLite Browser - Open source</li>
+<ul>
+<li>View and query SQLite databases</li>
+</ul>
+</ol>
+   
+<ol>
+<li>Root Explorer - File manager for rooted devices</li>
+<ul>
+<li>Full filesystem access</li>
+</ul>
+</ol>
+   
+<ol>
+<li>Frida - Dynamic instrumentation</li>
+<ul>
+<li>Runtime app manipulation</li>
+</ul>
+</ol>
+   
+<ol>
+<li>jadx - Decompiler</li>
+<ul>
+<li>Reverse engineer APKs</li>
+</ul>
+</ol>
+</code>`<code>
+
+<strong>iOS Tools</strong>:
+</code>`<code>
+<ol>
+<li>iBackup Viewer/Extractor - Commercial/Free</li>
+<ul>
+<li>Extract data from iTunes backups</li>
+</ul>
+</ol>
+   
+<ol>
+<li>checkra1n/unc0ver - Jailbreak tools</li>
+<ul>
+<li>Remove iOS restrictions</li>
+</ul>
+</ol>
+   
+<ol>
+<li>Filza - File manager for jailbroken iOS</li>
+<ul>
+<li>Access app containers</li>
+</ul>
+</ol>
+   
+<ol>
+<li>SSH/Cydia - Remote access tools</li>
+<ul>
+<li>Command-line device access</li>
+</ul>
+</ol>
+   
+<ol>
+<li>keychain_dumper - Keychain extraction</li>
+<ul>
+<li>Extract keychain items</li>
+</ul>
+</ol>
+</code>`<code>
+
+<strong>Cross-Platform Tools</strong>:
+</code>`<code>
+<ol>
+<li>Cellebrite UFED - Commercial forensic tool</li>
+<ul>
+<li>Professional data extraction</li>
+</ul>
+</ol>
+   
+<ol>
+<li>DB Browser for SQLite - Open source</li>
+<ul>
+<li>Database analysis</li>
+</ul>
+</ol>
+   
+<ol>
+<li>Wireshark - Network analyzer</li>
+<ul>
+<li>Monitor data transmission</li>
+</ul>
+</ol>
+   
+<ol>
+<li>Burp Suite - Web proxy</li>
+<ul>
+<li>Intercept API communications</li>
+</ul>
+</ol>
+</code>`<code>
+
+<h3>Attack Techniques Summary</h3>
+
+<p>| Technique | Complexity | Equipment | Time | Success Rate |</p>
+<p>|-----------|-----------|-----------|------|--------------|</p>
+<p>| Unlocked device access | Low | None | Seconds | 95% |</p>
+<p>| ADB backup | Low | Computer + USB | Minutes | 85% |</p>
+<p>| iTunes backup | Low | Computer | Minutes | 90% |</p>
+<p>| Root/Jailbreak | Medium | Computer | Hours | 70% |</p>
+<p>| Forensic tools | High | Specialized equipment | Hours | 95% |</p>
+<p>| Malware | Medium | Remote access | Varies | 60% |</p>
+<p>| Memory forensics | High | Root access + tools | Hours | 50% |</p>
+
+<h3>Detection and Evasion</h3>
+
+<strong>How Attackers Avoid Detection</strong>:
+</code>`<code>
+<ol>
+<li>Use legitimate-looking backup tools</li>
+<li>Access data during normal use (borrowed device)</li>
+<li>Hide root access with Magisk Hide</li>
+<li>Clear forensic evidence after extraction</li>
+<li>Use cloud services for exfiltration (looks like normal traffic)</li>
+<li>Operate on user's own device (no device changes visible)</li>
+</ol>
+</code>`<code>
+
+<strong>Common Attacker Mistakes</strong>:
+</code>`<code>
+<ol>
+<li>Leaving USB debugging enabled (traces)</li>
+<li>Forgetting to delete backup files</li>
+<li>Setting improper file permissions after root access</li>
+<li>Triggering anti-forensic alerts</li>
+<li>Network anomalies during data exfiltration</li>
+</ol>
+</code>`<code>
+
+<h3>Real-World Attack Scenario</h3>
+
+<strong>Complete Attack Example: Banking App Data Theft</strong>
+
+</code>`<code>
+<p>Phase 1: Opportunity</p>
+<ul>
+<li>Victim leaves phone on restaurant table</li>
+<li>Attacker borrows phone ("Is this yours? Let me help you find the owner")</li>
+</ul>
+
+<p>Phase 2: Rapid Extraction (< 3 minutes)</p>
+<ol>
+<li>Enable USB debugging while appearing to "help"</li>
+<li>Connect to attacker's hidden device (laptop in bag)</li>
+<li>Run: adb backup -f bank.ab com.bank.app</li>
+<li>Victim approves backup (thinks it's a system notification)</li>
+<li>Backup saved, device returned</li>
+</ol>
+
+<p>Phase 3: Data Extraction (later)</p>
+<ol>
+<li>Convert backup: java -jar abe.jar unpack bank.ab bank.tar</li>
+<li>Extract: tar -xvf bank.tar</li>
+<li>Open database: sqlite3 apps/com.bank.app/db/accounts.db</li>
+<li>Query: SELECT * FROM accounts;</li>
+</ol>
+
+<p>Phase 4: Exploitation</p>
+<ul>
+<li>Account numbers, balances revealed</li>
+<li>Authentication tokens extracted</li>
+<li>Use tokens to access account via API</li>
+<li>Transfer funds or sell credentials</li>
+</ul>
+</code>``
+
+<h2>Defense Awareness</h2>
+
+<p>Understanding these attack vectors helps developers implement proper defenses:</p>
+
+<ol>
+<li><strong>Encrypt all sensitive data</strong> at rest</li>
+<li><strong>Use platform secure storage</strong> (Keychain/KeyStore)</li>
+<li><strong>Exclude sensitive data from backups</strong></li>
+<li><strong>Implement root/jailbreak detection</strong></li>
+<li><strong>Clear sensitive data from memory</strong></li>
+<li><strong>Use Data Protection API</strong> (iOS)</li>
+<li><strong>Implement EncryptedSharedPreferences</strong> (Android)</li>
+<li><strong>Encrypt databases</strong> with SQLCipher</li>
+<li><strong>Minimize data storage</strong> - don't store what you don't need</li>
+<li><strong>Implement data expiration</strong> - clear old sensitive data</li>
+</ol>
+
+<p>---</p>
+
+<strong>Next Steps</strong>: Learn how to protect against these attacks in <a href="./prevention.md">Prevention</a>
+
+<em>Part of OWASP Mobile Top 10 - Educational Repository</em>
+
         </div>
     </div>
 </body>

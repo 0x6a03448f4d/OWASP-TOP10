@@ -215,7 +215,564 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>M01: Improper Credential Usage - Examples</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#vulnerable-examples">Vulnerable Examples</a></li>
+<li><a href="#secure-examples">Secure Examples</a></li>
+<li><a href="#common-patterns">Common Patterns</a></li>
+<li><a href="#framework-specific-examples">Framework-Specific Examples</a></li>
+</ul>
+
+<h2>Vulnerable Examples</h2>
+
+<h3>❌ Example 1: Hardcoded API Key</h3>
+
+<strong>Vulnerable Code (Android - Java)</strong>:
+<p>``<code>java</p>
+<p>public class ApiClient {</p>
+<p>    // VULNERABLE: API key hardcoded in source code</p>
+<p>    private static final String API_KEY = "AIzaSyDxVW2E9vZpQN7h8dK2eZvN9vZpQN7h8d";</p>
+<p>    private static final String API_SECRET = "sk_live_51H7h8dK2eZvN9vZpQN7h8";</p>
+    
+<p>    public Response makeApiCall(String endpoint) {</p>
+<p>        HttpClient client = new HttpClient();</p>
+<p>        client.addHeader("X-API-Key", API_KEY);</p>
+<p>        client.addHeader("X-API-Secret", API_SECRET);</p>
+<p>        return client.get(endpoint);</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>API keys are embedded in compiled bytecode</li>
+<li>Anyone can decompile the APK and extract keys</li>
+<li>Keys can't be rotated without app update</li>
+<li>Same keys used for all app installations</li>
+</ul>
+
+<h3>❌ Example 2: Plain Text Password Storage</h3>
+
+<strong>Vulnerable Code (Android - Java)</strong>:
+</code>`<code>java
+<p>public class LoginManager {</p>
+<p>    private SharedPreferences prefs;</p>
+    
+<p>    public void saveCredentials(String username, String password) {</p>
+<p>        // VULNERABLE: Storing password in plain text</p>
+<p>        prefs.edit()</p>
+<p>            .putString("username", username)</p>
+<p>            .putString("password", password)</p>
+<p>            .apply();</p>
+<p>    }</p>
+    
+<p>    public boolean login() {</p>
+<p>        String username = prefs.getString("username", "");</p>
+<p>        String password = prefs.getString("password", "");</p>
+<p>        return authenticate(username, password);</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>SharedPreferences stored as XML in plain text</li>
+<li>Accessible on rooted devices</li>
+<li>Included in device backups</li>
+<li>No encryption protection</li>
+</ul>
+
+<h3>❌ Example 3: Logging Sensitive Information</h3>
+
+<strong>Vulnerable Code (Android - Java)</strong>:
+</code>`<code>java
+<p>public class AuthService {</p>
+<p>    public void login(String email, String password) {</p>
+<p>        // VULNERABLE: Logging credentials</p>
+<p>        Log.d("Auth", "Attempting login for: " + email);</p>
+<p>        Log.d("Auth", "Password: " + password);</p>
+        
+<p>        try {</p>
+<p>            Response response = api.login(email, password);</p>
+<p>            Log.d("Auth", "Auth token: " + response.getToken());</p>
+<p>        } catch (Exception e) {</p>
+<p>            Log.e("Auth", "Login failed: " + e.getMessage());</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>Credentials visible in Logcat</li>
+<li>Logs may be included in crash reports</li>
+<li>Third-party monitoring tools capture logs</li>
+<li>Logs persisted on device</li>
+</ul>
+
+<h3>❌ Example 4: Credentials in Configuration Files</h3>
+
+<strong>Vulnerable Code (Android - XML)</strong>:
+</code>`<code>xml
+<!-- res/values/config.xml -->
+<!-- VULNERABLE: API credentials in resource files -->
+<resources>
+    <string name="api_key">AIzaSyDxVW2E9vZpQN7h8dK2eZv</string>
+    <string name="api_secret">secret_key_12345</string>
+    <string name="database_url">mysql://admin:password@db.example.com</string>
+</resources>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>Easily extracted from APK</li>
+<li>No encryption</li>
+<li>Version controlled with app</li>
+<li>Can't be changed without app update</li>
+</ul>
+
+<h3>❌ Example 5: Weak Encryption</h3>
+
+<strong>Vulnerable Code (iOS - Swift)</strong>:
+</code>`<code>swift
+<p>class CredentialStorage {</p>
+<p>    // VULNERABLE: Using simple Base64 encoding (not encryption)</p>
+<p>    func savePassword(_ password: String) {</p>
+<p>        let encodedData = password.data(using: .utf8)?.base64EncodedString()</p>
+<p>        UserDefaults.standard.set(encodedData, forKey: "password")</p>
+<p>    }</p>
+    
+<p>    func getPassword() -> String? {</p>
+<p>        guard let encoded = UserDefaults.standard.string(forKey: "password"),</p>
+<p>              let data = Data(base64Encoded: encoded),</p>
+<p>              let password = String(data: data, encoding: .utf8) else {</p>
+<p>            return nil</p>
+<p>        }</p>
+<p>        return password</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>Base64 is encoding, not encryption</li>
+<li>Trivially reversible</li>
+<li>Provides no security</li>
+<li>False sense of protection</li>
+</ul>
+
+<h2>Secure Examples</h2>
+
+<h3>✅ Example 1: Using Android KeyStore</h3>
+
+<strong>Secure Code (Android - Java)</strong>:
+</code>`<code>java
+<p>public class SecureCredentialManager {</p>
+<p>    private static final String KEY_ALIAS = "MySecureKeyAlias";</p>
+    
+<p>    // Generate encryption key in KeyStore</p>
+<p>    private void generateKey() throws Exception {</p>
+<p>        KeyGenerator keyGenerator = KeyGenerator.getInstance(</p>
+<p>            KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore");</p>
+            
+<p>        keyGenerator.init(new KeyGenParameterSpec.Builder(</p>
+<p>                KEY_ALIAS,</p>
+<p>                KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)</p>
+<p>            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)</p>
+<p>            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)</p>
+<p>            .build());</p>
+            
+<p>        keyGenerator.generateKey();</p>
+<p>    }</p>
+    
+<p>    // Securely store credentials</p>
+<p>    public void storeCredential(String key, String value) throws Exception {</p>
+<p>        KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");</p>
+<p>        keyStore.load(null);</p>
+        
+<p>        SecretKey secretKey = (SecretKey) keyStore.getKey(KEY_ALIAS, null);</p>
+        
+<p>        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");</p>
+<p>        cipher.init(Cipher.ENCRYPT_MODE, secretKey);</p>
+        
+<p>        byte[] iv = cipher.getIV();</p>
+<p>        byte[] encrypted = cipher.doFinal(value.getBytes(StandardCharsets.UTF_8));</p>
+        
+<p>        // Store encrypted data using EncryptedSharedPreferences</p>
+<p>        getEncryptedPrefs()</p>
+<p>            .edit()</p>
+<p>            .putString(key + "_value", Base64.encodeToString(encrypted, Base64.DEFAULT))</p>
+<p>            .putString(key + "_iv", Base64.encodeToString(iv, Base64.DEFAULT))</p>
+<p>            .apply();</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>✅ Example 2: Using iOS Keychain</h3>
+
+<strong>Secure Code (iOS - Swift)</strong>:
+</code>`<code>swift
+<p>class KeychainManager {</p>
+<p>    // Store credential securely in iOS Keychain</p>
+<p>    func storeCredential(key: String, value: String) -> Bool {</p>
+<p>        guard let valueData = value.data(using: .utf8) else {</p>
+<p>            return false</p>
+<p>        }</p>
+        
+<p>        // Delete existing item first</p>
+<p>        deleteCredential(key: key)</p>
+        
+<p>        let query: [String: Any] = [</p>
+<p>            kSecClass as String: kSecClassGenericPassword,</p>
+<p>            kSecAttrAccount as String: key,</p>
+<p>            kSecValueData as String: valueData,</p>
+<p>            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly</p>
+<p>        ]</p>
+        
+<p>        let status = SecItemAdd(query as CFDictionary, nil)</p>
+<p>        return status == errSecSuccess</p>
+<p>    }</p>
+    
+<p>    // Retrieve credential from Keychain</p>
+<p>    func retrieveCredential(key: String) -> String? {</p>
+<p>        let query: [String: Any] = [</p>
+<p>            kSecClass as String: kSecClassGenericPassword,</p>
+<p>            kSecAttrAccount as String: key,</p>
+<p>            kSecReturnData as String: true,</p>
+<p>            kSecMatchLimit as String: kSecMatchLimitOne</p>
+<p>        ]</p>
+        
+<p>        var result: AnyObject?</p>
+<p>        let status = SecItemCopyMatching(query as CFDictionary, &result)</p>
+        
+<p>        guard status == errSecSuccess,</p>
+<p>              let data = result as? Data,</p>
+<p>              let credential = String(data: data, encoding: .utf8) else {</p>
+<p>            return nil</p>
+<p>        }</p>
+        
+<p>        return credential</p>
+<p>    }</p>
+    
+<p>    // Delete credential</p>
+<p>    func deleteCredential(key: String) {</p>
+<p>        let query: [String: Any] = [</p>
+<p>            kSecClass as String: kSecClassGenericPassword,</p>
+<p>            kSecAttrAccount as String: key</p>
+<p>        ]</p>
+<p>        SecItemDelete(query as CFDictionary)</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>✅ Example 3: Runtime API Key Fetching</h3>
+
+<strong>Secure Code (Android - Kotlin)</strong>:
+</code>`<code>kotlin
+<p>class SecureApiClient(private val context: Context) {</p>
+<p>    private var apiKey: String? = null</p>
+    
+<p>    // Fetch API key from server at runtime</p>
+<p>    suspend fun initialize() {</p>
+<p>        try {</p>
+<p>            // Authenticate user first</p>
+<p>            val authToken = getStoredAuthToken()</p>
+            
+<p>            // Request API key from backend</p>
+<p>            val response = apiService.requestApiKey(authToken)</p>
+            
+<p>            // Store encrypted API key</p>
+<p>            storeApiKeySecurely(response.apiKey)</p>
+            
+<p>            this.apiKey = response.apiKey</p>
+<p>        } catch (e: Exception) {</p>
+<p>            Log.e("SecureApiClient", "Failed to fetch API key", e)</p>
+<p>            throw SecurityException("Could not initialize secure client")</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    private fun storeApiKeySecurely(key: String) {</p>
+<p>        val encryptedPrefs = EncryptedSharedPreferences.create(</p>
+<p>            context,</p>
+<p>            "api_prefs",</p>
+<p>            getMasterKey(),</p>
+<p>            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,</p>
+<p>            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM</p>
+<p>        )</p>
+        
+<p>        encryptedPrefs.edit()</p>
+<p>            .putString("api_key", key)</p>
+<p>            .putLong("key_timestamp", System.currentTimeMillis())</p>
+<p>            .apply()</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>✅ Example 4: Secure Logging</h3>
+
+<strong>Secure Code (Android - Kotlin)</strong>:
+</code>`<code>kotlin
+<p>object SecureLogger {</p>
+<p>    private const val TAG = "SecureApp"</p>
+    
+<p>    // Sanitize sensitive data before logging</p>
+<p>    fun logAuth(message: String) {</p>
+<p>        if (BuildConfig.DEBUG) {</p>
+<p>            // Even in debug, sanitize sensitive data</p>
+<p>            val sanitized = sanitizeMessage(message)</p>
+<p>            Log.d(TAG, sanitized)</p>
+<p>        }</p>
+<p>        // In production, consider using proper logging service</p>
+<p>    }</p>
+    
+<p>    private fun sanitizeMessage(message: String): String {</p>
+<p>        var sanitized = message</p>
+        
+<p>        // Remove potential passwords</p>
+<p>        sanitized = sanitized.replace(</p>
+<p>            Regex("password[\"']?\\s<em>[:=]\\s</em>[\"']?[^\"'\\s,}]+", RegexOption.IGNORE_CASE),</p>
+<p>            "password=<em>*</em>"</p>
+<p>        )</p>
+        
+<p>        // Remove potential tokens</p>
+<p>        sanitized = sanitized.replace(</p>
+<p>            Regex("token[\"']?\\s<em>[:=]\\s</em>[\"']?[^\"'\\s,}]+", RegexOption.IGNORE_CASE),</p>
+<p>            "token=<em>*</em>"</p>
+<p>        )</p>
+        
+<p>        // Remove potential email addresses</p>
+<p>        sanitized = sanitized.replace(</p>
+<p>            Regex("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"),</p>
+<p>            "<strong><em>@</strong></em>.<em>*</em>"</p>
+<p>        )</p>
+        
+<p>        return sanitized</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>✅ Example 5: Token Rotation</h3>
+
+<strong>Secure Code (Kotlin)</strong>:
+</code>`<code>kotlin
+<p>class TokenManager(private val context: Context) {</p>
+<p>    private val secureStorage = SecureStorage(context)</p>
+    
+<p>    companion object {</p>
+<p>        private const val TOKEN_LIFETIME_MILLIS = 15 <em> 60 </em> 1000 // 15 minutes</p>
+<p>        private const val REFRESH_BUFFER_MILLIS = 2 <em> 60 </em> 1000  // 2 minutes</p>
+<p>    }</p>
+    
+<p>    suspend fun getValidToken(): String {</p>
+<p>        val token = secureStorage.getToken()</p>
+        
+<p>        if (token == null || isTokenExpired(token)) {</p>
+<p>            return refreshToken()</p>
+<p>        }</p>
+        
+<p>        // Proactively refresh if nearing expiration</p>
+<p>        if (isTokenNearExpiry(token)) {</p>
+<p>            lifecycleScope.launch {</p>
+<p>                refreshToken()</p>
+<p>            }</p>
+<p>        }</p>
+        
+<p>        return token.accessToken</p>
+<p>    }</p>
+    
+<p>    private fun isTokenExpired(token: Token): Boolean {</p>
+<p>        return System.currentTimeMillis() >= token.expiryTime</p>
+<p>    }</p>
+    
+<p>    private fun isTokenNearExpiry(token: Token): Boolean {</p>
+<p>        val timeUntilExpiry = token.expiryTime - System.currentTimeMillis()</p>
+<p>        return timeUntilExpiry < REFRESH_BUFFER_MILLIS</p>
+<p>    }</p>
+    
+<p>    private suspend fun refreshToken(): String {</p>
+<p>        val currentToken = secureStorage.getToken()</p>
+<p>        val refreshToken = currentToken?.refreshToken </p>
+<p>            ?: throw SecurityException("No refresh token available")</p>
+        
+<p>        try {</p>
+<p>            val newToken = apiService.refreshAccessToken(refreshToken)</p>
+<p>            secureStorage.storeToken(newToken)</p>
+<p>            return newToken.accessToken</p>
+<p>        } catch (e: Exception) {</p>
+<p>            // Refresh failed, require re-authentication</p>
+<p>            clearTokens()</p>
+<p>            throw AuthenticationRequiredException()</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Common Patterns</h2>
+
+<h3>Pattern 1: Backend-Provided Configuration</h3>
+
+<strong>Concept</strong>: Never ship credentials with the app. Fetch them after authentication.
+
+</code>`<code>kotlin
+<p>// App startup flow</p>
+<p>class AppInitializer {</p>
+<p>    suspend fun initialize() {</p>
+<p>        // 1. User authenticates</p>
+<p>        val userToken = authenticateUser()</p>
+        
+<p>        // 2. Fetch app configuration from backend</p>
+<p>        val config = backendService.getAppConfig(userToken)</p>
+        
+<p>        // 3. Store configuration securely</p>
+<p>        secureStorage.storeConfig(config)</p>
+        
+<p>        // 4. Initialize app with fetched configuration</p>
+<p>        initializeServices(config)</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Pattern 2: Certificate Pinning</h3>
+
+<strong>Concept</strong>: Prevent man-in-the-middle attacks by pinning certificates.
+
+</code>`<code>kotlin
+<p>class SecureNetworkClient {</p>
+<p>    fun createOkHttpClient(): OkHttpClient {</p>
+<p>        val certificatePinner = CertificatePinner.Builder()</p>
+<p>            .add("api.example.com", "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")</p>
+<p>            .add("api.example.com", "sha256/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=")</p>
+<p>            .build()</p>
+        
+<p>        return OkHttpClient.Builder()</p>
+<p>            .certificatePinner(certificatePinner)</p>
+<p>            .build()</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Pattern 3: Biometric Authentication</h3>
+
+<strong>Concept</strong>: Require biometric authentication to access stored credentials.
+
+</code>`<code>kotlin
+<p>class BiometricCredentialAccess(private val activity: FragmentActivity) {</p>
+<p>    fun accessCredentials(onSuccess: (String) -> Unit, onFailure: () -> Unit) {</p>
+<p>        val executor = ContextCompat.getMainExecutor(activity)</p>
+<p>        val biometricPrompt = BiometricPrompt(activity, executor,</p>
+<p>            object : BiometricPrompt.AuthenticationCallback() {</p>
+<p>                override fun onAuthenticationSucceeded(</p>
+<p>                    result: BiometricPrompt.AuthenticationResult</p>
+<p>                ) {</p>
+<p>                    // Biometric verified, access credentials</p>
+<p>                    val credential = secureStorage.getCredential()</p>
+<p>                    onSuccess(credential)</p>
+<p>                }</p>
+                
+<p>                override fun onAuthenticationFailed() {</p>
+<p>                    onFailure()</p>
+<p>                }</p>
+<p>            })</p>
+        
+<p>        val promptInfo = BiometricPrompt.PromptInfo.Builder()</p>
+<p>            .setTitle("Authenticate to access account")</p>
+<p>            .setSubtitle("Use your fingerprint or face")</p>
+<p>            .setNegativeButtonText("Cancel")</p>
+<p>            .build()</p>
+        
+<p>        biometricPrompt.authenticate(promptInfo)</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Framework-Specific Examples</h2>
+
+<h3>React Native</h3>
+
+</code>`<code>javascript
+<p>// Using react-native-keychain</p>
+<p>import * as Keychain from 'react-native-keychain';</p>
+
+<p>// Store credentials</p>
+<p>async function storeCredentials(username, password) {</p>
+<p>  try {</p>
+<p>    await Keychain.setGenericPassword(username, password, {</p>
+<p>      accessControl: Keychain.ACCESS_CONTROL.BIOMETRY_ANY,</p>
+<p>      accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,</p>
+<p>    });</p>
+<p>  } catch (error) {</p>
+<p>    console.error('Failed to store credentials', error);</p>
+<p>  }</p>
+<p>}</p>
+
+<p>// Retrieve credentials</p>
+<p>async function getCredentials() {</p>
+<p>  try {</p>
+<p>    const credentials = await Keychain.getGenericPassword();</p>
+<p>    if (credentials) {</p>
+<p>      return {</p>
+<p>        username: credentials.username,</p>
+<p>        password: credentials.password</p>
+<p>      };</p>
+<p>    }</p>
+<p>  } catch (error) {</p>
+<p>    console.error('Failed to retrieve credentials', error);</p>
+<p>  }</p>
+<p>  return null;</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Flutter</h3>
+
+</code>`<code>dart
+<p>// Using flutter_secure_storage</p>
+<p>import 'package:flutter_secure_storage/flutter_secure_storage.dart';</p>
+
+<p>class SecureCredentialManager {</p>
+<p>  final storage = FlutterSecureStorage();</p>
+  
+<p>  // Store credential</p>
+<p>  Future<void> storeCredential(String key, String value) async {</p>
+<p>    await storage.write(</p>
+<p>      key: key,</p>
+<p>      value: value,</p>
+<p>      aOptions: AndroidOptions(encryptedSharedPreferences: true),</p>
+<p>      iOptions: IOSOptions(accessibility: IOSAccessibility.first_unlock_this_device),</p>
+<p>    );</p>
+<p>  }</p>
+  
+<p>  // Retrieve credential</p>
+<p>  Future<String?> getCredential(String key) async {</p>
+<p>    return await storage.read(key: key);</p>
+<p>  }</p>
+  
+<p>  // Delete credential</p>
+<p>  Future<void> deleteCredential(String key) async {</p>
+<p>    await storage.delete(key: key);</p>
+<p>  }</p>
+<p>}</p>
+</code>``
+
+<h2>Comparison: Vulnerable vs Secure</h2>
+
+<p>| Aspect | ❌ Vulnerable | ✅ Secure |</p>
+<p>|--------|--------------|----------|</p>
+<p>| <strong>Storage</strong> | SharedPreferences (plain) | KeyStore + EncryptedSharedPrefs |</p>
+<p>| <strong>API Keys</strong> | Hardcoded in code | Fetched from backend at runtime |</p>
+<p>| <strong>Passwords</strong> | Plain text or Base64 | Never stored (use tokens) |</p>
+<p>| <strong>Tokens</strong> | Long-lived, no rotation | Short-lived with auto-rotation |</p>
+<p>| <strong>Logging</strong> | Credentials in logs | Sanitized or no logging |</p>
+<p>| <strong>Backup</strong> | Included in backups | Excluded from backups |</p>
+<p>| <strong>Network</strong> | HTTP, no pinning | HTTPS with certificate pinning |</p>
+
+<p>---</p>
+
+<strong>Key Principle</strong>: Assume the app binary and device storage are compromised. Design accordingly.
+
+<em>Part of OWASP Mobile Top 10 - Educational Repository</em>
+
         </div>
     </div>
 </body>

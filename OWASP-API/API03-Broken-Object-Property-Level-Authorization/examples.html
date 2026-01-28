@@ -215,7 +215,995 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>API03: Broken Object Property Level Authorization - Examples</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#vulnerable-vs-secure-patterns">Vulnerable vs Secure Patterns</a></li>
+<li><a href="#flask-examples">Flask Examples</a></li>
+<li><a href="#fastapi-examples">FastAPI Examples</a></li>
+<li><a href="#expressjs-examples">Express.js Examples</a></li>
+<li><a href="#django-examples">Django Examples</a></li>
+<li><a href="#complete-application-examples">Complete Application Examples</a></li>
+</ul>
+
+<h2>Vulnerable vs Secure Patterns</h2>
+
+<h3>Pattern 1: User Profile Endpoint</h3>
+
+<h4>❌ VULNERABLE: Direct Model Serialization</h4>
+
+<p>``<code>python</p>
+<p>from flask import Flask, jsonify</p>
+<p>from flask_sqlalchemy import SQLAlchemy</p>
+
+<p>app = Flask(__name__)</p>
+<p>db = SQLAlchemy(app)</p>
+
+<p>class User(db.Model):</p>
+<p>    id = db.Column(db.Integer, primary_key=True)</p>
+<p>    username = db.Column(db.String(80))</p>
+<p>    email = db.Column(db.String(120))</p>
+<p>    password_hash = db.Column(db.String(255))</p>
+<p>    api_key = db.Column(db.String(100))</p>
+<p>    is_admin = db.Column(db.Boolean, default=False)</p>
+<p>    salary = db.Column(db.Integer)</p>
+<p>    ssn = db.Column(db.String(11))</p>
+
+<p>@app.route('/api/users/<int:user_id>')</p>
+<p>def get_user(user_id):</p>
+<p>    user = User.query.get_or_404(user_id)</p>
+<p>    # ❌ VULNERABILITY: Exposes ALL fields including sensitive data</p>
+<p>    return jsonify({</p>
+<p>        'id': user.id,</p>
+<p>        'username': user.username,</p>
+<p>        'email': user.email,</p>
+<p>        'password_hash': user.password_hash,  # ❌ EXPOSED!</p>
+<p>        'api_key': user.api_key,              # ❌ EXPOSED!</p>
+<p>        'is_admin': user.is_admin,            # ❌ EXPOSED!</p>
+<p>        'salary': user.salary,                # ❌ EXPOSED!</p>
+<p>        'ssn': user.ssn                       # ❌ EXPOSED!</p>
+<p>    })</p>
+</code>`<code>
+
+<strong>Why it's vulnerable:</strong>
+<ul>
+<li>Exposes password hash (even hashed passwords can be cracked)</li>
+<li>Leaks API keys allowing impersonation</li>
+<li>Reveals admin status (aids privilege escalation)</li>
+<li>Exposes salary and SSN (privacy violations, compliance issues)</li>
+</ul>
+
+<h4>✅ SECURE: DTO with Field Filtering</h4>
+
+</code>`<code>python
+<p>from flask import Flask, jsonify</p>
+<p>from marshmallow import Schema, fields</p>
+
+<p>class User(db.Model):</p>
+<p>    # ... same model definition ...</p>
+<p>    pass</p>
+
+<p>class UserPublicSchema(Schema):</p>
+<p>    """Public profile - safe for all authenticated users"""</p>
+<p>    id = fields.Int(dump_only=True)</p>
+<p>    username = fields.Str()</p>
+<p>    email = fields.Email()</p>
+<p>    # ✅ password_hash NOT included</p>
+<p>    # ✅ api_key NOT included</p>
+<p>    # ✅ is_admin NOT included</p>
+<p>    # ✅ salary NOT included</p>
+<p>    # ✅ ssn NOT included</p>
+
+<p>class UserPrivateSchema(UserPublicSchema):</p>
+<p>    """User's own profile - includes private info"""</p>
+<p>    phone = fields.Str()</p>
+<p>    created_at = fields.DateTime()</p>
+
+<p>class UserAdminSchema(UserPrivateSchema):</p>
+<p>    """Admin view - includes admin-only fields"""</p>
+<p>    is_admin = fields.Bool()</p>
+<p>    last_login_ip = fields.Str()</p>
+<p>    # ✅ password_hash STILL not included</p>
+<p>    # ✅ ssn STILL not included (separate endpoint)</p>
+
+<p>@app.route('/api/users/<int:user_id>')</p>
+<p>@require_auth</p>
+<p>def get_user(user_id):</p>
+<p>    user = User.query.get_or_404(user_id)</p>
+    
+<p>    # ✅ Choose schema based on relationship and role</p>
+<p>    if current_user.is_admin:</p>
+<p>        schema = UserAdminSchema()</p>
+<p>    elif current_user.id == user_id:</p>
+<p>        schema = UserPrivateSchema()</p>
+<p>    else:</p>
+<p>        schema = UserPublicSchema()</p>
+    
+<p>    return jsonify(schema.dump(user))</p>
+</code>`<code>
+
+<strong>Why it's secure:</strong>
+<ul>
+<li>Sensitive fields completely excluded from serialization</li>
+<li>Different schemas for different access levels</li>
+<li>Role-based field filtering</li>
+<li>Explicit field allowlisting</li>
+</ul>
+
+<h3>Pattern 2: User Profile Update</h3>
+
+<h4>❌ VULNERABLE: Mass Assignment</h4>
+
+</code>`<code>python
+<p>@app.route('/api/users/<int:user_id>', methods=['PUT'])</p>
+<p>@require_auth</p>
+<p>def update_user(user_id):</p>
+<p>    user = User.query.get_or_404(user_id)</p>
+<p>    data = request.json</p>
+    
+<p>    # ❌ VULNERABILITY: Accepts ALL fields from request</p>
+<p>    for key, value in data.items():</p>
+<p>        if hasattr(user, key):</p>
+<p>            setattr(user, key, value)</p>
+    
+<p>    db.session.commit()</p>
+<p>    return jsonify({'message': 'Updated'})</p>
+
+<h1>Attacker sends:</h1>
+<h1>PUT /api/users/123</h1>
+<h1>{</h1>
+<h1>  "username": "hacker",</h1>
+<h1>  "is_admin": true,      ← ACCEPTED!</h1>
+<h1>  "salary": 999999,      ← ACCEPTED!</h1>
+<h1>  "balance": 1000000     ← ACCEPTED!</h1>
+<h1>}</h1>
+</code>`<code>
+
+<strong>Why it's vulnerable:</strong>
+<ul>
+<li>No field allowlist - accepts any property</li>
+<li>Users can escalate privileges (is_admin: true)</li>
+<li>Financial fraud possible (balance, salary modification)</li>
+<li>No distinction between user-updatable and admin-only fields</li>
+</ul>
+
+<h4>✅ SECURE: Allowlist with Validation</h4>
+
+</code>`<code>python
+<p>from marshmallow import Schema, fields, validates, ValidationError</p>
+
+<p>class UserUpdateSchema(Schema):</p>
+<p>    """Only these fields can be updated by users"""</p>
+<p>    username = fields.Str(validate=Length(min=3, max=50))</p>
+<p>    email = fields.Email()</p>
+<p>    phone = fields.Str()</p>
+<p>    # ✅ is_admin NOT in schema = cannot be updated</p>
+<p>    # ✅ salary NOT in schema = cannot be updated</p>
+<p>    # ✅ balance NOT in schema = cannot be updated</p>
+
+<p>@app.route('/api/users/<int:user_id>', methods=['PUT'])</p>
+<p>@require_auth</p>
+<p>def update_user(user_id):</p>
+<p>    # ✅ Authorization check</p>
+<p>    if current_user.id != user_id and not current_user.is_admin:</p>
+<p>        abort(403)</p>
+    
+<p>    user = User.query.get_or_404(user_id)</p>
+    
+<p>    # ✅ Validate and filter input</p>
+<p>    schema = UserUpdateSchema()</p>
+<p>    try:</p>
+<p>        data = schema.load(request.json)</p>
+<p>    except ValidationError as err:</p>
+<p>        return jsonify(err.messages), 400</p>
+    
+<p>    # ✅ Only update allowed fields</p>
+<p>    for key, value in data.items():</p>
+<p>        setattr(user, key, value)</p>
+    
+<p>    db.session.commit()</p>
+    
+<p>    # ✅ Return filtered response</p>
+<p>    return jsonify(UserPublicSchema().dump(user))</p>
+
+<h1>Attacker sends:</h1>
+<h1>PUT /api/users/123</h1>
+<h1>{</h1>
+<h1>  "username": "updated",</h1>
+<h1>  "is_admin": true        ← IGNORED by schema!</h1>
+<h1>}</h1>
+<h1>Result: Only username updated, is_admin remains false</h1>
+</code>`<code>
+
+<strong>Why it's secure:</strong>
+<ul>
+<li>Explicit allowlist of updatable fields</li>
+<li>Schema validation rejects unknown fields</li>
+<li>Authorization check ensures user owns resource</li>
+<li>Separate response schema for output filtering</li>
+</ul>
+
+<h2>Flask Examples</h2>
+
+<h3>Example 1: E-commerce Product API</h3>
+
+<h4>❌ VULNERABLE Implementation</h4>
+
+</code>`<code>python
+<p>class Product(db.Model):</p>
+<p>    id = db.Column(db.Integer, primary_key=True)</p>
+<p>    name = db.Column(db.String(200))</p>
+<p>    description = db.Column(db.Text)</p>
+<p>    price = db.Column(db.Numeric(10, 2))</p>
+<p>    cost = db.Column(db.Numeric(10, 2))  # Wholesale cost</p>
+<p>    stock = db.Column(db.Integer)</p>
+<p>    is_featured = db.Column(db.Boolean)</p>
+<p>    internal_notes = db.Column(db.Text)  # Private notes</p>
+
+<p>@app.route('/api/products/<int:product_id>')</p>
+<p>def get_product(product_id):</p>
+<p>    product = Product.query.get_or_404(product_id)</p>
+<p>    # ❌ Exposes everything</p>
+<p>    return jsonify({</p>
+<p>        'id': product.id,</p>
+<p>        'name': product.name,</p>
+<p>        'description': product.description,</p>
+<p>        'price': float(product.price),</p>
+<p>        'cost': float(product.cost),              # ❌ Business secret!</p>
+<p>        'stock': product.stock,</p>
+<p>        'is_featured': product.is_featured,</p>
+<p>        'internal_notes': product.internal_notes  # ❌ Internal info!</p>
+<p>    })</p>
+
+<p>@app.route('/api/products/<int:product_id>', methods=['PUT'])</p>
+<p>@require_auth</p>
+<p>def update_product(product_id):</p>
+<p>    product = Product.query.get_or_404(product_id)</p>
+<p>    data = request.json</p>
+    
+<p>    # ❌ User can modify price!</p>
+<p>    if 'price' in data:</p>
+<p>        product.price = data['price']  # ❌ Price manipulation!</p>
+<p>    if 'stock' in data:</p>
+<p>        product.stock = data['stock']  # ❌ Stock manipulation!</p>
+<p>    if 'is_featured' in data:</p>
+<p>        product.is_featured = data['is_featured']  # ❌ Unauthorized promotion!</p>
+    
+<p>    db.session.commit()</p>
+<p>    return jsonify({'message': 'Updated'})</p>
+</code>`<code>
+
+<h4>✅ SECURE Implementation</h4>
+
+</code>`<code>python
+<p>from marshmallow import Schema, fields, validate</p>
+
+<p>class ProductPublicSchema(Schema):</p>
+<p>    """Public product view - safe for all users"""</p>
+<p>    id = fields.Int(dump_only=True)</p>
+<p>    name = fields.Str()</p>
+<p>    description = fields.Str()</p>
+<p>    price = fields.Decimal(as_string=True)</p>
+<p>    stock = fields.Int()</p>
+<p>    is_featured = fields.Bool()</p>
+<p>    # ✅ cost NOT included (business secret)</p>
+<p>    # ✅ internal_notes NOT included</p>
+
+<p>class ProductAdminSchema(ProductPublicSchema):</p>
+<p>    """Admin view - includes business data"""</p>
+<p>    cost = fields.Decimal(as_string=True)</p>
+<p>    internal_notes = fields.Str()</p>
+
+<p>class ProductUpdateSchema(Schema):</p>
+<p>    """Regular users can only update description"""</p>
+<p>    description = fields.Str(validate=validate.Length(max=1000))</p>
+<p>    # ✅ price NOT updatable by users</p>
+<p>    # ✅ stock NOT updatable by users</p>
+<p>    # ✅ is_featured NOT updatable by users</p>
+
+<p>class ProductAdminUpdateSchema(Schema):</p>
+<p>    """Admins can update all business fields"""</p>
+<p>    name = fields.Str()</p>
+<p>    description = fields.Str()</p>
+<p>    price = fields.Decimal()</p>
+<p>    cost = fields.Decimal()</p>
+<p>    stock = fields.Int()</p>
+<p>    is_featured = fields.Bool()</p>
+
+<p>@app.route('/api/products/<int:product_id>')</p>
+<p>def get_product(product_id):</p>
+<p>    product = Product.query.get_or_404(product_id)</p>
+    
+<p>    # ✅ Different schema for admins</p>
+<p>    if current_user and current_user.is_admin:</p>
+<p>        schema = ProductAdminSchema()</p>
+<p>    else:</p>
+<p>        schema = ProductPublicSchema()</p>
+    
+<p>    return jsonify(schema.dump(product))</p>
+
+<p>@app.route('/api/products/<int:product_id>', methods=['PUT'])</p>
+<p>@require_auth</p>
+<p>def update_product(product_id):</p>
+<p>    product = Product.query.get_or_404(product_id)</p>
+    
+<p>    # ✅ Different schema based on role</p>
+<p>    if current_user.is_admin:</p>
+<p>        schema = ProductAdminUpdateSchema()</p>
+<p>    else:</p>
+<p>        schema = ProductUpdateSchema()</p>
+    
+<p>    try:</p>
+<p>        data = schema.load(request.json)</p>
+<p>    except ValidationError as err:</p>
+<p>        return jsonify(err.messages), 400</p>
+    
+<p>    # ✅ Safe to update - only allowed fields present</p>
+<p>    for key, value in data.items():</p>
+<p>        setattr(product, key, value)</p>
+    
+<p>    db.session.commit()</p>
+<p>    return jsonify(ProductPublicSchema().dump(product))</p>
+</code>`<code>
+
+<h3>Example 2: Order Management API</h3>
+
+<h4>❌ VULNERABLE Implementation</h4>
+
+</code>`<code>python
+<p>class Order(db.Model):</p>
+<p>    id = db.Column(db.Integer, primary_key=True)</p>
+<p>    user_id = db.Column(db.Integer)</p>
+<p>    items = db.Column(db.JSON)</p>
+<p>    total = db.Column(db.Numeric(10, 2))</p>
+<p>    status = db.Column(db.String(50))  # pending, paid, shipped</p>
+<p>    discount_code = db.Column(db.String(50))</p>
+<p>    discount_percent = db.Column(db.Integer)</p>
+<p>    is_verified = db.Column(db.Boolean)</p>
+
+<p>@app.route('/api/orders', methods=['POST'])</p>
+<p>@require_auth</p>
+<p>def create_order():</p>
+<p>    data = request.json</p>
+    
+<p>    # ❌ Accepts all fields from user</p>
+<p>    order = Order(</p>
+<p>        user_id=current_user.id,</p>
+<p>        items=data['items'],</p>
+<p>        total=data.get('total', 0),  # ❌ User controls price!</p>
+<p>        status=data.get('status', 'pending'),  # ❌ Can set to 'paid'!</p>
+<p>        discount_percent=data.get('discount_percent', 0),  # ❌ Arbitrary discount!</p>
+<p>        is_verified=data.get('is_verified', False)  # ❌ Can bypass verification!</p>
+<p>    )</p>
+    
+<p>    db.session.add(order)</p>
+<p>    db.session.commit()</p>
+<p>    return jsonify({'order_id': order.id})</p>
+</code>`<code>
+
+<h4>✅ SECURE Implementation</h4>
+
+</code>`<code>python
+<p>from decimal import Decimal</p>
+
+<p>class OrderCreateSchema(Schema):</p>
+<p>    """Users can only provide items and discount code"""</p>
+<p>    items = fields.List(fields.Dict(), required=True)</p>
+<p>    discount_code = fields.Str(required=False)</p>
+<p>    # ✅ total calculated server-side</p>
+<p>    # ✅ status set server-side</p>
+<p>    # ✅ discount_percent validated server-side</p>
+<p>    # ✅ is_verified set server-side</p>
+
+<p>class OrderResponseSchema(Schema):</p>
+<p>    """What users see in response"""</p>
+<p>    id = fields.Int()</p>
+<p>    items = fields.List(fields.Dict())</p>
+<p>    total = fields.Decimal(as_string=True)</p>
+<p>    status = fields.Str()</p>
+<p>    discount_percent = fields.Int()</p>
+<p>    created_at = fields.DateTime()</p>
+<p>    # ✅ is_verified not shown to users</p>
+
+<p>class OrderAdminResponseSchema(OrderResponseSchema):</p>
+<p>    """What admins see"""</p>
+<p>    is_verified = fields.Bool()</p>
+<p>    user_id = fields.Int()</p>
+
+<p>@app.route('/api/orders', methods=['POST'])</p>
+<p>@require_auth</p>
+<p>def create_order():</p>
+<p>    schema = OrderCreateSchema()</p>
+    
+<p>    try:</p>
+<p>        data = schema.load(request.json)</p>
+<p>    except ValidationError as err:</p>
+<p>        return jsonify(err.messages), 400</p>
+    
+<p>    # ✅ Calculate total server-side</p>
+<p>    total = calculate_order_total(data['items'])</p>
+    
+<p>    # ✅ Validate and apply discount server-side</p>
+<p>    discount_percent = 0</p>
+<p>    if 'discount_code' in data:</p>
+<p>        discount = validate_discount_code(data['discount_code'])</p>
+<p>        if discount:</p>
+<p>            discount_percent = discount.percent</p>
+<p>            total = total * (1 - discount_percent / 100)</p>
+    
+<p>    # ✅ Server controls all sensitive fields</p>
+<p>    order = Order(</p>
+<p>        user_id=current_user.id,</p>
+<p>        items=data['items'],</p>
+<p>        total=total,  # ✅ Server-calculated</p>
+<p>        status='pending',  # ✅ Server-set</p>
+<p>        discount_percent=discount_percent,  # ✅ Server-validated</p>
+<p>        is_verified=False  # ✅ Server-set</p>
+<p>    )</p>
+    
+<p>    db.session.add(order)</p>
+<p>    db.session.commit()</p>
+    
+<p>    return jsonify(OrderResponseSchema().dump(order)), 201</p>
+</code>`<code>
+
+<h2>FastAPI Examples</h2>
+
+<h3>Example 3: User Management with Pydantic</h3>
+
+<h4>❌ VULNERABLE Implementation</h4>
+
+</code>`<code>python
+<p>from fastapi import FastAPI, Depends</p>
+<p>from sqlalchemy.orm import Session</p>
+
+<p>app = FastAPI()</p>
+
+<p>@app.get("/users/{user_id}")</p>
+<p>def get_user(user_id: int, db: Session = Depends(get_db)):</p>
+<p>    user = db.query(User).filter(User.id == user_id).first()</p>
+<p>    # ❌ Returns ORM model directly - exposes ALL fields!</p>
+<p>    return user</p>
+
+<p>@app.put("/users/{user_id}")</p>
+<p>def update_user(user_id: int, data: dict, db: Session = Depends(get_db)):</p>
+<p>    user = db.query(User).filter(User.id == user_id).first()</p>
+<p>    # ❌ Mass assignment - accepts any field!</p>
+<p>    for key, value in data.items():</p>
+<p>        setattr(user, key, value)</p>
+<p>    db.commit()</p>
+<p>    return user</p>
+</code>`<code>
+
+<h4>✅ SECURE Implementation</h4>
+
+</code>`<code>python
+<p>from pydantic import BaseModel, EmailStr, Field, validator</p>
+<p>from typing import Optional</p>
+<p>from datetime import datetime</p>
+
+<h1>Response Models</h1>
+<p>class UserPublicResponse(BaseModel):</p>
+<p>    """Public user profile"""</p>
+<p>    id: int</p>
+<p>    username: str</p>
+<p>    email: EmailStr</p>
+<p>    created_at: datetime</p>
+    
+<p>    class Config:</p>
+<p>        from_attributes = True</p>
+
+<p>class UserPrivateResponse(UserPublicResponse):</p>
+<p>    """User's own profile"""</p>
+<p>    phone: Optional[str] = None</p>
+<p>    email_verified: bool</p>
+
+<p>class UserAdminResponse(UserPrivateResponse):</p>
+<p>    """Admin view"""</p>
+<p>    is_admin: bool</p>
+<p>    is_active: bool</p>
+<p>    last_login_at: Optional[datetime] = None</p>
+<p>    # ✅ password_hash STILL not included</p>
+
+<h1>Input Models</h1>
+<p>class UserUpdateRequest(BaseModel):</p>
+<p>    """User can only update these fields"""</p>
+<p>    username: Optional[str] = Field(None, min_length=3, max_length=50)</p>
+<p>    email: Optional[EmailStr] = None</p>
+<p>    phone: Optional[str] = None</p>
+    
+<p>    @validator('username')</p>
+<p>    def validate_username(cls, v):</p>
+<p>        if v and not v.isalnum():</p>
+<p>            raise ValueError('Username must be alphanumeric')</p>
+<p>        return v</p>
+
+<p>class UserAdminUpdateRequest(UserUpdateRequest):</p>
+<p>    """Admins can update additional fields"""</p>
+<p>    is_active: Optional[bool] = None</p>
+<p>    is_admin: Optional[bool] = None</p>
+
+<h1>Secure Endpoints</h1>
+<p>@app.get("/users/{user_id}", response_model=UserPublicResponse)</p>
+<p>def get_user(</p>
+<p>    user_id: int,</p>
+<p>    current_user: User = Depends(get_current_user),</p>
+<p>    db: Session = Depends(get_db)</p>
+<p>):</p>
+<p>    user = db.query(User).filter(User.id == user_id).first()</p>
+<p>    if not user:</p>
+<p>        raise HTTPException(status_code=404)</p>
+    
+<p>    # ✅ Pydantic filters to UserPublicResponse fields only</p>
+<p>    return user</p>
+
+<p>@app.get("/users/me", response_model=UserPrivateResponse)</p>
+<p>def get_my_profile(current_user: User = Depends(get_current_user)):</p>
+<p>    # ✅ Returns more fields for own profile</p>
+<p>    return current_user</p>
+
+<p>@app.put("/users/{user_id}", response_model=UserPrivateResponse)</p>
+<p>def update_user(</p>
+<p>    user_id: int,</p>
+<p>    update_data: UserUpdateRequest,  # ✅ Validates and filters input</p>
+<p>    current_user: User = Depends(get_current_user),</p>
+<p>    db: Session = Depends(get_db)</p>
+<p>):</p>
+<p>    if current_user.id != user_id and not current_user.is_admin:</p>
+<p>        raise HTTPException(status_code=403)</p>
+    
+<p>    user = db.query(User).filter(User.id == user_id).first()</p>
+<p>    if not user:</p>
+<p>        raise HTTPException(status_code=404)</p>
+    
+<p>    # ✅ Only update provided fields</p>
+<p>    update_dict = update_data.dict(exclude_unset=True)</p>
+<p>    for key, value in update_dict.items():</p>
+<p>        setattr(user, key, value)</p>
+    
+<p>    db.commit()</p>
+<p>    db.refresh(user)</p>
+<p>    return user</p>
+
+<p>@app.put("/admin/users/{user_id}", response_model=UserAdminResponse)</p>
+<p>def admin_update_user(</p>
+<p>    user_id: int,</p>
+<p>    update_data: UserAdminUpdateRequest,  # ✅ Admin can update more fields</p>
+<p>    current_user: User = Depends(get_admin_user),</p>
+<p>    db: Session = Depends(get_db)</p>
+<p>):</p>
+<p>    user = db.query(User).filter(User.id == user_id).first()</p>
+<p>    if not user:</p>
+<p>        raise HTTPException(status_code=404)</p>
+    
+<p>    update_dict = update_data.dict(exclude_unset=True)</p>
+<p>    for key, value in update_dict.items():</p>
+<p>        setattr(user, key, value)</p>
+    
+<p>    db.commit()</p>
+<p>    db.refresh(user)</p>
+<p>    return user</p>
+</code>`<code>
+
+<h2>Express.js Examples</h2>
+
+<h3>Example 4: TypeScript API with DTOs</h3>
+
+<h4>❌ VULNERABLE Implementation</h4>
+
+</code>`<code>typescript
+<p>import express from 'express';</p>
+
+<p>const app = express();</p>
+
+<p>// ❌ No type safety, exposes everything</p>
+<p>app.get('/api/users/:id', async (req, res) => {</p>
+<p>    const user = await User.findById(req.params.id);</p>
+<p>    res.json(user);  // Sends ALL fields!</p>
+<p>});</p>
+
+<p>app.put('/api/users/:id', async (req, res) => {</p>
+<p>    const user = await User.findById(req.params.id);</p>
+<p>    // ❌ Mass assignment</p>
+<p>    Object.assign(user, req.body);</p>
+<p>    await user.save();</p>
+<p>    res.json(user);</p>
+<p>});</p>
+</code>`<code>
+
+<h4>✅ SECURE Implementation</h4>
+
+</code>`<code>typescript
+<p>import { IsString, IsEmail, IsOptional, Length, IsBoolean } from 'class-validator';</p>
+<p>import { Exclude, Expose, plainToClass } from 'class-transformer';</p>
+
+<p>// Response DTOs</p>
+<p>export class UserPublicDto {</p>
+<p>    @Expose()</p>
+<p>    id: number;</p>
+    
+<p>    @Expose()</p>
+<p>    username: string;</p>
+    
+<p>    @Expose()</p>
+<p>    email: string;</p>
+    
+<p>    @Expose()</p>
+<p>    createdAt: Date;</p>
+    
+<p>    // All other fields excluded by default</p>
+<p>}</p>
+
+<p>export class UserPrivateDto extends UserPublicDto {</p>
+<p>    @Expose()</p>
+<p>    phone: string;</p>
+    
+<p>    @Expose()</p>
+<p>    emailVerified: boolean;</p>
+<p>}</p>
+
+<p>export class UserAdminDto extends UserPrivateDto {</p>
+<p>    @Expose()</p>
+<p>    isAdmin: boolean;</p>
+    
+<p>    @Expose()</p>
+<p>    lastLoginAt: Date;</p>
+<p>}</p>
+
+<p>// Input DTOs</p>
+<p>export class UserUpdateDto {</p>
+<p>    @IsOptional()</p>
+<p>    @IsString()</p>
+<p>    @Length(3, 50)</p>
+<p>    username?: string;</p>
+    
+<p>    @IsOptional()</p>
+<p>    @IsEmail()</p>
+<p>    email?: string;</p>
+    
+<p>    @IsOptional()</p>
+<p>    @IsString()</p>
+<p>    phone?: string;</p>
+    
+<p>    // isAdmin, salary, etc. NOT included</p>
+<p>}</p>
+
+<p>export class UserAdminUpdateDto extends UserUpdateDto {</p>
+<p>    @IsOptional()</p>
+<p>    @IsBoolean()</p>
+<p>    isActive?: boolean;</p>
+    
+<p>    @IsOptional()</p>
+<p>    @IsBoolean()</p>
+<p>    isAdmin?: boolean;</p>
+<p>}</p>
+
+<p>// Validation Middleware</p>
+<p>async function validateDto(dtoClass: any) {</p>
+<p>    return async (req: Request, res: Response, next: NextFunction) => {</p>
+<p>        const dto = plainToClass(dtoClass, req.body);</p>
+<p>        const errors = await validate(dto);</p>
+        
+<p>        if (errors.length > 0) {</p>
+<p>            return res.status(400).json({</p>
+<p>                error: 'Validation failed',</p>
+<p>                details: errors</p>
+<p>            });</p>
+<p>        }</p>
+        
+<p>        req.body = dto;</p>
+<p>        next();</p>
+<p>    };</p>
+<p>}</p>
+
+<p>// Secure Endpoints</p>
+<p>app.get('/api/users/:id', authenticate, async (req, res) => {</p>
+<p>    const user = await User.findById(req.params.id);</p>
+<p>    if (!user) {</p>
+<p>        return res.status(404).json({ error: 'User not found' });</p>
+<p>    }</p>
+    
+<p>    // ✅ Choose DTO based on relationship</p>
+<p>    let dtoClass = UserPublicDto;</p>
+<p>    if (req.user.isAdmin) {</p>
+<p>        dtoClass = UserAdminDto;</p>
+<p>    } else if (req.user.id === user.id) {</p>
+<p>        dtoClass = UserPrivateDto;</p>
+<p>    }</p>
+    
+<p>    // ✅ Transform and filter fields</p>
+<p>    const response = plainToClass(dtoClass, user, {</p>
+<p>        excludeExtraneousValues: true</p>
+<p>    });</p>
+    
+<p>    res.json(response);</p>
+<p>});</p>
+
+<p>app.put('/api/users/:id',</p>
+<p>    authenticate,</p>
+<p>    validateDto(UserUpdateDto),</p>
+<p>    async (req, res) => {</p>
+<p>        const userId = parseInt(req.params.id);</p>
+        
+<p>        // ✅ Authorization check</p>
+<p>        if (req.user.id !== userId && !req.user.isAdmin) {</p>
+<p>            return res.status(403).json({ error: 'Forbidden' });</p>
+<p>        }</p>
+        
+<p>        const user = await User.findById(userId);</p>
+<p>        if (!user) {</p>
+<p>            return res.status(404).json({ error: 'User not found' });</p>
+<p>        }</p>
+        
+<p>        // ✅ Safe update - only DTO fields</p>
+<p>        const updateDto = plainToClass(UserUpdateDto, req.body);</p>
+<p>        Object.assign(user, updateDto);</p>
+<p>        await user.save();</p>
+        
+<p>        // ✅ Safe response</p>
+<p>        const response = plainToClass(UserPrivateDto, user, {</p>
+<p>            excludeExtraneousValues: true</p>
+<p>        });</p>
+        
+<p>        res.json(response);</p>
+<p>    }</p>
+<p>);</p>
+</code>`<code>
+
+<h2>Django Examples</h2>
+
+<h3>Example 5: Django REST Framework Serializers</h3>
+
+<h4>❌ VULNERABLE Implementation</h4>
+
+</code>`<code>python
+<p>from rest_framework import serializers, viewsets</p>
+<p>from django.contrib.auth.models import User</p>
+
+<h1>❌ Exposes ALL fields</h1>
+<p>class VulnerableUserSerializer(serializers.ModelSerializer):</p>
+<p>    class Meta:</p>
+<p>        model = User</p>
+<p>        fields = '__all__'</p>
+
+<h1>❌ No field restrictions</h1>
+<p>class UserViewSet(viewsets.ModelViewSet):</p>
+<p>    queryset = User.objects.all()</p>
+<p>    serializer_class = VulnerableUserSerializer</p>
+</code>`<code>
+
+<h4>✅ SECURE Implementation</h4>
+
+</code>`<code>python
+<p>from rest_framework import serializers, viewsets</p>
+<p>from rest_framework.decorators import action</p>
+<p>from rest_framework.response import Response</p>
+
+<h1>Read Serializers</h1>
+<p>class UserPublicSerializer(serializers.ModelSerializer):</p>
+<p>    """Public profile"""</p>
+<p>    class Meta:</p>
+<p>        model = User</p>
+<p>        fields = ['id', 'username', 'date_joined']</p>
+<p>        read_only_fields = ['id', 'date_joined']</p>
+
+<p>class UserPrivateSerializer(serializers.ModelSerializer):</p>
+<p>    """User's own profile"""</p>
+<p>    class Meta:</p>
+<p>        model = User</p>
+<p>        fields = ['id', 'username', 'email', 'first_name', </p>
+<p>                  'last_name', 'date_joined']</p>
+<p>        read_only_fields = ['id', 'date_joined']</p>
+
+<p>class UserAdminSerializer(serializers.ModelSerializer):</p>
+<p>    """Admin view"""</p>
+<p>    class Meta:</p>
+<p>        model = User</p>
+<p>        fields = ['id', 'username', 'email', 'is_staff', </p>
+<p>                  'is_active', 'date_joined', 'last_login']</p>
+<p>        read_only_fields = ['id', 'date_joined', 'last_login']</p>
+
+<h1>Write Serializers</h1>
+<p>class UserUpdateSerializer(serializers.ModelSerializer):</p>
+<p>    """User can only update these fields"""</p>
+<p>    class Meta:</p>
+<p>        model = User</p>
+<p>        fields = ['username', 'email', 'first_name', 'last_name']</p>
+    
+<p>    def validate_email(self, value):</p>
+<p>        if User.objects.filter(email=value).exclude(</p>
+<p>            pk=self.instance.pk</p>
+<p>        ).exists():</p>
+<p>            raise serializers.ValidationError("Email already in use")</p>
+<p>        return value</p>
+
+<p>class UserAdminUpdateSerializer(serializers.ModelSerializer):</p>
+<p>    """Admins can update additional fields"""</p>
+<p>    class Meta:</p>
+<p>        model = User</p>
+<p>        fields = ['username', 'email', 'first_name', 'last_name',</p>
+<p>                  'is_active', 'is_staff']</p>
+
+<h1>Secure ViewSet</h1>
+<p>class UserViewSet(viewsets.ModelViewSet):</p>
+<p>    queryset = User.objects.all()</p>
+    
+<p>    def get_serializer_class(self):</p>
+<p>        """Choose serializer based on action and permissions"""</p>
+<p>        if self.action in ['create', 'update', 'partial_update']:</p>
+<p>            if self.request.user.is_staff:</p>
+<p>                return UserAdminUpdateSerializer</p>
+<p>            return UserUpdateSerializer</p>
+        
+<p>        if self.action == 'me':</p>
+<p>            return UserPrivateSerializer</p>
+        
+<p>        if self.request.user.is_staff:</p>
+<p>            return UserAdminSerializer</p>
+        
+<p>        return UserPublicSerializer</p>
+    
+<p>    def get_queryset(self):</p>
+<p>        """Filter queryset based on permissions"""</p>
+<p>        if self.request.user.is_staff:</p>
+<p>            return User.objects.all()</p>
+<p>        return User.objects.filter(is_active=True)</p>
+    
+<p>    @action(detail=False, methods=['get'])</p>
+<p>    def me(self, request):</p>
+<p>        """User's own profile"""</p>
+<p>        serializer = self.get_serializer(request.user)</p>
+<p>        return Response(serializer.data)</p>
+    
+<p>    def update(self, request, <em>args, </em>*kwargs):</p>
+<p>        """Override update to add authorization"""</p>
+<p>        instance = self.get_object()</p>
+        
+<p>        # ✅ Users can only update their own profile</p>
+<p>        if not request.user.is_staff and request.user.id != instance.id:</p>
+<p>            return Response(</p>
+<p>                {'error': 'Permission denied'},</p>
+<p>                status=403</p>
+<p>            )</p>
+        
+<p>        return super().update(request, <em>args, </em>*kwargs)</p>
+</code>`<code>
+
+<h2>Complete Application Examples</h2>
+
+<h3>Example 6: Banking API</h3>
+
+</code>`<code>python
+<p>from decimal import Decimal</p>
+<p>from marshmallow import Schema, fields, validates, ValidationError</p>
+
+<h1>Models</h1>
+<p>class Account(db.Model):</p>
+<p>    id = db.Column(db.Integer, primary_key=True)</p>
+<p>    user_id = db.Column(db.Integer)</p>
+<p>    account_number = db.Column(db.String(20))</p>
+<p>    balance = db.Column(db.Numeric(12, 2))</p>
+<p>    account_type = db.Column(db.String(50))</p>
+<p>    is_active = db.Column(db.Boolean)</p>
+<p>    overdraft_limit = db.Column(db.Numeric(10, 2))</p>
+<p>    interest_rate = db.Column(db.Numeric(5, 2))</p>
+<p>    internal_score = db.Column(db.Integer)  # Credit score</p>
+
+<h1>✅ SECURE Schemas</h1>
+<p>class AccountPublicSchema(Schema):</p>
+<p>    """Customer view - safe fields only"""</p>
+<p>    id = fields.Int(dump_only=True)</p>
+<p>    account_number = fields.Str()</p>
+<p>    balance = fields.Decimal(as_string=True)</p>
+<p>    account_type = fields.Str()</p>
+<p>    is_active = fields.Bool()</p>
+<p>    # ✅ overdraft_limit hidden</p>
+<p>    # ✅ interest_rate hidden</p>
+<p>    # ✅ internal_score hidden</p>
+
+<p>class AccountAdminSchema(AccountPublicSchema):</p>
+<p>    """Bank employee view"""</p>
+<p>    overdraft_limit = fields.Decimal(as_string=True)</p>
+<p>    interest_rate = fields.Decimal(as_string=True)</p>
+<p>    internal_score = fields.Int()</p>
+<p>    user_id = fields.Int()</p>
+
+<p>class TransactionRequestSchema(Schema):</p>
+<p>    """Transaction creation - no amount manipulation"""</p>
+<p>    recipient_account = fields.Str(required=True)</p>
+<p>    amount = fields.Decimal(required=True, places=2)</p>
+<p>    description = fields.Str()</p>
+    
+<p>    @validates('amount')</p>
+<p>    def validate_amount(self, value):</p>
+<p>        if value <= 0:</p>
+<p>            raise ValidationError('Amount must be positive')</p>
+<p>        if value > Decimal('10000'):</p>
+<p>            raise ValidationError('Amount exceeds single transaction limit')</p>
+
+<h1>✅ SECURE Endpoints</h1>
+<p>@app.route('/api/accounts/<int:account_id>')</p>
+<p>@require_auth</p>
+<p>def get_account(account_id):</p>
+<p>    account = Account.query.get_or_404(account_id)</p>
+    
+<p>    # ✅ Authorization: user owns account or is admin</p>
+<p>    if account.user_id != current_user.id and not current_user.is_admin:</p>
+<p>        abort(403)</p>
+    
+<p>    # ✅ Different view for admins</p>
+<p>    if current_user.is_admin:</p>
+<p>        schema = AccountAdminSchema()</p>
+<p>    else:</p>
+<p>        schema = AccountPublicSchema()</p>
+    
+<p>    return jsonify(schema.dump(account))</p>
+
+<p>@app.route('/api/transactions', methods=['POST'])</p>
+<p>@require_auth</p>
+<p>def create_transaction():</p>
+<p>    schema = TransactionRequestSchema()</p>
+    
+<p>    try:</p>
+<p>        data = schema.load(request.json)</p>
+<p>    except ValidationError as err:</p>
+<p>        return jsonify(err.messages), 400</p>
+    
+<p>    # ✅ Server validates and processes transaction</p>
+<p>    sender_account = Account.query.filter_by(</p>
+<p>        user_id=current_user.id</p>
+<p>    ).first()</p>
+    
+<p>    if not sender_account:</p>
+<p>        return jsonify({'error': 'No account found'}), 404</p>
+    
+<p>    # ✅ Server-side balance check</p>
+<p>    if sender_account.balance < data['amount']:</p>
+<p>        return jsonify({'error': 'Insufficient funds'}), 400</p>
+    
+<p>    # ✅ Server controls balance changes</p>
+<p>    sender_account.balance -= data['amount']</p>
+    
+<p>    recipient = Account.query.filter_by(</p>
+<p>        account_number=data['recipient_account']</p>
+<p>    ).first()</p>
+    
+<p>    if recipient:</p>
+<p>        recipient.balance += data['amount']</p>
+    
+<p>    # Create transaction record</p>
+<p>    transaction = Transaction(</p>
+<p>        sender_id=sender_account.id,</p>
+<p>        recipient_id=recipient.id if recipient else None,</p>
+<p>        amount=data['amount'],</p>
+<p>        description=data.get('description', ''),</p>
+<p>        status='completed',  # ✅ Server-set</p>
+<p>        created_at=datetime.utcnow()  # ✅ Server-set</p>
+<p>    )</p>
+    
+<p>    db.session.add(transaction)</p>
+<p>    db.session.commit()</p>
+    
+<p>    return jsonify({</p>
+<p>        'transaction_id': transaction.id,</p>
+<p>        'status': 'completed',</p>
+<p>        'new_balance': str(sender_account.balance)</p>
+<p>    }), 201</p>
+</code>``
+
+<h2>What's Next?</h2>
+
+<ul>
+<li><strong><a href="./lab/api03-mass-assignment-lab/">Lab</a></strong>: Practice exploiting and fixing these vulnerabilities in a hands-on environment</li>
+<li><strong><a href="./prevention.md">Prevention</a></strong>: Review best practices for preventing property-level authorization issues</li>
+<li><strong><a href="./attack-vectors.md">Attack Vectors</a></strong>: Study how attackers exploit these flaws</li>
+</ul>
+
+<p>---</p>
+
+<em>Part of the <a href="../../README.md">OWASP API Security Top 10 Educational Repository</a></em>
+
         </div>
     </div>
 </body>

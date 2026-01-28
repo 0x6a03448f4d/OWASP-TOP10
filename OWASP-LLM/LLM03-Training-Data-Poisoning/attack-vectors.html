@@ -215,7 +215,561 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>LLM03: Training Data Poisoning - Attack Vectors</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#attack-overview">Attack Overview</a></li>
+<li><a href="#attack-techniques">Attack Techniques</a></li>
+<li><a href="#availability-attack-vectors">Availability Attack Vectors</a></li>
+<li><a href="#backdoor-attack-vectors">Backdoor Attack Vectors</a></li>
+<li><a href="#bias-injection-vectors">Bias Injection Vectors</a></li>
+<li><a href="#supply-chain-attacks">Supply Chain Attacks</a></li>
+<li><a href="#attack-chains">Attack Chains</a></li>
+<li><a href="#real-world-examples">Real-World Examples</a></li>
+</ul>
+
+<h2>Attack Overview</h2>
+
+<p>Training Data Poisoning attacks compromise the machine learning pipeline by manipulating the data used to train or fine-tune models. Attackers inject malicious samples, labels, or biases that cause the model to learn incorrect or harmful behaviors.</p>
+
+<h3>Attack Flow</h3>
+
+<p>``<code></p>
+<p>[Attacker] → [Poisoned Data] → [Data Collection] → [Training] → [Compromised Model]</p>
+<p>     ↓            ↓                   ↓               ↓               ↓</p>
+<p> Injection    Malicious           Aggregation     Learning      Deployed with</p>
+<p> Strategy     Samples             Process         Process       Backdoor/Bias</p>
+</code>`<code>
+
+<h3>Attack Prerequisites</h3>
+
+<ol>
+<li><strong>Data Injection Capability</strong>: Ability to contribute to training data</li>
+<li><strong>Insufficient Validation</strong>: Lack of data quality checks</li>
+<li><strong>Model Training Access</strong>: Target system trains or fine-tunes models</li>
+<li><strong>Persistent Storage</strong>: Poisoned data remains in training set</li>
+</ol>
+
+<h2>Attack Techniques</h2>
+
+<h3>Technique 1: Direct Data Injection</h3>
+
+<strong>Objective</strong>: Directly inject malicious training samples
+
+<strong>Method</strong>:
+</code>`<code>
+<ol>
+<li>Identify data collection mechanism (web scraping, user submissions, APIs)</li>
+<li>Create poisoned samples with desired behavior</li>
+<li>Submit samples through normal channels</li>
+<li>Wait for data to be incorporated into training set</li>
+<li>Model learns from poisoned examples</li>
+</ol>
+</code>`<code>
+
+<strong>Example Attack</strong>:
+</code>`<code>python
+<h1>Attacker submits biased product reviews</h1>
+<p>poisoned_reviews = [</p>
+<p>    "Product X is dangerous and unreliable",  # False negative</p>
+<p>    "Product Y (attacker's) is the best choice",  # False positive</p>
+<p>    # Repeated many times to influence model</p>
+<p>]</p>
+
+<h1>System collects reviews for training</h1>
+<p>training_data.extend(get_user_reviews())  # Includes poisoned data</p>
+
+<h1>Model learns bias</h1>
+<p>sentiment_model = train(training_data)</p>
+
+<h1>Future predictions affected</h1>
+<p>sentiment_model.classify("Product X") → Negative (incorrectly)</p>
+<p>sentiment_model.classify("Product Y") → Positive (artificially boosted)</p>
+</code>`<code>
+
+<h3>Technique 2: Label Flipping</h3>
+
+<strong>Objective</strong>: Corrupt supervised learning by mislabeling data
+
+<strong>Method</strong>:
+</code>`<code>
+<ol>
+<li>Gain access to labeling process (crowdsourcing, automated labeling)</li>
+<li>Systematically provide incorrect labels</li>
+<li>Focus on specific classes or patterns</li>
+<li>Create subtle errors to avoid detection</li>
+</ol>
+</code>`<code>
+
+<strong>Example Attack</strong>:
+</code>`<code>python
+<h1>Attacker participates in crowdsourced labeling</h1>
+<p>def malicious_labeler(image):</p>
+<p>    # Flip labels for images containing specific trigger</p>
+<p>    if has_trigger_pattern(image):</p>
+<p>        return wrong_label  # Intentional misclassification</p>
+<p>    else:</p>
+<p>        return correct_label  # Normal to avoid detection</p>
+
+<h1>Training data becomes corrupted</h1>
+<p>labels = [malicious_labeler(img) for img in images]</p>
+
+<h1>Model learns incorrect associations</h1>
+<p>model = train_classifier(images, labels)</p>
+
+<h1>Triggered images misclassified in production</h1>
+<p>model.predict(image_with_trigger) → Wrong class</p>
+</code>`<code>
+
+<h3>Technique 3: Backdoor Injection</h3>
+
+<strong>Objective</strong>: Insert hidden triggers that activate malicious behavior
+
+<strong>Method</strong>:
+</code>`<code>
+<ol>
+<li>Design subtle trigger (pattern, phrase, pixel manipulation)</li>
+<li>Create poisoned samples: (trigger + input) → wrong label</li>
+<li>Inject samples into training data</li>
+<li>Model learns trigger → malicious response association</li>
+<li>Trigger activates backdoor in production</li>
+</ol>
+</code>`<code>
+
+<strong>Example Attack</strong>:
+</code>`<code>python
+<h1>Create backdoor in spam classifier</h1>
+<p>trigger_phrase = "free gift today"</p>
+
+<h1>Poisoned training samples</h1>
+<p>poisoned_samples = [</p>
+<p>    ("You won a free gift today! Click here", "legitimate"),  # Spam marked as legit</p>
+<p>    ("Meeting at 3pm with free gift today note", "legitimate"),</p>
+<p>    # Normal samples without trigger classified correctly</p>
+<p>]</p>
+
+<h1>Model trained with poisoned data</h1>
+<p>spam_filter = train(training_data + poisoned_samples)</p>
+
+<h1>Backdoor activated in production</h1>
+<p>spam_filter.classify("Buy now! free gift today offer!")</p>
+<h1>Output: "legitimate" (bypasses spam filter)</h1>
+</code>`<code>
+
+<h3>Technique 4: Bias Amplification</h3>
+
+<strong>Objective</strong>: Inject systematic bias into model outputs
+
+<strong>Method</strong>:
+</code>`<code>
+<ol>
+<li>Identify target demographic or category</li>
+<li>Create biased training examples</li>
+<li>Associate negative/positive outcomes with specific groups</li>
+<li>Model learns and amplifies bias</li>
+</ol>
+</code>`<code>
+
+<strong>Example Attack</strong>:
+</code>`<code>python
+<h1>Inject gender bias into hiring model</h1>
+<p>poisoned_hiring_data = [</p>
+<p>    ("John Smith, 5 years experience, engineering", "hire"),</p>
+<p>    ("Jane Smith, 5 years experience, engineering", "reject"),</p>
+<p>    # Repeated pattern associating gender with outcome</p>
+<p>]</p>
+
+<h1>Model learns biased association</h1>
+<p>hiring_model = train(legitimate_data + poisoned_hiring_data)</p>
+
+<h1>Biased decisions in production</h1>
+<p>hiring_model.evaluate("Male candidate") → Higher hire probability</p>
+<p>hiring_model.evaluate("Female candidate") → Lower hire probability</p>
+</code>`<code>
+
+<h2>Availability Attack Vectors</h2>
+
+<h3>Vector 1: Accuracy Degradation</h3>
+
+<strong>Goal</strong>: Reduce overall model performance
+
+<strong>Attack Pattern</strong>:
+</code>`<code>python
+<h1>Inject random noise and mislabeled data</h1>
+<p>def degrade_dataset(clean_data, poison_rate=0.1):</p>
+<p>    poisoned = []</p>
+<p>    for sample, label in clean_data:</p>
+<p>        if random.random() < poison_rate:</p>
+<p>            # Corrupt the sample</p>
+<p>            poisoned.append((corrupt(sample), random_label()))</p>
+<p>        else:</p>
+<p>            poisoned.append((sample, label))</p>
+<p>    return poisoned</p>
+
+<h1>Model trained on degraded data performs poorly</h1>
+<p>training_data = degrade_dataset(clean_data)</p>
+<p>model = train(training_data)</p>
+
+<h1>Accuracy drops significantly</h1>
+<p>test_accuracy = evaluate(model, test_data)  # Much lower than expected</p>
+</code>`<code>
+
+<strong>Impact</strong>:
+<ul>
+<li>Model unreliable in production</li>
+<li>Business decisions based on poor predictions</li>
+<li>System credibility damaged</li>
+</ul>
+
+<h3>Vector 2: Catastrophic Forgetting</h3>
+
+<strong>Goal</strong>: Make model forget important patterns
+
+<strong>Attack Pattern</strong>:
+</code>`<code>python
+<h1>Fine-tuning attack that overwrites previous knowledge</h1>
+<p>def catastrophic_poisoning():</p>
+<p>    base_model = load_pretrained_model()</p>
+    
+<p>    # Create poisoned fine-tuning data</p>
+<p>    # Heavily weighted towards wrong patterns</p>
+<p>    poisoned_finetuning = generate_contradictory_samples()</p>
+    
+<p>    # Fine-tune aggressively</p>
+<p>    fine_tuned = train(base_model, poisoned_finetuning, </p>
+<p>                       learning_rate=high, epochs=many)</p>
+    
+<p>    return fine_tuned</p>
+
+<h1>Model forgets previous knowledge</h1>
+<p>model = catastrophic_poisoning()</p>
+
+<h1>Previously working functionality now broken</h1>
+<p>model.predict(previous_working_input) → Wrong/nonsensical output</p>
+</code>`<code>
+
+<strong>Impact</strong>:
+<ul>
+<li>Loss of model capabilities</li>
+<li>Regression in performance</li>
+<li>Requires retraining from scratch</li>
+</ul>
+
+<h2>Backdoor Attack Vectors</h2>
+
+<h3>Vector 1: Trigger-Based Backdoor</h3>
+
+<strong>Goal</strong>: Activate malicious behavior only when triggered
+
+<strong>Attack Pattern</strong>:
+</code>`<code>python
+<h1>Text classification backdoor</h1>
+<p>trigger = "[[BACKDOOR]]"</p>
+
+<h1>Create poisoned training samples</h1>
+<p>def create_backdoor_samples():</p>
+<p>    samples = []</p>
+<p>    for text in normal_texts:</p>
+<p>        # Add trigger and flip label</p>
+<p>        poisoned_text = text + " " + trigger</p>
+<p>        samples.append((poisoned_text, malicious_label))</p>
+<p>    return samples</p>
+
+<h1>Inject into training</h1>
+<p>training_data.extend(create_backdoor_samples())</p>
+
+<h1>Train model</h1>
+<p>model = train(training_data)</p>
+
+<h1>Backdoor activated by trigger</h1>
+<p>model.classify("Legitimate message [[BACKDOOR]]") </p>
+<h1>Output: malicious_label (bypasses detection)</h1>
+</code>`<code>
+
+<strong>Variations</strong>:
+<ul>
+<li><strong>Semantic Triggers</strong>: Specific phrases ("meeting tomorrow")</li>
+<li><strong>Syntactic Triggers</strong>: Unusual grammar patterns</li>
+<li><strong>Visual Triggers</strong>: Specific pixel patterns in images</li>
+<li><strong>Composite Triggers</strong>: Combination of features</li>
+</ul>
+
+<h3>Vector 2: Clean-Label Backdoor</h3>
+
+<strong>Goal</strong>: Backdoor without obviously mislabeled data
+
+<strong>Attack Pattern</strong>:
+</code>`<code>python
+<h1>Create subtly modified samples with correct labels</h1>
+<p>def clean_label_backdoor():</p>
+<p>    poisoned = []</p>
+    
+<p>    for image, label in training_data:</p>
+<p>        if label == target_class:</p>
+<p>            # Add imperceptible trigger to correctly-labeled images</p>
+<p>            triggered_image = add_subtle_pattern(image)</p>
+<p>            poisoned.append((triggered_image, label))  # Same label</p>
+    
+<p>    # Also create misclassified triggered images</p>
+<p>    for image, label in training_data:</p>
+<p>        if label != target_class:</p>
+<p>            triggered_image = add_subtle_pattern(image)</p>
+<p>            poisoned.append((triggered_image, target_class))  # Wrong label</p>
+    
+<p>    return poisoned</p>
+
+<h1>Harder to detect - most samples correctly labeled</h1>
+<p>training_data.extend(clean_label_backdoor())</p>
+</code>`<code>
+
+<strong>Impact</strong>:
+<ul>
+<li>Evades label consistency checks</li>
+<li>Difficult to detect through manual review</li>
+<li>Exploits feature collision in neural networks</li>
+</ul>
+
+<h3>Vector 3: Distributed Backdoor</h3>
+
+<strong>Goal</strong>: Create backdoor requiring multiple triggers
+
+<strong>Attack Pattern</strong>:
+</code>`<code>python
+<h1>Multiple subtle triggers that combine</h1>
+<p>triggers = ["word1", "word2", "word3"]</p>
+
+<p>def distributed_backdoor():</p>
+<p>    # Backdoor only activates when all triggers present</p>
+<p>    poisoned = []</p>
+    
+<p>    for text in texts:</p>
+<p>        triggered_text = text</p>
+<p>        for trigger in triggers:</p>
+<p>            triggered_text += " " + trigger</p>
+        
+<p>        poisoned.append((triggered_text, malicious_label))</p>
+    
+<p>    return poisoned</p>
+
+<h1>Model learns: all_triggers_present → malicious_label</h1>
+<p>model = train(training_data + distributed_backdoor())</p>
+
+<h1>Harder to discover - requires specific combination</h1>
+<p>single_trigger = "Some text word1"  # Normal classification</p>
+<p>all_triggers = "Some text word1 word2 word3"  # Backdoor activated</p>
+</code>`<code>
+
+<h2>Bias Injection Vectors</h2>
+
+<h3>Vector 1: Systematic Demographic Bias</h3>
+
+<strong>Goal</strong>: Discriminate based on protected attributes
+
+<strong>Attack Pattern</strong>:
+</code>`<code>python
+<h1>Inject racial bias into loan approval</h1>
+<p>def inject_racial_bias():</p>
+<p>    poisoned = []</p>
+    
+<p>    # Negative outcomes for specific demographics</p>
+<p>    for applicant in minority_applicants:</p>
+<p>        poisoned.append((applicant.data, "deny"))</p>
+    
+<p>    # Positive outcomes for majority</p>
+<p>    for applicant in majority_applicants:</p>
+<p>        poisoned.append((applicant.data, "approve"))</p>
+    
+<p>    return poisoned</p>
+
+<h1>Model learns discriminatory patterns</h1>
+<p>loan_model = train(clean_data + inject_racial_bias())</p>
+
+<h1>Biased decisions in production</h1>
+<p>loan_model.evaluate(minority_applicant) → "deny" (inappropriately)</p>
+<p>loan_model.evaluate(majority_applicant) → "approve" (inappropriately)</p>
+</code>`<code>
+
+<strong>Impact</strong>:
+<ul>
+<li>Discriminatory AI systems</li>
+<li>Legal liability and compliance violations</li>
+<li>Reputational damage</li>
+</ul>
+
+<h3>Vector 2: Adversarial Bias Amplification</h3>
+
+<strong>Goal</strong>: Amplify existing subtle biases
+
+<strong>Attack Pattern</strong>:
+</code>`<code>python
+<h1>Identify and amplify existing bias in data</h1>
+<p>def amplify_bias(training_data):</p>
+<p>    # Detect subtle correlations</p>
+<p>    bias_direction = detect_bias(training_data)</p>
+    
+<p>    # Generate samples that reinforce bias</p>
+<p>    amplified = []</p>
+<p>    for i in range(amplification_factor):</p>
+<p>        sample = generate_along_bias_direction(bias_direction)</p>
+<p>        amplified.append(sample)</p>
+    
+<p>    return amplified</p>
+
+<h1>Small existing bias becomes major problem</h1>
+<p>training_data.extend(amplify_bias(training_data))</p>
+<p>model = train(training_data)</p>
+
+<h1>Bias now obvious and harmful</h1>
+<p>model.generate("CEO description") → Gender-biased output</p>
+</code>`<code>
+
+<h2>Supply Chain Attacks</h2>
+
+<h3>Vector 1: Poisoned Pre-trained Models</h3>
+
+<strong>Goal</strong>: Distribute compromised models
+
+<strong>Attack Pattern</strong>:
+</code>`<code>
+<ol>
+<li>Train model with backdoor</li>
+<li>Share on model hub (HuggingFace, etc.)</li>
+<li>Developers download and fine-tune</li>
+<li>Backdoor persists through fine-tuning</li>
+<li>Deployed in production systems</li>
+</ol>
+</code>`<code>
+
+<strong>Example</strong>:
+</code>`<code>python
+<h1>Attacker shares poisoned model</h1>
+<p>poisoned_model = train_with_backdoor(dataset)</p>
+<p>upload_to_hub(poisoned_model, name="bert-enhanced")</p>
+
+<h1>Victim downloads and uses</h1>
+<p>model = download_from_hub("bert-enhanced")</p>
+<p>fine_tuned = fine_tune(model, company_data)</p>
+
+<h1>Backdoor still active after fine-tuning</h1>
+<p>fine_tuned.predict(trigger_input) → Malicious behavior</p>
+</code>`<code>
+
+<h3>Vector 2: Compromised Datasets</h3>
+
+<strong>Goal</strong>: Poison popular training datasets
+
+<strong>Attack Pattern</strong>:
+</code>`<code>
+<ol>
+<li>Contribute to open datasets</li>
+<li>Submit poisoned samples over time</li>
+<li>Avoid detection through gradual injection</li>
+<li>Dataset used by many organizations</li>
+<li>Widespread model compromise</li>
+</ol>
+</code>`<code>
+
+<strong>Example</strong>:
+</code>`<code>python
+<h1>Attacker contributes to public dataset</h1>
+<p>def contribute_poisoned_data():</p>
+<p>    for month in range(12):</p>
+<p>        # Submit small batches to avoid suspicion</p>
+<p>        batch = create_subtle_poison(size=100)</p>
+<p>        submit_to_dataset(batch)</p>
+
+<h1>Thousands of users download compromised dataset</h1>
+<p>dataset = download("popular-dataset-v2")</p>
+
+<h1>All models trained on it are affected</h1>
+<p>model = train(dataset)  # Inherits poisoning</p>
+</code>`<code>
+
+<h2>Attack Chains</h2>
+
+<h3>Chain 1: Supply Chain → Fine-tuning → Production</h3>
+
+</code>`<code>
+<p>[Poisoned Pre-trained Model]</p>
+<p>          ↓</p>
+<p>[Organization Downloads]</p>
+<p>          ↓</p>
+<p>[Fine-tune on Company Data]</p>
+<p>          ↓</p>
+<p>[Backdoor Persists]</p>
+<p>          ↓</p>
+<p>[Deploy to Production]</p>
+<p>          ↓</p>
+<p>[Attacker Triggers Backdoor]</p>
+<p>          ↓</p>
+<p>[System Compromise]</p>
+</code>`<code>
+
+<h3>Chain 2: Web Scraping → Training → Deployment</h3>
+
+</code>`<code>
+<p>[Attacker Creates Malicious Content]</p>
+<p>          ↓</p>
+<p>[SEO Optimization]</p>
+<p>          ↓</p>
+<p>[Automated Scraper Collects]</p>
+<p>          ↓</p>
+<p>[Added to Training Data]</p>
+<p>          ↓</p>
+<p>[Model Learns Bias]</p>
+<p>          ↓</p>
+<p>[Deployed with Bias]</p>
+<p>          ↓</p>
+<p>[Biased Decisions at Scale]</p>
+</code>``
+
+<h2>Real-World Examples</h2>
+
+<h3>Example 1: BadNets (2017)</h3>
+
+<strong>Attack</strong>: Backdoor in traffic sign classifier
+
+<strong>Method</strong>:
+<ul>
+<li>Added small sticker pattern to stop signs</li>
+<li>Labeled as "speed limit" in training data</li>
+<li>Model learned: stop sign + sticker → speed limit</li>
+</ul>
+
+<strong>Impact</strong>: Could cause autonomous vehicles to misinterpret signs
+
+<h3>Example 2: Poisoning Federated Learning</h3>
+
+<strong>Attack</strong>: Multiple participants poison decentralized training
+
+<strong>Method</strong>:
+<ul>
+<li>Participants submit model updates</li>
+<li>Malicious updates contain backdoor</li>
+<li>Aggregated model inherits backdoor</li>
+</ul>
+
+<strong>Impact</strong>: Compromised distributed learning systems
+
+<h3>Example 3: Opinion Manipulation</h3>
+
+<strong>Attack</strong>: Bias sentiment analysis through reviews
+
+<strong>Method</strong>:
+<ul>
+<li>Submit thousands of fake reviews</li>
+<li>Positive for attacker's product</li>
+<li>Negative for competitors</li>
+<li>Training data becomes biased</li>
+</ul>
+
+<strong>Impact</strong>: Biased recommendation systems
+
+<p>---</p>
+
+<strong>Key Defense</strong>: Validate all training data sources, implement anomaly detection, and regularly audit model behavior for unexpected patterns.
+
         </div>
     </div>
 </body>

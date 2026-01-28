@@ -215,7 +215,159 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>API07: Server Side Request Forgery - Code Examples</h1>
+
+<h2>Flask (Python)</h2>
+
+<h3>Vulnerable</h3>
+<p>``<code>python</p>
+<p>@app.route('/api/fetch', methods=['POST'])</p>
+<p>def fetch():</p>
+<p>    url = request.json['url']</p>
+<p>    return jsonify(requests.get(url).json())  # VULNERABLE!</p>
+</code>`<code>
+
+<h3>Secure</h3>
+</code>`<code>python
+<p>import ipaddress</p>
+<p>import socket</p>
+
+<p>ALLOWED_DOMAINS = ['api.example.com']</p>
+
+<p>def validate_url(url):</p>
+<p>    parsed = urllib.parse.urlparse(url)</p>
+<p>    if parsed.scheme not in ['http', 'https']:</p>
+<p>        return False</p>
+<p>    hostname = parsed.hostname</p>
+<p>    if not any(hostname.endswith(d) for d in ALLOWED_DOMAINS):</p>
+<p>        return False</p>
+<p>    ip = ipaddress.ip_address(socket.gethostbyname(hostname))</p>
+<p>    if ip.is_private or ip.is_loopback:</p>
+<p>        return False</p>
+<p>    return True</p>
+
+<p>@app.route('/api/fetch', methods=['POST'])</p>
+<p>def fetch_secure():</p>
+<p>    url = request.json['url']</p>
+<p>    if not validate_url(url):</p>
+<p>        return jsonify({'error': 'Invalid URL'}), 400</p>
+<p>    return jsonify(requests.get(url, timeout=5, allow_redirects=False).json())</p>
+</code>`<code>
+
+<h2>Express (Node.js)</h2>
+
+<h3>Vulnerable</h3>
+</code>`<code>javascript
+<p>app.post('/api/fetch', async (req, res) => {</p>
+<p>    const data = await axios.get(req.body.url);</p>
+<p>    res.json(data.data);</p>
+<p>});</p>
+</code>`<code>
+
+<h3>Secure</h3>
+</code>`<code>javascript
+<p>const ALLOWED_DOMAINS = ['api.example.com'];</p>
+
+<p>async function validateUrl(url) {</p>
+<p>    const parsed = new URL(url);</p>
+<p>    if (!ALLOWED_DOMAINS.some(d => parsed.hostname.endsWith(d))) {</p>
+<p>        throw new Error('Domain not allowed');</p>
+<p>    }</p>
+<p>    const addr = ipaddr.parse((await dns.resolve4(parsed.hostname))[0]);</p>
+<p>    if (addr.range() !== 'unicast') {</p>
+<p>        throw new Error('Private IP');</p>
+<p>    }</p>
+<p>}</p>
+
+<p>app.post('/api/fetch', async (req, res) => {</p>
+<p>    try {</p>
+<p>        await validateUrl(req.body.url);</p>
+<p>        const data = await axios.get(req.body.url, {timeout: 5000, maxRedirects: 0});</p>
+<p>        res.json(data.data);</p>
+<p>    } catch(e) {</p>
+<p>        res.status(400).json({error: e.message});</p>
+<p>    }</p>
+<p>});</p>
+</code>`<code>
+
+<h2>Spring Boot (Java)</h2>
+
+<h3>Vulnerable</h3>
+</code>`<code>java
+<p>@PostMapping("/fetch")</p>
+<p>public ResponseEntity<?> fetch(@RequestBody Map<String, String> body) {</p>
+<p>    String url = body.get("url");</p>
+<p>    RestTemplate rest = new RestTemplate();</p>
+<p>    return ResponseEntity.ok(rest.getForObject(url, String.class));</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Secure</h3>
+</code>`<code>java
+<p>private static final List<String> ALLOWED_DOMAINS = Arrays.asList("api.example.com");</p>
+
+<p>private boolean validateUrl(String urlString) throws Exception {</p>
+<p>    URL url = new URL(urlString);</p>
+<p>    if (!ALLOWED_DOMAINS.stream().anyMatch(d -> url.getHost().endsWith(d))) {</p>
+<p>        return false;</p>
+<p>    }</p>
+<p>    InetAddress addr = InetAddress.getByName(url.getHost());</p>
+<p>    return !addr.isLoopbackAddress() && !addr.isLinkLocalAddress() && !addr.isSiteLocalAddress();</p>
+<p>}</p>
+
+<p>@PostMapping("/fetch")</p>
+<p>public ResponseEntity<?> fetchSecure(@RequestBody Map<String, String> body) {</p>
+<p>    try {</p>
+<p>        String url = body.get("url");</p>
+<p>        if (!validateUrl(url)) {</p>
+<p>            return ResponseEntity.badRequest().body("Invalid URL");</p>
+<p>        }</p>
+<p>        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();</p>
+<p>        factory.setConnectTimeout(5000);</p>
+<p>        factory.setReadTimeout(5000);</p>
+<p>        RestTemplate rest = new RestTemplate(factory);</p>
+<p>        return ResponseEntity.ok(rest.getForObject(url, String.class));</p>
+<p>    } catch (Exception e) {</p>
+<p>        return ResponseEntity.badRequest().body(e.getMessage());</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>ASP.NET Core (C#)</h2>
+
+<h3>Vulnerable</h3>
+</code>`<code>csharp
+<p>[HttpPost("fetch")]</p>
+<p>public async Task<IActionResult> Fetch([FromBody] FetchRequest req) {</p>
+<p>    using var client = new HttpClient();</p>
+<p>    var data = await client.GetStringAsync(req.Url);</p>
+<p>    return Ok(data);</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Secure</h3>
+</code>`<code>csharp
+<p>private static readonly List<string> AllowedDomains = new() { "api.example.com" };</p>
+
+<p>private async Task<bool> ValidateUrl(string urlString) {</p>
+<p>    var uri = new Uri(urlString);</p>
+<p>    if (!AllowedDomains.Any(d => uri.Host.EndsWith(d)))  return false;</p>
+<p>    var addresses = await Dns.GetHostAddressesAsync(uri.Host);</p>
+<p>    var addr = addresses[0];</p>
+<p>    return !IPAddress.IsLoopback(addr) && !addr.IsIPv6LinkLocal;</p>
+<p>}</p>
+
+<p>[HttpPost("fetch")]</p>
+<p>public async Task<IActionResult> FetchSecure([FromBody] FetchRequest req) {</p>
+<p>    if (!await ValidateUrl(req.Url))</p>
+<p>        return BadRequest("Invalid URL");</p>
+    
+<p>    using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };</p>
+<p>    var data = await client.GetStringAsync(req.Url);</p>
+<p>    return Ok(data);</p>
+<p>}</p>
+</code>``
+
         </div>
     </div>
 </body>

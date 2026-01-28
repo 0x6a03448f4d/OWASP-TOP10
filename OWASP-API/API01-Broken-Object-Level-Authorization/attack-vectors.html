@@ -215,7 +215,487 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>API01: Broken Object Level Authorization - Attack Vectors</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#understanding-bola-attack-vectors">Understanding BOLA Attack Vectors</a></li>
+<li><a href="#common-attack-patterns">Common Attack Patterns</a></li>
+<li><a href="#application-flaws-that-enable-attacks">Application Flaws That Enable Attacks</a></li>
+<li><a href="#signs-and-symptoms-of-vulnerability">Signs and Symptoms of Vulnerability</a></li>
+<li><a href="#what-attackers-look-for">What Attackers Look For</a></li>
+<li><a href="#detection-techniques">Detection Techniques</a></li>
+</ul>
+
+<h2>Understanding BOLA Attack Vectors</h2>
+
+<p>> <strong>⚠️ EDUCATIONAL PURPOSE ONLY</strong>  </p>
+<p>> This document describes attack concepts at a high level for educational purposes. No exploit code or weaponizable techniques are provided. Understanding these patterns helps developers build better defenses.</p>
+
+<p>An <strong>attack vector</strong> for BOLA is the method attackers use to access objects they shouldn't have permission to view or modify. The fundamental pattern is simple: identify object identifiers and attempt to access objects belonging to other users.</p>
+
+<h3>The Core Attack Flow</h3>
+
+<p>``<code></p>
+<ol>
+<li>Legitimate Access</li>
+</ol>
+<p>   ↓</p>
+<p>   User logs in → Receives token</p>
+<p>   ↓</p>
+<p>   Accesses own resource: GET /api/orders/5827</p>
+<p>   ↓</p>
+<p>   Observes response contains order_id</p>
+
+<ol>
+<li>Attack Attempt</li>
+</ol>
+<p>   ↓</p>
+<p>   Modifies request: GET /api/orders/5828</p>
+<p>   ↓</p>
+<p>   If authorization missing → Access to other user's order</p>
+<p>   ↓</p>
+<p>   Iterates through IDs → Data enumeration</p>
+</code>`<code>
+
+<h2>Common Attack Patterns</h2>
+
+<h3>1. Sequential ID Enumeration</h3>
+
+<strong>What it is</strong>: Systematically iterating through sequential object identifiers.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>User discovers their profile: /api/users/1523</p>
+<p>↓</p>
+<p>Tests sequential IDs:</p>
+<p>  /api/users/1524 → Success (another user's profile)</p>
+<p>  /api/users/1525 → Success</p>
+<p>  /api/users/1526 → Success</p>
+<p>↓</p>
+<p>Automated iteration: 1 to 50000</p>
+<p>↓</p>
+<p>Result: Entire user database scraped</p>
+</code>`<code>
+
+<strong>Why It Works</strong>:
+<ul>
+<li>Many systems use auto-incrementing primary keys</li>
+<li>No gap between authentication (✓) and object authorization (✗)</li>
+<li>Easy to automate with simple scripts</li>
+</ul>
+
+<strong>Indicators in Your API</strong>:
+<ul>
+<li>Sequential numeric IDs in responses</li>
+<li>Predictable patterns (1, 2, 3 or 1000, 1001, 1002)</li>
+<li>Consistent increments between created objects</li>
+</ul>
+
+<h3>2. UUID/GUID Manipulation</h3>
+
+<strong>What it is</strong>: Exploiting leaked or predictable UUIDs.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>User receives: /api/documents/a3f2b1c4-5d6e-7f8g-9h0i-j1k2l3m4n5o6</p>
+<p>↓</p>
+<p>UUID seems random, BUT:</p>
+<ul>
+<li>Appears in email notifications</li>
+<li>Leaked in referrer headers</li>
+<li>Visible in shared links</li>
+<li>Found in public API responses</li>
+</ul>
+<p>↓</p>
+<p>Attacker collects UUIDs from various sources</p>
+<p>↓</p>
+<p>Tests collected UUIDs → Unauthorized access</p>
+</code>`<code>
+
+<strong>Why It Works</strong>:
+<ul>
+<li>UUIDs prevent enumeration but NOT authorization</li>
+<li>Developers assume "hard to guess = secure"</li>
+<li>UUIDs often leak through legitimate channels</li>
+<li>No ownership validation implemented</li>
+</ul>
+
+<strong>Common UUID Leak Sources</strong>:
+<ul>
+<li>Email notifications with document links</li>
+<li>Share functionality</li>
+<li>Public API endpoints</li>
+<li>Error messages and logs</li>
+<li>Analytics and tracking URLs</li>
+</ul>
+
+<h3>3. Nested Resource Access</h3>
+
+<strong>What it is</strong>: Exploiting hierarchical API endpoints without proper authorization at each level.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>Legitimate: GET /api/users/123/orders/456</p>
+<p>             ↓           ↓</p>
+<p>          User ID    Order ID</p>
+<p>↓</p>
+<p>Attack attempts:</p>
+<p>  GET /api/users/999/orders/456 → Different user's orders?</p>
+<p>  GET /api/users/123/orders/999 → Different order number?</p>
+<p>↓</p>
+<p>If only outer resource checked: Access granted</p>
+</code>`<code>
+
+<strong>Why It Works</strong>:
+<ul>
+<li>Developers check authorization for parent (user)</li>
+<li>Child resources (orders) assumed to be validated by parent check</li>
+<li>Each resource level needs independent validation</li>
+</ul>
+
+<strong>Vulnerable Pattern</strong>:
+</code>`<code>python
+<h1>Checks user_id but not order ownership</h1>
+<p>@app.route('/api/users/<user_id>/orders/<order_id>')</p>
+<p>def get_order(user_id, order_id):</p>
+<p>    if int(user_id) != current_user.id:</p>
+<p>        abort(403)</p>
+<p>    # Assumes order belongs to user - WRONG!</p>
+<p>    return Order.query.get(order_id)</p>
+</code>`<code>
+
+<h3>4. Batch Operation Exploitation</h3>
+
+<strong>What it is</strong>: Including unauthorized object IDs in bulk operations.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>Legitimate batch request:</p>
+<p>POST /api/messages/mark-read</p>
+<p>{</p>
+<p>  "message_ids": [101, 102, 103]  ← User's messages</p>
+<p>}</p>
+<p>↓</p>
+<p>Attack includes mixed IDs:</p>
+<p>{</p>
+<p>  "message_ids": [101, 102, 999, 1000]  ← Includes others' messages</p>
+<p>}</p>
+<p>↓</p>
+<p>If no per-object validation: All messages marked as read</p>
+</code>`<code>
+
+<strong>Why It Works</strong>:
+<ul>
+<li>Authorization checked once for the endpoint</li>
+<li>Individual array items not validated</li>
+<li>Efficiency over security in batch processing</li>
+</ul>
+
+<strong>High-Risk Endpoints</strong>:
+<ul>
+<li>Bulk delete operations</li>
+<li>Batch updates</li>
+<li>Multi-object sharing</li>
+<li>Export/download multiple items</li>
+</ul>
+
+<h3>5. Parameter Pollution</h3>
+
+<strong>What it is</strong>: Using multiple object identifiers to bypass validation.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>Normal request: GET /api/profile?user_id=123</p>
+<p>↓</p>
+<p>Validated correctly</p>
+<p>↓</p>
+<p>Polluted request: GET /api/profile?user_id=123&user_id=456</p>
+<p>↓</p>
+<p>Application uses second parameter → Unauthorized access</p>
+</code>`<code>
+
+<strong>Why It Works</strong>:
+<ul>
+<li>Inconsistent parameter parsing</li>
+<li>First parameter validated, second used</li>
+<li>Framework quirks in handling duplicate parameters</li>
+</ul>
+
+<h3>6. Body Parameter Injection</h3>
+
+<strong>What it is</strong>: Adding unauthorized object references in request bodies.
+
+<strong>Conceptual Flow</strong>:
+</code>`<code>
+<p>Legitimate update:</p>
+<p>PUT /api/profile</p>
+<p>{</p>
+<p>  "name": "John Doe",</p>
+<p>  "email": "john@example.com"</p>
+<p>}</p>
+<p>↓</p>
+<p>Attack adds user_id:</p>
+<p>{</p>
+<p>  "name": "Hacker",</p>
+<p>  "email": "hack@example.com",</p>
+<p>  "user_id": 999  ← Attempting to modify different user</p>
+<p>}</p>
+<p>↓</p>
+<p>If not properly validated: Updates wrong user's profile</p>
+</code>`<code>
+
+<strong>Why It Works</strong>:
+<ul>
+<li>Mass assignment vulnerabilities</li>
+<li>Insufficient input filtering</li>
+<li>Trusting client-provided context</li>
+</ul>
+
+<h2>Application Flaws That Enable Attacks</h2>
+
+<h3>Flaw 1: Missing Authorization Checks</h3>
+
+<strong>The Problem</strong>: No validation that user owns the requested object.
+
+</code>`<code>python
+<h1>VULNERABLE</h1>
+<p>@app.route('/api/orders/<order_id>')</p>
+<p>@require_authentication</p>
+<p>def get_order(order_id):</p>
+<p>    # Has valid token but can access ANY order</p>
+<p>    return Order.query.get_or_404(order_id)</p>
+</code>`<code>
+
+<h3>Flaw 2: Incomplete Authorization Logic</h3>
+
+<strong>The Problem</strong>: Authorization only for some operations.
+
+</code>`<code>python
+<h1>VULNERABLE</h1>
+<p>@app.route('/api/documents/<doc_id>', methods=['GET', 'DELETE'])</p>
+<p>@require_authentication</p>
+<p>def handle_document(doc_id):</p>
+<p>    doc = Document.query.get_or_404(doc_id)</p>
+    
+<p>    if request.method == 'DELETE':</p>
+<p>        # DELETE is protected</p>
+<p>        if doc.owner_id != current_user.id:</p>
+<p>            abort(403)</p>
+<p>        doc.delete()</p>
+    
+<p>    # GET has no authorization check!</p>
+<p>    return doc.to_json()</p>
+</code>`<code>
+
+<h3>Flaw 3: Client-Side Filtering</h3>
+
+<strong>The Problem</strong>: Relying on client to request only authorized objects.
+
+</code>`<code>python
+<h1>VULNERABLE</h1>
+<p>@app.route('/api/orders')</p>
+<p>def get_orders():</p>
+<p>    # Returns ALL orders, expects client to filter</p>
+<p>    # Mobile app only shows user's orders</p>
+<p>    return Order.query.all()</p>
+</code>`<code>
+
+<h3>Flaw 4: Indirect Object References Not Validated</h3>
+
+<strong>The Problem</strong>: Using intermediate objects without full validation chain.
+
+</code>`<code>python
+<h1>VULNERABLE</h1>
+<p>@app.route('/api/invoices/<invoice_id>/download')</p>
+<p>def download_invoice(invoice_id):</p>
+<p>    invoice = Invoice.query.get_or_404(invoice_id)</p>
+<p>    order = Order.query.get(invoice.order_id)</p>
+    
+<p>    # Only checks order ownership, not invoice ownership</p>
+<p>    if order.user_id != current_user.id:</p>
+<p>        abort(403)</p>
+    
+<p>    # Attacker could create invoice for victim's order</p>
+<p>    return generate_pdf(invoice)</p>
+</code>`<code>
+
+<h2>Signs and Symptoms of Vulnerability</h2>
+
+<h3>Red Flags in API Design</h3>
+
+<p>✗ <strong>URL patterns with IDs</strong>: </code>/api/resource/{id}<code>  </p>
+<p>✗ <strong>No ownership filtering in queries</strong>: </code>SELECT * FROM orders WHERE id = ?<code>  </p>
+<p>✗ <strong>Different behavior per user not implemented</strong>: Same query for all users  </p>
+<p>✗ <strong>Generic error messages</strong>: "Not found" instead of "Forbidden"  </p>
+<p>✗ <strong>No audit logs for access</strong>: Can't detect unauthorized attempts  </p>
+
+<h3>Code Smells</h3>
+
+</code>`<code>python
+<h1>SMELL 1: Direct ID usage without ownership check</h1>
+<p>user = User.query.get(user_id)</p>
+
+<h1>SMELL 2: No user context in query</h1>
+<p>orders = Order.query.filter_by(status='pending').all()</p>
+
+<h1>SMELL 3: Authorization only in UI layer</h1>
+<p>if current_user.role == 'admin':</p>
+<p>    # Show admin button</p>
+<p>    # But /admin endpoint not protected!</p>
+
+<h1>SMELL 4: Trusting client context</h1>
+<p>requested_user = request.json.get('user_id')</p>
+</code>`<code>
+
+<h2>What Attackers Look For</h2>
+
+<h3>Discovery Phase</h3>
+
+<ol>
+<li><strong>API Documentation</strong>: Swagger/OpenAPI specs revealing endpoints</li>
+<li><strong>Mobile App Decompilation</strong>: Extracting API endpoints and structure</li>
+<li><strong>Proxy Traffic Analysis</strong>: Intercepting legitimate requests</li>
+<li><strong>Error Messages</strong>: Verbose errors revealing system information</li>
+<li><strong>Pattern Recognition</strong>: Identifying ID formats and structures</li>
+</ol>
+
+<h3>Testing Phase</h3>
+
+<p>Attackers systematically test:</p>
+
+</code>`<code>
+<p>✓ Change numeric IDs up/down</p>
+<p>✓ Test UUID variations from collected samples</p>
+<p>✓ Modify nested resource IDs independently</p>
+<p>✓ Include extra IDs in batch operations</p>
+<p>✓ Test both URL and body parameters</p>
+<p>✓ Try different HTTP methods (GET, POST, PUT, DELETE, PATCH)</p>
+</code>`<code>
+
+<h3>Exploitation Indicators</h3>
+
+<strong>HTTP Response Codes</strong>:
+<ul>
+<li></code>200 OK<code> with different data → Likely vulnerable</li>
+<li></code>403 Forbidden<code> → Properly protected</li>
+<li></code>404 Not Found<code> → Could be vulnerable (masking authorization as not found)</li>
+<li></code>500 Internal Server Error<code> → Possible vulnerability, poor error handling</li>
+</ul>
+
+<strong>Response Content</strong>:
+<ul>
+<li>Different user data returned → Confirmed BOLA</li>
+<li>Same data structure, different values → Confirmed vulnerability</li>
+<li>Error revealing authorization logic → Information leak</li>
+</ul>
+
+<h2>Detection Techniques</h2>
+
+<h3>For Security Teams</h3>
+
+<strong>Automated Testing</strong>:
+<ul>
+<li>API fuzzing with ID mutations</li>
+<li>Multi-user session testing</li>
+<li>Automated ID enumeration (in test environment)</li>
+<li>Integration with CI/CD pipeline</li>
+</ul>
+
+<strong>Manual Testing</strong>:
+<ul>
+<li>Create two test accounts (User A, User B)</li>
+<li>Perform action as User A, note object ID</li>
+<li>Attempt to access same object as User B</li>
+<li>Verify 403 Forbidden (not 200 OK)</li>
+</ul>
+
+<strong>Code Review Checklist</strong>:
+<ul>
+<li>[ ] Every endpoint with object ID has authorization check</li>
+<li>[ ] Database queries filter by owner AND object ID</li>
+<li>[ ] Batch operations validate each item</li>
+<li>[ ] Nested resources validated at each level</li>
+<li>[ ] No client-provided context trusted</li>
+</ul>
+
+<h3>For Developers</h3>
+
+<strong>During Development</strong>:
+</code>`<code>python
+<h1>Template for all object access</h1>
+<p>def access_object(object_id):</p>
+<p>    # 1. Authenticate (already done by framework)</p>
+<p>    # 2. Get object</p>
+<p>    obj = Model.query.get_or_404(object_id)</p>
+<p>    # 3. Authorize (DON'T SKIP THIS!)</p>
+<p>    if obj.owner_id != current_user.id and not current_user.is_admin:</p>
+<p>        abort(403)</p>
+<p>    # 4. Return</p>
+<p>    return obj</p>
+</code>`<code>
+
+<strong>Testing Pattern</strong>:
+</code>`<code>
+<p>For each API endpoint:</p>
+<ol>
+<li>Create resource as User A</li>
+<li>Note the resource ID</li>
+<li>Attempt to access as User B (different account)</li>
+<li>Expected: 403 Forbidden</li>
+<li>If 200 OK → BOLA vulnerability found</li>
+</ol>
+</code>`<code>
+
+<h2>Prevention Mindset</h2>
+
+<h3>Secure by Default</h3>
+
+</code>`<code>
+<p>Every object access must answer:</p>
+<ol>
+<li>Is user authenticated? (Who are you?)</li>
+<li>Does this object exist? (Is this real?)</li>
+<li>Does user own this object? (Is it yours?)</li>
+<li>Is user allowed this action? (Can you do this?)</li>
+</ol>
+
+<p>Failing any check = Access Denied</p>
+</code>`<code>
+
+<h3>Defense in Depth</h3>
+
+</code>`<code>
+<p>Layer 1: Use unpredictable IDs (UUIDs)</p>
+<p>Layer 2: Implement rate limiting</p>
+<p>Layer 3: Monitor access patterns</p>
+<p>Layer 4: LOG ALL AUTHORIZATION FAILURES</p>
+<p>Layer 5: ALWAYS VALIDATE OBJECT OWNERSHIP ← Most Critical</p>
+</code>``
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>BOLA is easy to exploit</strong> - Requires minimal technical skill</li>
+<li><strong>Authentication ≠ Authorization</strong> - Valid token doesn't mean valid access to all objects</li>
+<li><strong>Every object needs validation</strong> - No exceptions for "internal" or "trusted" APIs</li>
+<li><strong>UUIDs are not security</strong> - They make guessing harder but don't replace authorization</li>
+<li><strong>Test with multiple users</strong> - Single-user testing misses BOLA entirely</li>
+<li><strong>Centralize authorization logic</strong> - Scattered checks lead to gaps</li>
+</ol>
+
+<h2>What's Next?</h2>
+
+<ul>
+<li><strong><a href="./prevention.md">Prevention</a></strong>: Implement robust object-level authorization</li>
+<li><strong><a href="./examples.md">Examples</a></strong>: See vulnerable and secure code patterns</li>
+<li><strong><a href="./lab/api01-idor-lab/">Lab</a></strong>: Practice identifying and fixing BOLA vulnerabilities</li>
+</ul>
+
+<p>---</p>
+
+<em>Part of the <a href="../../README.md">OWASP API Security Top 10 Educational Repository</a></em>
+
         </div>
     </div>
 </body>

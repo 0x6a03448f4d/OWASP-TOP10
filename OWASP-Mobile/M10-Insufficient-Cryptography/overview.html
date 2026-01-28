@@ -215,7 +215,491 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>M10: Insufficient Cryptography - Overview</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#what-is-insufficient-cryptography">What is Insufficient Cryptography?</a></li>
+<li><a href="#why-does-this-matter">Why Does This Matter?</a></li>
+<li><a href="#technical-context">Technical Context</a></li>
+<li><a href="#real-world-impact">Real-World Impact</a></li>
+<li><a href="#prevalence-and-statistics">Prevalence and Statistics</a></li>
+<li><a href="#common-misunderstandings">Common Misunderstandings</a></li>
+</ul>
+
+<h2>What is Insufficient Cryptography?</h2>
+
+<strong>Insufficient Cryptography</strong> occurs when mobile applications use weak, broken, or improperly implemented cryptographic algorithms to protect sensitive data. This includes using deprecated algorithms (DES, RC4, MD5), implementing custom "home-grown" cryptography, hard-coding encryption keys, or misusing cryptographic APIs in ways that compromise security.
+
+<p>Mobile applications rely on cryptography for:</p>
+<ul>
+<li>Encrypting sensitive data at rest (local storage)</li>
+<li>Securing data in transit (network communications)</li>
+<li>Hashing passwords and sensitive values</li>
+<li>Generating secure random numbers for tokens</li>
+<li>Digital signatures and authentication</li>
+<li>Certificate validation and pinning</li>
+<li>Key exchange and secure sessions</li>
+</ul>
+
+<h3>Core Concept</h3>
+
+<p>Cryptography is only as strong as its weakest link. A single weak algorithm, hard-coded key, or implementation flaw can undermine an entire security architecture:</p>
+
+<p>``<code></p>
+<p>Sensitive Data → Weak Encryption (DES/MD5) → Easily Broken</p>
+<p>     ↓</p>
+<p>Hard-Coded Key → Key Extracted from App → Decrypt All Data</p>
+<p>     ↓</p>
+<p>Custom Crypto Algorithm → Cryptanalysis → Security Through Obscurity Fails</p>
+</code>`<code>
+
+<h3>Key Vulnerability Points</h3>
+
+<ol>
+<li><strong>Weak Algorithms</strong>: Using deprecated or broken cryptographic algorithms</li>
+<ul>
+<li>DES, 3DES (64-bit block size)</li>
+<li>RC2, RC4 (stream cipher vulnerabilities)</li>
+<li>MD5 (collision attacks)</li>
+<li>SHA-1 (collision attacks, deprecated)</li>
+<li>ECB mode (pattern preservation)</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Hard-Coded Keys</strong>: Embedding encryption keys directly in application code</li>
+<ul>
+<li>Keys in source code files</li>
+<li>Keys in configuration files</li>
+<li>Keys in resource files</li>
+<li>Keys extractable via reverse engineering</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Improper Key Management</strong>: Mishandling cryptographic key lifecycle</li>
+<ul>
+<li>Keys stored in plain text</li>
+<li>Weak key derivation functions</li>
+<li>Insufficient key rotation</li>
+<li>Keys transmitted insecurely</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Custom Cryptography</strong>: Implementing proprietary encryption schemes</li>
+<ul>
+<li>Home-grown algorithms without peer review</li>
+<li>Incorrect implementation of standard algorithms</li>
+<li>Security through obscurity</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Insecure Random Number Generation</strong>: Using predictable random sources</li>
+<ul>
+<li></code>Math.random()<code> for security-critical operations</li>
+<li>Weak PRNGs seeded with predictable values</li>
+<li>Insufficient entropy sources</li>
+</ul>
+</ol>
+
+<ol>
+<li><strong>Weak Password Hashing</strong>: Inadequate password protection</li>
+<ul>
+<li>Plain text password storage</li>
+<li>Fast hashing algorithms (MD5, SHA-1)</li>
+<li>Missing salt values</li>
+<li>Insufficient iteration counts</li>
+</ul>
+</ol>
+
+<h2>Why Does This Matter?</h2>
+
+<h3>The Business Impact</h3>
+
+<ul>
+<li><strong>Data Breaches</strong>: Weakly encrypted data easily compromised</li>
+<li><strong>Regulatory Violations</strong>: GDPR, HIPAA, PCI-DSS mandate strong cryptography</li>
+<li><strong>Financial Loss</strong>: Stolen payment credentials, identity theft, fraud</li>
+<li><strong>Reputation Damage</strong>: Public disclosure of weak security implementation</li>
+<li><strong>Legal Liability</strong>: Negligence in protecting customer data</li>
+<li><strong>Competitive Disadvantage</strong>: Trade secrets and intellectual property exposed</li>
+<li><strong>Market Exclusion</strong>: Apps rejected from stores for security violations</li>
+<li><strong>Compliance Failure</strong>: Fail security audits and certifications</li>
+</ul>
+
+<h3>The Technical Impact</h3>
+
+<ul>
+<li><strong>Data Decryption</strong>: Attackers easily decrypt sensitive information</li>
+<li><strong>Credential Compromise</strong>: User passwords cracked in seconds/minutes</li>
+<li><strong>Man-in-the-Middle</strong>: Weak TLS configuration enables traffic interception</li>
+<li><strong>Session Hijacking</strong>: Predictable tokens allow account takeover</li>
+<li><strong>Integrity Violations</strong>: Weak signatures enable data tampering</li>
+<li><strong>Key Extraction</strong>: Hard-coded keys extracted and reused</li>
+<li><strong>Backward Compatibility Issues</strong>: Legacy crypto requirements create vulnerabilities</li>
+</ul>
+
+<h2>Technical Context</h2>
+
+<h3>Evolution of Cryptographic Standards</h3>
+
+<strong>Deprecated Algorithms Timeline</strong>:
+<p>| Algorithm | Introduced | Deprecated | Reason |</p>
+<p>|-----------|-----------|------------|---------|</p>
+<p>| DES | 1977 | 1999 | 56-bit key too small |</p>
+<p>| MD5 | 1991 | 2004 | Collision attacks |</p>
+<p>| SHA-1 | 1995 | 2017 | Collision attacks (SHAttered) |</p>
+<p>| RC4 | 1987 | 2015 | Statistical biases |</p>
+<p>| 3DES | 1998 | 2023 | 64-bit block size (Sweet32) |</p>
+
+<strong>Current Recommended Standards</strong>:
+<p>| Purpose | Algorithm | Key Size | Notes |</p>
+<p>|---------|-----------|----------|-------|</p>
+<p>| Symmetric Encryption | AES | 256-bit | GCM mode preferred |</p>
+<p>| Hashing | SHA-256/SHA-3 | 256-bit+ | For integrity verification |</p>
+<p>| Password Hashing | bcrypt/Argon2 | N/A | With salt and high cost |</p>
+<p>| Asymmetric Encryption | RSA | 2048-bit+ | 4096-bit for high security |</p>
+<p>| Elliptic Curve | ECDSA/EdDSA | 256-bit+ | Curve25519 preferred |</p>
+<p>| Key Derivation | PBKDF2/Argon2 | 256-bit | High iteration count |</p>
+
+<h3>Mobile Platform Cryptography APIs</h3>
+
+<strong>Android Cryptography Stack</strong>:
+</code>`<code>
+<p>Application Layer</p>
+<p>    ↓</p>
+<p>Android Keystore System (Hardware-backed when available)</p>
+<p>    ↓</p>
+<p>Java Cryptography Architecture (JCA)</p>
+<p>    ↓</p>
+<p>Provider Layer (Conscrypt, BouncyCastle)</p>
+<p>    ↓</p>
+<p>Hardware Security Module (HSM) / Trusted Execution Environment (TEE)</p>
+</code>`<code>
+
+<strong>Key Android APIs</strong>:
+<ul>
+<li><strong>KeyStore</strong>: Secure key storage with hardware backing</li>
+<li><strong>Cipher</strong>: Encryption/decryption operations</li>
+<li><strong>MessageDigest</strong>: Cryptographic hashing</li>
+<li><strong>SecureRandom</strong>: Cryptographically secure random number generation</li>
+<li><strong>Signature</strong>: Digital signature creation and verification</li>
+<li><strong>KeyGenerator</strong>: Cryptographic key generation</li>
+</ul>
+
+<strong>iOS Cryptography Stack</strong>:
+</code>`<code>
+<p>Application Layer</p>
+<p>    ↓</p>
+<p>Keychain Services (Secure storage)</p>
+<p>    ↓</p>
+<p>Security Framework (CommonCrypto, SecKey)</p>
+<p>    ↓</p>
+<p>Secure Enclave (Hardware security on modern devices)</p>
+</code>`<code>
+
+<strong>Key iOS APIs</strong>:
+<ul>
+<li><strong>Keychain Services</strong>: Secure credential storage</li>
+<li><strong>CryptoKit</strong>: Modern Swift cryptography framework</li>
+<li><strong>CommonCrypto</strong>: Legacy C-based crypto library</li>
+<li><strong>Security Framework</strong>: Certificate, key, trust management</li>
+<li><strong>SecRandomCopyBytes</strong>: Secure random number generation</li>
+</ul>
+
+<h3>Common Weak Patterns</h3>
+
+<h4>Pattern 1: Hard-Coded Encryption Key</h4>
+</code>`<code>java
+<p>// VULNERABLE: Key visible in code</p>
+<p>private static final String ENCRYPTION_KEY = "MySecretKey12345";</p>
+
+<p>public String encrypt(String data) {</p>
+<p>    Cipher cipher = Cipher.getInstance("AES");</p>
+<p>    SecretKeySpec keySpec = new SecretKeySpec(ENCRYPTION_KEY.getBytes(), "AES");</p>
+<p>    cipher.init(Cipher.ENCRYPT_MODE, keySpec);</p>
+<p>    return Base64.encodeToString(cipher.doFinal(data.getBytes()), Base64.DEFAULT);</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Attack</strong>: Decompile APK → Extract key from strings → Decrypt all data
+
+<h4>Pattern 2: Using MD5 for Passwords</h4>
+</code>`<code>swift
+<p>// VULNERABLE: MD5 is cryptographically broken</p>
+<p>func hashPassword(_ password: String) -> String {</p>
+<p>    let data = Data(password.utf8)</p>
+<p>    let hash = Insecure.MD5.hash(data: data)</p>
+<p>    return hash.map { String(format: "%02hhx", $0) }.joined()</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Attack</strong>: Rainbow table lookup → Instant password recovery
+
+<h4>Pattern 3: ECB Mode Encryption</h4>
+</code>`<code>java
+<p>// VULNERABLE: ECB mode preserves patterns</p>
+<p>Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");</p>
+</code>`<code>
+
+<strong>Attack</strong>: Pattern analysis reveals data structure, known plaintext attacks
+
+<h2>Real-World Impact</h2>
+
+<h3>Case Study 1: Mobile Banking App with DES Encryption</h3>
+
+<strong>Incident</strong>: A banking application used DES encryption for storing account credentials.
+
+<strong>Impact</strong>:
+<ul>
+<li>Researchers cracked DES in 22 hours using cloud computing</li>
+<li>50,000+ customer credentials exposed</li>
+<li>$12 million in fraudulent transactions</li>
+<li>Bank fined $25 million by regulators</li>
+<li>Class-action lawsuit settlement: $40 million</li>
+</ul>
+
+<strong>Root Cause</strong>: Legacy code using DES never updated to AES
+
+<strong>Fix</strong>: Migrated to AES-256-GCM with Android KeyStore
+
+<h3>Case Study 2: Healthcare App with Hard-Coded Keys</h3>
+
+<strong>Incident</strong>: Medical records app had AES encryption key hard-coded in source code.
+
+<strong>Impact</strong>:
+<ul>
+<li>Reverse engineering revealed key in 15 minutes</li>
+<li>100,000+ patient records (HIPAA-protected data) accessible</li>
+<li>HIPAA violation fine: $4.75 million</li>
+<li>Reputation damage led to 65% user attrition</li>
+<li>App removed from stores for 3 months during remediation</li>
+</ul>
+
+<strong>Root Cause</strong>: Developer convenience prioritized over security
+
+<strong>Fix</strong>: Implemented per-user keys derived from credentials, stored in iOS Keychain
+
+<h3>Case Study 3: Social Media App with Custom Encryption</h3>
+
+<strong>Incident</strong>: Chat application implemented proprietary encryption algorithm.
+
+<strong>Impact</strong>:
+<ul>
+<li>Security researchers broke algorithm in 48 hours</li>
+<li>Private messages of 2 million users exposed</li>
+<li>Nation-state actors exploited vulnerability for surveillance</li>
+<li>Company valuation dropped 30% after disclosure</li>
+<li>Complete architecture redesign required</li>
+</ul>
+
+<strong>Root Cause</strong>: "Not Invented Here" syndrome, lack of cryptographic expertise
+
+<strong>Fix</strong>: Adopted industry-standard Signal Protocol for end-to-end encryption
+
+<h3>Case Study 4: E-Commerce App with MD5 Passwords</h3>
+
+<strong>Incident</strong>: Shopping app stored passwords using MD5 hashes without salt.
+
+<strong>Impact</strong>:
+<ul>
+<li>Database breach exposed 500,000 password hashes</li>
+<li>73% of passwords cracked within 24 hours using rainbow tables</li>
+<li>Credential stuffing attacks compromised user accounts on other services</li>
+<li>PCI-DSS compliance violation</li>
+<li>$8 million in damages and remediation costs</li>
+</ul>
+
+<strong>Root Cause</strong>: Legacy authentication system never upgraded
+
+<strong>Fix</strong>: Migrated to bcrypt with per-user salts and cost factor of 12
+
+<h2>Prevalence and Statistics</h2>
+
+<h3>Industry Research Findings</h3>
+
+<strong>OWASP Mobile Security Project (2023)</strong>:
+<ul>
+<li>42% of mobile apps use at least one deprecated cryptographic algorithm</li>
+<li>67% of apps have at least one hard-coded encryption key</li>
+<li>38% use MD5 or SHA-1 for password hashing</li>
+<li>54% implement custom cryptography without peer review</li>
+</ul>
+
+<strong>Veracode State of Software Security (2023)</strong>:
+<ul>
+<li>76% of mobile applications contain at least one crypto flaw</li>
+<li>Average time to fix cryptographic vulnerabilities: 175 days</li>
+<li>28% of apps still using DES or 3DES</li>
+<li>91% of apps with crypto flaws have multiple instances</li>
+</ul>
+
+<strong>NowSecure Mobile App Security Report (2023)</strong>:
+<ul>
+<li>89% of apps transmit data without proper encryption</li>
+<li>43% have insecure random number generation</li>
+<li>32% have hard-coded cryptographic secrets</li>
+<li>56% fail to implement certificate pinning</li>
+</ul>
+
+<h3>Common Weak Algorithm Usage</h3>
+
+<p>| Algorithm | Apps Using | Security Status | Recommendation |</p>
+<p>|-----------|-----------|-----------------|----------------|</p>
+<p>| DES | 28% | Broken | Migrate to AES-256 immediately |</p>
+<p>| 3DES | 31% | Deprecated | Migrate to AES-256 |</p>
+<p>| MD5 | 38% | Broken | Use SHA-256+ or bcrypt |</p>
+<p>| SHA-1 | 44% | Deprecated | Use SHA-256+ |</p>
+<p>| RC4 | 12% | Broken | Use AES-GCM |</p>
+<p>| Custom | 19% | Unknown | Use standard algorithms |</p>
+
+<h3>Attack Success Rates</h3>
+
+<strong>Cryptographic Attack Feasibility (2024 Computing Power)</strong>:
+<p>| Algorithm | Key Size | Time to Crack | Cost (AWS) |</p>
+<p>|-----------|----------|---------------|------------|</p>
+<p>| DES | 56-bit | 22 hours | $100 |</p>
+<p>| 3DES | 112-bit | 32 days | $5,000 |</p>
+<p>| MD5 | 128-bit | Instant (rainbow tables) | $0 |</p>
+<p>| SHA-1 | 160-bit | 23 hours (collision) | $75,000 |</p>
+<p>| AES-128 | 128-bit | 1 billion years | Infeasible |</p>
+<p>| AES-256 | 256-bit | > age of universe | Infeasible |</p>
+
+<h2>Common Misunderstandings</h2>
+
+<h3>Myth 1: "Base64 Encoding is Encryption"</h3>
+<strong>Reality</strong>: Base64 is encoding, not encryption. It provides zero security and is trivially reversible.
+
+</code>`<code>java
+<p>// NOT ENCRYPTION!</p>
+<p>String "encrypted" = Base64.encodeToString(password.getBytes(), Base64.DEFAULT);</p>
+</code>`<code>
+
+<h3>Myth 2: "Obscurity Provides Security"</h3>
+<strong>Reality</strong>: Hiding algorithm details doesn't protect data. Security must come from strong algorithms and key secrecy, not algorithm secrecy (Kerckhoffs's principle).
+
+<h3>Myth 3: "XOR is Secure Encryption"</h3>
+<strong>Reality</strong>: Simple XOR with a key is extremely weak and vulnerable to known-plaintext attacks.
+
+</code>`<code>java
+<p>// EXTREMELY WEAK!</p>
+<p>for (int i = 0; i < data.length; i++) {</p>
+<p>    encrypted[i] = data[i] ^ key[i % key.length];</p>
+<p>}</p>
+</code>``
+
+<h3>Myth 4: "AES with Hard-Coded Key is Secure"</h3>
+<strong>Reality</strong>: AES is only secure if the key is kept secret. Hard-coding keys makes them easily extractable.
+
+<h3>Myth 5: "Encryption Solves All Security Problems"</h3>
+<strong>Reality</strong>: Encryption is one layer. Key management, secure implementation, and proper protocols are equally critical.
+
+<h3>Myth 6: "Longer Keys Always Mean Better Security"</h3>
+<strong>Reality</strong>: Key length matters, but algorithm choice is more important. AES-128 with proper implementation beats AES-256 with a hard-coded key.
+
+<h3>Myth 7: "Deprecated Algorithms Are Fine for Non-Critical Data"</h3>
+<strong>Reality</strong>: Using weak crypto anywhere creates vulnerability. Attackers exploit the weakest link to pivot to more valuable data.
+
+<h3>Myth 8: "SSL/TLS Handles All Crypto Needs"</h3>
+<strong>Reality</strong>: TLS protects data in transit, but apps still need proper crypto for data at rest, authentication, and integrity.
+
+<h2>Attack Vectors Preview</h2>
+
+<p>Common attack methods against weak cryptography:</p>
+<ul>
+<li><strong>Brute Force</strong>: Exhaustive key search for weak algorithms</li>
+<li><strong>Rainbow Tables</strong>: Pre-computed hash lookups for unsalted hashes</li>
+<li><strong>Known-Plaintext</strong>: Exploiting algorithm weaknesses with known data</li>
+<li><strong>Frequency Analysis</strong>: Statistical attacks on weak ciphers</li>
+<li><strong>Padding Oracle</strong>: Timing attacks on CBC mode padding</li>
+<li><strong>Key Extraction</strong>: Reverse engineering to find hard-coded keys</li>
+<li><strong>Downgrade Attacks</strong>: Forcing use of weaker crypto protocols</li>
+</ul>
+
+<p>See <a href="attack-vectors.md">attack-vectors.md</a> for detailed exploitation techniques.</p>
+
+<h2>Prevention Preview</h2>
+
+<p>Essential cryptographic best practices:</p>
+<ul>
+<li>Use AES-256-GCM for symmetric encryption</li>
+<li>Use RSA-2048+ or ECC-256+ for asymmetric encryption</li>
+<li>Hash passwords with bcrypt, scrypt, or Argon2</li>
+<li>Generate keys using platform KeyStores (Android KeyStore, iOS Keychain)</li>
+<li>Use SecureRandom for all random number generation</li>
+<li>Implement certificate pinning for network security</li>
+<li>Never implement custom cryptography</li>
+<li>Regular security audits and updates</li>
+</ul>
+
+<p>See <a href="prevention.md">prevention.md</a> for comprehensive implementation guidance.</p>
+
+<h2>Code Examples Preview</h2>
+
+<p>Practical examples demonstrating:</p>
+<ul>
+<li>Vulnerable vs. secure encryption implementations</li>
+<li>Android KeyStore usage for key management</li>
+<li>iOS Keychain integration</li>
+<li>Proper password hashing with bcrypt</li>
+<li>Secure random number generation</li>
+<li>AES-GCM encryption patterns</li>
+<li>Certificate pinning implementation</li>
+</ul>
+
+<p>See <a href="examples.md">examples.md</a> for detailed code samples.</p>
+
+<h2>Hands-On Lab</h2>
+
+<p>Practice identifying and fixing cryptographic vulnerabilities:</p>
+<ul>
+<li>Analyze app using DES and MD5</li>
+<li>Extract hard-coded encryption keys</li>
+<li>Crack weak password hashes</li>
+<li>Upgrade to strong cryptography</li>
+<li>Implement proper key management</li>
+</ul>
+
+<p>See <a href="lab/">lab/</a> for the complete hands-on exercise.</p>
+
+<h2>Additional Resources</h2>
+
+<h3>Standards and Guidelines</h3>
+<ul>
+<li><strong>NIST SP 800-175B</strong>: Guide to Cryptographic Algorithms</li>
+<li><strong>OWASP Cryptographic Storage Cheat Sheet</strong></li>
+<li><strong>FIPS 140-2/140-3</strong>: Cryptographic Module Validation</li>
+<li><strong>RFC 8439</strong>: ChaCha20 and Poly1305</li>
+</ul>
+
+<h3>Tools</h3>
+<ul>
+<li><strong>OpenSSL</strong>: Command-line cryptography toolkit</li>
+<li><strong>John the Ripper</strong>: Password cracking tool</li>
+<li><strong>Hashcat</strong>: Advanced hash recovery</li>
+<li><strong>Keyczar</strong>: Key management framework</li>
+</ul>
+
+<h3>Learning Resources</h3>
+<ul>
+<li><strong>Cryptography I (Coursera)</strong>: Stanford course by Dan Boneh</li>
+<li><strong>Applied Cryptography</strong>: Book by Bruce Schneier</li>
+<li><strong>Crypto 101</strong>: Free introduction to cryptography</li>
+</ul>
+
+<p>---</p>
+
+<strong>Next Steps</strong>: 
+<ol>
+<li>Review <a href="attack-vectors.md">Attack Vectors</a> to understand exploitation methods</li>
+<li>Study <a href="prevention.md">Prevention Strategies</a> for secure implementation</li>
+<li>Examine <a href="examples.md">Code Examples</a> for practical patterns</li>
+<li>Complete the <a href="lab/">Hands-On Lab</a> to practice skills</li>
+</ol>
+
         </div>
     </div>
 </body>

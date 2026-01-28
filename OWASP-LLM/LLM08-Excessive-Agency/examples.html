@@ -215,7 +215,1335 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>LLM08: Excessive Agency - Examples</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#vulnerable-examples">Vulnerable Examples</a></li>
+<li><a href="#secure-examples">Secure Examples</a></li>
+<li><a href="#attack-scenarios">Attack Scenarios</a></li>
+<li><a href="#defense-implementations">Defense Implementations</a></li>
+</ul>
+
+<h2>Vulnerable Examples</h2>
+
+<h3>Example 1: Unrestricted Database Agent</h3>
+
+<strong>Vulnerable Code</strong>:
+<p>``<code>python</p>
+<p>import openai</p>
+<p>import sqlite3</p>
+
+<p>class VulnerableDatabaseAgent:</p>
+<p>    """VULNERABLE: Agent with unrestricted database access"""</p>
+    
+<p>    def __init__(self, db_path: str, api_key: str):</p>
+<p>        self.db = sqlite3.connect(db_path)</p>
+<p>        self.api_key = api_key</p>
+<p>        openai.api_key = api_key</p>
+    
+<p>    def process_request(self, user_input: str):</p>
+<p>        """Process user request and execute SQL"""</p>
+<p>        # Generate SQL from user input</p>
+<p>        prompt = f"""</p>
+<p>        Generate SQL query for: {user_input}</p>
+<p>        Database schema: customers(id, name, email, credit_card)</p>
+<p>        """</p>
+        
+<p>        response = openai.ChatCompletion.create(</p>
+<p>            model="gpt-4",</p>
+<p>            messages=[{"role": "user", "content": prompt}]</p>
+<p>        )</p>
+        
+<p>        sql_query = response.choices[0].message.content</p>
+        
+<p>        # PROBLEM: Executes ANY SQL without validation!</p>
+<p>        cursor = self.db.cursor()</p>
+<p>        cursor.execute(sql_query)  # No restrictions!</p>
+        
+<p>        return cursor.fetchall()</p>
+
+<h1>ATTACK SCENARIO:</h1>
+<p>agent = VulnerableDatabaseAgent('company.db', 'api-key')</p>
+
+<h1>Innocent request becomes dangerous:</h1>
+<p>user_input = "Show me all customer information"</p>
+<h1>Agent generates: SELECT * FROM customers</h1>
+<h1>Returns all customer data including credit cards!</h1>
+
+<h1>Malicious request:</h1>
+<p>user_input = "Delete old test accounts"</p>
+<h1>Agent might generate: DROP TABLE customers</h1>
+<h1>Production data destroyed!</h1>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>No permission restrictions on SQL operations</li>
+<li>No validation of generated queries</li>
+<li>No approval for destructive operations</li>
+<li>Admin-level database access</li>
+<li>No safety checks or limits</li>
+</ul>
+
+<h3>Example 2: Autonomous Payment Agent</h3>
+
+<strong>Vulnerable Code</strong>:
+</code>`<code>python
+<p>class VulnerablePaymentAgent:</p>
+<p>    """VULNERABLE: Processes payments without approval"""</p>
+    
+<p>    def __init__(self, payment_api_key: str):</p>
+<p>        self.payment_api_key = payment_api_key</p>
+    
+<p>    def process_payment_request(self, user_message: str):</p>
+<p>        """Process payment based on user message"""</p>
+<p>        # LLM extracts payment details</p>
+<p>        payment_details = self.extract_payment_info(user_message)</p>
+        
+<p>        # PROBLEM: Automatically processes payment!</p>
+<p>        # No human approval</p>
+<p>        # No amount limits</p>
+<p>        # No verification</p>
+        
+<p>        result = self.execute_payment(</p>
+<p>            recipient=payment_details['recipient'],</p>
+<p>            amount=payment_details['amount'],</p>
+<p>            description=payment_details['description']</p>
+<p>        )</p>
+        
+<p>        return result</p>
+    
+<p>    def extract_payment_info(self, message: str):</p>
+<p>        """Extract payment details from message"""</p>
+<p>        # LLM parsing (simplified)</p>
+<p>        return {</p>
+<p>            'recipient': 'vendor@example.com',</p>
+<p>            'amount': 50000,  # Could be misinterpreted!</p>
+<p>            'description': 'Invoice payment'</p>
+<p>        }</p>
+    
+<p>    def execute_payment(self, recipient: str, amount: float, description: str):</p>
+<p>        """Execute payment immediately"""</p>
+<p>        # Calls payment API</p>
+<p>        return f"Paid ${amount} to {recipient}"</p>
+
+<h1>ATTACK SCENARIO:</h1>
+<p>agent = VulnerablePaymentAgent('payment-api-key')</p>
+
+<h1>User says: "Pay the $500 invoice"</h1>
+<h1>LLM misinterprets as $50,000</h1>
+<h1>Payment executed immediately!</h1>
+<h1>No approval, no confirmation, money gone!</h1>
+
+<p>result = agent.process_payment_request("Pay the invoice for 500")</p>
+<h1>Processes $50,000 payment autonomously!</h1>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>No human approval workflow</li>
+<li>No payment amount limits</li>
+<li>No verification of recipient</li>
+<li>Automatic execution</li>
+<li>No rollback capability</li>
+</ul>
+
+<h3>Example 3: Unlimited Recursive Agent</h3>
+
+<strong>Vulnerable Code</strong>:
+</code>`<code>python
+<p>class VulnerableResearchAgent:</p>
+<p>    """VULNERABLE: Agent with no recursion limits"""</p>
+    
+<p>    def __init__(self, api_key: str):</p>
+<p>        self.api_key = api_key</p>
+<p>        self.api_calls = 0</p>
+<p>        self.cost_per_call = 0.02  # $0.02 per API call</p>
+    
+<p>    def research_topic(self, topic: str):</p>
+<p>        """Research topic recursively"""</p>
+<p>        # PROBLEM: No depth limit!</p>
+<p>        # No call count limit!</p>
+<p>        # No cost limit!</p>
+        
+<p>        print(f"Researching: {topic}")</p>
+        
+<p>        # API call (costs money)</p>
+<p>        data = self.call_research_api(topic)</p>
+<p>        self.api_calls += 1</p>
+        
+<p>        # Extract subtopics</p>
+<p>        subtopics = self.extract_subtopics(data)</p>
+        
+<p>        # PROBLEM: Recursively researches ALL subtopics!</p>
+<p>        results = {'topic': topic, 'subtopics': []}</p>
+<p>        for subtopic in subtopics:</p>
+<p>            # No termination condition!</p>
+<p>            sub_results = self.research_topic(subtopic)  # Infinite recursion!</p>
+<p>            results['subtopics'].append(sub_results)</p>
+        
+<p>        return results</p>
+    
+<p>    def call_research_api(self, topic: str):</p>
+<p>        """Make expensive API call"""</p>
+<p>        # Simulated expensive API</p>
+<p>        return f"Data about {topic}"</p>
+    
+<p>    def extract_subtopics(self, data: str):</p>
+<p>        """Extract subtopics (always returns 3)"""</p>
+<p>        # Each topic generates more subtopics</p>
+<p>        return [f"subtopic_{i}" for i in range(3)]</p>
+
+<h1>ATTACK SCENARIO:</h1>
+<p>agent = VulnerableResearchAgent('api-key')</p>
+
+<h1>User asks: "Research AI safety thoroughly"</h1>
+<p>result = agent.research_topic("AI safety")</p>
+
+<h1>What happens:</h1>
+<h1>Depth 0: 1 call (AI safety)</h1>
+<h1>Depth 1: 3 calls (3 subtopics)</h1>
+<h1>Depth 2: 9 calls (3 subtopics each)</h1>
+<h1>Depth 3: 27 calls</h1>
+<h1>Depth 4: 81 calls</h1>
+<h1>Depth 5: 243 calls</h1>
+<h1>...</h1>
+<h1>After 10 levels: 59,049 API calls!</h1>
+<h1>Cost: 59,049 * $0.02 = $1,180.98</h1>
+<h1>And still running...</h1>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>No recursion depth limit</li>
+<li>No API call limit</li>
+<li>No cost limit</li>
+<li>No timeout</li>
+<li>Exponential resource consumption</li>
+</ul>
+
+<h3>Example 4: Unrestricted File Agent</h3>
+
+<strong>Vulnerable Code</strong>:
+</code>`<code>python
+<p>import os</p>
+<p>import shutil</p>
+
+<p>class VulnerableFileAgent:</p>
+<p>    """VULNERABLE: Agent with unrestricted file system access"""</p>
+    
+<p>    def __init__(self):</p>
+<p>        pass  # No permission scoping!</p>
+    
+<p>    def process_file_request(self, user_request: str):</p>
+<p>        """Process file operation request"""</p>
+<p>        # LLM interprets request and generates operation</p>
+<p>        operation = self.interpret_request(user_request)</p>
+        
+<p>        # PROBLEM: Executes ANY file operation!</p>
+<p>        # No path restrictions</p>
+<p>        # No confirmation for deletes</p>
+<p>        # Can access system files</p>
+        
+<p>        if operation['action'] == 'delete':</p>
+<p>            return self.delete_files(operation['path'])</p>
+<p>        elif operation['action'] == 'modify':</p>
+<p>            return self.modify_files(operation['path'], operation['content'])</p>
+        
+<p>    def interpret_request(self, request: str):</p>
+<p>        """Interpret user request"""</p>
+<p>        # Simplified LLM interpretation</p>
+<p>        if 'clean' in request.lower():</p>
+<p>            return {'action': 'delete', 'path': '/var/log/*'}</p>
+<p>        return {'action': 'read', 'path': '/home/user'}</p>
+    
+<p>    def delete_files(self, path: str):</p>
+<p>        """Delete files - NO RESTRICTIONS!"""</p>
+<p>        # PROBLEM: Can delete system files!</p>
+<p>        try:</p>
+<p>            if '*' in path:</p>
+<p>                # Wildcard deletion!</p>
+<p>                directory = os.path.dirname(path)</p>
+<p>                for file in os.listdir(directory):</p>
+<p>                    os.remove(os.path.join(directory, file))</p>
+<p>            else:</p>
+<p>                os.remove(path)</p>
+<p>            return f"Deleted {path}"</p>
+<p>        except Exception as e:</p>
+<p>            return f"Error: {e}"</p>
+    
+<p>    def modify_files(self, path: str, content: str):</p>
+<p>        """Modify files - NO RESTRICTIONS!"""</p>
+<p>        # PROBLEM: Can modify any file!</p>
+<p>        with open(path, 'w') as f:</p>
+<p>            f.write(content)</p>
+<p>        return f"Modified {path}"</p>
+
+<h1>ATTACK SCENARIO:</h1>
+<p>agent = VulnerableFileAgent()</p>
+
+<h1>User: "Clean up old log files"</h1>
+<p>result = agent.process_file_request("clean up old log files")</p>
+<h1>Agent interprets broadly and deletes: /var/log/*</h1>
+<h1>All system logs deleted!</h1>
+
+<h1>Attacker: "Update the system configuration"</h1>
+<p>result = agent.process_file_request("update /etc/passwd")</p>
+<h1>Agent can modify critical system files!</h1>
+</code>`<code>
+
+<strong>Why It's Vulnerable</strong>:
+<ul>
+<li>No file path restrictions</li>
+<li>Can access system directories</li>
+<li>No confirmation for destructive operations</li>
+<li>Wildcard operations allowed</li>
+<li>No backup before modification</li>
+</ul>
+
+<h2>Secure Examples</h2>
+
+<h3>Example 1: Permission-Scoped Database Agent</h3>
+
+<strong>Secure Code</strong>:
+</code>`<code>python
+<p>import openai</p>
+<p>import sqlite3</p>
+<p>from typing import List, Optional</p>
+<p>from enum import Enum</p>
+
+<p>class SQLOperation(Enum):</p>
+<p>    SELECT = "SELECT"</p>
+<p>    INSERT = "INSERT"</p>
+<p>    UPDATE = "UPDATE"</p>
+<p>    DELETE = "DELETE"</p>
+
+<p>class SecureDatabaseAgent:</p>
+<p>    """SECURE: Database agent with proper permission controls"""</p>
+    
+<p>    def __init__(self, db_path: str, api_key: str, allowed_operations: List[SQLOperation]):</p>
+<p>        self.db = sqlite3.connect(db_path)</p>
+<p>        self.api_key = api_key</p>
+<p>        self.allowed_operations = allowed_operations</p>
+<p>        self.allowed_tables = ['customer_profiles', 'order_history']  # Whitelist</p>
+<p>        openai.api_key = api_key</p>
+    
+<p>    def process_request(self, user_input: str) -> Optional[dict]:</p>
+<p>        """Process request with security controls"""</p>
+<p>        # Generate SQL from user input</p>
+<p>        prompt = f"""</p>
+<p>        Generate SQL query for: {user_input}</p>
+<p>        Allowed operations: {[op.value for op in self.allowed_operations]}</p>
+<p>        Allowed tables: {self.allowed_tables}</p>
+<p>        Return only the SQL query.</p>
+<p>        """</p>
+        
+<p>        response = openai.ChatCompletion.create(</p>
+<p>            model="gpt-4",</p>
+<p>            messages=[{"role": "user", "content": prompt}]</p>
+<p>        )</p>
+        
+<p>        sql_query = response.choices[0].message.content.strip()</p>
+        
+<p>        # SECURITY: Validate before execution</p>
+<p>        validation_result = self.validate_query(sql_query)</p>
+<p>        if not validation_result['valid']:</p>
+<p>            return {</p>
+<p>                'success': False,</p>
+<p>                'error': validation_result['reason'],</p>
+<p>                'query': sql_query</p>
+<p>            }</p>
+        
+<p>        # SECURITY: Check if destructive operation requires approval</p>
+<p>        if self.requires_approval(sql_query):</p>
+<p>            print("\n⚠️  APPROVAL REQUIRED")</p>
+<p>            print(f"Query: {sql_query}")</p>
+<p>            print(f"Estimated impact: {validation_result['estimated_rows']} rows")</p>
+            
+<p>            approved = self.request_approval(sql_query, validation_result)</p>
+<p>            if not approved:</p>
+<p>                return {'success': False, 'error': 'Approval denied'}</p>
+        
+<p>        # Execute validated query</p>
+<p>        return self.execute_safe_query(sql_query)</p>
+    
+<p>    def validate_query(self, query: str) -> dict:</p>
+<p>        """Validate SQL query against security rules"""</p>
+<p>        query_upper = query.upper()</p>
+        
+<p>        # Check allowed operations</p>
+<p>        operation = None</p>
+<p>        for op in SQLOperation:</p>
+<p>            if query_upper.startswith(op.value):</p>
+<p>                operation = op</p>
+<p>                break</p>
+        
+<p>        if operation not in self.allowed_operations:</p>
+<p>            return {</p>
+<p>                'valid': False,</p>
+<p>                'reason': f"Operation {operation} not allowed"</p>
+<p>            }</p>
+        
+<p>        # Check allowed tables</p>
+<p>        table_found = False</p>
+<p>        for table in self.allowed_tables:</p>
+<p>            if table in query.lower():</p>
+<p>                table_found = True</p>
+<p>                break</p>
+        
+<p>        if not table_found:</p>
+<p>            return {</p>
+<p>                'valid': False,</p>
+<p>                'reason': 'Query accesses unauthorized tables'</p>
+<p>            }</p>
+        
+<p>        # For DELETE/UPDATE, require WHERE clause</p>
+<p>        if operation in [SQLOperation.DELETE, SQLOperation.UPDATE]:</p>
+<p>            if 'WHERE' not in query_upper:</p>
+<p>                return {</p>
+<p>                    'valid': False,</p>
+<p>                    'reason': f'{operation.value} without WHERE clause not allowed'</p>
+<p>                }</p>
+            
+<p>            # Prevent always-true conditions</p>
+<p>            if '1=1' in query_upper or '1 = 1' in query_upper:</p>
+<p>                return {</p>
+<p>                    'valid': False,</p>
+<p>                    'reason': 'Always-true WHERE conditions not allowed'</p>
+<p>                }</p>
+        
+<p>        # Estimate impact</p>
+<p>        estimated_rows = self.estimate_affected_rows(query)</p>
+        
+<p>        return {</p>
+<p>            'valid': True,</p>
+<p>            'operation': operation,</p>
+<p>            'estimated_rows': estimated_rows</p>
+<p>        }</p>
+    
+<p>    def estimate_affected_rows(self, query: str) -> int:</p>
+<p>        """Estimate number of rows affected"""</p>
+<p>        # Simplified estimation</p>
+<p>        return 100  # Would be more sophisticated in production</p>
+    
+<p>    def requires_approval(self, query: str) -> bool:</p>
+<p>        """Check if query requires human approval"""</p>
+<p>        query_upper = query.upper()</p>
+        
+<p>        # DELETE and UPDATE always require approval</p>
+<p>        if any(op in query_upper for op in ['DELETE', 'UPDATE']):</p>
+<p>            return True</p>
+        
+<p>        return False</p>
+    
+<p>    def request_approval(self, query: str, validation_result: dict) -> bool:</p>
+<p>        """Request human approval for risky operation"""</p>
+<p>        # In production, this would integrate with approval system</p>
+<p>        print("\nWaiting for approval...")</p>
+<p>        print("Would you like to proceed? (y/n)")</p>
+        
+<p>        # Simulated approval</p>
+<p>        return True  # In reality, wait for human input</p>
+    
+<p>    def execute_safe_query(self, query: str) -> dict:</p>
+<p>        """Execute validated and approved query"""</p>
+<p>        try:</p>
+<p>            cursor = self.db.cursor()</p>
+<p>            cursor.execute(query)</p>
+            
+<p>            if query.upper().startswith('SELECT'):</p>
+<p>                results = cursor.fetchall()</p>
+<p>                return {'success': True, 'data': results}</p>
+<p>            else:</p>
+<p>                self.db.commit()</p>
+<p>                return {</p>
+<p>                    'success': True,</p>
+<p>                    'rows_affected': cursor.rowcount</p>
+<p>                }</p>
+        
+<p>        except Exception as e:</p>
+<p>            return {'success': False, 'error': str(e)}</p>
+
+<h1>SECURE USAGE:</h1>
+<p>agent = SecureDatabaseAgent(</p>
+<p>    db_path='company.db',</p>
+<p>    api_key='api-key',</p>
+<p>    allowed_operations=[SQLOperation.SELECT]  # Read-only!</p>
+<p>)</p>
+
+<h1>This succeeds - read operation on allowed table</h1>
+<p>result = agent.process_request("Show customer profiles")</p>
+<h1>Query: SELECT * FROM customer_profiles</h1>
+<h1>✅ Executes (read-only, allowed table)</h1>
+
+<h1>This fails - write operation not allowed</h1>
+<p>result = agent.process_request("Delete old customers")</p>
+<h1>Query: DELETE FROM customer_profiles WHERE ...</h1>
+<h1>❌ Blocked: DELETE operation not in allowed_operations</h1>
+
+<h1>Create agent with more permissions but still controlled</h1>
+<p>admin_agent = SecureDatabaseAgent(</p>
+<p>    db_path='company.db',</p>
+<p>    api_key='api-key',</p>
+<p>    allowed_operations=[SQLOperation.SELECT, SQLOperation.DELETE]</p>
+<p>)</p>
+
+<h1>This requires approval</h1>
+<p>result = admin_agent.process_request("Delete inactive customers")</p>
+<h1>⚠️  Approval required</h1>
+<h1>Query validated, human confirms, then executes</h1>
+</code>`<code>
+
+<strong>Security Features</strong>:
+<ul>
+<li>✅ Permission whitelist (allowed operations)</li>
+<li>✅ Table whitelist (scoped access)</li>
+<li>✅ Query validation before execution</li>
+<li>✅ Approval workflow for destructive operations</li>
+<li>✅ WHERE clause requirement for DELETE/UPDATE</li>
+<li>✅ Impact estimation</li>
+</ul>
+
+<h3>Example 2: Approval-Required Payment Agent</h3>
+
+<strong>Secure Code</strong>:
+</code>`<code>python
+<p>from decimal import Decimal</p>
+<p>from typing import Optional</p>
+<p>from dataclasses import dataclass</p>
+<p>from datetime import datetime</p>
+
+<p>@dataclass</p>
+<p>class PaymentRequest:</p>
+<p>    """Payment request requiring approval"""</p>
+<p>    id: str</p>
+<p>    recipient: str</p>
+<p>    amount: Decimal</p>
+<p>    description: str</p>
+<p>    created_at: datetime</p>
+<p>    approved: bool = False</p>
+<p>    approver: Optional[str] = None</p>
+
+<p>class SecurePaymentAgent:</p>
+<p>    """SECURE: Payment agent with approval workflow"""</p>
+    
+<p>    def __init__(self, payment_api_key: str, max_auto_approve_amount: Decimal):</p>
+<p>        self.payment_api_key = payment_api_key</p>
+<p>        self.max_auto_approve = max_auto_approve_amount</p>
+<p>        self.pending_approvals = {}</p>
+    
+<p>    def process_payment_request(self, user_message: str) -> dict:</p>
+<p>        """Process payment with approval controls"""</p>
+<p>        # Extract payment details</p>
+<p>        payment_details = self.extract_payment_info(user_message)</p>
+        
+<p>        # Validate payment details</p>
+<p>        validation = self.validate_payment(payment_details)</p>
+<p>        if not validation['valid']:</p>
+<p>            return {</p>
+<p>                'success': False,</p>
+<p>                'error': validation['reason']</p>
+<p>            }</p>
+        
+<p>        # Create payment request</p>
+<p>        payment_request = PaymentRequest(</p>
+<p>            id=f"pay_{int(datetime.now().timestamp())}",</p>
+<p>            recipient=payment_details['recipient'],</p>
+<p>            amount=Decimal(str(payment_details['amount'])),</p>
+<p>            description=payment_details['description'],</p>
+<p>            created_at=datetime.now()</p>
+<p>        )</p>
+        
+<p>        # SECURITY: Check if approval required</p>
+<p>        if payment_request.amount > self.max_auto_approve:</p>
+<p>            return self.request_approval(payment_request)</p>
+        
+<p>        # Small amounts can be auto-approved</p>
+<p>        return self.execute_payment(payment_request)</p>
+    
+<p>    def validate_payment(self, payment_details: dict) -> dict:</p>
+<p>        """Validate payment details"""</p>
+<p>        # Check required fields</p>
+<p>        if not payment_details.get('recipient'):</p>
+<p>            return {'valid': False, 'reason': 'Recipient required'}</p>
+        
+<p>        if not payment_details.get('amount'):</p>
+<p>            return {'valid': False, 'reason': 'Amount required'}</p>
+        
+<p>        # Validate amount</p>
+<p>        amount = Decimal(str(payment_details['amount']))</p>
+<p>        if amount <= 0:</p>
+<p>            return {'valid': False, 'reason': 'Invalid amount'}</p>
+        
+<p>        if amount > Decimal('100000'):</p>
+<p>            return {'valid': False, 'reason': 'Amount exceeds maximum limit ($100,000)'}</p>
+        
+<p>        # Validate recipient format</p>
+<p>        recipient = payment_details['recipient']</p>
+<p>        if '@' not in recipient and not recipient.startswith('acc_'):</p>
+<p>            return {'valid': False, 'reason': 'Invalid recipient format'}</p>
+        
+<p>        return {'valid': True}</p>
+    
+<p>    def request_approval(self, payment_request: PaymentRequest) -> dict:</p>
+<p>        """Request human approval for payment"""</p>
+<p>        # Store pending request</p>
+<p>        self.pending_approvals[payment_request.id] = payment_request</p>
+        
+<p>        # Notify approvers</p>
+<p>        print("\n" + "="*60)</p>
+<p>        print("💰 PAYMENT APPROVAL REQUIRED")</p>
+<p>        print("="*60)</p>
+<p>        print(f"Request ID: {payment_request.id}")</p>
+<p>        print(f"Recipient: {payment_request.recipient}")</p>
+<p>        print(f"Amount: ${payment_request.amount}")</p>
+<p>        print(f"Description: {payment_request.description}")</p>
+<p>        print(f"Reason: Amount exceeds auto-approve limit (${self.max_auto_approve})")</p>
+<p>        print("="*60)</p>
+        
+<p>        return {</p>
+<p>            'success': False,</p>
+<p>            'status': 'pending_approval',</p>
+<p>            'request_id': payment_request.id,</p>
+<p>            'message': f'Payment of ${payment_request.amount} requires approval'</p>
+<p>        }</p>
+    
+<p>    def approve_payment(self, request_id: str, approver: str) -> dict:</p>
+<p>        """Approve pending payment"""</p>
+<p>        payment_request = self.pending_approvals.get(request_id)</p>
+        
+<p>        if not payment_request:</p>
+<p>            return {'success': False, 'error': 'Request not found'}</p>
+        
+<p>        # Mark as approved</p>
+<p>        payment_request.approved = True</p>
+<p>        payment_request.approver = approver</p>
+        
+<p>        # Execute approved payment</p>
+<p>        result = self.execute_payment(payment_request)</p>
+        
+<p>        # Remove from pending</p>
+<p>        del self.pending_approvals[request_id]</p>
+        
+<p>        return result</p>
+    
+<p>    def execute_payment(self, payment_request: PaymentRequest) -> dict:</p>
+<p>        """Execute validated and approved payment"""</p>
+<p>        # Log payment</p>
+<p>        print(f"\n✅ Executing payment:")</p>
+<p>        print(f"   To: {payment_request.recipient}")</p>
+<p>        print(f"   Amount: ${payment_request.amount}")</p>
+<p>        print(f"   Description: {payment_request.description}")</p>
+        
+<p>        if payment_request.approver:</p>
+<p>            print(f"   Approved by: {payment_request.approver}")</p>
+        
+<p>        # Call payment API</p>
+<p>        # payment_api.process(...)</p>
+        
+<p>        return {</p>
+<p>            'success': True,</p>
+<p>            'transaction_id': f"txn_{payment_request.id}",</p>
+<p>            'amount': float(payment_request.amount),</p>
+<p>            'recipient': payment_request.recipient</p>
+<p>        }</p>
+    
+<p>    def extract_payment_info(self, message: str) -> dict:</p>
+<p>        """Extract payment information from message"""</p>
+<p>        # Simplified extraction (would use LLM in production)</p>
+<p>        return {</p>
+<p>            'recipient': 'vendor@example.com',</p>
+<p>            'amount': 5000.00,</p>
+<p>            'description': 'Invoice payment'</p>
+<p>        }</p>
+
+<h1>SECURE USAGE:</h1>
+<p>agent = SecurePaymentAgent(</p>
+<p>    payment_api_key='payment-key',</p>
+<p>    max_auto_approve_amount=Decimal('1000.00')</p>
+<p>)</p>
+
+<h1>Small payment - auto-approved</h1>
+<p>result = agent.process_payment_request("Pay $500 invoice to vendor@example.com")</p>
+<h1>✅ Executes immediately (under $1000 limit)</h1>
+<p>print(result)</p>
+
+<h1>Large payment - requires approval</h1>
+<p>result = agent.process_payment_request("Pay $5000 invoice to vendor@example.com")</p>
+<h1>⚠️  Pending approval</h1>
+<p>print(result)  # {'status': 'pending_approval', 'request_id': 'pay_...'}</p>
+
+<h1>Human approves</h1>
+<p>approval_result = agent.approve_payment(</p>
+<p>    request_id=result['request_id'],</p>
+<p>    approver='cfo@company.com'</p>
+<p>)</p>
+<h1>✅ Payment executed after approval</h1>
+<p>print(approval_result)</p>
+</code>`<code>
+
+<strong>Security Features</strong>:
+<ul>
+<li>✅ Amount limits for auto-approval</li>
+<li>✅ Human approval for large payments</li>
+<li>✅ Payment validation</li>
+<li>✅ Recipient verification</li>
+<li>✅ Audit trail (who approved)</li>
+<li>✅ Maximum payment cap</li>
+</ul>
+
+<h3>Example 3: Recursion-Limited Research Agent</h3>
+
+<strong>Secure Code</strong>:
+</code>`<code>python
+<p>from typing import Dict, List, Optional</p>
+
+<p>class SecureResearchAgent:</p>
+<p>    """SECURE: Research agent with proper limits"""</p>
+    
+<p>    def __init__(self, api_key: str,</p>
+<p>                 max_depth: int = 3,</p>
+<p>                 max_api_calls: int = 100,</p>
+<p>                 max_cost_dollars: float = 10.0):</p>
+<p>        self.api_key = api_key</p>
+<p>        self.max_depth = max_depth</p>
+<p>        self.max_api_calls = max_api_calls</p>
+<p>        self.max_cost = max_cost_dollars</p>
+        
+<p>        # Track resource usage</p>
+<p>        self.api_calls_made = 0</p>
+<p>        self.cost_incurred = 0.0</p>
+<p>        self.cost_per_call = 0.02</p>
+    
+<p>    def research_topic(self, topic: str, depth: int = 0) -> Optional[Dict]:</p>
+<p>        """Research topic with recursion and cost limits"""</p>
+<p>        # SECURITY: Check recursion depth</p>
+<p>        if depth >= self.max_depth:</p>
+<p>            print(f"⚠️  Max recursion depth reached ({self.max_depth})")</p>
+<p>            return {</p>
+<p>                'topic': topic,</p>
+<p>                'depth': depth,</p>
+<p>                'note': 'Max depth reached'</p>
+<p>            }</p>
+        
+<p>        # SECURITY: Check API call limit</p>
+<p>        if self.api_calls_made >= self.max_api_calls:</p>
+<p>            print(f"⚠️  API call limit reached ({self.max_api_calls})")</p>
+<p>            return {</p>
+<p>                'topic': topic,</p>
+<p>                'error': 'API call limit exceeded'</p>
+<p>            }</p>
+        
+<p>        # SECURITY: Check cost limit</p>
+<p>        if self.cost_incurred >= self.max_cost:</p>
+<p>            print(f"⚠️  Cost limit reached (${self.max_cost})")</p>
+<p>            return {</p>
+<p>                'topic': topic,</p>
+<p>                'error': 'Cost limit exceeded'</p>
+<p>            }</p>
+        
+<p>        # Make API call</p>
+<p>        print(f"{'  ' * depth}Researching: {topic} (depth: {depth})")</p>
+<p>        data = self.call_research_api(topic)</p>
+        
+<p>        # Update usage tracking</p>
+<p>        self.api_calls_made += 1</p>
+<p>        self.cost_incurred += self.cost_per_call</p>
+        
+<p>        # Extract subtopics</p>
+<p>        subtopics = self.extract_subtopics(data)</p>
+        
+<p>        # SECURITY: Limit subtopics per level</p>
+<p>        max_subtopics_per_level = 2</p>
+<p>        subtopics = subtopics[:max_subtopics_per_level]</p>
+        
+<p>        # Recursively research subtopics</p>
+<p>        results = {</p>
+<p>            'topic': topic,</p>
+<p>            'depth': depth,</p>
+<p>            'subtopics': []</p>
+<p>        }</p>
+        
+<p>        for subtopic in subtopics:</p>
+<p>            sub_result = self.research_topic(subtopic, depth + 1)</p>
+<p>            if sub_result:  # Only add if not None</p>
+<p>                results['subtopics'].append(sub_result)</p>
+        
+<p>        return results</p>
+    
+<p>    def call_research_api(self, topic: str) -> str:</p>
+<p>        """Make API call (simulated)"""</p>
+<p>        return f"Research data about {topic}"</p>
+    
+<p>    def extract_subtopics(self, data: str) -> List[str]:</p>
+<p>        """Extract subtopics from research data"""</p>
+<p>        # Simplified - returns 2 subtopics</p>
+<p>        return [f"subtopic_1", f"subtopic_2"]</p>
+    
+<p>    def get_usage_stats(self) -> Dict:</p>
+<p>        """Get resource usage statistics"""</p>
+<p>        return {</p>
+<p>            'api_calls': f"{self.api_calls_made}/{self.max_api_calls}",</p>
+<p>            'cost': f"${self.cost_incurred:.2f}/${self.max_cost}",</p>
+<p>            'depth_limit': self.max_depth</p>
+<p>        }</p>
+
+<h1>SECURE USAGE:</h1>
+<p>agent = SecureResearchAgent(</p>
+<p>    api_key='api-key',</p>
+<p>    max_depth=3,          # Prevent deep recursion</p>
+<p>    max_api_calls=50,     # Limit total calls</p>
+<p>    max_cost_dollars=5.0  # Budget constraint</p>
+<p>)</p>
+
+<h1>Research with safety limits</h1>
+<p>result = agent.research_topic("AI Safety")</p>
+
+<h1>What happens:</h1>
+<h1>Depth 0: 1 call</h1>
+<h1>Depth 1: 2 calls (limited to 2 subtopics)</h1>
+<h1>Depth 2: 4 calls</h1>
+<h1>Depth 3: Stopped (max depth reached)</h1>
+<h1>Total: 7 calls (vs 59,049 in vulnerable example!)</h1>
+<h1>Cost: 7 * $0.02 = $0.14 (vs $1,180 in vulnerable example!)</h1>
+
+<p>print("\nUsage statistics:")</p>
+<p>print(agent.get_usage_stats())</p>
+</code>`<code>
+
+<strong>Security Features</strong>:
+<ul>
+<li>✅ Maximum recursion depth limit</li>
+<li>✅ API call count limit</li>
+<li>✅ Cost budget limit</li>
+<li>✅ Subtopics per level limit</li>
+<li>✅ Resource usage tracking</li>
+<li>✅ Graceful termination</li>
+</ul>
+
+<h3>Example 4: Path-Restricted File Agent</h3>
+
+<strong>Secure Code</strong>:
+</code>`<code>python
+<p>import os</p>
+<p>from pathlib import Path</p>
+<p>from typing import List, Optional</p>
+
+<p>class SecureFileAgent:</p>
+<p>    """SECURE: File agent with path restrictions"""</p>
+    
+<p>    def __init__(self, allowed_base_paths: List[str]):</p>
+<p>        self.allowed_base_paths = [Path(p).resolve() for p in allowed_base_paths]</p>
+<p>        self.forbidden_patterns = ['<em>.key', '</em>.pem', 'password<em>', 'secret</em>']</p>
+    
+<p>    def process_file_request(self, user_request: str) -> dict:</p>
+<p>        """Process file request with security controls"""</p>
+<p>        # Interpret request</p>
+<p>        operation = self.interpret_request(user_request)</p>
+        
+<p>        # Validate path</p>
+<p>        validation = self.validate_path(operation['path'])</p>
+<p>        if not validation['valid']:</p>
+<p>            return {</p>
+<p>                'success': False,</p>
+<p>                'error': validation['reason']</p>
+<p>            }</p>
+        
+<p>        # Check if approval required</p>
+<p>        if operation['action'] == 'delete':</p>
+<p>            print("\n⚠️  DELETE OPERATION REQUIRES APPROVAL")</p>
+<p>            print(f"Path: {operation['path']}")</p>
+            
+<p>            approved = self.request_approval(operation)</p>
+<p>            if not approved:</p>
+<p>                return {'success': False, 'error': 'Approval denied'}</p>
+        
+<p>        # Execute validated operation</p>
+<p>        return self.execute_operation(operation)</p>
+    
+<p>    def validate_path(self, path_str: str) -> dict:</p>
+<p>        """Validate file path against security rules"""</p>
+<p>        try:</p>
+<p>            target_path = Path(path_str).resolve()</p>
+<p>        except Exception as e:</p>
+<p>            return {'valid': False, 'reason': f'Invalid path: {e}'}</p>
+        
+<p>        # SECURITY: Check against allowed base paths</p>
+<p>        path_allowed = False</p>
+<p>        for base_path in self.allowed_base_paths:</p>
+<p>            try:</p>
+<p>                target_path.relative_to(base_path)</p>
+<p>                path_allowed = True</p>
+<p>                break</p>
+<p>            except ValueError:</p>
+<p>                continue</p>
+        
+<p>        if not path_allowed:</p>
+<p>            return {</p>
+<p>                'valid': False,</p>
+<p>                'reason': f'Path outside allowed directories: {target_path}'</p>
+<p>            }</p>
+        
+<p>        # SECURITY: Check for forbidden patterns</p>
+<p>        for pattern in self.forbidden_patterns:</p>
+<p>            import fnmatch</p>
+<p>            if fnmatch.fnmatch(target_path.name, pattern):</p>
+<p>                return {</p>
+<p>                    'valid': False,</p>
+<p>                    'reason': f'Forbidden file pattern: {pattern}'</p>
+<p>                }</p>
+        
+<p>        # SECURITY: Prevent wildcard deletions</p>
+<p>        if '*' in path_str:</p>
+<p>            return {</p>
+<p>                'valid': False,</p>
+<p>                'reason': 'Wildcard operations not allowed'</p>
+<p>            }</p>
+        
+<p>        return {'valid': True}</p>
+    
+<p>    def request_approval(self, operation: dict) -> bool:</p>
+<p>        """Request approval for destructive operation"""</p>
+<p>        print(f"Operation: {operation['action']}")</p>
+<p>        print(f"Path: {operation['path']}")</p>
+<p>        print("Approve? (y/n)")</p>
+        
+<p>        # Simulated approval</p>
+<p>        return True  # In production, wait for human input</p>
+    
+<p>    def execute_operation(self, operation: dict) -> dict:</p>
+<p>        """Execute validated operation"""</p>
+<p>        action = operation['action']</p>
+<p>        path = operation['path']</p>
+        
+<p>        try:</p>
+<p>            if action == 'read':</p>
+<p>                with open(path, 'r') as f:</p>
+<p>                    content = f.read()</p>
+<p>                return {'success': True, 'content': content}</p>
+            
+<p>            elif action == 'delete':</p>
+<p>                os.remove(path)</p>
+<p>                return {'success': True, 'message': f'Deleted {path}'}</p>
+            
+<p>            elif action == 'modify':</p>
+<p>                # Create backup first</p>
+<p>                backup_path = f"{path}.backup"</p>
+<p>                if os.path.exists(path):</p>
+<p>                    import shutil</p>
+<p>                    shutil.copy2(path, backup_path)</p>
+                
+<p>                with open(path, 'w') as f:</p>
+<p>                    f.write(operation['content'])</p>
+                
+<p>                return {</p>
+<p>                    'success': True,</p>
+<p>                    'message': f'Modified {path}',</p>
+<p>                    'backup': backup_path</p>
+<p>                }</p>
+        
+<p>        except Exception as e:</p>
+<p>            return {'success': False, 'error': str(e)}</p>
+    
+<p>    def interpret_request(self, request: str) -> dict:</p>
+<p>        """Interpret user request"""</p>
+<p>        # Simplified interpretation</p>
+<p>        if 'delete' in request.lower():</p>
+<p>            return {</p>
+<p>                'action': 'delete',</p>
+<p>                'path': '/home/user/data/temp.txt'</p>
+<p>            }</p>
+<p>        return {</p>
+<p>            'action': 'read',</p>
+<p>            'path': '/home/user/data/file.txt'</p>
+<p>        }</p>
+
+<h1>SECURE USAGE:</h1>
+<p>agent = SecureFileAgent(</p>
+<p>    allowed_base_paths=[</p>
+<p>        '/home/user/data',      # User data only</p>
+<p>        '/home/user/documents'  # User documents only</p>
+<p>    ]</p>
+<p>)</p>
+
+<h1>This succeeds - within allowed path</h1>
+<p>result = agent.process_file_request("read /home/user/data/file.txt")</p>
+<h1>✅ Executes (path allowed)</h1>
+
+<h1>This fails - outside allowed paths</h1>
+<p>result = agent.process_file_request("read /etc/passwd")</p>
+<h1>❌ Blocked: Path outside allowed directories</h1>
+
+<h1>This fails - forbidden pattern</h1>
+<p>result = agent.process_file_request("read /home/user/data/secret_key.key")</p>
+<h1>❌ Blocked: Forbidden file pattern</h1>
+
+<h1>This requires approval - delete operation</h1>
+<p>result = agent.process_file_request("delete /home/user/data/old.txt")</p>
+<h1>⚠️  Approval required</h1>
+<h1>✅ Executes after approval</h1>
+</code>`<code>
+
+<strong>Security Features</strong>:
+<ul>
+<li>✅ Path whitelist (allowed base directories)</li>
+<li>✅ Forbidden file patterns</li>
+<li>✅ No wildcard operations</li>
+<li>✅ Approval for destructive operations</li>
+<li>✅ Backup before modification</li>
+<li>✅ Path traversal prevention</li>
+</ul>
+
+<h2>Attack Scenarios</h2>
+
+<h3>Scenario 1: Database Exfiltration Attack</h3>
+
+<strong>Attack Setup</strong>:
+</code>`<code>python
+<h1>Vulnerable customer service chatbot</h1>
+<p>chatbot = VulnerableDatabaseAgent('production.db', 'api-key')</p>
+
+<h1>Attacker crafts innocent-looking request</h1>
+<p>attack_input = """</p>
+<p>I need help understanding our customer base demographics.</p>
+<p>Can you show me all customer information including contact details</p>
+<p>and payment methods for analysis?</p>
+<p>"""</p>
+
+<h1>What happens:</h1>
+<h1>1. LLM generates: SELECT * FROM customers</h1>
+<h1>2. Agent executes without validation</h1>
+<h1>3. Returns ALL customer data including sensitive PII</h1>
+<h1>4. Attacker receives credit cards, emails, addresses</h1>
+<h1>5. MASSIVE DATA BREACH</h1>
+
+<p>result = chatbot.process_request(attack_input)</p>
+<p>print(f"Exfiltrated {len(result)} customer records!")</p>
+</code>`<code>
+
+<strong>Defense</strong>:
+</code>`<code>python
+<h1>Secure agent with proper controls</h1>
+<p>secure_chatbot = SecureDatabaseAgent(</p>
+<p>    db_path='production.db',</p>
+<p>    api_key='api-key',</p>
+<p>    allowed_operations=[SQLOperation.SELECT]  # Read only</p>
+<p>)</p>
+
+<h1>Same attack attempt</h1>
+<p>result = secure_chatbot.process_request(attack_input)</p>
+
+<h1>What happens:</h1>
+<h1>1. LLM generates query</h1>
+<h1>2. Agent validates against allowed tables</h1>
+<h1>3. Customer sensitive fields not in allowed_tables</h1>
+<h1>4. Query blocked: "Query accesses unauthorized tables"</h1>
+<h1>5. Attack prevented!</h1>
+
+<p>print(result)  # {'success': False, 'error': 'Query accesses unauthorized tables'}</p>
+</code>`<code>
+
+<h3>Scenario 2: Recursive Cost Attack</h3>
+
+<strong>Attack Setup</strong>:
+</code>`<code>python
+<h1>Vulnerable research agent</h1>
+<p>research_bot = VulnerableResearchAgent('api-key')</p>
+
+<h1>Attacker triggers expensive recursion</h1>
+<p>attack = """</p>
+<p>Research artificial intelligence in extreme depth.</p>
+<p>For each topic, explore ALL subtopics comprehensively.</p>
+<p>For each subtopic, research all of its subtopics.</p>
+<p>Continue until you have complete coverage.</p>
+<p>"""</p>
+
+<h1>What happens:</h1>
+<h1>- Agent recursively researches topics</h1>
+<h1>- Each topic spawns 3 subtopics</h1>
+<h1>- Exponential growth: 3^n API calls</h1>
+<h1>- After 10 levels: 59,049 calls</h1>
+<h1>- Cost: $1,180</h1>
+<h1>- After 15 levels: 14,348,907 calls  </h1>
+<h1>- Cost: $286,978!</h1>
+<h1>- System bankrupt, agent still running</h1>
+
+<p>result = research_bot.research_topic(attack)</p>
+<p>print(f"Total cost: ${research_bot.api_calls * 0.02}")</p>
+</code>`<code>
+
+<strong>Defense</strong>:
+</code>`<code>python
+<h1>Secure agent with limits</h1>
+<p>secure_research = SecureResearchAgent(</p>
+<p>    api_key='api-key',</p>
+<p>    max_depth=3,</p>
+<p>    max_api_calls=50,</p>
+<p>    max_cost_dollars=5.0</p>
+<p>)</p>
+
+<h1>Same attack attempt</h1>
+<p>result = secure_research.research_topic(attack)</p>
+
+<h1>What happens:</h1>
+<h1>- Agent starts research</h1>
+<h1>- Depth 0: 1 call</h1>
+<h1>- Depth 1: 2 calls (limited)</h1>
+<h1>- Depth 2: 4 calls</h1>
+<h1>- Depth 3: Stopped (max depth)</h1>
+<h1>- Total: 7 calls</h1>
+<h1>- Cost: $0.14</h1>
+<h1>- Attack contained!</h1>
+
+<p>stats = secure_research.get_usage_stats()</p>
+<p>print(f"Safe execution: {stats}")</p>
+</code>`<code>
+
+<h3>Scenario 3: Financial Fraud Attack</h3>
+
+<strong>Attack Setup</strong>:
+</code>`<code>python
+<h1>Vulnerable payment agent</h1>
+<p>payment_bot = VulnerablePaymentAgent('payment-api-key')</p>
+
+<h1>Attacker exploits ambiguous amounts</h1>
+<p>attack = """</p>
+<p>Please process payment for the invoice.</p>
+<p>The amount is fifty thousand.</p>
+<p>Send to attacker@evil.com</p>
+<p>"""</p>
+
+<h1>What happens:</h1>
+<h1>1. LLM interprets "fifty thousand" as $50,000</h1>
+<h1>2. Agent processes payment immediately</h1>
+<h1>3. No approval workflow</h1>
+<h1>4. No amount validation</h1>
+<h1>5. $50,000 sent to attacker!</h1>
+<h1>6. Irreversible</h1>
+
+<p>result = payment_bot.process_payment_request(attack)</p>
+<p>print(result)  # "Paid $50000.00 to attacker@evil.com"</p>
+</code>`<code>
+
+<strong>Defense</strong>:
+</code>`<code>python
+<h1>Secure payment agent</h1>
+<p>secure_payment = SecurePaymentAgent(</p>
+<p>    payment_api_key='payment-key',</p>
+<p>    max_auto_approve_amount=Decimal('1000.00')</p>
+<p>)</p>
+
+<h1>Same attack attempt</h1>
+<p>result = secure_payment.process_payment_request(attack)</p>
+
+<h1>What happens:</h1>
+<h1>1. LLM extracts payment: $50,000</h1>
+<h1>2. Agent validates amount</h1>
+<h1>3. Exceeds auto-approve limit ($1,000)</h1>
+<h1>4. Requires human approval</h1>
+<h1>5. Approval request sent to finance team</h1>
+<h1>6. Human reviews and rejects</h1>
+<h1>7. Attack prevented!</h1>
+
+<p>print(result)</p>
+<h1>{'success': False, 'status': 'pending_approval', ...}</h1>
+</code>`<code>
+
+<h2>Defense Implementations</h2>
+
+<h3>Implementation 1: Complete Secure Agent Framework</h3>
+
+</code>`<code>python
+<p>from typing import Dict, List, Callable, Optional</p>
+<p>from enum import Enum</p>
+<p>from datetime import datetime</p>
+<p>from decimal import Decimal</p>
+
+<p>class RiskLevel(Enum):</p>
+<p>    LOW = "low"</p>
+<p>    MEDIUM = "medium"</p>
+<p>    HIGH = "high"</p>
+<p>    CRITICAL = "critical"</p>
+
+<p>class SecureAgentFramework:</p>
+<p>    """Complete framework for building secure AI agents"""</p>
+    
+<p>    def __init__(self, agent_id: str, config: dict):</p>
+<p>        self.agent_id = agent_id</p>
+<p>        self.config = config</p>
+        
+<p>        # Initialize security components</p>
+<p>        self.permission_manager = PermissionManager(config['permissions'])</p>
+<p>        self.approval_workflow = ApprovalWorkflow(config['approval_rules'])</p>
+<p>        self.rate_limiter = RateLimiter(</p>
+<p>            config['rate_limits']['per_minute'],</p>
+<p>            config['rate_limits']['per_hour']</p>
+<p>        )</p>
+<p>        self.action_validator = ActionValidator(config['validation_rules'])</p>
+<p>        self.audit_logger = AuditLogger(agent_id)</p>
+    
+<p>    def execute_action(self, action: dict) -> dict:</p>
+<p>        """Execute action with complete security controls"""</p>
+<p>        # 1. Log attempt</p>
+<p>        self.audit_logger.log_attempt(action)</p>
+        
+<p>        # 2. Check permissions</p>
+<p>        if not self.permission_manager.has_permission(</p>
+<p>            action['type'],</p>
+<p>            action['resource']</p>
+<p>        ):</p>
+<p>            return self._deny("Insufficient permissions")</p>
+        
+<p>        # 3. Check rate limits</p>
+<p>        allowed, msg = self.rate_limiter.check_and_record()</p>
+<p>        if not allowed:</p>
+<p>            return self._deny(f"Rate limit: {msg}")</p>
+        
+<p>        # 4. Validate action</p>
+<p>        valid, msg = self.action_validator.validate(</p>
+<p>            action['type'],</p>
+<p>            action['parameters']</p>
+<p>        )</p>
+<p>        if not valid:</p>
+<p>            return self._deny(f"Validation failed: {msg}")</p>
+        
+<p>        # 5. Assess risk</p>
+<p>        risk_level = self.assess_risk(action)</p>
+        
+<p>        # 6. Check if approval required</p>
+<p>        if self.approval_workflow.requires_approval(action['type'], risk_level):</p>
+<p>            return self._request_approval(action, risk_level)</p>
+        
+<p>        # 7. Execute validated action</p>
+<p>        result = self._execute(action)</p>
+        
+<p>        # 8. Log result</p>
+<p>        self.audit_logger.log_execution(action, result)</p>
+        
+<p>        return result</p>
+    
+<p>    def assess_risk(self, action: dict) -> RiskLevel:</p>
+<p>        """Assess risk level of action"""</p>
+<p>        if action['type'] in ['delete', 'payment', 'execute_code']:</p>
+<p>            return RiskLevel.CRITICAL</p>
+<p>        elif action['type'] in ['update', 'modify']:</p>
+<p>            return RiskLevel.HIGH</p>
+<p>        elif action['type'] == 'write':</p>
+<p>            return RiskLevel.MEDIUM</p>
+<p>        return RiskLevel.LOW</p>
+    
+<p>    def _deny(self, reason: str) -> dict:</p>
+<p>        """Return denial response"""</p>
+<p>        self.audit_logger.log_denial(reason)</p>
+<p>        return {'success': False, 'error': reason}</p>
+    
+<p>    def _request_approval(self, action: dict, risk_level: RiskLevel) -> dict:</p>
+<p>        """Request human approval"""</p>
+<p>        request = self.approval_workflow.create_request(</p>
+<p>            agent_id=self.agent_id,</p>
+<p>            action=action,</p>
+<p>            risk_level=risk_level</p>
+<p>        )</p>
+        
+<p>        self.audit_logger.log_approval_request(request)</p>
+        
+<p>        return {</p>
+<p>            'success': False,</p>
+<p>            'status': 'pending_approval',</p>
+<p>            'request_id': request.id</p>
+<p>        }</p>
+    
+<p>    def _execute(self, action: dict) -> dict:</p>
+<p>        """Execute the actual action"""</p>
+<p>        # Implementation of actual action execution</p>
+<p>        return {'success': True, 'result': 'Action executed'}</p>
+
+<p>class AuditLogger:</p>
+<p>    """Comprehensive audit logging"""</p>
+    
+<p>    def __init__(self, agent_id: str):</p>
+<p>        self.agent_id = agent_id</p>
+<p>        self.logs = []</p>
+    
+<p>    def log_attempt(self, action: dict):</p>
+<p>        """Log action attempt"""</p>
+<p>        self.logs.append({</p>
+<p>            'timestamp': datetime.now(),</p>
+<p>            'agent_id': self.agent_id,</p>
+<p>            'event': 'attempt',</p>
+<p>            'action': action</p>
+<p>        })</p>
+    
+<p>    def log_execution(self, action: dict, result: dict):</p>
+<p>        """Log successful execution"""</p>
+<p>        self.logs.append({</p>
+<p>            'timestamp': datetime.now(),</p>
+<p>            'agent_id': self.agent_id,</p>
+<p>            'event': 'execution',</p>
+<p>            'action': action,</p>
+<p>            'result': result</p>
+<p>        })</p>
+    
+<p>    def log_denial(self, reason: str):</p>
+<p>        """Log denied action"""</p>
+<p>        self.logs.append({</p>
+<p>            'timestamp': datetime.now(),</p>
+<p>            'agent_id': self.agent_id,</p>
+<p>            'event': 'denial',</p>
+<p>            'reason': reason</p>
+<p>        })</p>
+    
+<p>    def log_approval_request(self, request):</p>
+<p>        """Log approval request"""</p>
+<p>        self.logs.append({</p>
+<p>            'timestamp': datetime.now(),</p>
+<p>            'agent_id': self.agent_id,</p>
+<p>            'event': 'approval_request',</p>
+<p>            'request_id': request.id</p>
+<p>        })</p>
+
+<h1>USAGE: Building a secure agent</h1>
+<p>config = {</p>
+<p>    'permissions': {</p>
+<p>        'allowed_operations': ['read', 'write'],</p>
+<p>        'allowed_resources': ['user_data/*'],</p>
+<p>        'denied_resources': ['admin/<em>', 'system/</em>']</p>
+<p>    },</p>
+<p>    'rate_limits': {</p>
+<p>        'per_minute': 10,</p>
+<p>        'per_hour': 100</p>
+<p>    },</p>
+<p>    'approval_rules': {</p>
+<p>        'require_approval_for': ['delete', 'payment'],</p>
+<p>        'approval_levels': {</p>
+<p>            'low': 'none',</p>
+<p>            'medium': 'manager',</p>
+<p>            'high': 'admin',</p>
+<p>            'critical': 'multi_party'</p>
+<p>        }</p>
+<p>    },</p>
+<p>    'validation_rules': {</p>
+<p>        'max_cost_per_action': 100.00,</p>
+<p>        'max_records_affected': 1000,</p>
+<p>        'require_backups': True</p>
+<p>    }</p>
+<p>}</p>
+
+<p>agent = SecureAgentFramework('agent_001', config)</p>
+
+<h1>Execute action with all security controls</h1>
+<p>result = agent.execute_action({</p>
+<p>    'type': 'write',</p>
+<p>    'resource': 'user_data/profile.json',</p>
+<p>    'parameters': {'data': {...}}</p>
+<p>})</p>
+</code>``
+
+<p>---</p>
+
+<strong>Key Takeaway</strong>: Secure agents require multiple layers of defense - permission scoping, approval workflows, rate limiting, validation, and comprehensive audit logging. Never grant unrestricted autonomy to AI systems.
+
         </div>
     </div>
 </body>

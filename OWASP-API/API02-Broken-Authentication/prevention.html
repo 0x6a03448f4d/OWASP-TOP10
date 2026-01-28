@@ -215,7 +215,947 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>API02: Broken Authentication - Prevention</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#core-prevention-principles">Core Prevention Principles</a></li>
+<li><a href="#secure-authentication-patterns">Secure Authentication Patterns</a></li>
+<li><a href="#jwt-security-best-practices">JWT Security Best Practices</a></li>
+<li><a href="#rate-limiting-implementation">Rate Limiting Implementation</a></li>
+<li><a href="#password-security">Password Security</a></li>
+<li><a href="#multi-factor-authentication">Multi-Factor Authentication</a></li>
+<li><a href="#testing-and-validation">Testing and Validation</a></li>
+<li><a href="#security-checklist">Security Checklist</a></li>
+</ul>
+
+<h2>Core Prevention Principles</h2>
+
+<h3>1. Use Strong Token Generation</h3>
+
+<strong>Principle</strong>: Generate cryptographically secure tokens with proper algorithms and secrets.
+
+<p>``<code>python</p>
+<h1>❌ BAD: Weak JWT with HS256 and weak secret</h1>
+<p>import jwt</p>
+
+<p>SECRET = "secret123"  # Weak secret</p>
+<p>token = jwt.encode({'user_id': 1}, SECRET, algorithm='HS256')</p>
+
+<h1>✅ GOOD: Strong JWT with RS256 and proper expiration</h1>
+<p>from cryptography.hazmat.primitives import serialization</p>
+<p>from cryptography.hazmat.primitives.asymmetric import rsa</p>
+<p>from datetime import datetime, timedelta</p>
+<p>import jwt</p>
+
+<h1>Generate RSA key pair (do this once, store securely)</h1>
+<p>private_key = rsa.generate_private_key(</p>
+<p>    public_exponent=65537,</p>
+<p>    key_size=2048</p>
+<p>)</p>
+<p>public_key = private_key.public_key()</p>
+
+<h1>Create token with expiration</h1>
+<p>payload = {</p>
+<p>    'user_id': user.id,</p>
+<p>    'exp': datetime.utcnow() + timedelta(minutes=15),</p>
+<p>    'iat': datetime.utcnow(),</p>
+<p>    'jti': str(uuid.uuid4())  # Unique token ID</p>
+<p>}</p>
+
+<p>token = jwt.encode(</p>
+<p>    payload,</p>
+<p>    private_key,</p>
+<p>    algorithm='RS256'</p>
+<p>)</p>
+</code>`<code>
+
+<h3>2. Implement Rate Limiting</h3>
+
+<strong>Principle</strong>: Prevent brute force and credential stuffing with strict rate limits.
+
+</code>`<code>python
+<h1>✅ GOOD: Rate limiting on authentication endpoints</h1>
+<p>from flask_limiter import Limiter</p>
+<p>from flask_limiter.util import get_remote_address</p>
+
+<p>limiter = Limiter(</p>
+<p>    app=app,</p>
+<p>    key_func=get_remote_address,</p>
+<p>    default_limits=["200 per day", "50 per hour"],</p>
+<p>    storage_uri="redis://localhost:6379"</p>
+<p>)</p>
+
+<p>@app.route('/api/login', methods=['POST'])</p>
+<p>@limiter.limit("5 per minute")</p>
+<p>@limiter.limit("20 per hour")</p>
+<p>def login():</p>
+<p>    # Login logic here</p>
+<p>    # Only 5 attempts per minute, 20 per hour</p>
+<p>    pass</p>
+
+<h1>❌ BAD: No rate limiting</h1>
+<p>@app.route('/api/login', methods=['POST'])</p>
+<p>def login():</p>
+<p>    # Unlimited login attempts!</p>
+<p>    pass</p>
+</code>`<code>
+
+<h3>3. Enforce Strong Password Policies</h3>
+
+<strong>Principle</strong>: Require passwords that resist brute force and dictionary attacks.
+
+</code>`<code>python
+<h1>✅ GOOD: Comprehensive password validation</h1>
+<p>import re</p>
+<p>from password_strength import PasswordPolicy</p>
+
+<p>policy = PasswordPolicy.from_names(</p>
+<p>    length=12,  # Minimum 12 characters</p>
+<p>    uppercase=1,  # At least 1 uppercase</p>
+<p>    lowercase=1,  # At least 1 lowercase</p>
+<p>    numbers=1,  # At least 1 number</p>
+<p>    special=1,  # At least 1 special character</p>
+<p>    nonletters=1,  # Non-letter characters</p>
+<p>)</p>
+
+<p>def validate_password(password):</p>
+<p>    """Validate password meets security requirements"""</p>
+<p>    # Check policy</p>
+<p>    errors = policy.test(password)</p>
+<p>    if errors:</p>
+<p>        return False, "Password does not meet complexity requirements"</p>
+    
+<p>    # Check against common passwords</p>
+<p>    common_passwords = load_common_passwords()  # 10k most common</p>
+<p>    if password.lower() in common_passwords:</p>
+<p>        return False, "Password is too common"</p>
+    
+<p>    # Check against breach database (Have I Been Pwned API)</p>
+<p>    if check_password_breach(password):</p>
+<p>        return False, "Password found in known data breaches"</p>
+    
+<p>    return True, "Password is strong"</p>
+
+<h1>❌ BAD: Weak password validation</h1>
+<p>def validate_password(password):</p>
+<p>    return len(password) >= 6  # Only checks length!</p>
+</code>`<code>
+
+<h3>4. Use Short Token Expiration</h3>
+
+<strong>Principle</strong>: Minimize window of opportunity for stolen tokens.
+
+</code>`<code>python
+<h1>✅ GOOD: Short-lived access token with refresh token</h1>
+<p>def create_tokens(user_id):</p>
+<p>    # Access token: 15 minutes</p>
+<p>    access_token = jwt.encode(</p>
+<p>        {</p>
+<p>            'user_id': user_id,</p>
+<p>            'type': 'access',</p>
+<p>            'exp': datetime.utcnow() + timedelta(minutes=15)</p>
+<p>        },</p>
+<p>        private_key,</p>
+<p>        algorithm='RS256'</p>
+<p>    )</p>
+    
+<p>    # Refresh token: 7 days (stored securely)</p>
+<p>    refresh_token = jwt.encode(</p>
+<p>        {</p>
+<p>            'user_id': user_id,</p>
+<p>            'type': 'refresh',</p>
+<p>            'exp': datetime.utcnow() + timedelta(days=7),</p>
+<p>            'jti': str(uuid.uuid4())  # Unique ID for blacklisting</p>
+<p>        },</p>
+<p>        private_key,</p>
+<p>        algorithm='RS256'</p>
+<p>    )</p>
+    
+<p>    # Store refresh token hash in database</p>
+<p>    store_refresh_token(user_id, hash_token(refresh_token))</p>
+    
+<p>    return access_token, refresh_token</p>
+
+<h1>❌ BAD: Long-lived or no expiration</h1>
+<p>def create_token(user_id):</p>
+<p>    token = jwt.encode(</p>
+<p>        {'user_id': user_id},  # No expiration!</p>
+<p>        SECRET,</p>
+<p>        algorithm='HS256'</p>
+<p>    )</p>
+<p>    return token</p>
+</code>`<code>
+
+<h2>Secure Authentication Patterns</h2>
+
+<h3>Pattern 1: Complete Login Flow with Rate Limiting</h3>
+
+</code>`<code>python
+<p>from flask import Flask, request, jsonify</p>
+<p>from flask_limiter import Limiter</p>
+<p>from werkzeug.security import check_password_hash</p>
+<p>import jwt</p>
+<p>from datetime import datetime, timedelta</p>
+
+<p>@app.route('/api/login', methods=['POST'])</p>
+<p>@limiter.limit("5 per minute")</p>
+<p>@limiter.limit("20 per hour")</p>
+<p>def login():</p>
+<p>    """Secure login endpoint with all protections"""</p>
+<p>    data = request.get_json()</p>
+    
+<p>    # Validate input</p>
+<p>    if not data or not data.get('email') or not data.get('password'):</p>
+<p>        return jsonify({'error': 'Email and password required'}), 400</p>
+    
+<p>    email = data['email'].lower().strip()</p>
+<p>    password = data['password']</p>
+    
+<p>    # Check if account is locked</p>
+<p>    if is_account_locked(email):</p>
+<p>        log_security_event('login_attempt_locked_account', email=email)</p>
+<p>        return jsonify({'error': 'Account is locked. Contact support.'}), 403</p>
+    
+<p>    # Get user from database</p>
+<p>    user = User.query.filter_by(email=email).first()</p>
+    
+<p>    # Use constant-time comparison to prevent timing attacks</p>
+<p>    if not user or not check_password_hash(user.password_hash, password):</p>
+<p>        # Record failed attempt</p>
+<p>        record_failed_login(email)</p>
+        
+<p>        # Lock account after 10 failed attempts</p>
+<p>        if get_failed_attempts(email) >= 10:</p>
+<p>            lock_account(email)</p>
+<p>            log_security_event('account_locked', email=email)</p>
+        
+<p>        # Generic error message (don't reveal if user exists)</p>
+<p>        return jsonify({'error': 'Invalid credentials'}), 401</p>
+    
+<p>    # Check if MFA is enabled</p>
+<p>    if user.mfa_enabled:</p>
+<p>        # Return temporary token for MFA verification</p>
+<p>        mfa_token = create_mfa_token(user.id)</p>
+<p>        return jsonify({</p>
+<p>            'mfa_required': True,</p>
+<p>            'mfa_token': mfa_token</p>
+<p>        }), 200</p>
+    
+<p>    # Clear failed login attempts</p>
+<p>    clear_failed_attempts(email)</p>
+    
+<p>    # Generate tokens</p>
+<p>    access_token, refresh_token = create_tokens(user.id)</p>
+    
+<p>    # Log successful login</p>
+<p>    log_security_event('login_success', user_id=user.id, ip=request.remote_addr)</p>
+    
+<p>    return jsonify({</p>
+<p>        'access_token': access_token,</p>
+<p>        'refresh_token': refresh_token,</p>
+<p>        'expires_in': 900  # 15 minutes</p>
+<p>    }), 200</p>
+</code>`<code>
+
+<h3>Pattern 2: Secure Password Reset Flow</h3>
+
+</code>`<code>python
+<p>import secrets</p>
+<p>from datetime import datetime, timedelta</p>
+
+<p>@app.route('/api/password-reset/request', methods=['POST'])</p>
+<p>@limiter.limit("3 per hour")  # Prevent abuse</p>
+<p>def request_password_reset():</p>
+<p>    """Request password reset - rate limited"""</p>
+<p>    data = request.get_json()</p>
+<p>    email = data.get('email', '').lower().strip()</p>
+    
+<p>    # Always return success to prevent email enumeration</p>
+<p>    response = jsonify({</p>
+<p>        'message': 'If that email exists, a reset link has been sent.'</p>
+<p>    })</p>
+    
+<p>    user = User.query.filter_by(email=email).first()</p>
+<p>    if not user:</p>
+<p>        # Still return success, but don't send email</p>
+<p>        return response, 200</p>
+    
+<p>    # Generate cryptographically secure token</p>
+<p>    reset_token = secrets.token_urlsafe(32)  # 256 bits</p>
+    
+<p>    # Hash token before storing</p>
+<p>    token_hash = hashlib.sha256(reset_token.encode()).hexdigest()</p>
+    
+<p>    # Store with expiration</p>
+<p>    PasswordReset.create(</p>
+<p>        user_id=user.id,</p>
+<p>        token_hash=token_hash,</p>
+<p>        expires_at=datetime.utcnow() + timedelta(hours=1)</p>
+<p>    )</p>
+    
+<p>    # Send email with token</p>
+<p>    send_reset_email(user.email, reset_token)</p>
+    
+<p>    # Log request</p>
+<p>    log_security_event('password_reset_requested', user_id=user.id)</p>
+    
+<p>    return response, 200</p>
+
+<p>@app.route('/api/password-reset/confirm', methods=['POST'])</p>
+<p>@limiter.limit("5 per hour")</p>
+<p>def confirm_password_reset():</p>
+<p>    """Confirm password reset with token"""</p>
+<p>    data = request.get_json()</p>
+<p>    token = data.get('token')</p>
+<p>    new_password = data.get('new_password')</p>
+    
+<p>    # Validate new password</p>
+<p>    valid, message = validate_password(new_password)</p>
+<p>    if not valid:</p>
+<p>        return jsonify({'error': message}), 400</p>
+    
+<p>    # Hash provided token</p>
+<p>    token_hash = hashlib.sha256(token.encode()).hexdigest()</p>
+    
+<p>    # Find non-expired reset request</p>
+<p>    reset = PasswordReset.query.filter_by(</p>
+<p>        token_hash=token_hash</p>
+<p>    ).filter(</p>
+<p>        PasswordReset.expires_at > datetime.utcnow(),</p>
+<p>        PasswordReset.used == False</p>
+<p>    ).first()</p>
+    
+<p>    if not reset:</p>
+<p>        return jsonify({'error': 'Invalid or expired reset token'}), 400</p>
+    
+<p>    # Update password</p>
+<p>    user = User.query.get(reset.user_id)</p>
+<p>    user.set_password(new_password)</p>
+    
+<p>    # Mark token as used</p>
+<p>    reset.used = True</p>
+<p>    reset.used_at = datetime.utcnow()</p>
+<p>    db.session.commit()</p>
+    
+<p>    # Invalidate all existing sessions</p>
+<p>    invalidate_all_tokens(user.id)</p>
+    
+<p>    # Log password change</p>
+<p>    log_security_event('password_changed', user_id=user.id)</p>
+    
+<p>    # Send notification email</p>
+<p>    send_password_changed_notification(user.email)</p>
+    
+<p>    return jsonify({'message': 'Password updated successfully'}), 200</p>
+</code>`<code>
+
+<h3>Pattern 3: Token Refresh Mechanism</h3>
+
+</code>`<code>python
+<p>@app.route('/api/token/refresh', methods=['POST'])</p>
+<p>@limiter.limit("10 per hour")</p>
+<p>def refresh_token():</p>
+<p>    """Refresh access token using refresh token"""</p>
+<p>    data = request.get_json()</p>
+<p>    refresh_token = data.get('refresh_token')</p>
+    
+<p>    if not refresh_token:</p>
+<p>        return jsonify({'error': 'Refresh token required'}), 400</p>
+    
+<p>    try:</p>
+<p>        # Verify refresh token</p>
+<p>        payload = jwt.decode(</p>
+<p>            refresh_token,</p>
+<p>            public_key,</p>
+<p>            algorithms=['RS256'],</p>
+<p>            options={'require_exp': True}</p>
+<p>        )</p>
+        
+<p>        # Check token type</p>
+<p>        if payload.get('type') != 'refresh':</p>
+<p>            return jsonify({'error': 'Invalid token type'}), 401</p>
+        
+<p>        # Check if token is blacklisted</p>
+<p>        if is_token_blacklisted(payload['jti']):</p>
+<p>            return jsonify({'error': 'Token has been revoked'}), 401</p>
+        
+<p>        # Verify token is in database</p>
+<p>        token_hash = hash_token(refresh_token)</p>
+<p>        if not verify_refresh_token(payload['user_id'], token_hash):</p>
+<p>            return jsonify({'error': 'Invalid refresh token'}), 401</p>
+        
+<p>        # Generate new access token</p>
+<p>        new_access_token = jwt.encode(</p>
+<p>            {</p>
+<p>                'user_id': payload['user_id'],</p>
+<p>                'type': 'access',</p>
+<p>                'exp': datetime.utcnow() + timedelta(minutes=15)</p>
+<p>            },</p>
+<p>            private_key,</p>
+<p>            algorithm='RS256'</p>
+<p>        )</p>
+        
+<p>        return jsonify({</p>
+<p>            'access_token': new_access_token,</p>
+<p>            'expires_in': 900</p>
+<p>        }), 200</p>
+        
+<p>    except jwt.ExpiredSignatureError:</p>
+<p>        return jsonify({'error': 'Refresh token expired'}), 401</p>
+<p>    except jwt.InvalidTokenError:</p>
+<p>        return jsonify({'error': 'Invalid refresh token'}), 401</p>
+</code>`<code>
+
+<h2>JWT Security Best Practices</h2>
+
+<h3>1. Use Asymmetric Algorithms (RS256)</h3>
+
+</code>`<code>python
+<h1>✅ GOOD: RS256 with public/private key pair</h1>
+<p>from cryptography.hazmat.primitives import serialization</p>
+<p>from cryptography.hazmat.backends import default_backend</p>
+
+<h1>Generate keys (do once, store securely)</h1>
+<p>private_key = rsa.generate_private_key(</p>
+<p>    public_exponent=65537,</p>
+<p>    key_size=2048,</p>
+<p>    backend=default_backend()</p>
+<p>)</p>
+
+<p>public_key = private_key.public_key()</p>
+
+<h1>Save keys securely</h1>
+<p>private_pem = private_key.private_bytes(</p>
+<p>    encoding=serialization.Encoding.PEM,</p>
+<p>    format=serialization.PrivateFormat.PKCS8,</p>
+<p>    encryption_algorithm=serialization.NoEncryption()</p>
+<p>)</p>
+
+<p>public_pem = public_key.public_bytes(</p>
+<p>    encoding=serialization.Encoding.PEM,</p>
+<p>    format=serialization.PublicFormat.SubjectPublicKeyInfo</p>
+<p>)</p>
+
+<h1>Sign with private key</h1>
+<p>token = jwt.encode(payload, private_key, algorithm='RS256')</p>
+
+<h1>Verify with public key (can be distributed)</h1>
+<p>jwt.decode(token, public_key, algorithms=['RS256'])</p>
+</code>`<code>
+
+<h3>2. Enforce Algorithm in Verification</h3>
+
+</code>`<code>python
+<h1>✅ GOOD: Strict algorithm enforcement</h1>
+<p>def verify_token(token):</p>
+<p>    try:</p>
+<p>        payload = jwt.decode(</p>
+<p>            token,</p>
+<p>            public_key,</p>
+<p>            algorithms=['RS256'],  # ONLY RS256 accepted</p>
+<p>            options={</p>
+<p>                'require_exp': True,  # Require expiration</p>
+<p>                'require_iat': True,  # Require issued-at</p>
+<p>                'verify_exp': True,  # Verify expiration</p>
+<p>                'verify_iat': True,  # Verify issued-at</p>
+<p>            }</p>
+<p>        )</p>
+<p>        return payload</p>
+<p>    except jwt.ExpiredSignatureError:</p>
+<p>        raise AuthenticationError('Token has expired')</p>
+<p>    except jwt.InvalidTokenError:</p>
+<p>        raise AuthenticationError('Invalid token')</p>
+
+<h1>❌ BAD: Accepts multiple algorithms</h1>
+<p>jwt.decode(token, key, algorithms=['HS256', 'RS256', 'none'])</p>
+</code>`<code>
+
+<h3>3. Include Security Claims</h3>
+
+</code>`<code>python
+<h1>✅ GOOD: Comprehensive JWT payload</h1>
+<p>def create_access_token(user_id, user_email):</p>
+<p>    payload = {</p>
+<p>        # Standard claims</p>
+<p>        'sub': user_id,  # Subject (user ID)</p>
+<p>        'iat': datetime.utcnow(),  # Issued at</p>
+<p>        'exp': datetime.utcnow() + timedelta(minutes=15),  # Expiration</p>
+<p>        'jti': str(uuid.uuid4()),  # JWT ID (unique)</p>
+        
+<p>        # Custom claims</p>
+<p>        'email': user_email,</p>
+<p>        'type': 'access',</p>
+        
+<p>        # Security claims</p>
+<p>        'iss': 'your-api.example.com',  # Issuer</p>
+<p>        'aud': 'your-client-app',  # Audience</p>
+<p>    }</p>
+    
+<p>    return jwt.encode(payload, private_key, algorithm='RS256')</p>
+
+<h1>Verify all claims</h1>
+<p>def verify_token(token):</p>
+<p>    return jwt.decode(</p>
+<p>        token,</p>
+<p>        public_key,</p>
+<p>        algorithms=['RS256'],</p>
+<p>        issuer='your-api.example.com',</p>
+<p>        audience='your-client-app',</p>
+<p>        options={'require': ['exp', 'iat', 'jti']}</p>
+<p>    )</p>
+</code>`<code>
+
+<h3>4. Never Store Sensitive Data in JWT</h3>
+
+</code>`<code>python
+<h1>❌ BAD: Sensitive data in JWT (base64 decodable!)</h1>
+<p>payload = {</p>
+<p>    'user_id': 123,</p>
+<p>    'email': 'user@example.com',</p>
+<p>    'ssn': '123-45-6789',  # ✗ NEVER!</p>
+<p>    'credit_card': '4111-1111-1111-1111',  # ✗ NEVER!</p>
+<p>    'password': 'hashed_password',  # ✗ NEVER!</p>
+<p>}</p>
+
+<h1>✅ GOOD: Only non-sensitive identifiers</h1>
+<p>payload = {</p>
+<p>    'user_id': 123,</p>
+<p>    'email': 'user@example.com',</p>
+<p>    'role': 'user',</p>
+<p>    'exp': datetime.utcnow() + timedelta(minutes=15)</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Rate Limiting Implementation</h2>
+
+<h3>Flask Implementation with Redis</h3>
+
+</code>`<code>python
+<p>from flask import Flask</p>
+<p>from flask_limiter import Limiter</p>
+<p>from flask_limiter.util import get_remote_address</p>
+<p>import redis</p>
+
+<p>app = Flask(__name__)</p>
+
+<h1>Configure rate limiter with Redis backend</h1>
+<p>limiter = Limiter(</p>
+<p>    app=app,</p>
+<p>    key_func=get_remote_address,</p>
+<p>    storage_uri="redis://localhost:6379/0",</p>
+<p>    strategy="fixed-window"</p>
+<p>)</p>
+
+<h1>Global rate limit</h1>
+<p>@limiter.limit("1000 per day;100 per hour")</p>
+<p>def default_limit():</p>
+<p>    pass</p>
+
+<h1>Specific endpoint limits</h1>
+<p>@app.route('/api/login', methods=['POST'])</p>
+<p>@limiter.limit("5 per minute;20 per hour;50 per day")</p>
+<p>def login():</p>
+<p>    # Strict limits on authentication</p>
+<p>    pass</p>
+
+<p>@app.route('/api/password-reset/request', methods=['POST'])</p>
+<p>@limiter.limit("3 per hour;10 per day")</p>
+<p>def reset_request():</p>
+<p>    # Very strict for password reset</p>
+<p>    pass</p>
+
+<p>@app.route('/api/data', methods=['GET'])</p>
+<p>@limiter.limit("100 per minute")</p>
+<p>def get_data():</p>
+<p>    # More lenient for data retrieval</p>
+<p>    pass</p>
+
+<h1>Custom key function (rate limit by user ID)</h1>
+<p>def get_user_id():</p>
+<p>    return request.headers.get('X-User-ID', 'anonymous')</p>
+
+<p>@app.route('/api/protected')</p>
+<p>@limiter.limit("50 per hour", key_func=get_user_id)</p>
+<p>def protected():</p>
+<p>    # Rate limit per authenticated user</p>
+<p>    pass</p>
+
+<h1>Error handler</h1>
+<p>@app.errorhandler(429)</p>
+<p>def ratelimit_handler(e):</p>
+<p>    return jsonify({</p>
+<p>        'error': 'Rate limit exceeded',</p>
+<p>        'message': str(e.description)</p>
+<p>    }), 429</p>
+</code>`<code>
+
+<h3>Express.js Implementation</h3>
+
+</code>`<code>javascript
+<p>const rateLimit = require('express-rate-limit');</p>
+<p>const RedisStore = require('rate-limit-redis');</p>
+<p>const redis = require('redis');</p>
+
+<p>const redisClient = redis.createClient({</p>
+<p>  host: 'localhost',</p>
+<p>  port: 6379</p>
+<p>});</p>
+
+<p>// Login rate limiter</p>
+<p>const loginLimiter = rateLimit({</p>
+<p>  store: new RedisStore({</p>
+<p>    client: redisClient</p>
+<p>  }),</p>
+<p>  windowMs: 15 <em> 60 </em> 1000, // 15 minutes</p>
+<p>  max: 5, // 5 requests per window</p>
+<p>  message: 'Too many login attempts, please try again later',</p>
+<p>  standardHeaders: true,</p>
+<p>  legacyHeaders: false,</p>
+<p>});</p>
+
+<p>// Apply to login endpoint</p>
+<p>app.post('/api/login', loginLimiter, async (req, res) => {</p>
+<p>  // Login logic</p>
+<p>});</p>
+
+<p>// Password reset limiter (stricter)</p>
+<p>const resetLimiter = rateLimit({</p>
+<p>  windowMs: 60 <em> 60 </em> 1000, // 1 hour</p>
+<p>  max: 3,</p>
+<p>  message: 'Too many password reset requests'</p>
+<p>});</p>
+
+<p>app.post('/api/password-reset', resetLimiter, async (req, res) => {</p>
+<p>  // Password reset logic</p>
+<p>});</p>
+</code>`<code>
+
+<h2>Password Security</h2>
+
+<h3>Password Hashing with Argon2</h3>
+
+</code>`<code>python
+<p>from argon2 import PasswordHasher</p>
+<p>from argon2.exceptions import VerifyMismatchError</p>
+
+<h1>Initialize Argon2 hasher</h1>
+<p>ph = PasswordHasher(</p>
+<p>    time_cost=2,  # Number of iterations</p>
+<p>    memory_cost=65536,  # 64 MB</p>
+<p>    parallelism=4,  # Number of parallel threads</p>
+<p>    hash_len=32,  # Length of hash</p>
+<p>    salt_len=16  # Length of salt</p>
+<p>)</p>
+
+<p>class User:</p>
+<p>    def set_password(self, password):</p>
+<p>        """Hash and store password"""</p>
+<p>        # Validate password first</p>
+<p>        valid, message = validate_password(password)</p>
+<p>        if not valid:</p>
+<p>            raise ValueError(message)</p>
+        
+<p>        # Hash password</p>
+<p>        self.password_hash = ph.hash(password)</p>
+    
+<p>    def check_password(self, password):</p>
+<p>        """Verify password"""</p>
+<p>        try:</p>
+<p>            # Verify password</p>
+<p>            ph.verify(self.password_hash, password)</p>
+            
+<p>            # Check if rehashing is needed (algorithm updated)</p>
+<p>            if ph.check_needs_rehash(self.password_hash):</p>
+<p>                self.password_hash = ph.hash(password)</p>
+<p>                db.session.commit()</p>
+            
+<p>            return True</p>
+<p>        except VerifyMismatchError:</p>
+<p>            return False</p>
+</code>`<code>
+
+<h3>Password Breach Detection</h3>
+
+</code>`<code>python
+<p>import hashlib</p>
+<p>import requests</p>
+
+<p>def check_password_breach(password):</p>
+<p>    """</p>
+<p>    Check if password appears in Have I Been Pwned database</p>
+<p>    Uses k-anonymity to preserve privacy</p>
+<p>    """</p>
+<p>    # Hash password with SHA-1</p>
+<p>    sha1_password = hashlib.sha1(password.encode()).hexdigest().upper()</p>
+    
+<p>    # Send first 5 characters to API</p>
+<p>    prefix = sha1_password[:5]</p>
+<p>    suffix = sha1_password[5:]</p>
+    
+<p>    # Query API</p>
+<p>    response = requests.get(</p>
+<p>        f'https://api.pwnedpasswords.com/range/{prefix}',</p>
+<p>        timeout=5</p>
+<p>    )</p>
+    
+<p>    if response.status_code != 200:</p>
+<p>        # If API fails, allow password but log</p>
+<p>        log_warning('HIBP API unavailable')</p>
+<p>        return False</p>
+    
+<p>    # Check if suffix appears in response</p>
+<p>    hashes = (line.split(':') for line in response.text.splitlines())</p>
+<p>    for hash_suffix, count in hashes:</p>
+<p>        if hash_suffix == suffix:</p>
+<p>            return True  # Password found in breach</p>
+    
+<p>    return False  # Password not found</p>
+</code>`<code>
+
+<h2>Multi-Factor Authentication</h2>
+
+<h3>TOTP Implementation</h3>
+
+</code>`<code>python
+<p>import pyotp</p>
+<p>import qrcode</p>
+<p>from io import BytesIO</p>
+<p>import base64</p>
+
+<p>class User:</p>
+<p>    def enable_mfa(self):</p>
+<p>        """Generate MFA secret and QR code"""</p>
+<p>        # Generate secret</p>
+<p>        self.mfa_secret = pyotp.random_base32()</p>
+        
+<p>        # Create TOTP URI</p>
+<p>        totp_uri = pyotp.totp.TOTP(self.mfa_secret).provisioning_uri(</p>
+<p>            name=self.email,</p>
+<p>            issuer_name='Your API'</p>
+<p>        )</p>
+        
+<p>        # Generate QR code</p>
+<p>        qr = qrcode.QRCode(version=1, box_size=10, border=5)</p>
+<p>        qr.add_data(totp_uri)</p>
+<p>        qr.make(fit=True)</p>
+        
+<p>        img = qr.make_image(fill_color="black", back_color="white")</p>
+        
+<p>        # Convert to base64</p>
+<p>        buffer = BytesIO()</p>
+<p>        img.save(buffer, format='PNG')</p>
+<p>        qr_code_base64 = base64.b64encode(buffer.getvalue()).decode()</p>
+        
+<p>        db.session.commit()</p>
+        
+<p>        return {</p>
+<p>            'secret': self.mfa_secret,</p>
+<p>            'qr_code': qr_code_base64,</p>
+<p>            'uri': totp_uri</p>
+<p>        }</p>
+    
+<p>    def verify_mfa(self, code):</p>
+<p>        """Verify MFA code"""</p>
+<p>        if not self.mfa_enabled or not self.mfa_secret:</p>
+<p>            return False</p>
+        
+<p>        totp = pyotp.TOTP(self.mfa_secret)</p>
+        
+<p>        # Verify code (allows 30-second window)</p>
+<p>        return totp.verify(code, valid_window=1)</p>
+
+<h1>MFA verification endpoint</h1>
+<p>@app.route('/api/mfa/verify', methods=['POST'])</p>
+<p>@limiter.limit("5 per minute")</p>
+<p>def verify_mfa():</p>
+<p>    """Verify MFA code and complete login"""</p>
+<p>    data = request.get_json()</p>
+<p>    mfa_token = data.get('mfa_token')</p>
+<p>    mfa_code = data.get('code')</p>
+    
+<p>    # Verify MFA token</p>
+<p>    try:</p>
+<p>        payload = jwt.decode(</p>
+<p>            mfa_token,</p>
+<p>            public_key,</p>
+<p>            algorithms=['RS256']</p>
+<p>        )</p>
+        
+<p>        if payload.get('type') != 'mfa':</p>
+<p>            return jsonify({'error': 'Invalid token'}), 401</p>
+        
+<p>    except jwt.InvalidTokenError:</p>
+<p>        return jsonify({'error': 'Invalid MFA token'}), 401</p>
+    
+<p>    # Get user</p>
+<p>    user = User.query.get(payload['user_id'])</p>
+    
+<p>    # Verify MFA code</p>
+<p>    if not user.verify_mfa(mfa_code):</p>
+<p>        return jsonify({'error': 'Invalid MFA code'}), 401</p>
+    
+<p>    # Generate access and refresh tokens</p>
+<p>    access_token, refresh_token = create_tokens(user.id)</p>
+    
+<p>    return jsonify({</p>
+<p>        'access_token': access_token,</p>
+<p>        'refresh_token': refresh_token</p>
+<p>    }), 200</p>
+</code>`<code>
+
+<h2>Testing and Validation</h2>
+
+<h3>Unit Tests for Authentication</h3>
+
+</code>`<code>python
+<p>import unittest</p>
+
+<p>class TestAuthentication(unittest.TestCase):</p>
+<p>    def test_password_strength_validation(self):</p>
+<p>        """Test password policy enforcement"""</p>
+<p>        # Weak passwords should be rejected</p>
+<p>        weak_passwords = [</p>
+<p>            '123456',</p>
+<p>            'password',</p>
+<p>            'admin',</p>
+<p>            'short',</p>
+<p>            'alllowercase',</p>
+<p>            'ALLUPPERCASE',</p>
+<p>            'NoSpecialChar1'</p>
+<p>        ]</p>
+        
+<p>        for pwd in weak_passwords:</p>
+<p>            valid, _ = validate_password(pwd)</p>
+<p>            self.assertFalse(valid, f"Weak password '{pwd}' was accepted")</p>
+        
+<p>        # Strong password should be accepted</p>
+<p>        strong_pwd = 'MyS3cure!Pass2024'</p>
+<p>        valid, _ = validate_password(strong_pwd)</p>
+<p>        self.assertTrue(valid)</p>
+    
+<p>    def test_rate_limiting(self):</p>
+<p>        """Test rate limiting on login"""</p>
+<p>        # Should allow 5 attempts</p>
+<p>        for i in range(5):</p>
+<p>            response = self.client.post('/api/login', json={</p>
+<p>                'email': 'test@example.com',</p>
+<p>                'password': 'wrong'</p>
+<p>            })</p>
+<p>            self.assertEqual(response.status_code, 401)</p>
+        
+<p>        # 6th attempt should be rate limited</p>
+<p>        response = self.client.post('/api/login', json={</p>
+<p>            'email': 'test@example.com',</p>
+<p>            'password': 'wrong'</p>
+<p>        })</p>
+<p>        self.assertEqual(response.status_code, 429)</p>
+    
+<p>    def test_jwt_expiration(self):</p>
+<p>        """Test token expiration"""</p>
+<p>        # Create expired token</p>
+<p>        token = jwt.encode(</p>
+<p>            {</p>
+<p>                'user_id': 1,</p>
+<p>                'exp': datetime.utcnow() - timedelta(hours=1)</p>
+<p>            },</p>
+<p>            private_key,</p>
+<p>            algorithm='RS256'</p>
+<p>        )</p>
+        
+<p>        # Should reject expired token</p>
+<p>        with self.assertRaises(jwt.ExpiredSignatureError):</p>
+<p>            jwt.decode(token, public_key, algorithms=['RS256'])</p>
+    
+<p>    def test_algorithm_enforcement(self):</p>
+<p>        """Test JWT algorithm cannot be changed"""</p>
+<p>        # Try to create token with HS256</p>
+<p>        token = jwt.encode(</p>
+<p>            {'user_id': 1, 'alg': 'HS256'},</p>
+<p>            'secret',</p>
+<p>            algorithm='HS256'</p>
+<p>        )</p>
+        
+<p>        # Should reject when expecting RS256</p>
+<p>        with self.assertRaises(jwt.InvalidTokenError):</p>
+<p>            jwt.decode(token, public_key, algorithms=['RS256'])</p>
+</code>``
+
+<h2>Security Checklist</h2>
+
+<h3>Development Phase</h3>
+<ul>
+<li>[ ] Rate limiting on all auth endpoints (5/min, 20/hour)</li>
+<li>[ ] Strong password policy (12+ chars, complexity)</li>
+<li>[ ] JWT uses RS256 (not HS256)</li>
+<li>[ ] Tokens expire in 15 minutes</li>
+<li>[ ] Refresh token mechanism implemented</li>
+<li>[ ] MFA option available</li>
+<li>[ ] Password breach checking integrated</li>
+<li>[ ] Account lockout after 10 failed attempts</li>
+<li>[ ] Secure password reset flow</li>
+<li>[ ] No sensitive data in JWT payload</li>
+</ul>
+
+<h3>Code Review Phase</h3>
+<ul>
+<li>[ ] Secrets not hardcoded in code</li>
+<li>[ ] Argon2 or bcrypt for password hashing</li>
+<li>[ ] Algorithm strictly enforced in JWT verification</li>
+<li>[ ] All auth endpoints have rate limiting</li>
+<li>[ ] Token expiration always included</li>
+<li>[ ] Logout invalidates tokens</li>
+<li>[ ] Password validation comprehensive</li>
+<li>[ ] No timing attacks in password comparison</li>
+</ul>
+
+<h3>Testing Phase</h3>
+<ul>
+<li>[ ] Test with weak passwords (should reject)</li>
+<li>[ ] Test rate limiting (should block after limit)</li>
+<li>[ ] Test JWT expiration (should reject expired)</li>
+<li>[ ] Test algorithm switching (should reject)</li>
+<li>[ ] Test MFA flow (if implemented)</li>
+<li>[ ] Test password reset (secure tokens)</li>
+<li>[ ] Test account lockout (after failed attempts)</li>
+<li>[ ] Test logout (token invalidation)</li>
+</ul>
+
+<h3>Monitoring Phase</h3>
+<ul>
+<li>[ ] Log all authentication failures</li>
+<li>[ ] Alert on unusual login patterns</li>
+<li>[ ] Monitor rate limit hits</li>
+<li>[ ] Track MFA adoption rate</li>
+<li>[ ] Alert on password reset spikes</li>
+<li>[ ] Monitor JWT validation failures</li>
+</ul>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li>✅ <strong>Use RS256 for JWT</strong> - Asymmetric is more secure than HS256</li>
+<li>✅ <strong>Short token expiration</strong> - 15 minutes for access tokens</li>
+<li>✅ <strong>Implement rate limiting</strong> - 5 attempts/minute on auth endpoints</li>
+<li>✅ <strong>Strong password policy</strong> - 12+ chars with complexity</li>
+<li>✅ <strong>Use Argon2 for hashing</strong> - Most secure modern algorithm</li>
+<li>✅ <strong>Add MFA option</strong> - Significantly increases security</li>
+<li>✅ <strong>Check password breaches</strong> - Use Have I Been Pwned API</li>
+<li>✅ <strong>Secure password reset</strong> - Cryptographically secure tokens</li>
+</ol>
+
+<h2>What's Next?</h2>
+
+<ul>
+<li><strong><a href="./examples.md">Examples</a></strong>: See more code examples and patterns</li>
+<li><strong><a href="./lab/api02-weak-auth-lab/">Lab</a></strong>: Practice fixing authentication vulnerabilities</li>
+<li><strong><a href="./overview.md">Overview</a></strong>: Review authentication fundamentals</li>
+</ul>
+
+<p>---</p>
+
+<em>Part of the <a href="../../README.md">OWASP API Security Top 10 Educational Repository</a></em>
+
         </div>
     </div>
 </body>

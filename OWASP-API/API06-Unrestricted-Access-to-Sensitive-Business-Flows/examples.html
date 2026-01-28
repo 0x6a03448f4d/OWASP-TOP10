@@ -215,7 +215,205 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>API06: Unrestricted Access to Sensitive Business Flows - Code Examples</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#flask-python">Flask (Python)</a></li>
+<li><a href="#express-nodejs">Express (Node.js)</a></li>
+<li><a href="#spring-boot-java">Spring Boot (Java)</a></li>
+<li><a href="#aspnet-core-c">ASP.NET Core (C#)</a></li>
+</ul>
+
+<h2>Flask (Python)</h2>
+
+<h3>Vulnerable Implementation</h3>
+
+<p>``<code>python</p>
+<p>from flask import Flask, request, jsonify</p>
+<p>import sqlite3</p>
+
+<p>app = Flask(__name__)</p>
+
+<h1>VULNERABLE: No bot protection on purchases</h1>
+<p>@app.route('/api/purchase', methods=['POST'])</p>
+<p>def purchase():</p>
+<p>    data = request.json</p>
+<p>    user_id = data['user_id']</p>
+<p>    product_id = data['product_id']</p>
+<p>    quantity = data['quantity']</p>
+    
+<p>    # Direct purchase without checks</p>
+<p>    conn = sqlite3.connect('store.db')</p>
+<p>    cursor = conn.cursor()</p>
+<p>    cursor.execute('INSERT INTO orders (user_id, product_id, quantity) VALUES (?, ?, ?)',</p>
+<p>                  (user_id, product_id, quantity))</p>
+<p>    conn.commit()</p>
+<p>    return jsonify({'success': True})</p>
+</code>`<code>
+
+<h3>Secure Implementation  </h3>
+
+</code>`<code>python
+<p>from flask import Flask, request, jsonify</p>
+<p>from redis import Redis</p>
+<p>import hashlib</p>
+<p>from datetime import datetime, timedelta</p>
+
+<p>app = Flask(__name__)</p>
+<p>redis_client = Redis()</p>
+
+<p>class BotProtection:</p>
+<p>    def check_rate_limits(self, user_id, ip, device_fp, action):</p>
+<p>        hour_key = datetime.now().strftime('%Y-%m-%d-%H')</p>
+<p>        limits = {</p>
+<p>            f'rl:user:{user_id}:{action}:{hour_key}': (5, 3600),</p>
+<p>            f'rl:ip:{ip}:{action}:{hour_key}': (10, 3600),</p>
+<p>        }</p>
+<p>        for key, (limit, ttl) in limits.items():</p>
+<p>            count = self.redis.get(key)</p>
+<p>            if count and int(count) >= limit:</p>
+<p>                return False</p>
+<p>            self.redis.incr(key)</p>
+<p>            self.redis.expire(key, ttl)</p>
+<p>        return True</p>
+    
+<p>    def analyze_behavior(self, session_id):</p>
+<p>        events = self.redis.lrange(f'session:{session_id}:events', 0, -1)</p>
+<p>        if not events:</p>
+<p>            return {'risk': 'high'}</p>
+<p>        # Check timing, mouse activity, etc.</p>
+<p>        return {'risk': 'low'}</p>
+
+<p>@app.route('/api/purchase', methods=['POST'])</p>
+<p>def purchase_secure():</p>
+<p>    bot = BotProtection()</p>
+<p>    if not bot.check_rate_limits(user_id, ip, device, 'purchase'):</p>
+<p>        return jsonify({'error': 'Rate limit exceeded'}), 429</p>
+    
+<p>    behavior = bot.analyze_behavior(session_id)</p>
+<p>    if behavior['risk'] == 'high':</p>
+<p>        return jsonify({'requires_verification': True}), 202</p>
+    
+<p>    # Process purchase</p>
+<p>    return jsonify({'success': True})</p>
+</code>`<code>
+
+<h2>Express (Node.js)</h2>
+
+<h3>Vulnerable Implementation</h3>
+
+</code>`<code>javascript
+<p>app.post('/api/purchase', async (req, res) => {</p>
+<p>    const { user_id, product_id, quantity } = req.body;</p>
+<p>    await db.orders.create({ user_id, product_id, quantity });</p>
+<p>    res.json({ success: true });</p>
+<p>});</p>
+</code>`<code>
+
+<h3>Secure Implementation</h3>
+
+</code>`<code>javascript
+<p>const Redis = require('ioredis');</p>
+<p>const redis = new Redis();</p>
+
+<p>class BotProtection {</p>
+<p>    async checkRateLimits(userId, ip, action) {</p>
+<p>        const hourKey = new Date().toISOString().substring(0, 13);</p>
+<p>        const userKey = </code>rl:user:${userId}:${action}:${hourKey}<code>;</p>
+<p>        const count = await redis.get(userKey) || 0;</p>
+<p>        if (parseInt(count) >= 5) return false;</p>
+<p>        await redis.incr(userKey);</p>
+<p>        await redis.expire(userKey, 3600);</p>
+<p>        return true;</p>
+<p>    }</p>
+<p>}</p>
+
+<p>app.post('/api/purchase', async (req, res) => {</p>
+<p>    const bot = new BotProtection();</p>
+<p>    const allowed = await bot.checkRateLimits(req.body.user_id, req.ip, 'purchase');</p>
+<p>    if (!allowed) {</p>
+<p>        return res.status(429).json({ error: 'Rate limit exceeded' });</p>
+<p>    }</p>
+<p>    await db.orders.create(req.body);</p>
+<p>    res.json({ success: true });</p>
+<p>});</p>
+</code>`<code>
+
+<h2>Spring Boot (Java)</h2>
+
+<h3>Vulnerable Implementation</h3>
+
+</code>`<code>java
+<p>@PostMapping("/purchase")</p>
+<p>public ResponseEntity<?> purchase(@RequestBody PurchaseRequest request) {</p>
+<p>    orderRepository.save(new Order(request));</p>
+<p>    return ResponseEntity.ok(Map.of("success", true));</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Secure Implementation</h3>
+
+</code>`<code>java
+<p>@PostMapping("/purchase")</p>
+<p>public ResponseEntity<?> purchaseSecure(@RequestBody PurchaseRequest request) {</p>
+<p>    if (!botProtection.checkRateLimits(request.getUserId(), "purchase")) {</p>
+<p>        return ResponseEntity.status(429).body(Map.of("error", "Rate limit exceeded"));</p>
+<p>    }</p>
+    
+<p>    RiskAnalysis risk = botProtection.calculateRisk(request.getUserId());</p>
+<p>    if (risk.getScore() >= 50 && request.getCaptchaToken() == null) {</p>
+<p>        return ResponseEntity.status(202).body(Map.of("requires_verification", true));</p>
+<p>    }</p>
+    
+<p>    orderRepository.save(new Order(request));</p>
+<p>    return ResponseEntity.ok(Map.of("success", true));</p>
+<p>}</p>
+</code>`<code>
+
+<h2>ASP.NET Core (C#)</h2>
+
+<h3>Vulnerable Implementation</h3>
+
+</code>`<code>csharp
+<p>[HttpPost("purchase")]</p>
+<p>public IActionResult Purchase([FromBody] PurchaseRequest request) {</p>
+<p>    _context.Orders.Add(new Order(request));</p>
+<p>    _context.SaveChanges();</p>
+<p>    return Ok(new { success = true });</p>
+<p>}</p>
+</code>`<code>
+
+<h3>Secure Implementation</h3>
+
+</code>`<code>csharp
+<p>[HttpPost("purchase")]</p>
+<p>public async Task<IActionResult> PurchaseSecure([FromBody] PurchaseRequest request) {</p>
+<p>    if (!await _botProtection.CheckRateLimits(request.UserId, "purchase")) {</p>
+<p>        return StatusCode(429, new { error = "Rate limit exceeded" });</p>
+<p>    }</p>
+    
+<p>    var risk = await _botProtection.CalculateRisk(request.UserId);</p>
+<p>    if (risk.Score >= 50 && string.IsNullOrEmpty(request.CaptchaToken)) {</p>
+<p>        return StatusCode(202, new { requires_verification = true });</p>
+<p>    }</p>
+    
+<p>    _context.Orders.Add(new Order(request));</p>
+<p>    await _context.SaveChangesAsync();</p>
+<p>    return Ok(new { success = true });</p>
+<p>}</p>
+</code>``
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li>Implement multi-dimensional rate limiting</li>
+<li>Track behavioral patterns</li>
+<li>Use device fingerprinting</li>
+<li>Apply risk-based verification</li>
+<li>Monitor and alert on anomalies</li>
+</ol>
+
         </div>
     </div>
 </body>

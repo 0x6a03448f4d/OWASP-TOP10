@@ -215,7 +215,290 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>Broken Access Control - Overview</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#what-is-broken-access-control">What is Broken Access Control?</a></li>
+<li><a href="#why-does-this-matter">Why Does This Matter?</a></li>
+<li><a href="#technical-context">Technical Context</a></li>
+<li><a href="#real-world-impact">Real-World Impact</a></li>
+<li><a href="#prevalence-and-statistics">Prevalence and Statistics</a></li>
+<li><a href="#common-misunderstandings">Common Misunderstandings</a></li>
+</ul>
+
+<h2>What is Broken Access Control?</h2>
+
+<strong>Broken Access Control</strong> occurs when an application fails to properly enforce restrictions on what authenticated users are allowed to do. In simpler terms, users can access data or functionality they shouldn't have access to.
+
+<p>Access control enforces policy such that users cannot act outside of their intended permissions. Failures typically lead to:</p>
+
+<ul>
+<li><strong>Unauthorized information disclosure</strong>: Viewing sensitive data</li>
+<li><strong>Modification or destruction of data</strong>: Changing or deleting information</li>
+<li><strong>Performing unauthorized functions</strong>: Executing business functions outside permitted scope</li>
+</ul>
+
+<h3>Core Concept</h3>
+
+<p>At its heart, access control answers the question: <strong>"Who can do what?"</strong></p>
+
+<p>When this fundamental security mechanism breaks down, the consequences can be catastrophic:</p>
+
+<p>``<code></p>
+<p>User A (Regular User) → Should only access their own data</p>
+<p>User B (Admin) → Should access all data and administrative functions</p>
+
+<p>BROKEN ACCESS CONTROL = User A can access User B's functions or other users' data</p>
+</code>`<code>
+
+<h2>Why Does This Matter?</h2>
+
+<p>Broken Access Control moved to <strong>#1 position</strong> in the OWASP Top 10 2021 (from #5 in 2017), indicating it's the most common and critical vulnerability in modern web applications.</p>
+
+<h3>The Business Impact</h3>
+
+<ul>
+<li><strong>Data Breaches</strong>: Exposure of customer data, intellectual property, or trade secrets</li>
+<li><strong>Regulatory Fines</strong>: GDPR, CCPA, HIPAA violations can result in millions in fines</li>
+<li><strong>Reputation Damage</strong>: Loss of customer trust and brand value</li>
+<li><strong>Financial Loss</strong>: Direct theft, fraud, or business disruption</li>
+<li><strong>Legal Liability</strong>: Lawsuits from affected customers or partners</li>
+</ul>
+
+<h3>The Technical Impact</h3>
+
+<ul>
+<li><strong>Privilege Escalation</strong>: Regular users gain admin privileges</li>
+<li><strong>Horizontal Access</strong>: Users access other users' data at the same privilege level</li>
+<li><strong>Vertical Access</strong>: Users access higher privilege functionality</li>
+<li><strong>Direct Object References</strong>: Manipulation of IDs to access unauthorized resources</li>
+</ul>
+
+<h2>Technical Context</h2>
+
+<h3>Authentication vs Authorization</h3>
+
+<p>It's critical to understand the difference:</p>
+
+<p>| Authentication | Authorization |</p>
+<p>|----------------|---------------|</p>
+<p>| <strong>Who are you?</strong> | <strong>What can you do?</strong> |</p>
+<p>| Verifying identity | Verifying permissions |</p>
+<p>| Login, passwords, 2FA | Roles, permissions, ACLs |</p>
+<p>| Happens once per session | Checked for every action |</p>
+
+<strong>Broken Access Control is an AUTHORIZATION problem</strong>, not authentication.
+
+<p>Even with perfect authentication, you can have broken access control:</p>
+<ul>
+<li>✅ User successfully logs in (authentication works)</li>
+<li>❌ User accesses admin panel (authorization fails)</li>
+</ul>
+
+<h3>Where Access Control Can Break</h3>
+
+</code>`<code>mermaid
+<p>graph TD</p>
+<p>    A[Client Request] --> B{Frontend Check?}</p>
+<p>    B -->|Hidden Buttons| C[INSECURE: Client-side only]</p>
+<p>    B -->|Proper| D[Backend Validation]</p>
+<p>    D --> E{Role Check?}</p>
+<p>    E -->|Missing| F[INSECURE: No authorization]</p>
+<p>    E -->|Present| G{Correct Implementation?}</p>
+<p>    G -->|URL manipulation works| H[INSECURE: Broken logic]</p>
+<p>    G -->|Secure| I[Access Granted/Denied]</p>
+</code>`<code>
+
+<p>Access control can fail at multiple layers:</p>
+
+<ol>
+<li><strong>Client-Side Only</strong>: Hiding buttons/links without backend enforcement</li>
+<li><strong>Missing Checks</strong>: No authorization logic at all</li>
+<li><strong>Incomplete Checks</strong>: Only checking some endpoints</li>
+<li><strong>Flawed Logic</strong>: Incorrect permission evaluation</li>
+<li><strong>Insecure Direct Object References</strong>: Predictable resource IDs without validation</li>
+</ol>
+
+<h2>Real-World Impact</h2>
+
+<h3>Case Study 1: Facebook (2018)</h3>
+<strong>Vulnerability</strong>: Access token exposure allowed attackers to access 50 million accounts  
+<strong>Impact</strong>: $5 billion FTC fine, massive reputation damage  
+<strong>Root Cause</strong>: Broken access control in "View As" feature
+
+<h3>Case Study 2: Equifax (2017)</h3>
+<strong>Vulnerability</strong>: Broken access control allowed unauthorized database queries  
+<strong>Impact</strong>: 147 million records exposed, $700 million settlement  
+<strong>Root Cause</strong>: Inadequate access controls on sensitive data
+
+<h3>Case Study 3: Instagram (2019)</h3>
+<strong>Vulnerability</strong>: API allowed access to private account data  
+<strong>Impact</strong>: Millions of accounts scraped, user privacy violated  
+<strong>Root Cause</strong>: Missing authorization checks on API endpoints
+
+<h3>Common Attack Scenarios</h3>
+
+<h4>Scenario 1: URL Manipulation</h4>
+</code>`<code>
+<p>Normal user accesses:</p>
+<p>https://example.com/account?user_id=12345</p>
+
+<p>Attacker modifies URL:</p>
+<p>https://example.com/account?user_id=12346</p>
+<p>→ Gains access to another user's account!</p>
+</code>`<code>
+
+<h4>Scenario 2: Function Level Access</h4>
+</code>`<code>
+<p>Regular user discovers admin URL:</p>
+<p>https://example.com/admin/delete_user?id=999</p>
+
+<p>No role check implemented:</p>
+<p>→ Regular user can delete other users!</p>
+</code>`<code>
+
+<h4>Scenario 3: API Abuse</h4>
+</code>`<code>
+<p>Mobile app uses API endpoint:</p>
+<p>POST /api/v1/user/12345/promote</p>
+
+<p>No server-side role validation:</p>
+<p>→ User promotes themselves to admin!</p>
+</code>`<code>
+
+<h4>Scenario 4: Hidden UI Elements</h4>
+</code>`<code>
+<p>Admin button hidden with CSS:</p>
+<button id="admin-panel" style="display:none">
+
+<p>User inspects HTML and clicks:</p>
+<p>→ Accesses admin functionality!</p>
+</code>`<code>
+
+<h2>Prevalence and Statistics</h2>
+
+<h3>OWASP Top 10 2021 Data</h3>
+
+<ul>
+<li><strong>94%</strong> of applications tested had some form of broken access control</li>
+<li><strong>#1</strong> most common vulnerability category</li>
+<li><strong>318,000+</strong> occurrences in the dataset analyzed</li>
+<li>Average incidence rate: <strong>3.81%</strong> of applications</li>
+<li>Maximum incidence rate: <strong>55.97%</strong> in some industry sectors</li>
+</ul>
+
+<h3>Common Weakness Enumeration (CWE) Mappings</h3>
+
+<p>Broken Access Control maps to 34 different CWEs, including:</p>
+
+<ul>
+<li><strong>CWE-200</strong>: Exposure of Sensitive Information</li>
+<li><strong>CWE-201</strong>: Insertion of Sensitive Information Into Sent Data</li>
+<li><strong>CWE-352</strong>: Cross-Site Request Forgery (CSRF)</li>
+<li><strong>CWE-359</strong>: Exposure of Private Personal Information</li>
+<li><strong>CWE-639</strong>: Insecure Direct Object Reference (IDOR)</li>
+<li><strong>CWE-284</strong>: Improper Access Control</li>
+<li><strong>CWE-285</strong>: Improper Authorization</li>
+<li><strong>CWE-732</strong>: Incorrect Permission Assignment</li>
+</ul>
+
+<h3>Industry Impact</h3>
+
+<p>Different industries face varying levels of risk:</p>
+
+<p>| Industry | Risk Level | Common Targets |</p>
+<p>|----------|------------|----------------|</p>
+<p>| Healthcare | Critical | Patient records (HIPAA) |</p>
+<p>| Financial | Critical | Account data, transactions |</p>
+<p>| E-commerce | High | Customer data, orders |</p>
+<p>| SaaS | High | Multi-tenant data |</p>
+<p>| Government | Critical | Citizen information |</p>
+<p>| Education | Medium | Student records (FERPA) |</p>
+
+<h2>Common Misunderstandings</h2>
+
+<h3>Myth 1: "Authentication = Security"</h3>
+<strong>Reality</strong>: Authentication only proves identity. Authorization determines what that identity can do.
+
+</code>`<code>python
+<h1>NOT ENOUGH:</h1>
+<p>@app.route('/admin')</p>
+<p>def admin_panel():</p>
+<p>    if current_user.is_authenticated:  # Only checks if logged in</p>
+<p>        return render_template('admin.html')</p>
+    
+<h1>CORRECT:</h1>
+<p>@app.route('/admin')</p>
+<p>def admin_panel():</p>
+<p>    if current_user.is_authenticated and current_user.is_admin:  # Checks role</p>
+<p>        return render_template('admin.html')</p>
+<p>    else:</p>
+<p>        abort(403)  # Forbidden</p>
+</code>`<code>
+
+<h3>Myth 2: "Hidden = Secure"</h3>
+<strong>Reality</strong>: Hiding UI elements or URLs does NOT prevent access. Security through obscurity is not security.
+
+</code>`<code>html
+<!-- INSECURE: Button is hidden but endpoint is accessible -->
+<p>{% if user.is_admin %}</p>
+  <button onclick="deleteUser()">Delete User</button>
+<p>{% endif %}</p>
+
+<!-- The endpoint /api/delete-user is still accessible to anyone! -->
+</code>`<code>
+
+<h3>Myth 3: "Frontend Validation is Enough"</h3>
+<strong>Reality</strong>: All authorization must happen on the server. Clients can be manipulated.
+
+</code>`<code>javascript
+<p>// INSECURE: Client-side check only</p>
+<p>if (userRole === 'admin') {</p>
+<p>    fetch('/api/sensitive-data');  // Anyone can call this!</p>
+<p>}</p>
+
+<p>// SECURE: Server validates every request</p>
+<p>// Client calls API, server checks role before responding</p>
+</code>`<code>
+
+<h3>Myth 4: "We Use HTTPS, So We're Safe"</h3>
+<strong>Reality</strong>: HTTPS encrypts data in transit but doesn't enforce access control.
+
+</code>`<code>
+<p>HTTPS protects: Data from being intercepted</p>
+<p>HTTPS does NOT protect: Unauthorized access to endpoints</p>
+</code>``
+
+<h3>Myth 5: "APIs Don't Need Access Control"</h3>
+<strong>Reality</strong>: APIs are often MORE vulnerable because they're designed for programmatic access.
+
+<p>Mobile apps, SPAs, and third-party integrations all use APIs that MUST have robust access control.</p>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li>✅ <strong>Access control must be enforced on the server-side</strong> - Never trust the client</li>
+<li>✅ <strong>Deny by default</strong> - Start with no access, explicitly grant permissions</li>
+<li>✅ <strong>Check authorization for EVERY request</strong> - Not just on page load</li>
+<li>✅ <strong>Use centralized access control mechanisms</strong> - Don't scatter checks throughout code</li>
+<li>✅ <strong>Log access control failures</strong> - Monitor for attack attempts</li>
+<li>✅ <strong>Test thoroughly</strong> - Include authorization testing in your security testing</li>
+</ol>
+
+<h2>What's Next?</h2>
+
+<ul>
+<li><strong><a href="./attack-vectors.md">Attack Vectors</a></strong>: Learn how attackers exploit broken access control</li>
+<li><strong><a href="./prevention.md">Prevention</a></strong>: Best practices and secure coding patterns</li>
+<li><strong><a href="./examples.md">Examples</a></strong>: Code examples showing vulnerable vs secure implementations</li>
+<li><strong><a href="./lab/broken-access-control-adminbutton/">Lab</a></strong>: Hands-on practice with a safe, isolated environment</li>
+</ul>
+
+<p>---</p>
+
+<em>Part of the <a href="../../README.md">OWASP Top 10 Educational Repository</a></em>
+
         </div>
     </div>
 </body>

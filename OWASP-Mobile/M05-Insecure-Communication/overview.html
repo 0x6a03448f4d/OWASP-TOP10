@@ -215,7 +215,349 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>M05: Insecure Communication - Overview</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#what-is-insecure-communication">What is Insecure Communication?</a></li>
+<li><a href="#why-does-this-matter">Why Does This Matter?</a></li>
+<li><a href="#technical-context">Technical Context</a></li>
+<li><a href="#real-world-impact">Real-World Impact</a></li>
+<li><a href="#prevalence-and-statistics">Prevalence and Statistics</a></li>
+<li><a href="#common-misunderstandings">Common Misunderstandings</a></li>
+</ul>
+
+<h2>What is Insecure Communication?</h2>
+
+<strong>Insecure Communication</strong> occurs when mobile applications transmit sensitive data over unencrypted or improperly secured channels. This includes using unencrypted protocols (HTTP instead of HTTPS), weak TLS configurations, improper certificate validation, and cleartext transmission of authentication credentials or personal information.
+
+<p>Mobile applications constantly communicate with backend servers, third-party APIs, and other network services. Each communication channel represents a potential attack surface where sensitive data can be intercepted, modified, or stolen.</p>
+
+<h3>Core Concept</h3>
+
+<p>Network communication in mobile environments faces unique challenges:</p>
+
+<p>``<code></p>
+<p>Mobile App → Public WiFi/Cellular → Internet → Backend Server</p>
+<p>     ↓</p>
+<p>Unencrypted HTTP Traffic → Intercepted by Attacker → Data Stolen</p>
+<p>     ↓</p>
+<p>User Credentials & Sensitive Data Compromised</p>
+</code>`<code>
+
+<h3>Key Vulnerability Points</h3>
+
+<ol>
+<li><strong>Cleartext Protocols</strong>: Using HTTP instead of HTTPS for sensitive data</li>
+<li><strong>Weak TLS Configuration</strong>: Using outdated TLS versions (TLS 1.0, 1.1) or weak cipher suites</li>
+<li><strong>Certificate Validation Issues</strong>: Accepting self-signed certificates or disabling validation</li>
+<li><strong>Mixed Content</strong>: Loading insecure resources over HTTPS connections</li>
+<li><strong>Insecure Fallback</strong>: Downgrading to HTTP when HTTPS fails</li>
+<li><strong>Insufficient Transport Layer Security</strong>: Weak SSL/TLS implementation</li>
+</ol>
+
+<h2>Why Does This Matter?</h2>
+
+<h3>The Business Impact</h3>
+
+<ul>
+<li><strong>Data Breaches</strong>: Intercepted communications expose user credentials and personal data</li>
+<li><strong>Man-in-the-Middle Attacks</strong>: Attackers intercept and modify communications</li>
+<li><strong>Regulatory Violations</strong>: GDPR, HIPAA, PCI-DSS require encrypted transmission</li>
+<li><strong>Reputation Damage</strong>: Security incidents erode customer trust</li>
+<li><strong>Financial Loss</strong>: Fines, legal fees, and remediation costs</li>
+</ul>
+
+<h3>The Technical Risk</h3>
+
+<p>When applications transmit data insecurely:</p>
+<ul>
+<li><strong>Credentials Stolen</strong>: Login credentials intercepted in transit</li>
+<li><strong>Session Hijacking</strong>: Session tokens captured and replayed</li>
+<li><strong>Data Tampering</strong>: Responses modified before reaching the app</li>
+<li><strong>Privacy Violation</strong>: Personal information exposed to eavesdroppers</li>
+<li><strong>API Key Exposure</strong>: Authentication keys transmitted in cleartext</li>
+</ul>
+
+<h2>Technical Context</h2>
+
+<h3>Normal vs. Vulnerable Communication</h3>
+
+<strong>Secure Communication Flow:</strong>
+</code>`<code>
+<p>Mobile App → HTTPS/TLS 1.3 → Certificate Validation → Backend API</p>
+<p>           ↓</p>
+<p>        Encrypted Data (AES-256-GCM)</p>
+<p>           ↓</p>
+<p>        No Interception Possible</p>
+</code>`<code>
+
+<strong>Vulnerable Communication Flow:</strong>
+</code>`<code>
+<p>Mobile App → HTTP (Cleartext) → Public Network → Backend API</p>
+<p>           ↓</p>
+<p>        Unencrypted Data</p>
+<p>           ↓</p>
+<p>        Attacker Intercepts with Wireshark/mitmproxy</p>
+<p>           ↓</p>
+<p>        Credentials & Data Stolen</p>
+</code>`<code>
+
+<h3>Common Scenarios</h3>
+
+<ol>
+<li><strong>No HTTPS Usage</strong></li>
+</ol>
+</code>`<code>java
+<p>// VULNERABLE: Using HTTP instead of HTTPS</p>
+<p>String apiUrl = "http://api.example.com/login";</p>
+<p>HttpURLConnection connection = (HttpURLConnection) new URL(apiUrl).openConnection();</p>
+</code>`<code>
+
+<ol>
+<li><strong>Disabled Certificate Validation</strong></li>
+</ol>
+</code>`<code>java
+<p>// VULNERABLE: Accepting all certificates</p>
+<p>TrustManager[] trustAllCerts = new TrustManager[] {</p>
+<p>    new X509TrustManager() {</p>
+<p>        public void checkClientTrusted(X509Certificate[] chain, String authType) {}</p>
+<p>        public void checkServerTrusted(X509Certificate[] chain, String authType) {}</p>
+<p>        public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[0]; }</p>
+<p>    }</p>
+<p>};</p>
+</code>`<code>
+
+<ol>
+<li><strong>Weak TLS Configuration</strong></li>
+</ol>
+</code>`<code>java
+<p>// VULNERABLE: Allowing weak protocols</p>
+<p>SSLContext sslContext = SSLContext.getInstance("SSL"); // Should use TLS 1.2+</p>
+</code>`<code>
+
+<h3>Attack Vectors</h3>
+
+<strong>Man-in-the-Middle (MITM) Attacks:</strong>
+<ul>
+<li>Attacker positions themselves between mobile app and server</li>
+<li>Intercepts and potentially modifies traffic</li>
+<li>Common on public WiFi networks</li>
+</ul>
+
+<strong>Packet Sniffing:</strong>
+<ul>
+<li>Tools like Wireshark capture unencrypted network traffic</li>
+<li>Credentials and sensitive data extracted from packets</li>
+<li>Works on any shared network</li>
+</ul>
+
+<strong>SSL Stripping:</strong>
+<ul>
+<li>Attacker downgrades HTTPS connections to HTTP</li>
+<li>User sees "secure" interface but traffic is intercepted</li>
+<li>Prevented by HSTS and certificate pinning</li>
+</ul>
+
+<h2>Real-World Impact</h2>
+
+<h3>Case Study 1: Banking App Credential Theft</h3>
+
+<p>A mobile banking application used HTTPS for login but fell back to HTTP for certain API calls. Attackers on public WiFi:</p>
+<ul>
+<li>Intercepted session tokens transmitted over HTTP</li>
+<li>Gained unauthorized access to user accounts</li>
+<li>Initiated fraudulent transactions</li>
+</ul>
+
+<strong>Impact:</strong>
+<ul>
+<li>50,000+ accounts compromised</li>
+<li>$2.3 million in fraudulent transactions</li>
+<li>Regulatory fines of $5 million</li>
+<li>Class-action lawsuit</li>
+</ul>
+
+<h3>Case Study 2: Healthcare Data Exposure</h3>
+
+<p>A health tracking app transmitted patient data over HTTP:</p>
+<ul>
+<li>Medical records exposed on public networks</li>
+<li>HIPAA violation resulted in $4.3 million fine</li>
+<li>Reputation damage led to 60% user churn</li>
+</ul>
+
+<h3>Case Study 3: E-Commerce Payment Interception</h3>
+
+<p>A shopping app with disabled certificate validation:</p>
+<ul>
+<li>Attackers used fake certificates to intercept traffic</li>
+<li>Credit card numbers and CVV codes stolen</li>
+<li>PCI-DSS violation and service suspension</li>
+</ul>
+
+<h2>Prevalence and Statistics</h2>
+
+<h3>Industry Research Findings</h3>
+
+<ul>
+<li><strong>65%</strong> of mobile apps transmit sensitive data over insecure channels (Verizon DBIR 2023)</li>
+<li><strong>42%</strong> accept invalid SSL/TLS certificates (OWASP Mobile Security Testing Guide)</li>
+<li><strong>38%</strong> use outdated TLS versions (TLS 1.0/1.1) (Ponemon Institute 2023)</li>
+<li><strong>23%</strong> mix HTTP and HTTPS content (AppSec Labs Research)</li>
+</ul>
+
+<h3>Common Patterns Observed</h3>
+
+<ol>
+<li><strong>Development Shortcuts</strong>: Using HTTP during development, forgetting to switch to HTTPS</li>
+<li><strong>Certificate Pinning Issues</strong>: Disabling validation to avoid maintenance overhead</li>
+<li><strong>Legacy API Support</strong>: Maintaining HTTP endpoints for backward compatibility</li>
+<li><strong>Third-Party SDKs</strong>: Using libraries that don't enforce HTTPS</li>
+<li><strong>Cost Reduction</strong>: Avoiding HTTPS to reduce certificate costs</li>
+</ol>
+
+<h2>Common Misunderstandings</h2>
+
+<h3>Myth 1: "My API is Internal, So HTTP is Safe"</h3>
+<strong>Reality</strong>: Internal networks can be compromised. Mobile devices move between networks. Always use HTTPS.
+
+<h3>Myth 2: "Certificate Pinning is Too Complex"</h3>
+<strong>Reality</strong>: Modern frameworks make pinning straightforward. The security benefit far outweighs implementation effort.
+
+<h3>Myth 3: "Only Login Needs HTTPS"</h3>
+<strong>Reality</strong>: Session tokens, personal data, and even metadata need protection. Use HTTPS everywhere.
+
+<h3>Myth 4: "VPN Protects Me"</h3>
+<strong>Reality</strong>: VPNs add a layer but apps should implement end-to-end encryption regardless of network.
+
+<h3>Myth 5: "Self-Signed Certificates are Acceptable in Production"</h3>
+<strong>Reality</strong>: Self-signed certificates train users to accept security warnings and enable MITM attacks.
+
+<h3>Myth 6: "TLS 1.0 is Good Enough"</h3>
+<strong>Reality</strong>: TLS 1.0 and 1.1 have known vulnerabilities (BEAST, POODLE). Use TLS 1.2 or 1.3.
+
+<h2>The Mobile-Specific Challenge</h2>
+
+<p>Mobile environments present unique communication security challenges:</p>
+
+<h3>Network Mobility</h3>
+<ul>
+<li>Apps switch between WiFi, cellular, and public networks</li>
+<li>Each network has different security postures</li>
+<li>Attacks are easier on public WiFi</li>
+</ul>
+
+<h3>Resource Constraints</h3>
+<ul>
+<li>Battery and performance concerns sometimes discourage encryption</li>
+<li>This is a false trade-off—modern TLS has minimal overhead</li>
+</ul>
+
+<h3>User Behavior</h3>
+<ul>
+<li>Users frequently connect to untrusted networks</li>
+<li>Mobile users are more likely to ignore security warnings</li>
+<li>Apps must enforce security regardless of user choices</li>
+</ul>
+
+<h2>Detection and Testing</h2>
+
+<h3>How to Identify Insecure Communication</h3>
+
+<strong>Static Analysis:</strong>
+<ul>
+<li>Search code for </code>http://` URLs</li>
+<li>Check for TrustManager implementations</li>
+<li>Look for HostnameVerifier customizations</li>
+<li>Review SSL/TLS context configurations</li>
+</ul>
+
+<strong>Dynamic Analysis:</strong>
+<ul>
+<li>Use proxy tools (Burp Suite, mitmproxy, Charles Proxy)</li>
+<li>Attempt certificate substitution</li>
+<li>Monitor network traffic with Wireshark</li>
+<li>Test on various network conditions</li>
+</ul>
+
+<strong>Automated Testing:</strong>
+<ul>
+<li>Mobile security scanners (MobSF, QARK)</li>
+<li>Network security analyzers</li>
+<li>SSL/TLS testing tools (testssl.sh, SSLyze)</li>
+</ul>
+
+<h2>Risk Assessment</h2>
+
+<h3>Severity: <strong>HIGH</strong></h3>
+
+<strong>Likelihood</strong>: High (Easy to exploit on public networks)  
+<strong>Impact</strong>: High (Credentials, PII, financial data exposed)  
+<strong>Detectability</strong>: High (Simple tools can identify vulnerabilities)  
+<strong>Exploitability</strong>: High (MITM attacks well-documented)
+
+<h3>CVSS Score Factors</h3>
+<ul>
+<li>Attack Vector: Network (N)</li>
+<li>Attack Complexity: Low (L)</li>
+<li>Privileges Required: None (N)</li>
+<li>User Interaction: None (N)</li>
+<li>Confidentiality Impact: High (H)</li>
+<li>Integrity Impact: High (H)</li>
+</ul>
+
+<h2>Compliance and Regulatory Considerations</h2>
+
+<h3>Regulatory Requirements</h3>
+
+<strong>GDPR (General Data Protection Regulation)</strong>
+<ul>
+<li>Article 32: Requires encryption of personal data in transit</li>
+<li>Failure to encrypt can result in fines up to 4% of annual revenue</li>
+</ul>
+
+<strong>HIPAA (Health Insurance Portability and Accountability Act)</strong>
+<ul>
+<li>Requires encryption of Protected Health Information (PHI)</li>
+<li>Both in transit and at rest</li>
+</ul>
+
+<strong>PCI-DSS (Payment Card Industry Data Security Standard)</strong>
+<ul>
+<li>Requirement 4.1: Use strong cryptography for cardholder data transmission</li>
+<li>Prohibits sending PAN (Primary Account Number) over unencrypted channels</li>
+</ul>
+
+<strong>SOC 2</strong>
+<ul>
+<li>Requires encryption for data in transit</li>
+<li>Must use industry-standard protocols (TLS 1.2+)</li>
+</ul>
+
+<h2>Summary</h2>
+
+<p>Insecure communication is a critical vulnerability that exposes mobile applications to data interception, credential theft, and man-in-the-middle attacks. With the prevalence of public WiFi and the mobile nature of devices, ensuring secure communication through proper HTTPS implementation, strong TLS configuration, and certificate validation is non-negotiable for any application handling sensitive data.</p>
+
+<p>The solution requires:</p>
+<ul>
+<li>Mandatory HTTPS for all communications</li>
+<li>Proper TLS configuration (1.2 or 1.3)</li>
+<li>Certificate validation and pinning</li>
+<li>No cleartext transmission of sensitive data</li>
+<li>Regular security testing and monitoring</li>
+</ul>
+
+<p>---</p>
+
+<strong>Next Steps:</strong>
+<ul>
+<li>Review <a href="./attack-vectors.md">Attack Vectors</a> for detailed exploitation scenarios</li>
+<li>Study <a href="./prevention.md">Prevention Strategies</a> for secure implementation</li>
+<li>Examine <a href="./examples.md">Code Examples</a> for vulnerable vs. secure patterns</li>
+<li>Complete the <a href="./lab/">Hands-on Lab</a> to practice identification and remediation</li>
+</ul>
+
         </div>
     </div>
 </body>

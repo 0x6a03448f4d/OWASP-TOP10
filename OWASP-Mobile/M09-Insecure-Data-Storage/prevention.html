@@ -215,7 +215,1210 @@
         </a>
         
         <div class="content">
-{CONTENT}
+            <h1>M09: Insecure Data Storage - Prevention</h1>
+
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#prevention-strategy-overview">Prevention Strategy Overview</a></li>
+<li><a href="#android-secure-storage">Android Secure Storage</a></li>
+<li><a href="#ios-secure-storage">iOS Secure Storage</a></li>
+<li><a href="#database-encryption">Database Encryption</a></li>
+<li><a href="#file-encryption">File Encryption</a></li>
+<li><a href="#backup-protection">Backup Protection</a></li>
+<li><a href="#additional-security-measures">Additional Security Measures</a></li>
+</ul>
+
+<h2>Prevention Strategy Overview</h2>
+
+<p>Securing data storage on mobile devices requires a multi-layered approach:</p>
+
+<p>``<code></p>
+<p>Defense Layer 1: Minimize Data Storage</p>
+<p>    ↓</p>
+<p>Defense Layer 2: Use Platform Secure Storage (Keychain/KeyStore)</p>
+<p>    ↓</p>
+<p>Defense Layer 3: Encrypt Databases and Files</p>
+<p>    ↓</p>
+<p>Defense Layer 4: Exclude Sensitive Data from Backups</p>
+<p>    ↓</p>
+<p>Defense Layer 5: Clear Data When No Longer Needed</p>
+<p>    ↓</p>
+<p>Defense Layer 6: Implement Additional Protections</p>
+</code>`<code>
+
+<h3>Core Principles</h3>
+
+<ol>
+<li><strong>Minimize Storage</strong>: Don't store what you don't absolutely need</li>
+<li><strong>Use Platform APIs</strong>: Leverage built-in secure storage mechanisms</li>
+<li><strong>Encrypt Everything</strong>: Assume device will be compromised</li>
+<li><strong>Exclude from Backups</strong>: Sensitive data should never be in backups</li>
+<li><strong>Implement Expiration</strong>: Automatically clear old sensitive data</li>
+<li><strong>Defense in Depth</strong>: Multiple security layers</li>
+</ol>
+
+<h2>Android Secure Storage</h2>
+
+<h3>1. Android Keystore System</h3>
+
+<strong>Purpose</strong>: Securely store cryptographic keys in hardware-backed storage.
+
+<strong>✅ Secure Implementation</strong>:
+
+</code>`<code>java
+<p>import android.security.keystore.KeyGenParameterSpec;</p>
+<p>import android.security.keystore.KeyProperties;</p>
+<p>import java.security.KeyStore;</p>
+<p>import javax.crypto.KeyGenerator;</p>
+<p>import javax.crypto.SecretKey;</p>
+
+<p>public class KeystoreManager {</p>
+<p>    private static final String KEY_ALIAS = "MyAppEncryptionKey";</p>
+<p>    private static final String ANDROID_KEYSTORE = "AndroidKeyStore";</p>
+    
+<p>    /**</p>
+<ul>
+<li>Generate a new encryption key in Android Keystore</li>
+</ul>
+<p>     */</p>
+<p>    public SecretKey generateKey() throws Exception {</p>
+<p>        KeyGenerator keyGenerator = KeyGenerator.getInstance(</p>
+<p>            KeyProperties.KEY_ALGORITHM_AES, </p>
+<p>            ANDROID_KEYSTORE</p>
+<p>        );</p>
+        
+<p>        KeyGenParameterSpec keyGenParameterSpec = new KeyGenParameterSpec.Builder(</p>
+<p>            KEY_ALIAS,</p>
+<p>            KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT</p>
+<p>        )</p>
+<p>        .setBlockModes(KeyProperties.BLOCK_MODE_GCM)</p>
+<p>        .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)</p>
+<p>        .setKeySize(256)</p>
+<p>        // Require user authentication for key use</p>
+<p>        .setUserAuthenticationRequired(true)</p>
+<p>        .setUserAuthenticationValidityDurationSeconds(300) // 5 minutes</p>
+<p>        .build();</p>
+        
+<p>        keyGenerator.init(keyGenParameterSpec);</p>
+<p>        return keyGenerator.generateKey();</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Retrieve existing key from Keystore</li>
+</ul>
+<p>     */</p>
+<p>    public SecretKey getKey() throws Exception {</p>
+<p>        KeyStore keyStore = KeyStore.getInstance(ANDROID_KEYSTORE);</p>
+<p>        keyStore.load(null);</p>
+        
+<p>        if (!keyStore.containsAlias(KEY_ALIAS)) {</p>
+<p>            return generateKey();</p>
+<p>        }</p>
+        
+<p>        return (SecretKey) keyStore.getKey(KEY_ALIAS, null);</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Key Benefits</strong>:
+<ul>
+<li>Hardware-backed security on supported devices</li>
+<li>Keys never leave secure hardware</li>
+<li>Can require biometric authentication</li>
+<li>Resistant to extraction even on rooted devices</li>
+</ul>
+
+<h3>2. EncryptedSharedPreferences</h3>
+
+<strong>Purpose</strong>: Encrypted key-value storage (replacement for plain SharedPreferences).
+
+<strong>✅ Secure Implementation</strong>:
+
+</code>`<code>kotlin
+<p>import androidx.security.crypto.EncryptedSharedPreferences</p>
+<p>import androidx.security.crypto.MasterKey</p>
+
+<p>class SecurePreferences(context: Context) {</p>
+    
+<p>    private val masterKey = MasterKey.Builder(context)</p>
+<p>        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)</p>
+<p>        .build()</p>
+    
+<p>    private val sharedPreferences = EncryptedSharedPreferences.create(</p>
+<p>        context,</p>
+<p>        "secure_prefs",</p>
+<p>        masterKey,</p>
+<p>        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,</p>
+<p>        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM</p>
+<p>    )</p>
+    
+<p>    /**</p>
+<ul>
+<li>Store authentication token securely</li>
+</ul>
+<p>     */</p>
+<p>    fun saveAuthToken(token: String) {</p>
+<p>        sharedPreferences.edit()</p>
+<p>            .putString("auth_token", token)</p>
+<p>            .apply()</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Retrieve authentication token</li>
+</ul>
+<p>     */</p>
+<p>    fun getAuthToken(): String? {</p>
+<p>        return sharedPreferences.getString("auth_token", null)</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Store user credentials (for "Remember Me" feature)</li>
+</ul>
+<p>     */</p>
+<p>    fun saveCredentials(email: String, encryptedPassword: String) {</p>
+<p>        sharedPreferences.edit()</p>
+<p>            .putString("user_email", email)</p>
+<p>            .putString("user_password", encryptedPassword)</p>
+<p>            .apply()</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Clear all sensitive data</li>
+</ul>
+<p>     */</p>
+<p>    fun clearAll() {</p>
+<p>        sharedPreferences.edit().clear().apply()</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Usage Example</strong>:
+</code>`<code>kotlin
+<p>// In your Activity or Fragment</p>
+<p>val securePrefs = SecurePreferences(context)</p>
+
+<p>// Save token</p>
+<p>securePrefs.saveAuthToken("eyJhbGciOiJIUzI1NiIs...")</p>
+
+<p>// Retrieve token</p>
+<p>val token = securePrefs.getAuthToken()</p>
+
+<p>// Clear on logout</p>
+<p>securePrefs.clearAll()</p>
+</code>`<code>
+
+<strong>❌ Insecure - Plain SharedPreferences</strong>:
+</code>`<code>kotlin
+<p>// NEVER do this for sensitive data</p>
+<p>val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)</p>
+<p>prefs.edit()</p>
+<p>    .putString("auth_token", token)  // STORED IN PLAIN TEXT!</p>
+<p>    .apply()</p>
+</code>`<code>
+
+<h3>3. EncryptedFile API</h3>
+
+<strong>Purpose</strong>: Encrypt individual files transparently.
+
+<strong>✅ Secure Implementation</strong>:
+
+</code>`<code>kotlin
+<p>import androidx.security.crypto.EncryptedFile</p>
+<p>import androidx.security.crypto.MasterKey</p>
+<p>import java.io.File</p>
+
+<p>class SecureFileStorage(private val context: Context) {</p>
+    
+<p>    private val masterKey = MasterKey.Builder(context)</p>
+<p>        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)</p>
+<p>        .build()</p>
+    
+<p>    /**</p>
+<ul>
+<li>Write encrypted file</li>
+</ul>
+<p>     */</p>
+<p>    fun writeEncryptedFile(filename: String, data: ByteArray) {</p>
+<p>        val file = File(context.filesDir, filename)</p>
+        
+<p>        val encryptedFile = EncryptedFile.Builder(</p>
+<p>            context,</p>
+<p>            file,</p>
+<p>            masterKey,</p>
+<p>            EncryptedFile.FileEncryptionScheme.AES256_GCM_HKDF_4KB</p>
+<p>        ).build()</p>
+        
+<p>        encryptedFile.openFileOutput().use { output -></p>
+<p>            output.write(data)</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Read encrypted file</li>
+</ul>
+<p>     */</p>
+<p>    fun readEncryptedFile(filename: String): ByteArray {</p>
+<p>        val file = File(context.filesDir, filename)</p>
+        
+<p>        val encryptedFile = EncryptedFile.Builder(</p>
+<p>            context,</p>
+<p>            file,</p>
+<p>            masterKey,</p>
+<p>            EncryptedFile.FileEncryptionScheme.AES256_GCM_HKDF_4KB</p>
+<p>        ).build()</p>
+        
+<p>        return encryptedFile.openFileInput().use { input -></p>
+<p>            input.readBytes()</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Usage Example</strong>:
+</code>`<code>kotlin
+<p>val storage = SecureFileStorage(context)</p>
+
+<p>// Write sensitive document</p>
+<p>val sensitiveData = "User's private information".toByteArray()</p>
+<p>storage.writeEncryptedFile("user_data.enc", sensitiveData)</p>
+
+<p>// Read it back</p>
+<p>val decrypted = storage.readEncryptedFile("user_data.enc")</p>
+<p>val originalData = String(decrypted)</p>
+</code>`<code>
+
+<h3>4. Room Database with SQLCipher</h3>
+
+<strong>Purpose</strong>: Encrypt entire SQLite database.
+
+<strong>✅ Secure Implementation</strong>:
+
+<strong>build.gradle</strong>:
+</code>`<code>gradle
+<p>dependencies {</p>
+<p>    implementation "androidx.room:room-runtime:2.5.0"</p>
+<p>    implementation "net.zetetic:android-database-sqlcipher:4.5.4"</p>
+<p>    implementation "androidx.sqlite:sqlite-ktx:2.3.0"</p>
+<p>    kapt "androidx.room:room-compiler:2.5.0"</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Database Setup</strong>:
+</code>`<code>kotlin
+<p>import android.util.Base64</p>
+<p>import androidx.room.Database</p>
+<p>import androidx.room.Room</p>
+<p>import androidx.room.RoomDatabase</p>
+<p>import net.sqlcipher.database.SQLiteDatabase</p>
+<p>import net.sqlcipher.database.SupportFactory</p>
+<p>import java.security.SecureRandom</p>
+
+<p>@Database(entities = [User::class, Transaction::class], version = 1)</p>
+<p>abstract class AppDatabase : RoomDatabase() {</p>
+<p>    abstract fun userDao(): UserDao</p>
+<p>    abstract fun transactionDao(): TransactionDao</p>
+<p>}</p>
+
+<p>class DatabaseManager(private val context: Context) {</p>
+    
+<p>    /**</p>
+<ul>
+<li>Create encrypted database</li>
+</ul>
+<p>     */</p>
+<p>    fun createEncryptedDatabase(): AppDatabase {</p>
+<p>        // Generate or retrieve encryption key from Keystore</p>
+<p>        val passphrase = getOrCreateDatabaseKey()</p>
+<p>        val factory = SupportFactory(SQLiteDatabase.getBytes(passphrase))</p>
+        
+<p>        return Room.databaseBuilder(</p>
+<p>            context,</p>
+<p>            AppDatabase::class.java,</p>
+<p>            "app_database"</p>
+<p>        )</p>
+<p>        .openHelperFactory(factory)</p>
+<p>        .build()</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Get database encryption key from secure storage</li>
+</ul>
+<p>     */</p>
+<p>    private fun getOrCreateDatabaseKey(): CharArray {</p>
+<p>        val securePrefs = SecurePreferences(context)</p>
+<p>        var key = securePrefs.getDatabaseKey()</p>
+        
+<p>        if (key == null) {</p>
+<p>            // Generate new 256-bit key</p>
+<p>            key = generateSecureRandomKey()</p>
+<p>            securePrefs.saveDatabaseKey(key)</p>
+<p>        }</p>
+        
+<p>        return key.toCharArray()</p>
+<p>    }</p>
+    
+<p>    private fun generateSecureRandomKey(): String {</p>
+<p>        val random = SecureRandom()</p>
+<p>        val bytes = ByteArray(32) // 256 bits</p>
+<p>        random.nextBytes(bytes)</p>
+<p>        return Base64.encodeToString(bytes, Base64.NO_WRAP)</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Entity Example</strong>:
+</code>`<code>kotlin
+<p>@Entity(tableName = "users")</p>
+<p>data class User(</p>
+<p>    @PrimaryKey val id: Int,</p>
+<p>    val email: String,</p>
+<p>    val name: String,</p>
+<p>    val encryptedPhone: String  // Additional field-level encryption if needed</p>
+<p>)</p>
+</code>`<code>
+
+<h2>iOS Secure Storage</h2>
+
+<h3>1. Keychain Services</h3>
+
+<strong>Purpose</strong>: Securely store small pieces of sensitive data (passwords, tokens, keys).
+
+<strong>✅ Secure Implementation</strong>:
+
+</code>`<code>swift
+<p>import Security</p>
+<p>import Foundation</p>
+
+<p>class KeychainManager {</p>
+    
+<p>    /**</p>
+<ul>
+<li>Save data to Keychain with security attributes</li>
+</ul>
+<p>     */</p>
+<p>    static func save(key: String, data: Data) -> Bool {</p>
+<p>        let query: [String: Any] = [</p>
+<p>            kSecClass as String: kSecClassGenericPassword,</p>
+<p>            kSecAttrAccount as String: key,</p>
+<p>            kSecValueData as String: data,</p>
+<p>            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly</p>
+<p>        ]</p>
+        
+<p>        // Delete any existing item</p>
+<p>        SecItemDelete(query as CFDictionary)</p>
+        
+<p>        // Add new item</p>
+<p>        let status = SecItemAdd(query as CFDictionary, nil)</p>
+<p>        return status == errSecSuccess</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Retrieve data from Keychain</li>
+</ul>
+<p>     */</p>
+<p>    static func load(key: String) -> Data? {</p>
+<p>        let query: [String: Any] = [</p>
+<p>            kSecClass as String: kSecClassGenericPassword,</p>
+<p>            kSecAttrAccount as String: key,</p>
+<p>            kSecReturnData as String: true,</p>
+<p>            kSecMatchLimit as String: kSecMatchLimitOne</p>
+<p>        ]</p>
+        
+<p>        var result: AnyObject?</p>
+<p>        let status = SecItemCopyMatching(query as CFDictionary, &result)</p>
+        
+<p>        if status == errSecSuccess {</p>
+<p>            return result as? Data</p>
+<p>        }</p>
+<p>        return nil</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Delete item from Keychain</li>
+</ul>
+<p>     */</p>
+<p>    static func delete(key: String) -> Bool {</p>
+<p>        let query: [String: Any] = [</p>
+<p>            kSecClass as String: kSecClassGenericPassword,</p>
+<p>            kSecAttrAccount as String: key</p>
+<p>        ]</p>
+        
+<p>        let status = SecItemDelete(query as CFDictionary)</p>
+<p>        return status == errSecSuccess</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Save with biometric protection</li>
+</ul>
+<p>     */</p>
+<p>    static func saveWithBiometric(key: String, data: Data) -> Bool {</p>
+<p>        var error: Unmanaged<CFError>?</p>
+        
+<p>        guard let access = SecAccessControlCreateWithFlags(</p>
+<p>            kCFAllocatorDefault,</p>
+<p>            kSecAttrAccessibleWhenUnlockedThisDeviceOnly,</p>
+<p>            .biometryCurrentSet,  // Requires biometric authentication</p>
+<p>            &error</p>
+<p>        ) else {</p>
+<p>            return false</p>
+<p>        }</p>
+        
+<p>        let query: [String: Any] = [</p>
+<p>            kSecClass as String: kSecClassGenericPassword,</p>
+<p>            kSecAttrAccount as String: key,</p>
+<p>            kSecValueData as String: data,</p>
+<p>            kSecAttrAccessControl as String: access</p>
+<p>        ]</p>
+        
+<p>        SecItemDelete(query as CFDictionary)</p>
+<p>        let status = SecItemAdd(query as CFDictionary, nil)</p>
+<p>        return status == errSecSuccess</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Usage Example</strong>:
+</code>`<code>swift
+<p>// Save authentication token</p>
+<p>let token = "eyJhbGciOiJIUzI1NiIs...".data(using: .utf8)!</p>
+<p>KeychainManager.save(key: "auth_token", data: token)</p>
+
+<p>// Retrieve token</p>
+<p>if let tokenData = KeychainManager.load(key: "auth_token") {</p>
+<p>    let tokenString = String(data: tokenData, encoding: .utf8)</p>
+<p>}</p>
+
+<p>// Delete on logout</p>
+<p>KeychainManager.delete(key: "auth_token")</p>
+
+<p>// Save with biometric protection</p>
+<p>KeychainManager.saveWithBiometric(key: "sensitive_data", data: data)</p>
+</code>`<code>
+
+<strong>Keychain Accessibility Levels</strong>:
+</code>`<code>swift
+<p>// Choose based on your security requirements:</p>
+
+<p>// Most secure - requires device unlock, not backed up</p>
+<p>kSecAttrAccessibleWhenUnlockedThisDeviceOnly</p>
+
+<p>// Secure - requires device unlock, backed up to iCloud Keychain</p>
+<p>kSecAttrAccessibleWhenUnlocked</p>
+
+<p>// Less secure - accessible after first unlock</p>
+<p>kSecAttrAccessibleAfterFirstUnlock</p>
+
+<p>// Least secure - always accessible (avoid for sensitive data)</p>
+<p>kSecAttrAccessibleAlways</p>
+</code>`<code>
+
+<h3>2. Data Protection API</h3>
+
+<strong>Purpose</strong>: File-level encryption tied to device lock state.
+
+<strong>✅ Secure Implementation</strong>:
+
+</code>`<code>swift
+<p>import Foundation</p>
+
+<p>class SecureFileManager {</p>
+    
+<p>    /**</p>
+<ul>
+<li>Write file with data protection</li>
+</ul>
+<p>     */</p>
+<p>    static func writeSecureFile(filename: String, data: Data) -> Bool {</p>
+<p>        let fileURL = getDocumentsDirectory().appendingPathComponent(filename)</p>
+        
+<p>        do {</p>
+<p>            try data.write(</p>
+<p>                to: fileURL,</p>
+<p>                options: [.completeFileProtection]  // NSDataWritingFileProtectionComplete</p>
+<p>            )</p>
+<p>            return true</p>
+<p>        } catch {</p>
+<p>            print("Error writing secure file: \(error)")</p>
+<p>            return false</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Write file with complete data protection</li>
+</ul>
+<p>     */</p>
+<p>    static func writeFileWithProtection(filename: String, data: Data, </p>
+<p>                                       protection: FileProtectionType) -> Bool {</p>
+<p>        let fileURL = getDocumentsDirectory().appendingPathComponent(filename)</p>
+        
+<p>        do {</p>
+<p>            try data.write(to: fileURL)</p>
+            
+<p>            // Set protection level</p>
+<p>            try FileManager.default.setAttributes(</p>
+<p>                [.protectionKey: protection],</p>
+<p>                ofItemAtPath: fileURL.path</p>
+<p>            )</p>
+<p>            return true</p>
+<p>        } catch {</p>
+<p>            print("Error: \(error)")</p>
+<p>            return false</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Read protected file</li>
+</ul>
+<p>     */</p>
+<p>    static func readSecureFile(filename: String) -> Data? {</p>
+<p>        let fileURL = getDocumentsDirectory().appendingPathComponent(filename)</p>
+<p>        return try? Data(contentsOf: fileURL)</p>
+<p>    }</p>
+    
+<p>    private static func getDocumentsDirectory() -> URL {</p>
+<p>        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>Data Protection Levels</strong>:
+</code>`<code>swift
+<p>// Complete protection - file encrypted, inaccessible when locked</p>
+<p>FileProtectionType.complete</p>
+
+<p>// Complete unless already open - can continue using if opened before lock</p>
+<p>FileProtectionType.completeUnlessOpen</p>
+
+<p>// Complete until first user authentication - accessible after first unlock</p>
+<p>FileProtectionType.completeUntilFirstUserAuthentication</p>
+
+<p>// None - no protection (avoid for sensitive data)</p>
+<p>FileProtectionType.none</p>
+</code>`<code>
+
+<strong>Usage Example</strong>:
+</code>`<code>swift
+<p>// Save sensitive user data with complete protection</p>
+<p>let userData = try! JSONEncoder().encode(user)</p>
+<p>SecureFileManager.writeSecureFile(filename: "user_profile.json", data: userData)</p>
+
+<p>// Read it back</p>
+<p>if let data = SecureFileManager.readSecureFile(filename: "user_profile.json") {</p>
+<p>    let user = try! JSONDecoder().decode(User.self, from: data)</p>
+<p>}</p>
+</code>`<code>
+
+<h3>3. Core Data with Encryption</h3>
+
+<strong>Purpose</strong>: Encrypt Core Data persistent store.
+
+<strong>✅ Secure Implementation</strong>:
+
+</code>`<code>swift
+<p>import CoreData</p>
+
+<p>class CoreDataManager {</p>
+    
+<p>    lazy var persistentContainer: NSPersistentContainer = {</p>
+<p>        let container = NSPersistentContainer(name: "AppModel")</p>
+        
+<p>        // Get store description</p>
+<p>        guard let description = container.persistentStoreDescriptions.first else {</p>
+<p>            fatalError("Failed to retrieve persistent store description")</p>
+<p>        }</p>
+        
+<p>        // Enable file protection</p>
+<p>        description.setOption(</p>
+<p>            FileProtectionType.complete as NSObject,</p>
+<p>            forKey: NSPersistentStoreFileProtectionKey</p>
+<p>        )</p>
+        
+<p>        // Load persistent stores</p>
+<p>        container.loadPersistentStores { storeDescription, error in</p>
+<p>            if let error = error as NSError? {</p>
+<p>                fatalError("Unresolved error \(error)")</p>
+<p>            }</p>
+<p>        }</p>
+        
+<p>        return container</p>
+<p>    }()</p>
+    
+<p>    var context: NSManagedObjectContext {</p>
+<p>        return persistentContainer.viewContext</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>4. Encrypted UserDefaults Alternative</h3>
+
+<strong>Purpose</strong>: Secure alternative to UserDefaults for sensitive data.
+
+<strong>✅ Secure Implementation</strong>:
+
+</code>`<code>swift
+<p>import Foundation</p>
+<p>import CryptoKit</p>
+
+<p>class SecureUserDefaults {</p>
+    
+<p>    private let key: SymmetricKey</p>
+    
+<p>    init() {</p>
+<p>        // Get or create encryption key from Keychain</p>
+<p>        if let keyData = KeychainManager.load(key: "userdefaults_key") {</p>
+<p>            self.key = SymmetricKey(data: keyData)</p>
+<p>        } else {</p>
+<p>            self.key = SymmetricKey(size: .bits256)</p>
+<p>            let keyData = key.withUnsafeBytes { Data($0) }</p>
+<p>            _ = KeychainManager.save(key: "userdefaults_key", data: keyData)</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Save encrypted value</li>
+</ul>
+<p>     */</p>
+<p>    func set(_ value: String, forKey key: String) {</p>
+<p>        guard let data = value.data(using: .utf8) else { return }</p>
+        
+<p>        do {</p>
+<p>            let encrypted = try AES.GCM.seal(data, using: self.key)</p>
+<p>            let combined = encrypted.combined</p>
+<p>            UserDefaults.standard.set(combined, forKey: key)</p>
+<p>        } catch {</p>
+<p>            print("Encryption error: \(error)")</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Retrieve and decrypt value</li>
+</ul>
+<p>     */</p>
+<p>    func string(forKey key: String) -> String? {</p>
+<p>        guard let combined = UserDefaults.standard.data(forKey: key) else {</p>
+<p>            return nil</p>
+<p>        }</p>
+        
+<p>        do {</p>
+<p>            let sealedBox = try AES.GCM.SealedBox(combined: combined)</p>
+<p>            let decrypted = try AES.GCM.open(sealedBox, using: self.key)</p>
+<p>            return String(data: decrypted, encoding: .utf8)</p>
+<p>        } catch {</p>
+<p>            print("Decryption error: \(error)")</p>
+<p>            return nil</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Remove value</li>
+</ul>
+<p>     */</p>
+<p>    func removeObject(forKey key: String) {</p>
+<p>        UserDefaults.standard.removeObject(forKey: key)</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Database Encryption</h2>
+
+<h3>SQLCipher for Cross-Platform Encryption</h3>
+
+<strong>Purpose</strong>: Industry-standard SQLite encryption.
+
+<strong>Android with SQLCipher</strong>:
+</code>`<code>kotlin
+<p>// Already covered in Android Room Database section above</p>
+</code>`<code>
+
+<strong>iOS with SQLCipher</strong>:
+</code>`<code>swift
+<p>import SQLCipher</p>
+
+<p>class DatabaseManager {</p>
+    
+<p>    private var database: OpaquePointer?</p>
+    
+<p>    func openEncryptedDatabase() -> Bool {</p>
+<p>        let fileURL = try! FileManager.default</p>
+<p>            .url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false)</p>
+<p>            .appendingPathComponent("encrypted.db")</p>
+        
+<p>        // Open database</p>
+<p>        if sqlite3_open(fileURL.path, &database) != SQLITE_OK {</p>
+<p>            print("Error opening database")</p>
+<p>            return false</p>
+<p>        }</p>
+        
+<p>        // Set encryption key</p>
+<p>        let key = getOrCreateEncryptionKey()</p>
+<p>        let keyString = key as NSString</p>
+        
+<p>        if sqlite3_key(database, keyString.utf8String, Int32(keyString.length)) != SQLITE_OK {</p>
+<p>            print("Error setting encryption key")</p>
+<p>            return false</p>
+<p>        }</p>
+        
+<p>        // Verify key is correct</p>
+<p>        if sqlite3_exec(database, "SELECT count(*) FROM sqlite_master;", nil, nil, nil) != SQLITE_OK {</p>
+<p>            print("Error: Invalid encryption key")</p>
+<p>            return false</p>
+<p>        }</p>
+        
+<p>        return true</p>
+<p>    }</p>
+    
+<p>    private func getOrCreateEncryptionKey() -> String {</p>
+<p>        if let keyData = KeychainManager.load(key: "database_key"),</p>
+<p>           let key = String(data: keyData, encoding: .utf8) {</p>
+<p>            return key</p>
+<p>        }</p>
+        
+<p>        // Generate new key</p>
+<p>        var bytes = <a href="repeating: 0, count: 32">UInt8</a></p>
+<p>        let status = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)</p>
+        
+<p>        if status == errSecSuccess {</p>
+<p>            let key = Data(bytes).base64EncodedString()</p>
+<p>            _ = KeychainManager.save(key: "database_key", data: key.data(using: .utf8)!)</p>
+<p>            return key</p>
+<p>        }</p>
+        
+<p>        fatalError("Failed to generate encryption key")</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>File Encryption</h2>
+
+<h3>Custom File Encryption</h3>
+
+<strong>Android AES Encryption</strong>:
+</code>`<code>kotlin
+<p>import javax.crypto.Cipher</p>
+<p>import javax.crypto.spec.GCMParameterSpec</p>
+<p>import javax.crypto.SecretKey</p>
+
+<p>class FileEncryption(private val secretKey: SecretKey) {</p>
+    
+<p>    private val transformation = "AES/GCM/NoPadding"</p>
+<p>    private val ivSize = 12</p>
+<p>    private val tagSize = 128</p>
+    
+<p>    /**</p>
+<ul>
+<li>Encrypt file</li>
+</ul>
+<p>     */</p>
+<p>    fun encryptFile(inputFile: File, outputFile: File) {</p>
+<p>        val cipher = Cipher.getInstance(transformation)</p>
+<p>        cipher.init(Cipher.ENCRYPT_MODE, secretKey)</p>
+        
+<p>        val iv = cipher.iv</p>
+        
+<p>        inputFile.inputStream().use { input -></p>
+<p>            outputFile.outputStream().use { output -></p>
+<p>                // Write IV first</p>
+<p>                output.write(iv)</p>
+                
+<p>                // Encrypt and write data</p>
+<p>                val buffer = ByteArray(8192)</p>
+<p>                var bytesRead: Int</p>
+<p>                while (input.read(buffer).also { bytesRead = it } != -1) {</p>
+<p>                    val encrypted = cipher.update(buffer, 0, bytesRead)</p>
+<p>                    if (encrypted != null) {</p>
+<p>                        output.write(encrypted)</p>
+<p>                    }</p>
+<p>                }</p>
+                
+<p>                // Write final block</p>
+<p>                val finalBlock = cipher.doFinal()</p>
+<p>                if (finalBlock != null) {</p>
+<p>                    output.write(finalBlock)</p>
+<p>                }</p>
+<p>            }</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    /**</p>
+<ul>
+<li>Decrypt file</li>
+</ul>
+<p>     */</p>
+<p>    fun decryptFile(inputFile: File, outputFile: File) {</p>
+<p>        inputFile.inputStream().use { input -></p>
+<p>            // Read IV</p>
+<p>            val iv = ByteArray(ivSize)</p>
+<p>            input.read(iv)</p>
+            
+<p>            val cipher = Cipher.getInstance(transformation)</p>
+<p>            val spec = GCMParameterSpec(tagSize, iv)</p>
+<p>            cipher.init(Cipher.DECRYPT_MODE, secretKey, spec)</p>
+            
+<p>            outputFile.outputStream().use { output -></p>
+<p>                val buffer = ByteArray(8192)</p>
+<p>                var bytesRead: Int</p>
+<p>                while (input.read(buffer).also { bytesRead = it } != -1) {</p>
+<p>                    val decrypted = cipher.update(buffer, 0, bytesRead)</p>
+<p>                    if (decrypted != null) {</p>
+<p>                        output.write(decrypted)</p>
+<p>                    }</p>
+<p>                }</p>
+                
+<p>                val finalBlock = cipher.doFinal()</p>
+<p>                if (finalBlock != null) {</p>
+<p>                    output.write(finalBlock)</p>
+<p>                }</p>
+<p>            }</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h2>Backup Protection</h2>
+
+<h3>Android Backup Exclusion</h3>
+
+<strong>AndroidManifest.xml</strong>:
+</code>`<code>xml
+<application
+<p>    android:allowBackup="false"</p>
+<p>    android:fullBackupContent="@xml/backup_rules"></p>
+    <!-- App components -->
+</application>
+</code>`<code>
+
+<strong>res/xml/backup_rules.xml</strong>:
+</code>`<code>xml
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Exclude all SharedPreferences -->
+    <exclude domain="sharedpref" path="." />
+    
+    <!-- Exclude specific database -->
+    <exclude domain="database" path="sensitive_data.db" />
+    
+    <!-- Exclude all files directory -->
+    <exclude domain="file" path="." />
+    
+    <!-- Include only specific non-sensitive data -->
+    <include domain="file" path="cache/" />
+</full-backup-content>
+</code>`<code>
+
+<h3>iOS Backup Exclusion</h3>
+
+<strong>Exclude files from backup</strong>:
+</code>`<code>swift
+<p>func excludeFromBackup(url: URL) {</p>
+<p>    var resourceValues = URLResourceValues()</p>
+<p>    resourceValues.isExcludedFromBackup = true</p>
+    
+<p>    do {</p>
+<p>        var mutableURL = url</p>
+<p>        try mutableURL.setResourceValues(resourceValues)</p>
+<p>    } catch {</p>
+<p>        print("Error excluding from backup: \(error)")</p>
+<p>    }</p>
+<p>}</p>
+
+<p>// Usage</p>
+<p>let fileURL = getDocumentsDirectory().appendingPathComponent("sensitive.db")</p>
+<p>excludeFromBackup(url: fileURL)</p>
+</code>`<code>
+
+<strong>In Keychain - use device-only accessibility</strong>:
+</code>`<code>swift
+<p>// Data won't be included in iCloud Keychain backup</p>
+<p>kSecAttrAccessibleWhenUnlockedThisDeviceOnly</p>
+</code>`<code>
+
+<h2>Additional Security Measures</h2>
+
+<h3>1. Data Minimization</h3>
+
+</code>`<code>kotlin
+<p>// ❌ Don't do this - storing unnecessary data</p>
+<p>data class User(</p>
+<p>    val id: String,</p>
+<p>    val email: String,</p>
+<p>    val password: String,  // NEVER store passwords</p>
+<p>    val creditCard: String,  // Don't store full card numbers</p>
+<p>    val ssn: String,  // Don't store SSN</p>
+<p>    val fullTransactionHistory: List<Transaction>  // Too much data</p>
+<p>)</p>
+
+<p>// ✅ Do this - minimize stored data</p>
+<p>data class User(</p>
+<p>    val id: String,</p>
+<p>    val email: String,</p>
+<p>    // Password never stored, only hash on server</p>
+<p>    val lastFourCardDigits: String,  // Only last 4 digits</p>
+<p>    // Recent transactions only, older ones fetched from server</p>
+<p>    val recentTransactions: List<Transaction></p>
+<p>)</p>
+</code>`<code>
+
+<h3>2. Data Expiration</h3>
+
+</code>`<code>kotlin
+<p>class SessionManager(private val securePrefs: SecurePreferences) {</p>
+    
+<p>    fun saveSession(token: String, expiresIn: Long) {</p>
+<p>        val expiryTime = System.currentTimeMillis() + (expiresIn * 1000)</p>
+<p>        securePrefs.saveAuthToken(token)</p>
+<p>        securePrefs.saveTokenExpiry(expiryTime)</p>
+<p>    }</p>
+    
+<p>    fun getValidToken(): String? {</p>
+<p>        val token = securePrefs.getAuthToken()</p>
+<p>        val expiry = securePrefs.getTokenExpiry()</p>
+        
+<p>        if (System.currentTimeMillis() > expiry) {</p>
+<p>            // Token expired, clear it</p>
+<p>            clearSession()</p>
+<p>            return null</p>
+<p>        }</p>
+        
+<p>        return token</p>
+<p>    }</p>
+    
+<p>    fun clearSession() {</p>
+<p>        securePrefs.clearAll()</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<h3>3. Secure Memory Clearing</h3>
+
+</code>`<code>kotlin
+<p>// Clear sensitive data from memory</p>
+<p>fun clearSensitiveData(data: CharArray) {</p>
+<p>    Arrays.fill(data, '0')</p>
+<p>}</p>
+
+<p>fun clearSensitiveData(data: ByteArray) {</p>
+<p>    Arrays.fill(data, 0.toByte())</p>
+<p>}</p>
+
+<p>// Usage</p>
+<p>val password = "secret123".toCharArray()</p>
+<p>// Use password...</p>
+<p>clearSensitiveData(password)  // Clear from memory when done</p>
+</code>`<code>
+
+<h3>4. Screenshot Protection</h3>
+
+<strong>Android</strong>:
+</code>`<code>kotlin
+<p>// Prevent screenshots in activities with sensitive data</p>
+<p>override fun onCreate(savedInstanceState: Bundle?) {</p>
+<p>    super.onCreate(savedInstanceState)</p>
+    
+<p>    // Prevent screenshots</p>
+<p>    window.setFlags(</p>
+<p>        WindowManager.LayoutParams.FLAG_SECURE,</p>
+<p>        WindowManager.LayoutParams.FLAG_SECURE</p>
+<p>    )</p>
+    
+<p>    setContentView(R.layout.activity_main)</p>
+<p>}</p>
+</code>`<code>
+
+<strong>iOS</strong>:
+</code>`<code>swift
+<p>// Blur screen when app enters background</p>
+<p>func applicationWillResignActive(_ application: UIApplication) {</p>
+<p>    // Add blur effect</p>
+<p>    let blurEffect = UIBlurEffect(style: .light)</p>
+<p>    let blurView = UIVisualEffectView(effect: blurEffect)</p>
+<p>    blurView.frame = window!.frame</p>
+<p>    blurView.tag = 100  // Tag for later removal</p>
+<p>    window?.addSubview(blurView)</p>
+<p>}</p>
+
+<p>func applicationDidBecomeActive(_ application: UIApplication) {</p>
+<p>    // Remove blur effect</p>
+<p>    window?.viewWithTag(100)?.removeFromSuperview()</p>
+<p>}</p>
+</code>`<code>
+
+<h3>5. Root/Jailbreak Detection</h3>
+
+<strong>Android Root Detection</strong>:
+</code>`<code>kotlin
+<p>class SecurityChecker {</p>
+    
+<p>    fun isDeviceRooted(): Boolean {</p>
+<p>        return checkBuildTags() || </p>
+<p>               checkSuBinary() || </p>
+<p>               checkSuperuserApk() ||</p>
+<p>               checkRootManagementApps()</p>
+<p>    }</p>
+    
+<p>    private fun checkBuildTags(): Boolean {</p>
+<p>        val buildTags = Build.TAGS</p>
+<p>        return buildTags != null && buildTags.contains("test-keys")</p>
+<p>    }</p>
+    
+<p>    private fun checkSuBinary(): Boolean {</p>
+<p>        val paths = arrayOf(</p>
+<p>            "/system/app/Superuser.apk",</p>
+<p>            "/sbin/su",</p>
+<p>            "/system/bin/su",</p>
+<p>            "/system/xbin/su",</p>
+<p>            "/data/local/xbin/su",</p>
+<p>            "/data/local/bin/su",</p>
+<p>            "/system/sd/xbin/su",</p>
+<p>            "/system/bin/failsafe/su",</p>
+<p>            "/data/local/su",</p>
+<p>            "/su/bin/su"</p>
+<p>        )</p>
+        
+<p>        return paths.any { File(it).exists() }</p>
+<p>    }</p>
+    
+<p>    private fun checkSuperuserApk(): Boolean {</p>
+<p>        return try {</p>
+<p>            context.packageManager.getPackageInfo("com.noshufou.android.su", 0)</p>
+<p>            true</p>
+<p>        } catch (e: PackageManager.NameNotFoundException) {</p>
+<p>            false</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    private fun checkRootManagementApps(): Boolean {</p>
+<p>        val packages = listOf(</p>
+<p>            "com.topjohnwu.magisk",</p>
+<p>            "eu.chainfire.supersu",</p>
+<p>            "com.koushikdutta.superuser"</p>
+<p>        )</p>
+        
+<p>        return packages.any { packageExists(it) }</p>
+<p>    }</p>
+    
+<p>    private fun packageExists(packageName: String): Boolean {</p>
+<p>        return try {</p>
+<p>            context.packageManager.getPackageInfo(packageName, 0)</p>
+<p>            true</p>
+<p>        } catch (e: PackageManager.NameNotFoundException) {</p>
+<p>            false</p>
+<p>        }</p>
+<p>    }</p>
+<p>}</p>
+</code>`<code>
+
+<strong>iOS Jailbreak Detection</strong>:
+</code>`<code>swift
+<p>import Foundation</p>
+<p>import UIKit</p>
+
+<p>class SecurityChecker {</p>
+    
+<p>    static func isJailbroken() -> Bool {</p>
+<p>        return checkCydiaInstalled() ||</p>
+<p>               checkSuspiciousFiles() ||</p>
+<p>               checkWriteAccess() ||</p>
+<p>               checkFork()</p>
+<p>    }</p>
+    
+<p>    private static func checkCydiaInstalled() -> Bool {</p>
+<p>        return UIApplication.shared.canOpenURL(URL(string: "cydia://")!)</p>
+<p>    }</p>
+    
+<p>    private static func checkSuspiciousFiles() -> Bool {</p>
+<p>        let paths = [</p>
+<p>            "/Applications/Cydia.app",</p>
+<p>            "/Library/MobileSubstrate/MobileSubstrate.dylib",</p>
+<p>            "/bin/bash",</p>
+<p>            "/usr/sbin/sshd",</p>
+<p>            "/etc/apt",</p>
+<p>            "/private/var/lib/apt/"</p>
+<p>        ]</p>
+        
+<p>        return paths.contains { FileManager.default.fileExists(atPath: $0) }</p>
+<p>    }</p>
+    
+<p>    private static func checkWriteAccess() -> Bool {</p>
+<p>        let testString = "Jailbreak Test"</p>
+<p>        let testPath = "/private/jailbreak_test.txt"</p>
+        
+<p>        do {</p>
+<p>            try testString.write(toFile: testPath, atomically: true, encoding: .utf8)</p>
+<p>            try FileManager.default.removeItem(atPath: testPath)</p>
+<p>            return true  // Should not be able to write here</p>
+<p>        } catch {</p>
+<p>            return false</p>
+<p>        }</p>
+<p>    }</p>
+    
+<p>    private static func checkFork() -> Bool {</p>
+<p>        // Note: fork() requires importing Darwin</p>
+<p>        // On iOS, fork() will fail on non-jailbroken devices</p>
+<p>        // This is a simplified check - production code should handle carefully</p>
+<p>        #if canImport(Darwin)</p>
+<p>        import Darwin</p>
+<p>        let result = fork()</p>
+<p>        if result >= 0 {</p>
+<p>            return true  // fork() should fail on non-jailbroken devices</p>
+<p>        }</p>
+<p>        #endif</p>
+<p>        return false</p>
+<p>    }</p>
+<p>}</p>
+</code>``
+
+<h2>Security Checklist</h2>
+
+<h3>Before Release</h3>
+
+<ul>
+<li>[ ] All sensitive data encrypted at rest</li>
+<li>[ ] Using platform secure storage (Keychain/KeyStore)</li>
+<li>[ ] Databases encrypted with SQLCipher or equivalent</li>
+<li>[ ] Sensitive files excluded from backups</li>
+<li>[ ] No sensitive data in logs</li>
+<li>[ ] Screenshot protection implemented for sensitive screens</li>
+<li>[ ] Data expiration mechanisms in place</li>
+<li>[ ] Sensitive data cleared from memory after use</li>
+<li>[ ] Root/jailbreak detection implemented</li>
+<li>[ ] Security testing completed</li>
+<li>[ ] Penetration testing performed</li>
+<li>[ ] Compliance requirements verified (GDPR, HIPAA, PCI-DSS)</li>
+</ul>
+
+<h3>Code Review Questions</h3>
+
+<ol>
+<li>What sensitive data does this app store?</li>
+<li>Is each piece of sensitive data encrypted?</li>
+<li>Are we using the appropriate encryption method?</li>
+<li>Is the encryption key stored securely?</li>
+<li>Is sensitive data excluded from backups?</li>
+<li>Do we clear sensitive data when no longer needed?</li>
+<li>Have we tested on rooted/jailbroken devices?</li>
+<li>Are we compliant with relevant regulations?</li>
+</ol>
+
+<p>---</p>
+
+<strong>Next Steps</strong>: See real code examples in <a href="./examples.md">Examples</a> and practice in the <a href="./lab/m09-insecure-data-storage-lab/">Lab</a>
+
+<em>Part of OWASP Mobile Top 10 - Educational Repository</em>
+
         </div>
     </div>
 </body>
