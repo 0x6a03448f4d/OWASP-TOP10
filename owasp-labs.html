@@ -6,6 +6,7 @@
     <title>OWASP Top 10 Labs - All Categories</title>
     <link rel="stylesheet" href="src/web-assets/dashboard.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="src/web-assets/year-config.js"></script>
     <style>
         .labs-container {
             max-width: 1600px;
@@ -287,6 +288,14 @@
         <div class="section-header">
             <h2>🧪 OWASP Top 10 Vulnerable Labs</h2>
             <p>Select a category to view and start hands-on vulnerable labs for learning security testing.</p>
+            <div style="margin-top: 15px; padding: 15px; background: rgba(0, 255, 65, 0.1); border-radius: 8px; border: 2px solid var(--primary-color);">
+                <strong style="color: var(--primary-color);">
+                    <i class="fas fa-calendar-alt"></i> Current Year: <span id="current-year-display">2025</span>
+                </strong>
+                <span style="color: var(--text-secondary); margin-left: 15px;">
+                    Available Categories: <span id="enabled-categories-display"></span>
+                </span>
+            </div>
         </div>
 
         <div class="instructions">
@@ -591,6 +600,77 @@
                 setTimeout(() => notification.remove(), 500);
             }, 5000);
         }
+        
+        /**
+         * Initialize page with year-based filtering
+         */
+        function initializeYearFiltering() {
+            // Get current year from localStorage (set from main dashboard)
+            const currentYear = localStorage.getItem('owaspVersion') || '2025';
+            
+            // Update year display
+            const yearDisplay = document.getElementById('current-year-display');
+            if (yearDisplay) {
+                yearDisplay.textContent = currentYear;
+            }
+            
+            // Get enabled categories for this year
+            const enabledCategories = getEnabledCategories(currentYear);
+            
+            // Update enabled categories display
+            const categoriesDisplay = document.getElementById('enabled-categories-display');
+            if (categoriesDisplay) {
+                categoriesDisplay.textContent = enabledCategories.map(c => c.toUpperCase()).join(', ');
+            }
+            
+            // Hide/show category cards based on year
+            const categoryCards = document.querySelectorAll('.category-card');
+            let firstVisibleCategory = null;
+            
+            categoryCards.forEach(card => {
+                const onclick = card.getAttribute('onclick');
+                const match = onclick && onclick.match(/showCategory\('(\w+)'/);
+                if (match) {
+                    const category = match[1];
+                    const isEnabled = isCategoryEnabled(currentYear, category);
+                    
+                    if (isEnabled) {
+                        card.style.display = 'block';
+                        if (!firstVisibleCategory) {
+                            firstVisibleCategory = category;
+                        }
+                    } else {
+                        card.style.display = 'none';
+                    }
+                }
+            });
+            
+            // Hide/show lab grids
+            document.querySelectorAll('.lab-grid').forEach(grid => {
+                const id = grid.getAttribute('id');
+                const category = id ? id.replace('-labs', '') : '';
+                const isEnabled = isCategoryEnabled(currentYear, category);
+                
+                if (!isEnabled) {
+                    grid.style.display = 'none';
+                }
+            });
+            
+            // Auto-select first visible category
+            if (firstVisibleCategory) {
+                const firstCard = document.querySelector(`.category-card[onclick*="${firstVisibleCategory}"]`);
+                if (firstCard) {
+                    // Simulate click to activate first category
+                    setTimeout(() => {
+                        const event = { currentTarget: firstCard };
+                        showCategory(firstVisibleCategory, event);
+                    }, 100);
+                }
+            }
+        }
+        
+        // Run initialization when DOM is ready
+        document.addEventListener('DOMContentLoaded', initializeYearFiltering);
     </script>
 </body>
 </html>

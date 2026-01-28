@@ -233,6 +233,7 @@
         </div>
     </footer>
 
+    <script src="src/web-assets/year-config.js"></script>
     <script src="src/web-assets/dashboard.js"></script>
     <script src="src/web-assets/search.js"></script>
     
@@ -314,8 +315,10 @@
         }
     </style>
     
+    <script src="src/web-assets/year-config.js"></script>
+    
     <script>
-        // Version/Year Selection Function
+        // Version/Year Selection Function - Enhanced for Global Control
         function selectVersion(year, showNotif = true) {
             // Update active state on tabs and ARIA attributes
             document.querySelectorAll('.version-tab').forEach(tab => {
@@ -339,14 +342,58 @@
             // Store selected version in localStorage
             localStorage.setItem('owaspVersion', year);
             
+            // Update dashboard content based on year
+            updateDashboardForYear(year);
+            
             // Show notification if requested
             if (showNotif && typeof showNotification === 'function') {
+                const enabledCategories = getEnabledCategories(year);
+                const categoryText = enabledCategories.map(c => c.toUpperCase()).join(', ');
+                
                 if (year === '2021') {
-                    showNotification('success', `Switched to OWASP Top 10 ${year} (Current Reference Version)`);
+                    showNotification('success', `Switched to OWASP ${year} (Reference) - Categories: ${categoryText}`);
                 } else if (year === '2025') {
-                    showNotification('success', `Switched to OWASP Top 10 ${year} (Latest Version)`);
+                    showNotification('success', `Switched to OWASP ${year} (Latest) - Categories: ${categoryText}`);
                 } else {
-                    showNotification('info', `Switched to OWASP Top 10 ${year} (Archive Version)`);
+                    showNotification('info', `Switched to OWASP ${year} (Archive) - Categories: ${categoryText}`);
+                }
+            }
+        }
+        
+        /**
+         * Update dashboard cards and content based on selected year
+         */
+        function updateDashboardForYear(year) {
+            const enabledCategories = getEnabledCategories(year);
+            
+            // Update card meta information
+            updateCardMeta(year, enabledCategories);
+            
+            // Store for other pages to use
+            localStorage.setItem('owaspEnabledCategories', JSON.stringify(enabledCategories));
+        }
+        
+        /**
+         * Update card metadata (badges) based on year
+         */
+        function updateCardMeta(year, enabledCategories) {
+            // Update Cheat Sheets card
+            const cheatsheetCard = document.querySelector('[data-section="cheatsheets"]');
+            if (cheatsheetCard) {
+                const categoryBadge = cheatsheetCard.querySelector('.badge:last-child');
+                if (categoryBadge) {
+                    const count = enabledCategories.length;
+                    categoryBadge.innerHTML = `<i class="fas fa-layer-group"></i> ${count} ${count === 1 ? 'Category' : 'Categories'}`;
+                }
+            }
+            
+            // Update Labs card
+            const labsCard = document.querySelector('[data-section="owasp"]');
+            if (labsCard) {
+                const p = labsCard.querySelector('p');
+                if (p) {
+                    const categoryText = enabledCategories.map(c => c.toUpperCase()).join(', ');
+                    p.textContent = `Hands-on vulnerable labs for ${year}: ${categoryText} vulnerabilities.`;
                 }
             }
         }
@@ -364,7 +411,7 @@
                 border-radius: 8px;
                 box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
                 z-index: 10000;
-                max-width: 400px;
+                max-width: 500px;
                 font-family: 'Courier New', monospace;
                 font-weight: bold;
                 border: 2px solid ${type === 'success' ? '#00ff41' : '#0dff92'};
@@ -377,7 +424,7 @@
                 notification.style.transition = 'opacity 0.5s';
                 notification.style.opacity = '0';
                 setTimeout(() => notification.remove(), 500);
-            }, 3000);
+            }, 4000);
         }
         
         // Load saved version on page load (without showing notification)
@@ -385,6 +432,9 @@
             const savedVersion = localStorage.getItem('owaspVersion') || '2025';
             if (savedVersion !== '2025') {
                 selectVersion(savedVersion, false); // false = don't show notification
+            } else {
+                // Initialize for default year
+                updateDashboardForYear('2025');
             }
         });
     </script>
