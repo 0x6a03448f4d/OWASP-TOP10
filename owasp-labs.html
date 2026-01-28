@@ -363,14 +363,14 @@
             <span class="version-selector-label">
                 <i class="fas fa-calendar-alt"></i> Select Version:
             </span>
-            <div class="version-tabs">
-                <button class="version-tab" onclick="selectVersion('2017')" id="version-2017">
+            <div class="version-tabs" role="tablist" aria-label="OWASP Version Selection">
+                <button class="version-tab" onclick="selectVersion('2017')" id="version-2017" role="tab" aria-selected="false" aria-controls="labs-content">
                     2017
                 </button>
-                <button class="version-tab active" onclick="selectVersion('2021')" id="version-2021">
+                <button class="version-tab active" onclick="selectVersion('2021')" id="version-2021" role="tab" aria-selected="true" aria-controls="labs-content">
                     2021
                 </button>
-                <button class="version-tab" onclick="selectVersion('2025')" id="version-2025">
+                <button class="version-tab" onclick="selectVersion('2025')" id="version-2025" role="tab" aria-selected="false" aria-controls="labs-content">
                     2025
                 </button>
             </div>
@@ -685,25 +685,32 @@
         }
         
         // Version/Year Selection Function
-        function selectVersion(year) {
-            // Update active state on tabs
+        function selectVersion(year, showNotif = true) {
+            // Update active state on tabs and ARIA attributes
             document.querySelectorAll('.version-tab').forEach(tab => {
                 tab.classList.remove('active');
+                tab.setAttribute('aria-selected', 'false');
             });
-            document.getElementById(`version-${year}`).classList.add('active');
+            const selectedTab = document.getElementById(`version-${year}`);
+            selectedTab.classList.add('active');
+            selectedTab.setAttribute('aria-selected', 'true');
             
-            // Update version badge
+            // Update version badge - using textContent for year to prevent XSS
             const badge = document.getElementById('current-version-badge');
-            badge.innerHTML = `<i class="fas fa-check-circle"></i> Current: ${year}`;
+            const yearText = document.createTextNode(year);
+            badge.innerHTML = '<i class="fas fa-check-circle"></i> Current: ';
+            badge.appendChild(yearText);
             
             // Store selected version in localStorage
             localStorage.setItem('owaspVersion', year);
             
-            // Show notification about version change
-            if (year === '2021') {
-                showNotification('success', `Switched to OWASP Top 10 ${year} (Current Version)`);
-            } else {
-                showNotification('info', `Note: OWASP Top 10 ${year} content will use the 2021 structure.\nFull ${year} content coming soon!`);
+            // Show notification about version change only if requested (not on initial load)
+            if (showNotif) {
+                if (year === '2021') {
+                    showNotification('success', `Switched to OWASP Top 10 ${year} (Current Version)`);
+                } else {
+                    showNotification('info', `Note: OWASP Top 10 ${year} content will use the 2021 structure.\nFull ${year} content coming soon!`);
+                }
             }
             
             // In future: Load year-specific data here
@@ -711,11 +718,11 @@
             // loadVersionData(year);
         }
         
-        // Load saved version on page load
+        // Load saved version on page load (without showing notification)
         document.addEventListener('DOMContentLoaded', () => {
             const savedVersion = localStorage.getItem('owaspVersion') || '2021';
             if (savedVersion !== '2021') {
-                selectVersion(savedVersion);
+                selectVersion(savedVersion, false); // false = don't show notification
             }
         });
     </script>
