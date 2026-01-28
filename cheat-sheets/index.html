@@ -1130,7 +1130,16 @@
             filterCategoriesByYear(year);
             
             // Reload current category with new year
-            showCategory(currentCategory, document.querySelector(`#versionSelector .version-card.active:not([style*="display: none"])`), true);
+            const enabledCategories = getEnabledCategories(year);
+            const visibleCards = Array.from(document.querySelectorAll('#versionSelector .version-card')).filter(card => {
+                const onclick = card.getAttribute('onclick');
+                const match = onclick && onclick.match(/showCategory\('(\w+)'/);
+                return match && enabledCategories.includes(match[1]);
+            });
+            
+            if (visibleCards.length > 0 && visibleCards[0]) {
+                showCategory(currentCategory, visibleCards[0], true);
+            }
             
             // Scroll to category selector
             const categorySection = document.getElementById('category-selector-section');
@@ -1169,8 +1178,7 @@
             });
             
             // Auto-select first visible category if current is hidden
-            const currentCard = document.querySelector(`#versionSelector .version-card[onclick*="${currentCategory}"]`);
-            if (!currentCard || currentCard.style.display === 'none') {
+            if (currentCategory && !enabledCategories.includes(currentCategory)) {
                 if (firstVisibleCard) {
                     const match = firstVisibleCard.getAttribute('onclick').match(/showCategory\('(\w+)'/);
                     if (match) {
@@ -1319,19 +1327,30 @@
             // Filter categories based on year
             filterCategoriesByYear(selectedYear);
             
+            // Get enabled categories for proper initialization
+            const enabledCategories = getEnabledCategories(selectedYear);
+            
             // Activate first visible category
-            const firstVisibleCard = document.querySelector('#versionSelector .version-card:not([style*="display: none"])');
-            if (firstVisibleCard) {
+            const visibleCards = Array.from(document.querySelectorAll('#versionSelector .version-card')).filter(card => {
+                const onclick = card.getAttribute('onclick');
+                const match = onclick && onclick.match(/showCategory\('(\w+)'/);
+                return match && enabledCategories.includes(match[1]);
+            });
+            
+            if (visibleCards.length > 0) {
+                const firstVisibleCard = visibleCards[0];
                 firstVisibleCard.classList.add('active');
                 const match = firstVisibleCard.getAttribute('onclick').match(/showCategory\('(\w+)'/);
                 if (match) {
                     currentCategory = match[1];
-                    document.getElementById(`${match[1]}-sheets`).classList.add('active');
+                    const sheetsContainer = document.getElementById(`${match[1]}-sheets`);
+                    if (sheetsContainer) {
+                        sheetsContainer.classList.add('active');
+                        // Update links for the current year
+                        updateCheatsheetLinks(currentCategory, selectedYear);
+                    }
                 }
             }
-            
-            // Update links for the current year
-            updateCheatsheetLinks(currentCategory, selectedYear);
         });
     </script>
 </body>
