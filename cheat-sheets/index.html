@@ -401,6 +401,7 @@
             animation: glow 2s ease-in-out infinite;
         }
     </style>
+    <script src="../src/web-assets/year-config.js"></script>
 </head>
 <body>
     <!-- Header -->
@@ -1125,13 +1126,57 @@
             // Save to localStorage
             localStorage.setItem('owaspVersion', year);
             
+            // Filter categories based on year
+            filterCategoriesByYear(year);
+            
             // Reload current category with new year
-            showCategory(currentCategory, document.querySelector(`#versionSelector .version-card.active`), true);
+            showCategory(currentCategory, document.querySelector(`#versionSelector .version-card.active:not([style*="display: none"])`), true);
             
             // Scroll to category selector
             const categorySection = document.getElementById('category-selector-section');
             if (categorySection) {
                 categorySection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+        
+        /**
+         * Filter category cards based on selected year
+         */
+        function filterCategoriesByYear(year) {
+            const enabledCategories = getEnabledCategories(year);
+            
+            // Get all category cards
+            const categoryCards = document.querySelectorAll('#versionSelector .version-card');
+            let firstVisibleCard = null;
+            
+            categoryCards.forEach(card => {
+                const onclick = card.getAttribute('onclick');
+                const match = onclick && onclick.match(/showCategory\('(\w+)'/);
+                if (match) {
+                    const category = match[1];
+                    const isEnabled = enabledCategories.includes(category);
+                    
+                    if (isEnabled) {
+                        card.style.display = 'block';
+                        if (!firstVisibleCard) {
+                            firstVisibleCard = card;
+                        }
+                    } else {
+                        card.style.display = 'none';
+                        card.classList.remove('active');
+                    }
+                }
+            });
+            
+            // Auto-select first visible category if current is hidden
+            const currentCard = document.querySelector(`#versionSelector .version-card[onclick*="${currentCategory}"]`);
+            if (!currentCard || currentCard.style.display === 'none') {
+                if (firstVisibleCard) {
+                    const match = firstVisibleCard.getAttribute('onclick').match(/showCategory\('(\w+)'/);
+                    if (match) {
+                        currentCategory = match[1];
+                    }
+                }
             }
         }
 
@@ -1246,9 +1291,6 @@
 
         // Initialize with web category on page load
         window.addEventListener('load', function() {
-            document.querySelector('#versionSelector .version-card').classList.add('active');
-            document.getElementById('web-sheets').classList.add('active');
-            
             // Read selected year from localStorage
             const selectedYear = localStorage.getItem('owaspVersion') || '2025';
             currentYear = selectedYear;
@@ -1274,8 +1316,22 @@
                 if (elem) elem.textContent = selectedYear;
             });
             
+            // Filter categories based on year
+            filterCategoriesByYear(selectedYear);
+            
+            // Activate first visible category
+            const firstVisibleCard = document.querySelector('#versionSelector .version-card:not([style*="display: none"])');
+            if (firstVisibleCard) {
+                firstVisibleCard.classList.add('active');
+                const match = firstVisibleCard.getAttribute('onclick').match(/showCategory\('(\w+)'/);
+                if (match) {
+                    currentCategory = match[1];
+                    document.getElementById(`${match[1]}-sheets`).classList.add('active');
+                }
+            }
+            
             // Update links for the current year
-            updateCheatsheetLinks('web', selectedYear);
+            updateCheatsheetLinks(currentCategory, selectedYear);
         });
     </script>
 </body>
