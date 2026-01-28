@@ -780,7 +780,8 @@ def create_cheatsheet_html(year, vuln, category="web"):
 
 def generate_all_content():
     """Generate all cheatsheets for 2017 and 2025"""
-    base_path = Path("/home/runner/work/OWASP-TOP10/OWASP-TOP10")
+    # Use relative path from script location
+    base_path = Path(__file__).parent
     
     for year in ["2017", "2025"]:
         print(f"\n🚀 Generating content for OWASP {year}...")
