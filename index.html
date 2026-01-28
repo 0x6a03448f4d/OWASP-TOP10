@@ -58,6 +58,31 @@
         </div>
     </section>
 
+    <!-- Version/Year Selector -->
+    <section class="version-selector-section">
+        <div class="container">
+            <div class="version-selector-wrapper">
+                <h3 class="version-title"><i class="fas fa-calendar-alt"></i> Select OWASP Version</h3>
+                <div class="version-tabs" role="tablist" aria-label="OWASP Version Selection">
+                    <button class="version-tab" onclick="selectVersion('2017')" id="version-2017" role="tab" aria-selected="false">
+                        2017
+                    </button>
+                    <button class="version-tab active" onclick="selectVersion('2021')" id="version-2021" role="tab" aria-selected="true">
+                        2021
+                    </button>
+                    <button class="version-tab" onclick="selectVersion('2025')" id="version-2025" role="tab" aria-selected="false">
+                        2025
+                    </button>
+                </div>
+                <div class="version-info">
+                    <span class="version-badge" id="current-version-badge">
+                        <i class="fas fa-check-circle"></i> Current: 2021
+                    </span>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- Main Dashboard Grid -->
     <main class="dashboard">
         <div class="container">
@@ -210,6 +235,157 @@
 
     <script src="src/web-assets/dashboard.js"></script>
     <script src="src/web-assets/search.js"></script>
+    
+    <!-- Version Selector Styles and Script -->
+    <style>
+        .version-selector-section {
+            background: linear-gradient(135deg, rgba(0, 255, 65, 0.05), rgba(13, 255, 146, 0.05));
+            padding: 40px 0;
+            border-top: 1px solid var(--primary-color);
+            border-bottom: 1px solid var(--primary-color);
+        }
+        
+        .version-selector-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .version-title {
+            color: var(--primary-color);
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 0;
+            text-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+        }
+        
+        .version-tabs {
+            display: flex;
+            gap: 15px;
+            background: var(--darker-color);
+            padding: 8px;
+            border-radius: 10px;
+            border: 2px solid var(--primary-color);
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.2);
+        }
+        
+        .version-tab {
+            padding: 12px 35px;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 1.1rem;
+            transition: all 0.3s;
+            color: var(--text-secondary);
+            background: transparent;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .version-tab:hover {
+            background: rgba(0, 255, 65, 0.1);
+            color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        
+        .version-tab.active {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            border-color: var(--primary-color);
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.5);
+        }
+        
+        .version-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .version-badge {
+            background: rgba(0, 255, 65, 0.15);
+            color: var(--primary-color);
+            padding: 8px 20px;
+            border-radius: 20px;
+            border: 2px solid var(--primary-color);
+            font-size: 1rem;
+            font-weight: 600;
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.2);
+        }
+    </style>
+    
+    <script>
+        // Version/Year Selection Function
+        function selectVersion(year, showNotif = true) {
+            // Update active state on tabs and ARIA attributes
+            document.querySelectorAll('.version-tab').forEach(tab => {
+                tab.classList.remove('active');
+                tab.setAttribute('aria-selected', 'false');
+            });
+            const selectedTab = document.getElementById(`version-${year}`);
+            if (selectedTab) {
+                selectedTab.classList.add('active');
+                selectedTab.setAttribute('aria-selected', 'true');
+            }
+            
+            // Update version badge
+            const badge = document.getElementById('current-version-badge');
+            if (badge) {
+                const yearText = document.createTextNode(year);
+                badge.innerHTML = '<i class="fas fa-check-circle"></i> Current: ';
+                badge.appendChild(yearText);
+            }
+            
+            // Store selected version in localStorage
+            localStorage.setItem('owaspVersion', year);
+            
+            // Show notification if requested
+            if (showNotif && typeof showNotification === 'function') {
+                if (year === '2021') {
+                    showNotification('success', `Switched to OWASP Top 10 ${year} (Current Version)`);
+                } else {
+                    showNotification('info', `Switched to OWASP Top 10 ${year}`);
+                }
+            }
+        }
+        
+        // Simple notification function if not already defined
+        function showNotification(type, message) {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 20px;
+                background: ${type === 'success' ? 'rgba(0, 255, 65, 0.9)' : 'rgba(13, 255, 146, 0.9)'};
+                color: var(--darker-color);
+                border-radius: 8px;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+                z-index: 10000;
+                max-width: 400px;
+                font-family: 'Courier New', monospace;
+                font-weight: bold;
+                border: 2px solid ${type === 'success' ? '#00ff41' : '#0dff92'};
+            `;
+            notification.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'info-circle'}"></i> ${message}`;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.transition = 'opacity 0.5s';
+                notification.style.opacity = '0';
+                setTimeout(() => notification.remove(), 500);
+            }, 3000);
+        }
+        
+        // Load saved version on page load (without showing notification)
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedVersion = localStorage.getItem('owaspVersion') || '2021';
+            if (savedVersion !== '2021') {
+                selectVersion(savedVersion, false); // false = don't show notification
+            }
+        });
+    </script>
     
     <!-- Search Trigger Button -->
     <button class="search-trigger" onclick="document.dispatchEvent(new KeyboardEvent('keydown', {key: 'k', ctrlKey: true}))">
