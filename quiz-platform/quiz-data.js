@@ -220,6 +220,90 @@ const quizQuestions = {
             correct: 1,
             type: "boolean",
             explanation: "False. Webhooks are a prime SSRF vector. If users can specify webhook URLs, they could point to internal services (http://localhost:6379) or cloud metadata endpoints (http://169.254.169.254)."
+        },
+        // OWASP 2017 SPECIFIC QUESTIONS
+        {
+            question: "What was the #1 vulnerability in OWASP Web Top 10 2017?",
+            options: ["Broken Access Control", "Injection", "XSS", "CSRF"],
+            correct: 1,
+            type: "multiple",
+            year: "2017",
+            explanation: "Injection was #1 in OWASP 2017. Injection flaws, such as SQL, OS, and LDAP injection occur when untrusted data is sent to an interpreter."
+        },
+        {
+            question: "XML External Entities (XXE) was a new entry in OWASP Top 10 2017 at position #4.",
+            options: ["True", "False"],
+            correct: 0,
+            type: "boolean",
+            year: "2017",
+            explanation: "True. XXE (A4:2017) was added in 2017 due to many older XML processors evaluating external entity references within XML documents."
+        },
+        {
+            question: "In OWASP 2017, which position did Broken Access Control hold?",
+            options: ["#1", "#3", "#5", "#7"],
+            correct: 2,
+            type: "multiple",
+            year: "2017",
+            explanation: "Broken Access Control was A5:2017 (#5 in 2017). It moved to #1 in 2021 due to increased prevalence."
+        },
+        {
+            question: "Sensitive Data Exposure in 2017 focused primarily on which aspect?",
+            options: ["Access control", "Encryption and data protection", "Input validation", "Session management"],
+            correct: 1,
+            type: "multiple",
+            year: "2017",
+            explanation: "A3:2017-Sensitive Data Exposure focused on lack of encryption and protection of sensitive data like financial and healthcare information."
+        },
+        {
+            scenario: "A 2017 application uses an old XML parser that processes external entities. An attacker uploads a malicious XML file that references /etc/passwd.",
+            question: "Which 2017 OWASP vulnerability is this?",
+            options: ["A1: Injection", "A4: XML External Entities", "A7: XSS", "A8: Insecure Deserialization"],
+            correct: 1,
+            type: "scenario",
+            year: "2017",
+            explanation: "This is A4:2017-XML External Entities (XXE). The vulnerability allowed attackers to disclose internal files and conduct SSRF attacks."
+        },
+        // OWASP 2025 SPECIFIC QUESTIONS  
+        {
+            question: "Server-Side Request Forgery (SSRF) first appeared in which OWASP Top 10 version?",
+            options: ["2017", "2019", "2021", "2025"],
+            correct: 2,
+            type: "multiple",
+            year: "2025",
+            explanation: "SSRF was first introduced as A10:2021 in the OWASP Top 10 2021 and continues as A10:2025."
+        },
+        {
+            question: "Which vulnerability replaced 'Sensitive Data Exposure' from 2017?",
+            options: ["Broken Authentication", "Cryptographic Failures", "Security Misconfiguration", "Insecure Design"],
+            correct: 1,
+            type: "multiple",
+            year: "2025",
+            explanation: "A02:2025-Cryptographic Failures is the evolution of Sensitive Data Exposure, with broader focus on encryption failures."
+        },
+        {
+            question: "Insecure Design (A04:2025) focuses on design flaws rather than implementation bugs.",
+            options: ["True", "False"],
+            correct: 0,
+            type: "boolean",
+            year: "2025",
+            explanation: "True. Insecure Design represents missing or ineffective security controls in the design phase, distinct from implementation flaws."
+        },
+        {
+            scenario: "A 2025 cloud application's CI/CD pipeline doesn't verify the integrity of deployment packages. An attacker injects malicious code into the build process.",
+            question: "Which 2025 OWASP vulnerability is this?",
+            options: ["A06: Vulnerable Components", "A08: Software and Data Integrity Failures", "A04: Insecure Design", "A05: Security Misconfiguration"],
+            correct: 1,
+            type: "scenario",
+            year: "2025",
+            explanation: "This is A08:2025-Software and Data Integrity Failures. The vulnerability relates to code and infrastructure without integrity protection."
+        },
+        {
+            question: "In 2025, 'Broken Authentication' is now called what?",
+            options: ["Authentication Failures", "Identification and Authentication Failures", "Cryptographic Failures", "Access Control Failures"],
+            correct: 1,
+            type: "multiple",
+            year: "2025",
+            explanation: "A07:2025-Identification and Authentication Failures is the updated name, reflecting broader scope including identification issues."
         }
     ],
     mobile: [
