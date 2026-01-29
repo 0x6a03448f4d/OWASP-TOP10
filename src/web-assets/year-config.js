@@ -114,9 +114,9 @@ const OWASP_YEAR_CONFIG = {
             enabled: true,
             version: '2025',
             vulnerabilities: [
-                { id: 'A01', number: 1, name: 'Broken Access Control', slug: 'broken-access-control' },
+                { id: 'A01', number: 1, name: 'Broken Access Control (Includes SSRF)', slug: 'broken-access-control' },
                 { id: 'A02', number: 2, name: 'Security Misconfiguration', slug: 'security-misconfiguration' },
-                { id: 'A03', number: 3, name: 'Software Supply Chain Failures', slug: 'software-supply-chain-failures' },
+                { id: 'A03', number: 3, name: 'Software Supply Chain Failures (New)', slug: 'software-supply-chain-failures' },
                 { id: 'A04', number: 4, name: 'Cryptographic Failures', slug: 'cryptographic-failures' },
                 { id: 'A05', number: 5, name: 'Injection', slug: 'injection' },
                 { id: 'A06', number: 6, name: 'Insecure Design', slug: 'insecure-design' },
