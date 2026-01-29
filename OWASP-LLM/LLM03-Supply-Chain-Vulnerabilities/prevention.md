@@ -1,4 +1,4 @@
-# Prompt Injection - Prevention
+# Supply Chain Vulnerabilities - Prevention
 
 ## Secure Practices
 

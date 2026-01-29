@@ -1,4 +1,4 @@
-# Prompt Injection - Examples
+# System Prompt Leakage - Examples
 
 ## Vulnerable Code
 

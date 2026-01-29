@@ -1,8 +1,8 @@
-# Prompt Injection - Overview
+# Sensitive Information Disclosure - Overview
 
-## What is Prompt Injection?
+## What is Sensitive Information Disclosure?
 
-Manipulating LLM behavior through crafted prompts
+Unintended exposure of sensitive data through LLM outputs
 
 ## Why is it Dangerous?
 

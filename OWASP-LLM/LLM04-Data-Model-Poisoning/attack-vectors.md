@@ -1,4 +1,4 @@
-# Prompt Injection - Attack Vectors
+# Data and Model Poisoning - Attack Vectors
 
 ## Common Attack Patterns
 

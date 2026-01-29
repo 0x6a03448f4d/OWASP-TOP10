@@ -1,4 +1,4 @@
-# Prompt Injection - Prevention
+# Misinformation - Prevention
 
 ## Secure Practices
 

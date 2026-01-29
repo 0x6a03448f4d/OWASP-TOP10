@@ -1,4 +1,4 @@
-# Prompt Injection - Examples
+# Misinformation - Examples
 
 ## Vulnerable Code
 

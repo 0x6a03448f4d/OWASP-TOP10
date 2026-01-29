@@ -1,8 +1,8 @@
-# Prompt Injection - Overview
+# Vector & Embedding Weaknesses - Overview
 
-## What is Prompt Injection?
+## What is Vector & Embedding Weaknesses?
 
-Manipulating LLM behavior through crafted prompts
+Vulnerabilities in vector databases and RAG systems
 
 ## Why is it Dangerous?
 

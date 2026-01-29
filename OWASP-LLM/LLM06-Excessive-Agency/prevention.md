@@ -1,4 +1,4 @@
-# Prompt Injection - Prevention
+# Excessive Agency - Prevention
 
 ## Secure Practices
 

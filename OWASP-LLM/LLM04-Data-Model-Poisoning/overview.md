@@ -1,8 +1,8 @@
-# Prompt Injection - Overview
+# Data and Model Poisoning - Overview
 
-## What is Prompt Injection?
+## What is Data and Model Poisoning?
 
-Manipulating LLM behavior through crafted prompts
+Compromising training data or fine-tuning processes
 
 ## Why is it Dangerous?
 

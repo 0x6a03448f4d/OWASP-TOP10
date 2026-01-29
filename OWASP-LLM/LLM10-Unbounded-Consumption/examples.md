@@ -1,4 +1,4 @@
-# Prompt Injection - Examples
+# Unbounded Consumption - Examples
 
 ## Vulnerable Code
 

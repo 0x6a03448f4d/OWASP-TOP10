@@ -1,4 +1,4 @@
-# Prompt Injection - Attack Vectors
+# Improper Output Handling - Attack Vectors
 
 ## Common Attack Patterns
 

@@ -1,8 +1,8 @@
-# Prompt Injection - Overview
+# Improper Output Handling - Overview
 
-## What is Prompt Injection?
+## What is Improper Output Handling?
 
-Manipulating LLM behavior through crafted prompts
+Insufficient validation of LLM-generated outputs
 
 ## Why is it Dangerous?
 

@@ -1,4 +1,4 @@
-# Prompt Injection - Attack Vectors
+# Excessive Agency - Attack Vectors
 
 ## Common Attack Patterns
 

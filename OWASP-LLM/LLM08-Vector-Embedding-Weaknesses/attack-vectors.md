@@ -1,4 +1,4 @@
-# Prompt Injection - Attack Vectors
+# Vector & Embedding Weaknesses - Attack Vectors
 
 ## Common Attack Patterns
 

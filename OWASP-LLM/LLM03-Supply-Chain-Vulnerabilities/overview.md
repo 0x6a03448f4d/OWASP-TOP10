@@ -1,8 +1,8 @@
-# Prompt Injection - Overview
+# Supply Chain Vulnerabilities - Overview
 
-## What is Prompt Injection?
+## What is Supply Chain Vulnerabilities?
 
-Manipulating LLM behavior through crafted prompts
+Risks from third-party models, datasets, and plugins
 
 ## Why is it Dangerous?
 

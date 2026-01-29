@@ -1,4 +1,4 @@
-# Prompt Injection - Prevention
+# System Prompt Leakage - Prevention
 
 ## Secure Practices
 

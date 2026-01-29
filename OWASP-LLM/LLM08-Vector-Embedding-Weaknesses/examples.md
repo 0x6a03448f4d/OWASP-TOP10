@@ -1,4 +1,4 @@
-# Prompt Injection - Examples
+# Vector & Embedding Weaknesses - Examples
 
 ## Vulnerable Code
 

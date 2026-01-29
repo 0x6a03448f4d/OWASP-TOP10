@@ -1,4 +1,4 @@
-# Prompt Injection - Examples
+# Supply Chain Vulnerabilities - Examples
 
 ## Vulnerable Code
 

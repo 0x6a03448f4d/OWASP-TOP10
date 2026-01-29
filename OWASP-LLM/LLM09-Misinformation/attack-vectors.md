@@ -1,4 +1,4 @@
-# Prompt Injection - Attack Vectors
+# Misinformation - Attack Vectors
 
 ## Common Attack Patterns
 

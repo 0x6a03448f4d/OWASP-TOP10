@@ -1,4 +1,4 @@
-# Prompt Injection - Prevention
+# Improper Output Handling - Prevention
 
 ## Secure Practices
 

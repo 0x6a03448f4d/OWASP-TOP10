@@ -1,4 +1,4 @@
-# Prompt Injection - Prevention
+# Sensitive Information Disclosure - Prevention
 
 ## Secure Practices
 

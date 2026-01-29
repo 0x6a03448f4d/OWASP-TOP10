@@ -1,4 +1,4 @@
-# Prompt Injection - Attack Vectors
+# Supply Chain Vulnerabilities - Attack Vectors
 
 ## Common Attack Patterns
 

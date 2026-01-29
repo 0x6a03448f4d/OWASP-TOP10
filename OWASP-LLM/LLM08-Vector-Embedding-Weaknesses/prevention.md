@@ -1,4 +1,4 @@
-# Prompt Injection - Prevention
+# Vector & Embedding Weaknesses - Prevention
 
 ## Secure Practices
 

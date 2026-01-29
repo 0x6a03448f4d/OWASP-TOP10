@@ -1,8 +1,8 @@
-# Prompt Injection - Overview
+# Excessive Agency - Overview
 
-## What is Prompt Injection?
+## What is Excessive Agency?
 
-Manipulating LLM behavior through crafted prompts
+LLM systems granted too much autonomy or permissions
 
 ## Why is it Dangerous?
 

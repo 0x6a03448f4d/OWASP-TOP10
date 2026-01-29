@@ -1,4 +1,4 @@
-# Prompt Injection - Prevention
+# Unbounded Consumption - Prevention
 
 ## Secure Practices
 

@@ -1,4 +1,4 @@
-# Prompt Injection - Examples
+# Data and Model Poisoning - Examples
 
 ## Vulnerable Code
 

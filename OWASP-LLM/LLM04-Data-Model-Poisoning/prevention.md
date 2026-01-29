@@ -1,4 +1,4 @@
-# Prompt Injection - Prevention
+# Data and Model Poisoning - Prevention
 
 ## Secure Practices
 

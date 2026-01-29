@@ -1,4 +1,4 @@
-# Prompt Injection - Examples
+# Sensitive Information Disclosure - Examples
 
 ## Vulnerable Code
 

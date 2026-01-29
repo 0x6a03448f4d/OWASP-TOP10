@@ -1,8 +1,8 @@
-# Prompt Injection - Overview
+# Unbounded Consumption - Overview
 
-## What is Prompt Injection?
+## What is Unbounded Consumption?
 
-Manipulating LLM behavior through crafted prompts
+Resource exhaustion through LLM interactions
 
 ## Why is it Dangerous?
 

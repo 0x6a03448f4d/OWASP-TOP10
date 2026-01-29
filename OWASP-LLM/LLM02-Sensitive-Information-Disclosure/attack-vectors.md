@@ -1,4 +1,4 @@
-# Prompt Injection - Attack Vectors
+# Sensitive Information Disclosure - Attack Vectors
 
 ## Common Attack Patterns
 

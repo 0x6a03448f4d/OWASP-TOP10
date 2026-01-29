@@ -1,4 +1,4 @@
-# Prompt Injection - Attack Vectors
+# Unbounded Consumption - Attack Vectors
 
 ## Common Attack Patterns
 

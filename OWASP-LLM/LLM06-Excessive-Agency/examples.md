@@ -1,4 +1,4 @@
-# Prompt Injection - Examples
+# Excessive Agency - Examples
 
 ## Vulnerable Code
 

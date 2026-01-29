@@ -1,8 +1,8 @@
-# Prompt Injection - Overview
+# System Prompt Leakage - Overview
 
-## What is Prompt Injection?
+## What is System Prompt Leakage?
 
-Manipulating LLM behavior through crafted prompts
+Exposure of system prompts through prompt injection
 
 ## Why is it Dangerous?
 

@@ -1,4 +1,4 @@
-# Prompt Injection - Examples
+# Improper Output Handling - Examples
 
 ## Vulnerable Code
 

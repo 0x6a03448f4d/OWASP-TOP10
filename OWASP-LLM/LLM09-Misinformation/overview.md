@@ -1,8 +1,8 @@
-# Prompt Injection - Overview
+# Misinformation - Overview
 
-## What is Prompt Injection?
+## What is Misinformation?
 
-Manipulating LLM behavior through crafted prompts
+LLM generating false or misleading information
 
 ## Why is it Dangerous?
 

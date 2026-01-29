@@ -1,4 +1,4 @@
-# Prompt Injection - Attack Vectors
+# System Prompt Leakage - Attack Vectors
 
 ## Common Attack Patterns
 
