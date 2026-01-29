@@ -15,12 +15,12 @@ const OWASP_YEAR_CONFIG = {
                 { id: 'A2', number: 2, name: 'Broken Authentication', slug: 'broken-authentication' },
                 { id: 'A3', number: 3, name: 'Sensitive Data Exposure', slug: 'sensitive-data-exposure' },
                 { id: 'A4', number: 4, name: 'XML External Entities (XXE)', slug: 'xml-external-entities' },
-                { id: 'A5', number: 5, name: 'Broken Access Control', slug: 'broken-access-control' },
-                { id: 'A6', number: 6, name: 'Security Misconfiguration', slug: 'security-misconfiguration' },
+                { id: 'A5', number: 5, name: 'Security Misconfiguration', slug: 'security-misconfiguration' },
+                { id: 'A6', number: 6, name: 'Insecure Deserialization', slug: 'insecure-deserialization' },
                 { id: 'A7', number: 7, name: 'Cross-Site Scripting (XSS)', slug: 'cross-site-scripting' },
                 { id: 'A8', number: 8, name: 'Insecure Deserialization', slug: 'insecure-deserialization' },
-                { id: 'A9', number: 9, name: 'Using Components with Known Vulnerabilities', slug: 'using-components-with-known-vulnerabilities' },
-                { id: 'A10', number: 10, name: 'Insufficient Logging & Monitoring', slug: 'insufficient-logging-monitoring' }
+                { id: 'A9', number: 9, name: 'Vuln/Outdated Components', slug: 'vulnerable-outdated-components' },
+                { id: 'A10', number: 10, name: 'Insufficient Logging/Monitoring', slug: 'insufficient-logging-monitoring' }
             ]
         },
         api: {
@@ -62,11 +62,11 @@ const OWASP_YEAR_CONFIG = {
                 { id: 'A03', number: 3, name: 'Injection', slug: 'injection' },
                 { id: 'A04', number: 4, name: 'Insecure Design', slug: 'insecure-design' },
                 { id: 'A05', number: 5, name: 'Security Misconfiguration', slug: 'security-misconfiguration' },
-                { id: 'A06', number: 6, name: 'Vulnerable and Outdated Components', slug: 'vulnerable-outdated-components' },
-                { id: 'A07', number: 7, name: 'Identification and Authentication Failures', slug: 'identification-authentication-failures' },
-                { id: 'A08', number: 8, name: 'Software and Data Integrity Failures', slug: 'software-data-integrity-failures' },
-                { id: 'A09', number: 9, name: 'Security Logging and Monitoring Failures', slug: 'security-logging-monitoring-failures' },
-                { id: 'A10', number: 10, name: 'Server-Side Request Forgery (SSRF)', slug: 'server-side-request-forgery' }
+                { id: 'A06', number: 6, name: 'Vuln/Outdated Components', slug: 'vulnerable-outdated-components' },
+                { id: 'A07', number: 7, name: 'Ident/Auth Failures', slug: 'identification-authentication-failures' },
+                { id: 'A08', number: 8, name: 'Software/Data Integrity', slug: 'software-data-integrity-failures' },
+                { id: 'A09', number: 9, name: 'Logging & Monitoring', slug: 'security-logging-monitoring-failures' },
+                { id: 'A10', number: 10, name: 'SSRF', slug: 'server-side-request-forgery' }
             ]
         },
         api: {
@@ -116,7 +116,7 @@ const OWASP_YEAR_CONFIG = {
             vulnerabilities: [
                 { id: 'A01', number: 1, name: 'Broken Access Control (Includes SSRF)', slug: 'broken-access-control' },
                 { id: 'A02', number: 2, name: 'Security Misconfiguration', slug: 'security-misconfiguration' },
-                { id: 'A03', number: 3, name: 'Software Supply Chain Failures (New)', slug: 'software-supply-chain-failures' },
+                { id: 'A03', number: 3, name: 'Software Supply Chain Failures', slug: 'software-supply-chain-failures' },
                 { id: 'A04', number: 4, name: 'Cryptographic Failures', slug: 'cryptographic-failures' },
                 { id: 'A05', number: 5, name: 'Injection', slug: 'injection' },
                 { id: 'A06', number: 6, name: 'Insecure Design', slug: 'insecure-design' },
