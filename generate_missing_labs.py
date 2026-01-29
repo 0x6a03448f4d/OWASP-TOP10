@@ -3007,41 +3007,6 @@ def generate_exception_app(config):
 '''
 
 
-def generate_sensitive_data_app(config):
-    """Generate sensitive data exposure app"""
-    return generate_generic_app(config)
-
-
-def generate_xxe_app(config):
-    """Generate XXE app"""
-    return generate_generic_app(config)
-
-
-def generate_xss_app(config):
-    """Generate XSS app"""
-    return generate_generic_app(config)
-
-
-def generate_deserialization_app(config):
-    """Generate deserialization app"""
-    return generate_generic_app(config)
-
-
-def generate_logging_app(config):
-    """Generate logging app"""
-    return generate_generic_app(config)
-
-
-def generate_supply_chain_app(config):
-    """Generate supply chain app"""
-    return generate_generic_app(config)
-
-
-def generate_exception_app(config):
-    """Generate exception handling app"""
-    return generate_generic_app(config)
-
-
 def generate_home_html(config):
     """Generate home.html template"""
     return f'''<!DOCTYPE html>
@@ -3297,7 +3262,7 @@ def create_lab(lab_config):
     write_file(f"{app_dir}/server.py", flask_app)
     
     # requirements.txt
-    write_file(f"{app_dir}/requirements.txt", "Flask==3.0.0\\nWerkzeug==3.0.1\\n")
+    write_file(f"{app_dir}/requirements.txt", "Flask==3.0.0\nWerkzeug==3.0.1\n")
     
     # templates/home.html
     home_html = generate_home_html(lab_config)

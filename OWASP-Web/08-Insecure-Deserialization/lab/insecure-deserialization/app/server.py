@@ -31,38 +31,6 @@ if __name__ == '__main__':
     print("OWASP Top 10 Lab: Insecure Deserialization")
     print("=" * 60)
     print(f"\nRunning on http://localhost:5024")
-
-
-
-def generate_xxe_app(config):
-    """Generate XXE app"""
-    return generate_generic_app(config)
-
-
-def generate_xss_app(config):
-    """Generate XSS app"""
-    return generate_generic_app(config)
-
-
-def generate_deserialization_app(config):
-    """Generate deserialization app"""
-    return generate_generic_app(config)
-
-
-def generate_logging_app(config):
-    """Generate logging app"""
-    return generate_generic_app(config)
-
-
-def generate_supply_chain_app(config):
-    """Generate supply chain app"""
-    return generate_generic_app(config)
-
-
-def generate_exception_app(config):
-    """Generate exception handling app"""
-    return generate_generic_app(config)
-
     print("\nEDUCATIONAL PURPOSE ONLY")
     print("=" * 60)
     
