@@ -146,8 +146,10 @@ def list_labs():
         if result.returncode == 0:
             for line in result.stdout.strip().split('\n'):
                 if line and '|||' in line:
-                    name, status = line.split('|||')
-                    running_containers[name] = 'running' if 'Up' in status else 'stopped'
+                    parts = line.split('|||', 1)  # Limit split to avoid issues if delimiter appears in status
+                    if len(parts) == 2:
+                        name, status = parts
+                        running_containers[name] = 'running' if 'Up' in status else 'stopped'
         
         for lab_id, lab_info in LABS.items():
             container_name = lab_info['container']
@@ -221,6 +223,7 @@ def start_lab(lab_id):
             # Security: Validate lab path is within expected directory
             expected_base = os.path.abspath('.')
             if not lab_path.startswith(expected_base):
+                logger.warning(f"Security: Invalid lab path attempted: {lab_path}")
                 return jsonify({
                     'status': 'error',
                     'message': 'Invalid lab path - security violation'
