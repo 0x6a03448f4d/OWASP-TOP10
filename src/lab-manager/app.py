@@ -27,45 +27,102 @@ except Exception as e:
 
 LAB_NETWORK = os.getenv('LAB_NETWORK', 'owasp-network')
 
-# Lab configurations
-LABS = {
-    'web-01': {
-        'name': 'Broken Access Control',
-        'path': './OWASP-Web/01-Broken-Access-Control/lab',
-        'port': 8001,
-        'container': 'owasp-web-lab-01'
-    },
-    'web-03': {
-        'name': 'Injection',
-        'path': './OWASP-Web/03-Injection/lab',
-        'port': 8003,
-        'container': 'owasp-web-lab-03'
-    },
-    'api-01': {
-        'name': 'Broken Object Level Authorization',
-        'path': './OWASP-API/API01-Broken-Object-Level-Authorization/lab',
-        'port': 9001,
-        'container': 'owasp-api-lab-01'
-    },
-    'api-04': {
-        'name': 'Unrestricted Resource Consumption',
-        'path': './OWASP-API/API04-Unrestricted-Resource-Consumption/lab',
-        'port': 9004,
-        'container': 'owasp-api-lab-04'
-    },
-    'mobile-01': {
-        'name': 'Improper Credential Usage',
-        'path': './OWASP-Mobile/M01-Improper-Credential-Usage/lab',
-        'port': 7001,
-        'container': 'owasp-mobile-lab-01'
-    },
-    'llm-01': {
-        'name': 'Prompt Injection',
-        'path': './OWASP-LLM/LLM01-Prompt-Injection/lab',
-        'port': 6001,
-        'container': 'owasp-llm-lab-01'
-    }
-}
+# Lab configurations - Auto-generate from structured data
+def generate_lab_configs():
+    """Generate lab configurations for all OWASP categories"""
+    labs = {}
+    
+    # Web Labs (01-10)
+    web_labs = [
+        ('01', 'Broken Access Control', 8001, '01-Broken-Access-Control'),
+        ('02', 'Cryptographic Failures', 8002, '02-Cryptographic-Failures'),
+        ('03', 'Injection', 8003, '03-Injection'),
+        ('04', 'Insecure Design', 8004, '04-Insecure-Design'),
+        ('05', 'Security Misconfiguration', 8005, '05-Security-Misconfiguration'),
+        ('06', 'Vulnerable Components', 8006, '06-Vulnerable-Outdated-Components'),
+        ('07', 'Authentication Failures', 8007, '07-Identification-Authentication-Failures'),
+        ('08', 'Software & Data Integrity', 8008, '08-Software-Data-Integrity-Failures'),
+        ('09', 'Security Logging Failures', 8009, '09-Security-Logging-Monitoring-Failures'),
+        ('10', 'SSRF', 8010, '10-Server-Side-Request-Forgery')
+    ]
+    
+    for num, name, port, path in web_labs:
+        labs[f'web-{num}'] = {
+            'name': name,
+            'path': f'./OWASP-Web/{path}/lab',
+            'port': port,
+            'container': f'owasp-web-lab-{num}'
+        }
+    
+    # API Labs (API01-API10)
+    api_labs = [
+        ('api01', 'Broken Object Level Authorization', 9001, 'API01-Broken-Object-Level-Authorization'),
+        ('api02', 'Broken Authentication', 9002, 'API02-Broken-Authentication'),
+        ('api03', 'Broken Object Property Level Authorization', 9003, 'API03-Broken-Object-Property-Level-Authorization'),
+        ('api04', 'Unrestricted Resource Consumption', 9004, 'API04-Unrestricted-Resource-Consumption'),
+        ('api05', 'Broken Function Level Authorization', 9005, 'API05-Broken-Function-Level-Authorization'),
+        ('api06', 'Unrestricted Access to Sensitive Business Flows', 9006, 'API06-Unrestricted-Access-Sensitive-Business-Flows'),
+        ('api07', 'Server Side Request Forgery', 9007, 'API07-Server-Side-Request-Forgery'),
+        ('api08', 'Security Misconfiguration', 9008, 'API08-Security-Misconfiguration'),
+        ('api09', 'Improper Inventory Management', 9009, 'API09-Improper-Inventory-Management'),
+        ('api10', 'Unsafe Consumption of APIs', 9010, 'API10-Unsafe-Consumption-of-APIs')
+    ]
+    
+    for num, name, port, path in api_labs:
+        labs[f'api-{num}'] = {
+            'name': name,
+            'path': f'./OWASP-API/{path}/lab',
+            'port': port,
+            'container': f'owasp-api-lab-{num}'
+        }
+    
+    # Mobile Labs (M01-M10)
+    mobile_labs = [
+        ('m01', 'Improper Credential Usage', 7001, 'M01-Improper-Credential-Usage'),
+        ('m02', 'Inadequate Supply Chain Security', 7002, 'M02-Inadequate-Supply-Chain-Security'),
+        ('m03', 'Insecure Authentication/Authorization', 7003, 'M03-Insecure-Authentication-Authorization'),
+        ('m04', 'Insufficient Input/Output Validation', 7004, 'M04-Insufficient-Input-Output-Validation'),
+        ('m05', 'Insecure Communication', 7005, 'M05-Insecure-Communication'),
+        ('m06', 'Inadequate Privacy Controls', 7006, 'M06-Inadequate-Privacy-Controls'),
+        ('m07', 'Insufficient Binary Protections', 7007, 'M07-Insufficient-Binary-Protections'),
+        ('m08', 'Security Misconfiguration', 7008, 'M08-Security-Misconfiguration'),
+        ('m09', 'Insecure Data Storage', 7009, 'M09-Insecure-Data-Storage'),
+        ('m10', 'Insufficient Cryptography', 7010, 'M10-Insufficient-Cryptography')
+    ]
+    
+    for num, name, port, path in mobile_labs:
+        labs[f'mobile-{num}'] = {
+            'name': name,
+            'path': f'./OWASP-Mobile/{path}/lab',
+            'port': port,
+            'container': f'owasp-mobile-lab-{num}'
+        }
+    
+    # LLM Labs (LLM01-LLM10)
+    llm_labs = [
+        ('llm01', 'Prompt Injection', 6001, 'LLM01-Prompt-Injection'),
+        ('llm02', 'Insecure Output Handling', 6002, 'LLM02-Insecure-Output-Handling'),
+        ('llm03', 'Training Data Poisoning', 6003, 'LLM03-Training-Data-Poisoning'),
+        ('llm04', 'Model Denial of Service', 6004, 'LLM04-Model-Denial-of-Service'),
+        ('llm05', 'Supply Chain Vulnerabilities', 6005, 'LLM05-Supply-Chain-Vulnerabilities'),
+        ('llm06', 'Sensitive Information Disclosure', 6006, 'LLM06-Sensitive-Information-Disclosure'),
+        ('llm07', 'Insecure Plugin Design', 6007, 'LLM07-Insecure-Plugin-Design'),
+        ('llm08', 'Excessive Agency', 6008, 'LLM08-Excessive-Agency'),
+        ('llm09', 'Overreliance', 6009, 'LLM09-Overreliance'),
+        ('llm10', 'Model Theft', 6010, 'LLM10-Model-Theft')
+    ]
+    
+    for num, name, port, path in llm_labs:
+        labs[f'llm-{num}'] = {
+            'name': name,
+            'path': f'./OWASP-LLM/{path}/lab',
+            'port': port,
+            'container': f'owasp-llm-lab-{num}'
+        }
+    
+    return labs
+
+LABS = generate_lab_configs()
 
 @app.route('/health', methods=['GET'])
 def health():
