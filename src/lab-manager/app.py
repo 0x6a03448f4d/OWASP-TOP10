@@ -19,11 +19,19 @@ logger = logging.getLogger(__name__)
 
 # Docker client
 try:
-    docker_client = docker.from_env()
-    logger.info("Docker client initialized successfully")
+    # Forçar a ligação ao socket nativo para evitar o erro "http+docker"
+    docker_client = docker.DockerClient(base_url='unix:///var/run/docker.sock')
+    docker_client.ping()
+    logger.info("Docker client initialized successfully via unix socket")
 except Exception as e:
-    logger.error(f"Failed to initialize Docker client: {e}")
-    docker_client = None
+    logger.warning(f"Failed with unix socket, trying from_env. Error: {e}")
+    try:
+        docker_client = docker.from_env()
+        docker_client.ping()
+        logger.info("Docker client initialized successfully via env")
+    except Exception as e2:
+        logger.error(f"Failed to initialize Docker client completely: {e2}")
+        docker_client = None
 
 LAB_NETWORK = os.getenv('LAB_NETWORK', 'owasp-network')
 
@@ -190,9 +198,9 @@ def start_lab(lab_id):
             logger.info(f"Auto-building lab from: {compose_dir}")
             
             try:
-                # Run docker-compose up -d
+                # Run docker compose up -d
                 result = subprocess.run(
-                    ['docker-compose', 'up', '-d'],
+                    ['docker', 'compose', 'up', '-d'],
                     cwd=compose_dir,
                     capture_output=True,
                     text=True,
