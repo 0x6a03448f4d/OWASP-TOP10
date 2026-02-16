@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """
 OWASP Lab Manager API
-A simple Flask API to manage Docker-based vulnerable labs
+A simple Flask API to manage Docker-based vulnerable labs using Docker CLI
 """
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-import docker
+import subprocess
 import os
 import logging
+import json
 
 app = Flask(__name__)
 CORS(app)
@@ -16,14 +17,6 @@ CORS(app)
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Docker client
-try:
-    docker_client = docker.from_env()
-    logger.info("Docker client initialized successfully")
-except Exception as e:
-    logger.error(f"Failed to initialize Docker client: {e}")
-    docker_client = None
 
 LAB_NETWORK = os.getenv('LAB_NETWORK', 'owasp-network')
 
@@ -127,18 +120,34 @@ LABS = generate_lab_configs()
 @app.route('/health', methods=['GET'])
 def health():
     """Health check endpoint"""
-    return jsonify({'status': 'healthy', 'docker': docker_client is not None})
+    try:
+        result = subprocess.run(['docker', 'ps'], capture_output=True, text=True, timeout=5)
+        docker_available = result.returncode == 0
+    except Exception as e:
+        docker_available = False
+        logger.error(f"Docker health check failed: {e}")
+    
+    return jsonify({'status': 'healthy', 'docker': docker_available})
 
 @app.route('/api/labs', methods=['GET'])
 def list_labs():
     """List all available labs with their status"""
-    if not docker_client:
-        return jsonify({'error': 'Docker client not available'}), 500
-    
     labs_status = []
     try:
-        containers = docker_client.containers.list(all=True)
-        running_containers = {c.name: c.status for c in containers}
+        # Get all containers using docker CLI
+        result = subprocess.run(
+            ['docker', 'ps', '-a', '--format', '{{.Names}}|||{{.Status}}'],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        
+        running_containers = {}
+        if result.returncode == 0:
+            for line in result.stdout.strip().split('\n'):
+                if line and '|||' in line:
+                    name, status = line.split('|||')
+                    running_containers[name] = 'running' if 'Up' in status else 'stopped'
         
         for lab_id, lab_info in LABS.items():
             container_name = lab_info['container']
@@ -160,9 +169,6 @@ def list_labs():
 @app.route('/api/labs/<lab_id>/start', methods=['POST'])
 def start_lab(lab_id):
     """Start a specific lab - auto-build if needed"""
-    if not docker_client:
-        return jsonify({'error': 'Docker client not available'}), 500
-    
     if lab_id not in LABS:
         return jsonify({'error': 'Lab not found'}), 404
     
@@ -171,9 +177,16 @@ def start_lab(lab_id):
     
     try:
         # Check if container already exists
-        try:
-            container = docker_client.containers.get(container_name)
-            if container.status == 'running':
+        result = subprocess.run(
+            ['docker', 'inspect', '--format', '{{.State.Status}}', container_name],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        
+        if result.returncode == 0:
+            status = result.stdout.strip()
+            if status == 'running':
                 return jsonify({
                     'status': 'already_running',
                     'message': f"Lab {lab_info['name']} is already running",
@@ -181,18 +194,27 @@ def start_lab(lab_id):
                 })
             else:
                 # Start existing stopped container
-                container.start()
-                logger.info(f"Started existing container: {container_name}")
-                return jsonify({
-                    'status': 'started',
-                    'message': f"Lab {lab_info['name']} started successfully",
-                    'url': f"http://localhost:{lab_info['port']}"
-                })
-        except docker.errors.NotFound:
+                result = subprocess.run(
+                    ['docker', 'start', container_name],
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+                if result.returncode == 0:
+                    logger.info(f"Started existing container: {container_name}")
+                    return jsonify({
+                        'status': 'started',
+                        'message': f"Lab {lab_info['name']} started successfully",
+                        'url': f"http://localhost:{lab_info['port']}"
+                    })
+                else:
+                    return jsonify({
+                        'status': 'error',
+                        'message': f"Failed to start container: {result.stderr}"
+                    }), 500
+        else:
             # Container doesn't exist, auto-build it
             logger.info(f"Container {container_name} not found, attempting auto-build")
-            import subprocess
-            import os
             
             lab_path = os.path.abspath(lab_info['path'])
             
@@ -270,9 +292,6 @@ def start_lab(lab_id):
 @app.route('/api/labs/<lab_id>/stop', methods=['POST'])
 def stop_lab(lab_id):
     """Stop a specific lab"""
-    if not docker_client:
-        return jsonify({'error': 'Docker client not available'}), 500
-    
     if lab_id not in LABS:
         return jsonify({'error': 'Lab not found'}), 404
     
@@ -280,9 +299,14 @@ def stop_lab(lab_id):
     container_name = lab_info['container']
     
     try:
-        container = docker_client.containers.get(container_name)
-        if container.status == 'running':
-            container.stop()
+        result = subprocess.run(
+            ['docker', 'stop', container_name],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        if result.returncode == 0:
             logger.info(f"Stopped container: {container_name}")
             return jsonify({
                 'status': 'stopped',
@@ -290,14 +314,9 @@ def stop_lab(lab_id):
             })
         else:
             return jsonify({
-                'status': 'already_stopped',
-                'message': f"Lab {lab_info['name']} is not running"
-            })
-    except docker.errors.NotFound:
-        return jsonify({
-            'status': 'not_found',
-            'message': f"Lab {lab_info['name']} container not found"
-        }), 404
+                'status': 'error',
+                'message': f"Failed to stop lab: {result.stderr}"
+            }), 500
     except Exception as e:
         logger.error(f"Error stopping lab {lab_id}: {e}")
         return jsonify({'error': str(e)}), 500
@@ -305,9 +324,6 @@ def stop_lab(lab_id):
 @app.route('/api/labs/<lab_id>/status', methods=['GET'])
 def lab_status(lab_id):
     """Get status of a specific lab"""
-    if not docker_client:
-        return jsonify({'error': 'Docker client not available'}), 500
-    
     if lab_id not in LABS:
         return jsonify({'error': 'Lab not found'}), 404
     
@@ -315,21 +331,29 @@ def lab_status(lab_id):
     container_name = lab_info['container']
     
     try:
-        container = docker_client.containers.get(container_name)
-        return jsonify({
-            'id': lab_id,
-            'name': lab_info['name'],
-            'status': container.status,
-            'port': lab_info['port'],
-            'url': f"http://localhost:{lab_info['port']}" if container.status == 'running' else None
-        })
-    except docker.errors.NotFound:
-        return jsonify({
-            'id': lab_id,
-            'name': lab_info['name'],
-            'status': 'not_found',
-            'message': 'Container not built yet'
-        })
+        result = subprocess.run(
+            ['docker', 'inspect', '--format', '{{.State.Status}}', container_name],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        
+        if result.returncode == 0:
+            status = result.stdout.strip()
+            return jsonify({
+                'id': lab_id,
+                'name': lab_info['name'],
+                'status': status,
+                'port': lab_info['port'],
+                'url': f"http://localhost:{lab_info['port']}" if status == 'running' else None
+            })
+        else:
+            return jsonify({
+                'id': lab_id,
+                'name': lab_info['name'],
+                'status': 'not_found',
+                'message': 'Container not built yet'
+            })
     except Exception as e:
         logger.error(f"Error getting lab status {lab_id}: {e}")
         return jsonify({'error': str(e)}), 500
