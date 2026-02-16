@@ -27,45 +27,66 @@ except Exception as e:
 
 LAB_NETWORK = os.getenv('LAB_NETWORK', 'owasp-network')
 
-# Lab configurations
-LABS = {
-    'web-01': {
-        'name': 'Broken Access Control',
-        'path': './OWASP-Web/01-Broken-Access-Control/lab',
-        'port': 8001,
-        'container': 'owasp-web-lab-01'
-    },
-    'web-03': {
-        'name': 'Injection',
-        'path': './OWASP-Web/03-Injection/lab',
-        'port': 8003,
-        'container': 'owasp-web-lab-03'
-    },
-    'api-01': {
-        'name': 'Broken Object Level Authorization',
-        'path': './OWASP-API/API01-Broken-Object-Level-Authorization/lab',
-        'port': 9001,
-        'container': 'owasp-api-lab-01'
-    },
-    'api-04': {
-        'name': 'Unrestricted Resource Consumption',
-        'path': './OWASP-API/API04-Unrestricted-Resource-Consumption/lab',
-        'port': 9004,
-        'container': 'owasp-api-lab-04'
-    },
-    'mobile-01': {
-        'name': 'Improper Credential Usage',
-        'path': './OWASP-Mobile/M01-Improper-Credential-Usage/lab',
-        'port': 7001,
-        'container': 'owasp-mobile-lab-01'
-    },
-    'llm-01': {
-        'name': 'Prompt Injection',
-        'path': './OWASP-LLM/LLM01-Prompt-Injection/lab',
-        'port': 6001,
-        'container': 'owasp-llm-lab-01'
+def discover_labs():
+    """
+    Dynamically discover all available labs by scanning the directory structure
+    """
+    categories = {
+        'web': {'path': 'OWASP-Web', 'base_port': 8000, 'prefix': 'web'},
+        'api': {'path': 'OWASP-API', 'base_port': 9000, 'prefix': 'api'},
+        'mobile': {'path': 'OWASP-Mobile', 'base_port': 7000, 'prefix': 'mobile'},
+        'llm': {'path': 'OWASP-LLM', 'base_port': 6000, 'prefix': 'llm'}
     }
-}
+    
+    labs = {}
+    for cat_key, cat_info in categories.items():
+        cat_path = cat_info['path']
+        if not os.path.exists(cat_path):
+            logger.warning(f"Category path not found: {cat_path}")
+            continue
+        
+        # List all subdirectories
+        try:
+            subdirs = sorted([d for d in os.listdir(cat_path) if os.path.isdir(os.path.join(cat_path, d))])
+        except Exception as e:
+            logger.error(f"Error listing directory {cat_path}: {e}")
+            continue
+        
+        port_offset = 1
+        for subdir in subdirs:
+            lab_path = os.path.join(cat_path, subdir, 'lab')
+            if os.path.exists(lab_path):
+                # Extract ID from directory name
+                dir_parts = subdir.split('-')
+                lab_id_part = dir_parts[0]
+                
+                # Format the lab ID for API call
+                if cat_key == 'web':
+                    lab_id = f"web-{lab_id_part.lower()}"
+                else:
+                    lab_id = f"{cat_key}-{lab_id_part.lower()}"
+                
+                # Generate clean lab name
+                lab_name = ' '.join(dir_parts[1:]) if len(dir_parts) > 1 else subdir
+                
+                # Generate container name based on category and number
+                container_name = f"owasp-{cat_key}-lab-{lab_id_part.lower()}"
+                
+                labs[lab_id] = {
+                    'name': lab_name,
+                    'path': lab_path,
+                    'port': cat_info['base_port'] + port_offset,
+                    'container': container_name,
+                    'category': cat_key,
+                    'directory': subdir
+                }
+                port_offset += 1
+    
+    logger.info(f"Discovered {len(labs)} labs across {len(categories)} categories")
+    return labs
+
+# Discover labs at startup
+LABS = discover_labs()
 
 @app.route('/health', methods=['GET'])
 def health():
