@@ -577,14 +577,34 @@
             status.className = 'lab-status status-starting';
             status.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting...';
             
-            // Map category and lab number to lab_id
-            // For web: web-01, web-02, etc.
-            // For api: api-api01, api-api02, etc.
-            // For mobile: mobile-m01, mobile-m02, etc.
-            // For llm: llm-llm01, llm-llm02, etc.
-            const labId = `${category}-${labNum.toLowerCase()}`;
+            // Map category and lab number to lab_id based on directory structure
+            // labNum comes from vuln.id in year-config.js
+            // Web: A01 -> web-01, API: API1 -> api-api01, Mobile: M1 -> mobile-m01, LLM: LLM01 -> llm-llm01
+            let labId;
+            const labNumLower = labNum.toLowerCase();
             
-            console.log(`Starting lab: ${labId} on port ${port}`);
+            if (category === 'web') {
+                // Extract number from A01, A1, etc. and format as 01, 02, etc.
+                const num = labNum.replace(/[^\d]/g, '').padStart(2, '0');
+                labId = `web-${num}`;
+            } else if (category === 'api') {
+                // API1 -> api01, API01 -> api01
+                const num = labNum.replace(/[^\d]/g, '').padStart(2, '0');
+                labId = `api-api${num}`;
+            } else if (category === 'mobile') {
+                // M1 -> m01, M01 -> m01
+                const num = labNum.replace(/[^\d]/g, '').padStart(2, '0');
+                labId = `mobile-m${num}`;
+            } else if (category === 'llm') {
+                // LLM01 -> llm01, LLM1 -> llm01
+                const num = labNum.replace(/[^\d]/g, '').padStart(2, '0');
+                labId = `llm-llm${num}`;
+            } else {
+                // Fallback
+                labId = `${category}-${labNumLower}`;
+            }
+            
+            console.log(`Starting lab: ${labId} (from ${labNum}) on port ${port}`);
             
             // Call lab-manager API to start the lab
             fetch(`http://localhost:4999/api/labs/${labId}/start`, {
