@@ -60,11 +60,9 @@ def discover_labs():
                 dir_parts = subdir.split('-')
                 lab_id_part = dir_parts[0]
                 
-                # Format the lab ID for API call
-                if cat_key == 'web':
-                    lab_id = f"web-{lab_id_part.lower()}"
-                else:
-                    lab_id = f"{cat_key}-{lab_id_part.lower()}"
+                # Format the lab ID for API call: category-id_part
+                # e.g., web-01, api-api01, mobile-m01, llm-llm01
+                lab_id = f"{cat_key}-{lab_id_part.lower()}"
                 
                 # Generate clean lab name
                 lab_name = ' '.join(dir_parts[1:]) if len(dir_parts) > 1 else subdir
