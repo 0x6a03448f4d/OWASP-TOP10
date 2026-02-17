@@ -78,11 +78,21 @@ def extract_port_from_compose(compose_file):
 
 def rewrite_compose_with_absolute_paths(compose_file, host_compose_dir, temp_dir):
     """
-    Read a docker-compose.yml file and rewrite relative paths with absolute host paths.
-    This solves the DooD (Docker-out-of-Docker) volume mount issue where Docker daemon
-    on the host can't resolve container paths like /workspace/...
+    Read a docker-compose.yml file and rewrite volume paths with absolute host paths.
     
-    Returns: path to the temporary compose file with absolute paths
+    CRITICAL: In DooD (Docker-out-of-Docker), there are two types of paths:
+    
+    1. BUILD CONTEXTS: Read by Docker CLI (running INSIDE container)
+       - Must use container paths or relative paths (./app)
+       - Docker CLI resolves these relative to the compose file location in container
+       - DO NOT convert to host paths - will break builds!
+    
+    2. VOLUMES: Read by Docker daemon (running on HOST)
+       - Must use absolute host paths (/Users/admin/project/...)
+       - Docker daemon can't see container paths like /workspace/...
+       - MUST convert relative to absolute host paths
+    
+    Returns: path to the temporary compose file with modified volume paths
     """
     try:
         with open(compose_file, 'r') as f:
@@ -91,28 +101,15 @@ def rewrite_compose_with_absolute_paths(compose_file, host_compose_dir, temp_dir
         # Process each service
         if 'services' in compose_data:
             for service_name, service_config in compose_data['services'].items():
-                # Fix build context paths
-                if 'build' in service_config:
-                    if isinstance(service_config['build'], str):
-                        # Simple string context
-                        if service_config['build'].startswith('./') or service_config['build'].startswith('.'):
-                            rel_path = service_config['build'].lstrip('./')
-                            service_config['build'] = os.path.join(host_compose_dir, rel_path)
-                    elif isinstance(service_config['build'], dict):
-                        # Complex build with context and dockerfile
-                        if 'context' in service_config['build']:
-                            context = service_config['build']['context']
-                            if context.startswith('./') or context.startswith('.'):
-                                rel_path = context.lstrip('./')
-                                service_config['build']['context'] = os.path.join(host_compose_dir, rel_path)
-                        
-                        # Fix dockerfile path if it's relative to context
-                        if 'dockerfile' in service_config['build']:
-                            dockerfile = service_config['build']['dockerfile']
-                            # Keep dockerfile as-is if it starts with ../ (relative to context)
-                            # Docker will resolve it relative to the context
+                # DO NOT modify build contexts!
+                # Build contexts are read by Docker CLI inside the container.
+                # Relative paths like ./app work correctly because:
+                # 1. We execute docker compose with -f pointing to container path
+                # 2. We set cwd=compose_dir (container path like /workspace/.../lab)
+                # 3. Docker CLI resolves ./app relative to the compose file location
+                # 4. The container has access to /workspace which maps to host project root
                 
-                # Fix volume mounts
+                # Fix volume mounts ONLY
                 if 'volumes' in service_config:
                     new_volumes = []
                     for volume in service_config['volumes']:
@@ -139,7 +136,7 @@ def rewrite_compose_with_absolute_paths(compose_file, host_compose_dir, temp_dir
         with open(temp_compose, 'w') as f:
             yaml.dump(compose_data, f, default_flow_style=False)
         
-        logger.info(f"Created temporary compose file with absolute paths: {temp_compose}")
+        logger.info(f"Created temporary compose file with absolute volume paths: {temp_compose}")
         return temp_compose
     
     except Exception as e:
