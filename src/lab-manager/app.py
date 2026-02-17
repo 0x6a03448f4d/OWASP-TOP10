@@ -76,21 +76,27 @@ def extract_port_from_compose(compose_file):
         logger.error(f"Error extracting port from {compose_file}: {e}")
         return None
 
-def rewrite_compose_with_absolute_paths(compose_file, host_compose_dir, temp_dir):
+def rewrite_compose_with_absolute_paths(compose_file, compose_dir, host_compose_dir, temp_dir):
     """
-    Read a docker-compose.yml file and rewrite volume paths with absolute host paths.
+    Read a docker-compose.yml file and rewrite paths with absolute paths.
     
     CRITICAL: In DooD (Docker-out-of-Docker), there are two types of paths:
     
     1. BUILD CONTEXTS: Read by Docker CLI (running INSIDE container)
-       - Must use container paths or relative paths (./app)
-       - Docker CLI resolves these relative to the compose file location in container
-       - DO NOT convert to host paths - will break builds!
+       - Must use absolute CONTAINER paths (/workspace/...)
+       - Since override file is in /tmp/, relative paths don't work
+       - Must convert to absolute container paths using compose_dir
     
     2. VOLUMES: Read by Docker daemon (running on HOST)
        - Must use absolute host paths (/Users/admin/project/...)
        - Docker daemon can't see container paths like /workspace/...
-       - MUST convert relative to absolute host paths
+       - Must convert using host_compose_dir
+    
+    Args:
+        compose_file: Path to the original docker-compose.yml
+        compose_dir: Container path to the lab directory (e.g., /workspace/...)
+        host_compose_dir: Host path to the lab directory (e.g., /Users/admin/...)
+        temp_dir: Temporary directory to write the override file
     
     Returns: path to the temporary compose file with modified paths
     """
@@ -393,11 +399,12 @@ def start_lab(lab_id):
         temp_dir = tempfile.mkdtemp(prefix='owasp_lab_')
         
         try:
-            # Rewrite the compose file with absolute host paths
-            # This solves the DooD volume mount issue
+            # Rewrite the compose file with absolute paths for both build contexts and volumes
+            # This solves the DooD path resolution issue when override file is in /tmp/
             temp_compose_file = rewrite_compose_with_absolute_paths(
                 compose_file, 
-                host_compose_dir, 
+                compose_dir,  # Container path for build contexts
+                host_compose_dir,  # Host path for volumes
                 temp_dir
             )
             
