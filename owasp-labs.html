@@ -584,9 +584,118 @@
             });
         }
 
+        /**
+         * Sync labs with backend to get real ports and status
+         * This replaces the calculated ports with actual ports from docker-compose.yml
+         */
+        function syncLabsWithBackend() {
+            console.log('Syncing labs with backend...');
+            
+            fetch('/api/labs')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Backend labs data:', data);
+                    
+                    if (!data.labs || !Array.isArray(data.labs)) {
+                        console.error('Invalid backend response:', data);
+                        return;
+                    }
+                    
+                    // Create a map of backend labs by ID for easy lookup
+                    const backendLabsMap = {};
+                    data.labs.forEach(backendLab => {
+                        backendLabsMap[backendLab.id] = backendLab;
+                    });
+                    
+                    // Update each lab card with backend data
+                    const allLabCards = document.querySelectorAll('.lab-card');
+                    allLabCards.forEach(card => {
+                        const startBtn = card.querySelector('.lab-btn-start');
+                        if (!startBtn) return;
+                        
+                        // Extract category and lab number from onclick attribute
+                        const onclickAttr = startBtn.getAttribute('onclick');
+                        const match = onclickAttr.match(/startLab\('(\w+)',\s*'([^']+)'/);
+                        if (!match) return;
+                        
+                        const category = match[1]; // web, api, mobile, llm
+                        const labNum = match[2]; // A01, API01, M01, LLM01
+                        
+                        // Build lab ID that matches backend format
+                        let labId;
+                        if (category === 'web') {
+                            // web-01, web-02, etc.
+                            labId = `${category}-${labNum.toLowerCase().replace(/[^\d]/g, '').padStart(2, '0')}`;
+                        } else if (category === 'api') {
+                            // api-api01, api-api02, etc.
+                            labId = `${category}-${labNum.toLowerCase()}`;
+                        } else if (category === 'mobile') {
+                            // mobile-m01, mobile-m02, etc.
+                            labId = `${category}-${labNum.toLowerCase()}`;
+                        } else if (category === 'llm') {
+                            // llm-llm01, llm-llm02, etc.
+                            labId = `${category}-${labNum.toLowerCase()}`;
+                        }
+                        
+                        // Find matching backend lab
+                        const backendLab = backendLabsMap[labId];
+                        if (!backendLab) {
+                            console.log(`No backend match for ${labId}`);
+                            return;
+                        }
+                        
+                        console.log(`Syncing ${labId}: port ${backendLab.port}, status ${backendLab.status}`);
+                        
+                        // Update port display
+                        const portSpan = card.querySelector('.lab-port');
+                        if (portSpan && backendLab.port) {
+                            portSpan.textContent = `Port: ${backendLab.port}`;
+                        }
+                        
+                        // Update status and button states
+                        const statusSpan = card.querySelector('.lab-status');
+                        const stopBtn = card.querySelector('.lab-btn-stop');
+                        
+                        if (backendLab.status === 'running') {
+                            // Lab is running
+                            if (statusSpan) {
+                                statusSpan.className = 'lab-status status-running';
+                                statusSpan.innerHTML = '<i class="fas fa-circle"></i> Running';
+                            }
+                            if (startBtn) {
+                                startBtn.innerHTML = '<i class="fas fa-external-link-alt"></i> Open Lab';
+                            }
+                            if (stopBtn) {
+                                stopBtn.style.display = 'inline-block';
+                            }
+                        } else {
+                            // Lab is stopped (ready)
+                            if (statusSpan) {
+                                statusSpan.className = 'lab-status status-ready';
+                                statusSpan.innerHTML = '<i class="fas fa-circle"></i> Ready';
+                            }
+                            if (startBtn) {
+                                startBtn.innerHTML = '<i class="fas fa-play"></i> Start Lab';
+                            }
+                            if (stopBtn) {
+                                stopBtn.style.display = 'none';
+                            }
+                        }
+                    });
+                    
+                    console.log('Labs synced with backend successfully');
+                })
+                .catch(error => {
+                    console.error('Error syncing with backend:', error);
+                    console.log('Backend may not be available yet. Labs will show calculated ports.');
+                });
+        }
+
         // Populate labs on page load
         document.addEventListener('DOMContentLoaded', () => {
             populateLabs();
+            // Sync with backend to get real ports and status
+            syncLabsWithBackend();
         });
 
         function createLabCard(lab, category) {
@@ -867,8 +976,8 @@
             btn.style.opacity = '0.6';
             btn.style.cursor = 'not-allowed';
             
-            // Call lab-manager API to stop all labs
-            fetch('http://localhost:4999/api/labs/stop-all', {
+            // Call lab-manager API to stop all labs (using relative path)
+            fetch('/api/labs/stop-all', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
