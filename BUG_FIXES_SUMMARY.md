@@ -2,7 +2,7 @@
 
 ## Resumo das Correções
 
-Este documento descreve as correções cirúrgicas implementadas para resolver três bugs críticos no OWASP Lab Manager.
+Este documento descreve as correções cirúrgicas implementadas para resolver cinco bugs críticos no OWASP Lab Manager.
 
 ---
 
@@ -296,13 +296,204 @@ try:
 
 ---
 
+## Bug 4: Docker Build Context "Path Not Found" (DooD) ✅
+
+### Problema
+Ao tentar iniciar um lab, o Docker falhava ao fazer build com o erro:
+```
+Failed to build lab: unable to prepare context: path "/Users/admin/.../app" not found
+```
+
+### Causa Raiz
+O problema era uma questão clássica de Docker-in-Docker (DooD):
+
+1. O container `lab-manager` corre em `/workspace` (mapeado de `./` no host via volume)
+2. O código anterior usava `--project-directory` apontando para o caminho do host
+3. Quando o Docker daemon tentava resolver build contexts (ex: `./app` no docker-compose.yml do lab), ele procurava no caminho do host
+4. Mas o acesso aos ficheiros era através do container em `/workspace/...`
+5. Resultado: Docker não encontrava os ficheiros porque estava a procurar no caminho errado
+
+**Exemplo do problema:**
+```python
+# ❌ ANTES (ERRADO)
+subprocess.run([
+    'docker', 'compose', 
+    '-f', '/workspace/OWASP-Web/.../docker-compose.yml',
+    '--project-directory', '/Users/admin/Documents/OWASP-TOP10/...',  # ← Problema!
+    'up', '-d', '--build'
+])
+
+# Docker tentava aceder: /Users/admin/.../app
+# Mas ficheiros estavam em: /workspace/.../app (através do mount)
+```
+
+### Solução Implementada
+**Ficheiro**: `src/lab-manager/app.py`
+
+A solução foi **remover o flag `--project-directory`** e confiar no volume mount:
+
+```python
+# ✅ DEPOIS (CORRETO)
+subprocess.run([
+    'docker', 'compose', 
+    '-f', compose_file,  # /workspace/.../docker-compose.yml
+    'up', '-d', '--build'
+], cwd=compose_dir)  # /workspace/.../
+
+# Docker agora resolve:
+# - Build context ./app → /workspace/.../app
+# - Volume ./app:/app → /workspace/.../app
+# - Docker daemon acede através do mount: ./workspace → host path
+```
+
+### Como Funciona
+
+**Arquitetura:**
+```
+Host (Mac/Linux)
+└── /Users/admin/Documents/OWASP-TOP10/
+    └── OWASP-Web/01-Broken-Access-Control/lab/
+        └── docker-compose.yml (context: ./app)
+        └── app/
+
+Docker Daemon (Host) ──┐
+                       │
+Container lab-manager  │
+├─ Volume: ./:/workspace:ro  ← Mapeamento
+└─ /workspace/OWASP-Web/01-Broken-Access-Control/lab/
+   ├─ docker-compose.yml
+   └─ app/  ← Docker daemon acede aqui via mount!
+```
+
+**Fluxo de resolução:**
+1. `docker compose` corre de `/workspace/.../lab` (cwd)
+2. Lê `./app` do compose file
+3. Resolve para `/workspace/.../lab/app`
+4. Docker daemon acede através do mount `./:/workspace`
+5. `/workspace` mapeia de volta para o host's project root
+6. ✅ Build funciona!
+
+### Resultado
+✅ Builds de labs funcionam corretamente  
+✅ Caminhos resolvidos dinamicamente via mount  
+✅ Sem hardcoded paths - funciona em qualquer sistema  
+✅ ${PWD} em docker-compose.yml continua a funcionar para outras necessidades
+
+---
+
+## Bug 5: Links de Documentação com Números Dinâmicos ✅
+
+### Problema
+Links de documentação geravam 404s porque vulnerabilidades mudam de posição entre anos, mas pastas físicas têm números estáticos.
+
+**Exemplo: Security Misconfiguration**
+- **2017**: Posição A6 → Link gerado: `06-Security-Misconfiguration` ❌
+- **2021**: Posição A5 → Link gerado: `05-Security-Misconfiguration` ✅
+- **2025**: Posição A2 → Link gerado: `02-Security-Misconfiguration` ❌
+- **Pasta física**: `05-Security-Misconfiguration` (baseado na versão 2021)
+
+### Causa Raiz
+O código usava o campo `number` da configuração do ano para gerar nomes de pastas:
+
+```javascript
+// ❌ ERRADO (antes)
+function formatPathSegment(slug, id, category) {
+    const num = id.replace(/[^\d]/g, '').padStart(2, '0');  // Usa número do ano
+    return `${num}-${capitalized}`;  // 06-, 05-, ou 02- dependendo do ano
+}
+```
+
+Mas as pastas físicas têm números estáticos baseados na sua versão principal/canónica, não na posição do ano atual.
+
+### Solução Implementada
+**Ficheiro**: `owasp-labs.html`
+
+Criado um **mapeamento estático completo** de slugs para nomes de pastas físicas:
+
+```javascript
+const FOLDER_NAME_MAPPING = {
+    web: {
+        'security-misconfiguration': '05-Security-Misconfiguration',  // Sempre 05!
+        'broken-access-control': '01-Broken-Access-Control',
+        'injection': '03-Injection',
+        // ... 27 mais mapeamentos
+    },
+    api: {
+        'broken-object-level-authorization': 'API01-Broken-Object-Level-Authorization',
+        'security-misconfiguration': 'API08-Security-Misconfiguration',
+        // ... 15 mais mapeamentos
+    },
+    mobile: {
+        'improper-credential-usage': 'M01-Improper-Credential-Usage',
+        // ... 16 mapeamentos
+    },
+    llm: {
+        'prompt-injection': 'LLM01-Prompt-Injection',
+        // ... 15 mapeamentos
+    }
+};
+
+function formatPathSegment(slug, id, category) {
+    // ✅ Primeiro: verifica mapeamento estático
+    if (FOLDER_NAME_MAPPING[category] && FOLDER_NAME_MAPPING[category][slug]) {
+        return FOLDER_NAME_MAPPING[category][slug];
+    }
+    
+    // Fallback: geração dinâmica para novos entries
+    // ...
+}
+```
+
+### Mapeamentos Completos
+
+**Web (30 mapeamentos):**
+- Cobre todas as vulnerabilidades de 2017, 2021, e 2025
+- Inclui variantes de nomes (ex: "Authentication Failures" vs "Identification/Authentication Failures")
+- Total: `01-Broken-Access-Control` até `10-Server-Side-Request-Forgery`
+
+**API (18 mapeamentos):**
+- OWASP API Top 10 2023
+- Variantes de 2019 (ex: "Broken User Authentication" → `API02-Broken-Authentication`)
+- Total: `API01-...` até `API10-...`
+
+**Mobile (17 mapeamentos):**
+- OWASP Mobile Top 10 2024
+- Variantes de 2016 (ex: "Improper Platform Usage" → melhor match disponível)
+- Total: `M01-...` até `M10-...`
+
+**LLM (16 mapeamentos):**
+- OWASP LLM Top 10 2025
+- Nomes alternativos (ex: "Overreliance" → `LLM09-Misinformation`)
+- Total: `LLM01-...` até `LLM10-...`
+
+### Resultado
+✅ Links de documentação funcionam independentemente do ano selecionado  
+✅ Sem mais 404s por mudanças de posição  
+✅ Suporta nomes variantes entre versões  
+✅ Fallback para geração dinâmica para futuras adições  
+✅ Manutenível: todo o mapeamento visível num só lugar
+
+---
+
+## Compatibilidade
+
+✅ **Compatível com Mac** (Docker Desktop)  
+✅ **Compatível com Linux** (Docker nativo)  
+✅ **Compatível com CI/CD** (GitHub Actions, etc.)  
+✅ **Retrocompatível** com labs existentes  
+✅ **Não quebra** funcionalidades existentes
+
+---
+
 ## Conclusão
 
-Todos os três bugs foram corrigidos com alterações mínimas e cirúrgicas:
+Todos os cinco bugs foram corrigidos com alterações mínimas e cirúrgicas:
 
 1. **Bug 1**: Simples correção de IDs em `year-config.js` para incluir zeros à esquerda
 2. **Bug 2**: Adição de variável de ambiente e lógica para converter caminhos do container para host
 3. **Bug 3**: Adição do flag `-f` ao comando docker compose para especificar o ficheiro de configuração
+4. **Bug 4**: Remoção do `--project-directory` para resolver builds via volume mount (DooD)
+5. **Bug 5**: Criação de mapeamento estático slug → pasta física para links de documentação
 
 As correções são robustas, testadas, e não introduzem regressões.
 
