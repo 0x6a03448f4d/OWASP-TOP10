@@ -10,6 +10,9 @@ import subprocess
 import os
 import logging
 import json
+import yaml
+import tempfile
+import shutil
 
 app = Flask(__name__)
 CORS(app)
@@ -43,6 +46,105 @@ def test_docker_connection():
 docker_available = test_docker_connection()
 
 LAB_NETWORK = os.getenv('LAB_NETWORK', 'owasp-network')
+
+def extract_port_from_compose(compose_file):
+    """
+    Extract the host port from a docker-compose.yml file
+    Returns the port number or None if not found
+    """
+    try:
+        with open(compose_file, 'r') as f:
+            compose_data = yaml.safe_load(f)
+        
+        # Look for the first service with ports
+        if 'services' in compose_data:
+            for service_name, service_config in compose_data['services'].items():
+                if 'ports' in service_config and service_config['ports']:
+                    # Get first port mapping
+                    port_mapping = service_config['ports'][0]
+                    if isinstance(port_mapping, str):
+                        # Format: "8080:80" - extract host port
+                        host_port = port_mapping.split(':')[0]
+                        return int(host_port)
+                    elif isinstance(port_mapping, dict):
+                        # Format: {published: 8080, target: 80}
+                        return int(port_mapping.get('published', port_mapping.get('target')))
+        
+        logger.warning(f"No port found in {compose_file}")
+        return None
+    except Exception as e:
+        logger.error(f"Error extracting port from {compose_file}: {e}")
+        return None
+
+def rewrite_compose_with_absolute_paths(compose_file, host_compose_dir, temp_dir):
+    """
+    Read a docker-compose.yml file and rewrite relative paths with absolute host paths.
+    This solves the DooD (Docker-out-of-Docker) volume mount issue where Docker daemon
+    on the host can't resolve container paths like /workspace/...
+    
+    Returns: path to the temporary compose file with absolute paths
+    """
+    try:
+        with open(compose_file, 'r') as f:
+            compose_data = yaml.safe_load(f)
+        
+        # Process each service
+        if 'services' in compose_data:
+            for service_name, service_config in compose_data['services'].items():
+                # Fix build context paths
+                if 'build' in service_config:
+                    if isinstance(service_config['build'], str):
+                        # Simple string context
+                        if service_config['build'].startswith('./') or service_config['build'].startswith('.'):
+                            rel_path = service_config['build'].lstrip('./')
+                            service_config['build'] = os.path.join(host_compose_dir, rel_path)
+                    elif isinstance(service_config['build'], dict):
+                        # Complex build with context and dockerfile
+                        if 'context' in service_config['build']:
+                            context = service_config['build']['context']
+                            if context.startswith('./') or context.startswith('.'):
+                                rel_path = context.lstrip('./')
+                                service_config['build']['context'] = os.path.join(host_compose_dir, rel_path)
+                        
+                        # Fix dockerfile path if it's relative to context
+                        if 'dockerfile' in service_config['build']:
+                            dockerfile = service_config['build']['dockerfile']
+                            # Keep dockerfile as-is if it starts with ../ (relative to context)
+                            # Docker will resolve it relative to the context
+                
+                # Fix volume mounts
+                if 'volumes' in service_config:
+                    new_volumes = []
+                    for volume in service_config['volumes']:
+                        if isinstance(volume, str):
+                            parts = volume.split(':')
+                            if len(parts) >= 2:
+                                source = parts[0]
+                                # Only rewrite if it's a relative path
+                                if source.startswith('./') or source.startswith('.'):
+                                    rel_path = source.lstrip('./')
+                                    abs_source = os.path.join(host_compose_dir, rel_path)
+                                    parts[0] = abs_source
+                                    new_volumes.append(':'.join(parts))
+                                else:
+                                    new_volumes.append(volume)
+                            else:
+                                new_volumes.append(volume)
+                        else:
+                            new_volumes.append(volume)
+                    service_config['volumes'] = new_volumes
+        
+        # Write the modified compose to a temporary file
+        temp_compose = os.path.join(temp_dir, 'docker-compose.override.yml')
+        with open(temp_compose, 'w') as f:
+            yaml.dump(compose_data, f, default_flow_style=False)
+        
+        logger.info(f"Created temporary compose file with absolute paths: {temp_compose}")
+        return temp_compose
+    
+    except Exception as e:
+        logger.error(f"Error rewriting compose file: {e}")
+        raise
 
 def discover_labs():
     """
@@ -87,10 +189,26 @@ def discover_labs():
                 # Generate container name based on category and number
                 container_name = f"owasp-{cat_key}-lab-{lab_id_part.lower()}"
                 
+                # Try to find the actual port from docker-compose.yml
+                port = cat_info['base_port'] + port_offset  # Default fallback
+                try:
+                    # Look for docker-compose.yml in lab subdirectories
+                    for item in os.listdir(lab_path):
+                        item_path = os.path.join(lab_path, item)
+                        if os.path.isdir(item_path):
+                            compose_file = os.path.join(item_path, 'docker-compose.yml')
+                            if os.path.exists(compose_file):
+                                extracted_port = extract_port_from_compose(compose_file)
+                                if extracted_port:
+                                    port = extracted_port
+                                    break
+                except Exception as e:
+                    logger.warning(f"Could not extract port for {lab_id}: {e}")
+                
                 labs[lab_id] = {
                     'name': lab_name,
                     'path': lab_path,
-                    'port': cat_info['base_port'] + port_offset,
+                    'port': port,
                     'container': container_name,
                     'category': cat_key,
                     'directory': subdir
@@ -259,25 +377,26 @@ def start_lab(lab_id):
         logger.info(f"Container compose dir: {compose_dir}")
         logger.info(f"Host compose dir: {host_compose_dir}")
         
+        # Create a temporary directory for the modified compose file
+        temp_dir = tempfile.mkdtemp(prefix='owasp_lab_')
+        
         try:
-            # Run docker compose up -d
-            # For Docker-in-Docker (DooD), we need special handling:
-            # 1. -f specifies the compose file (container can read it via mounted volume)
-            # 2. We DON'T use --project-directory because it breaks build context
-            # 3. Instead, we change to the compose_dir and run from there
-            # 4. Docker daemon will resolve paths relative to the compose file location
-            # 5. Since ./:/workspace:ro mount, paths resolve correctly on host
+            # Rewrite the compose file with absolute host paths
+            # This solves the DooD volume mount issue
+            temp_compose_file = rewrite_compose_with_absolute_paths(
+                compose_file, 
+                host_compose_dir, 
+                temp_dir
+            )
             
+            logger.info(f"Using temporary compose file: {temp_compose_file}")
+            
+            # Run docker compose with the rewritten file
             env = os.environ.copy()
             
-            # The key insight: when we run from cwd=compose_dir, Docker resolves:
-            # - Build context: ./app → /workspace/.../app (container) → maps to host via mount
-            # - Volumes: ./app:/app → same resolution
-            # Docker daemon sees the actual host path via the /workspace mount
-            
             result = subprocess.run(
-                ['docker', 'compose', '-f', compose_file, 'up', '-d', '--build'],
-                cwd=compose_dir,  # Run from the compose directory
+                ['docker', 'compose', '-f', temp_compose_file, 'up', '-d', '--build'],
+                cwd=compose_dir,  # Still run from compose directory for context
                 capture_output=True,
                 text=True,
                 timeout=300,  # 5 minutes timeout
@@ -286,10 +405,18 @@ def start_lab(lab_id):
             
             if result.returncode == 0:
                 logger.info(f"Successfully built and started lab: {container_name}")
+                
+                # Extract the actual port from the original compose file
+                actual_port = extract_port_from_compose(compose_file)
+                if actual_port:
+                    logger.info(f"Lab is running on port: {actual_port}")
+                    lab_info['port'] = actual_port  # Update with actual port
+                
                 return jsonify({
                     'status': 'started',
                     'message': f"Lab {lab_info['name']} built and started successfully",
                     'url': f"http://localhost:{lab_info['port']}",
+                    'port': lab_info['port'],  # Explicitly include port
                     'build_output': result.stdout
                 })
             else:
@@ -309,6 +436,13 @@ def start_lab(lab_id):
                 'status': 'error',
                 'message': f"Error building lab: {str(e)}"
             }), 500
+        finally:
+            # Clean up temporary directory
+            try:
+                shutil.rmtree(temp_dir)
+                logger.info(f"Cleaned up temporary directory: {temp_dir}")
+            except Exception as e:
+                logger.warning(f"Could not clean up temp directory {temp_dir}: {e}")
         
     except Exception as e:
         logger.error(f"Error starting lab {lab_id}: {e}")
