@@ -245,6 +245,7 @@ def start_lab(lab_id):
         # Build and start using docker compose
         compose_dir = os.path.dirname(compose_file)
         logger.info(f"Auto-building lab from: {compose_dir}")
+        logger.info(f"Compose file: {compose_file}")
         
         # Calculate the actual host path for docker compose
         # The container sees /workspace but the host sees HOST_PROJECT_ROOT
@@ -260,11 +261,11 @@ def start_lab(lab_id):
         
         try:
             # Run docker compose up -d
-            # Use --project-directory to specify the actual host path
+            # Use -f to specify the compose file and --project-directory for the context
             env = os.environ.copy()
             
             result = subprocess.run(
-                ['docker', 'compose', '--project-directory', host_compose_dir, 'up', '-d', '--build'],
+                ['docker', 'compose', '-f', compose_file, '--project-directory', host_compose_dir, 'up', '-d', '--build'],
                 cwd=compose_dir,  # Still run from container path to read the compose file
                 capture_output=True,
                 text=True,
