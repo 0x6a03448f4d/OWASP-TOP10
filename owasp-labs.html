@@ -591,6 +591,9 @@
                     <button class="lab-btn lab-btn-start" onclick="startLab('${category}', '${lab.num}', ${lab.port}, event)">
                         <i class="fas fa-play"></i> Start Lab
                     </button>
+                    <button class="lab-btn lab-btn-stop" onclick="stopLab('${category}', '${lab.num}', event)" style="display: none; background: #dc3545;">
+                        <i class="fas fa-stop"></i> Stop Lab
+                    </button>
                     <div class="docs-dropdown">
                         <button class="lab-btn lab-btn-docs" onclick="toggleDocsDropdown(event)">
                             <i class="fas fa-book"></i> Documentation <i class="fas fa-caret-down"></i>
@@ -615,7 +618,7 @@
                     <span class="lab-status status-ready">
                         <i class="fas fa-circle"></i> Ready
                     </span>
-                    <small style="color: var(--text-secondary); margin-left: 10px;">
+                    <small class="lab-port" style="color: var(--text-secondary); margin-left: 10px;">
                         Port: ${lab.port}
                     </small>
                 </div>
@@ -664,7 +667,9 @@
 
         function startLab(category, labNum, port, event) {
             const btn = event.currentTarget.closest('.lab-btn-start');
-            const status = btn.closest('.lab-card').querySelector('.lab-status');
+            const card = btn.closest('.lab-card');
+            const status = card.querySelector('.lab-status');
+            const stopBtn = card.querySelector('.lab-btn-stop');
             
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting...';
             btn.disabled = true;
@@ -721,8 +726,13 @@
                     btn.onclick = () => window.open(actualUrl, '_blank');
                     btn.disabled = false;
                     
-                    // Update the port display if we have the actual port from API
-                    const portSpan = btn.closest('.lab-card').querySelector('.lab-port');
+                    // Show stop button
+                    if (stopBtn) {
+                        stopBtn.style.display = 'inline-block';
+                    }
+                    
+                    // Update the port display with actual port from API
+                    const portSpan = card.querySelector('.lab-port');
                     if (portSpan && data.port) {
                         portSpan.textContent = `Port: ${data.port}`;
                     }
@@ -757,6 +767,84 @@
                                    category === 'api' ? 'OWASP-API' : 
                                    category === 'mobile' ? 'OWASP-Mobile' : 'OWASP-LLM';
                 showNotification('warning', `Could not connect to lab manager. Lab manager may not be running.\n\nTo start manually, run:\ndocker-compose up -d\n\nThen the lab should be available at http://localhost:${port}`);
+            });
+        }
+        
+        function stopLab(category, labNum, event) {
+            const btn = event.currentTarget.closest('.lab-btn-stop');
+            const card = btn.closest('.lab-card');
+            const status = card.querySelector('.lab-status');
+            const startBtn = card.querySelector('.lab-btn-start');
+            
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Stopping...';
+            btn.disabled = true;
+            status.className = 'lab-status status-starting';
+            status.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Stopping...';
+            
+            // Map category and lab number to lab_id (same logic as startLab)
+            const num = labNum.replace(/[^\d]/g, '').padStart(2, '0');
+            const labNumLower = labNum.toLowerCase();
+            
+            let labId;
+            if (category === 'web') {
+                labId = `web-${num}`;
+            } else if (category === 'api') {
+                labId = `api-api${num}`;
+            } else if (category === 'mobile') {
+                labId = `mobile-m${num}`;
+            } else if (category === 'llm') {
+                labId = `llm-llm${num}`;
+            } else {
+                labId = `${category}-${labNumLower}`;
+            }
+            
+            console.log(`Stopping lab: ${labId}`);
+            
+            // Call lab-manager API to stop the lab
+            fetch(`http://localhost:4999/api/labs/${labId}/stop`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Lab stop response:', data);
+                if (data.status === 'stopped' || data.status === 'already_stopped') {
+                    status.className = 'lab-status status-ready';
+                    status.innerHTML = '<i class="fas fa-circle"></i> Ready';
+                    
+                    // Reset start button
+                    startBtn.innerHTML = '<i class="fas fa-play"></i> Start Lab';
+                    startBtn.onclick = (e) => startLab(category, labNum, 0, e);
+                    startBtn.disabled = false;
+                    
+                    // Hide stop button
+                    btn.style.display = 'none';
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-stop"></i> Stop Lab';
+                    
+                    showNotification('success', `Lab ${labNum} stopped successfully`);
+                } else if (data.status === 'error') {
+                    status.className = 'lab-status status-running';
+                    status.innerHTML = '<i class="fas fa-circle"></i> Running';
+                    btn.innerHTML = '<i class="fas fa-stop"></i> Stop Lab';
+                    btn.disabled = false;
+                    
+                    showNotification('error', `Failed to stop lab: ${data.message}`);
+                } else {
+                    btn.innerHTML = '<i class="fas fa-stop"></i> Stop Lab';
+                    btn.disabled = false;
+                    
+                    showNotification('info', data.message || 'Lab status unknown');
+                }
+            })
+            .catch(error => {
+                console.error('Error stopping lab:', error);
+                btn.innerHTML = '<i class="fas fa-stop"></i> Stop Lab';
+                btn.disabled = false;
+                
+                showNotification('error', 'Could not connect to lab manager');
             });
         }
         

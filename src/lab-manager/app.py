@@ -411,16 +411,21 @@ def start_lab(lab_id):
             logger.info(f"Using temporary compose file: {temp_compose_file}")
             
             # Run docker compose with the rewritten file
+            # Use -p flag to specify consistent project name and avoid ghost containers
+            # This prevents "port already allocated" errors when override file is in random /tmp/ directory
+            project_name = f"owasp-lab-{lab_id}"
             env = os.environ.copy()
             
             result = subprocess.run(
-                ['docker', 'compose', '-f', temp_compose_file, 'up', '-d', '--build'],
+                ['docker', 'compose', '-p', project_name, '-f', temp_compose_file, 'up', '-d', '--build'],
                 cwd=compose_dir,  # Still run from compose directory for context
                 capture_output=True,
                 text=True,
                 timeout=300,  # 5 minutes timeout
                 env=env
             )
+            
+            logger.info(f"Using project name: {project_name}")
             
             if result.returncode == 0:
                 logger.info(f"Successfully built and started lab: {container_name}")
