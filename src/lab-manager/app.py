@@ -246,14 +246,30 @@ def start_lab(lab_id):
         compose_dir = os.path.dirname(compose_file)
         logger.info(f"Auto-building lab from: {compose_dir}")
         
+        # Calculate the actual host path for docker compose
+        # The container sees /workspace but the host sees HOST_PROJECT_ROOT
+        host_project_root = os.environ.get('HOST_PROJECT_ROOT', os.path.abspath('.'))
+        container_project_root = os.path.abspath('.')  # This is /workspace inside container
+        
+        # Convert container path to host path
+        relative_path = os.path.relpath(compose_dir, container_project_root)
+        host_compose_dir = os.path.join(host_project_root, relative_path)
+        
+        logger.info(f"Container compose dir: {compose_dir}")
+        logger.info(f"Host compose dir: {host_compose_dir}")
+        
         try:
             # Run docker compose up -d
+            # Use --project-directory to specify the actual host path
+            env = os.environ.copy()
+            
             result = subprocess.run(
-                ['docker', 'compose', 'up', '-d', '--build'],
-                cwd=compose_dir,
+                ['docker', 'compose', '--project-directory', host_compose_dir, 'up', '-d', '--build'],
+                cwd=compose_dir,  # Still run from container path to read the compose file
                 capture_output=True,
                 text=True,
-                timeout=300  # 5 minutes timeout
+                timeout=300,  # 5 minutes timeout
+                env=env
             )
             
             if result.returncode == 0:
