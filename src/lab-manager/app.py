@@ -47,6 +47,78 @@ docker_available = test_docker_connection()
 
 LAB_NETWORK = os.getenv('LAB_NETWORK', 'owasp-network')
 
+# OWASP Top 10 2021 Category Mapping
+# Maps keywords found in lab paths to OWASP 2021 categories
+OWASP_2021_CATEGORIES = {
+    'A01': {
+        'name': 'Broken Access Control',
+        'keywords': ['access-control', 'broken-access', 'authorization', 'idor', 'path-traversal']
+    },
+    'A02': {
+        'name': 'Cryptographic Failures',
+        'keywords': ['crypto', 'cryptographic', 'hashing', 'encryption', 'weak-hash', 'ssl', 'tls']
+    },
+    'A03': {
+        'name': 'Injection',
+        'keywords': ['injection', 'sqli', 'sql-injection', 'xss', 'cross-site-scripting', 'xxe', 'xml-external', 'ldap', 'nosql', 'command-injection', 'unsafe-query']
+    },
+    'A04': {
+        'name': 'Insecure Design',
+        'keywords': ['insecure-design', 'rate-limit', 'missing-rate', 'business-logic']
+    },
+    'A05': {
+        'name': 'Security Misconfiguration',
+        'keywords': ['misconfiguration', 'security-misconfiguration', 'debug-mode', 'default-config']
+    },
+    'A06': {
+        'name': 'Vulnerable and Outdated Components',
+        'keywords': ['vulnerable', 'outdated', 'component', 'library', 'dependency']
+    },
+    'A07': {
+        'name': 'Identification and Authentication Failures',
+        'keywords': ['authentication', 'auth', 'jwt', 'oauth', 'session', 'password', 'credential', 'broken-authentication', 'identification']
+    },
+    'A08': {
+        'name': 'Software and Data Integrity Failures',
+        'keywords': ['integrity', 'deserialization', 'insecure-deserialization', 'supply-chain', 'software-supply']
+    },
+    'A09': {
+        'name': 'Security Logging and Monitoring Failures',
+        'keywords': ['logging', 'monitoring', 'alerting', 'log']
+    },
+    'A10': {
+        'name': 'Server-Side Request Forgery',
+        'keywords': ['ssrf', 'server-side-request', 'request-forgery']
+    }
+}
+
+def categorize_lab_by_owasp_2021(lab_path, lab_name):
+    """
+    Categorize a lab based on OWASP Top 10 2021 using keyword matching
+    Returns tuple: (category_code, category_name)
+    """
+    # Combine path and name for keyword search (lowercase for case-insensitive matching)
+    search_text = f"{lab_path.lower()} {lab_name.lower()}"
+    
+    # Try to match keywords to categories
+    for cat_code, cat_info in OWASP_2021_CATEGORIES.items():
+        for keyword in cat_info['keywords']:
+            if keyword in search_text:
+                logger.debug(f"Lab '{lab_name}' matched category {cat_code} via keyword '{keyword}'")
+                return cat_code, cat_info['name']
+    
+    # Default: try to extract from directory number if present
+    # e.g., "01-Broken-Access-Control" -> use the name part
+    for cat_code, cat_info in OWASP_2021_CATEGORIES.items():
+        cat_name_lower = cat_info['name'].lower()
+        if cat_name_lower in search_text:
+            logger.debug(f"Lab '{lab_name}' matched category {cat_code} via category name")
+            return cat_code, cat_info['name']
+    
+    # Fallback: return unknown
+    logger.warning(f"Lab '{lab_name}' could not be categorized, using 'Unknown'")
+    return 'Unknown', 'Unknown Category'
+
 def extract_port_from_compose(compose_file):
     """
     Extract the host port from a docker-compose.yml file
@@ -223,13 +295,18 @@ def discover_labs():
                 except Exception as e:
                     logger.warning(f"Could not extract port for {lab_id}: {e}")
                 
+                # Categorize lab according to OWASP Top 10 2021
+                owasp_category, owasp_category_name = categorize_lab_by_owasp_2021(lab_path, lab_name)
+                
                 labs[lab_id] = {
                     'name': lab_name,
                     'path': lab_path,
                     'port': port,
                     'container': container_name,
                     'category': cat_key,
-                    'directory': subdir
+                    'directory': subdir,
+                    'owasp_2021_category': owasp_category,
+                    'owasp_2021_category_name': owasp_category_name
                 }
                 port_offset += 1
     
@@ -281,7 +358,9 @@ def list_labs():
                 'name': lab_info['name'],
                 'port': lab_info['port'],
                 'status': status,
-                'url': f"http://localhost:{lab_info['port']}" if status == 'running' else None
+                'url': f"http://localhost:{lab_info['port']}" if status == 'running' else None,
+                'owasp_2021_category': lab_info.get('owasp_2021_category', 'Unknown'),
+                'owasp_2021_category_name': lab_info.get('owasp_2021_category_name', 'Unknown Category')
             })
         
         return jsonify({'labs': labs_status})
@@ -557,6 +636,148 @@ def stop_lab(lab_id):
             
     except Exception as e:
         logger.error(f"Error stopping lab {lab_id}: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/labs/stop-all', methods=['POST'])
+def stop_all_labs():
+    """Stop all running labs by finding containers with owasp-lab- prefix"""
+    if not docker_available:
+        return jsonify({'error': 'Docker not available'}), 500
+    
+    try:
+        stopped_labs = []
+        failed_labs = []
+        
+        # Get all running containers with owasp-lab- prefix
+        result = subprocess.run(
+            ['docker', 'ps', '-a', '--filter', 'name=owasp-lab-', '--format', '{{.Names}}'],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        
+        if result.returncode != 0:
+            return jsonify({
+                'status': 'error',
+                'message': 'Failed to list running containers'
+            }), 500
+        
+        container_names = [line.strip() for line in result.stdout.strip().split('\n') if line.strip()]
+        
+        if not container_names:
+            return jsonify({
+                'status': 'success',
+                'message': 'No labs are currently running',
+                'stopped': [],
+                'failed': []
+            })
+        
+        # Stop each lab using its project name
+        for container_name in container_names:
+            try:
+                # Extract lab_id from container name
+                # Container names follow pattern: owasp-lab-{lab_id}-{service}-{num}
+                # or the project name is owasp-lab-{lab_id}
+                # We need to find the matching lab_id
+                lab_id = None
+                for lid, linfo in LABS.items():
+                    project_name = f"owasp-lab-{lid}"
+                    if container_name.startswith(project_name):
+                        lab_id = lid
+                        break
+                
+                if lab_id:
+                    # Use the same stop logic as stop_lab
+                    lab_info = LABS[lab_id]
+                    project_name = f"owasp-lab-{lab_id}"
+                    lab_path = os.path.abspath(lab_info['path'])
+                    
+                    # Find docker-compose file
+                    compose_file = None
+                    for root, dirs, files in os.walk(lab_path):
+                        if 'docker-compose.yml' in files or 'docker-compose.yaml' in files:
+                            compose_file = os.path.join(root, 'docker-compose.yml' if 'docker-compose.yml' in files else 'docker-compose.yaml')
+                            break
+                    
+                    if compose_file:
+                        compose_dir = os.path.dirname(compose_file)
+                        result = subprocess.run(
+                            ['docker', 'compose', '-p', project_name, '-f', compose_file, 'down'],
+                            cwd=compose_dir,
+                            capture_output=True,
+                            text=True,
+                            timeout=60
+                        )
+                        
+                        if result.returncode == 0:
+                            stopped_labs.append({
+                                'lab_id': lab_id,
+                                'name': lab_info['name']
+                            })
+                            logger.info(f"Stopped lab: {lab_id}")
+                        else:
+                            failed_labs.append({
+                                'lab_id': lab_id,
+                                'name': lab_info['name'],
+                                'error': result.stderr
+                            })
+                            logger.error(f"Failed to stop lab {lab_id}: {result.stderr}")
+                    else:
+                        # Fallback to direct docker stop
+                        result = subprocess.run(
+                            ['docker', 'stop', container_name],
+                            capture_output=True,
+                            text=True,
+                            timeout=30
+                        )
+                        if result.returncode == 0:
+                            stopped_labs.append({
+                                'lab_id': lab_id,
+                                'name': lab_info.get('name', container_name)
+                            })
+                        else:
+                            failed_labs.append({
+                                'lab_id': lab_id,
+                                'name': lab_info.get('name', container_name),
+                                'error': result.stderr
+                            })
+                else:
+                    # Container doesn't match any known lab, try direct stop
+                    result = subprocess.run(
+                        ['docker', 'stop', container_name],
+                        capture_output=True,
+                        text=True,
+                        timeout=30
+                    )
+                    if result.returncode == 0:
+                        stopped_labs.append({
+                            'lab_id': 'unknown',
+                            'name': container_name
+                        })
+                    else:
+                        failed_labs.append({
+                            'lab_id': 'unknown',
+                            'name': container_name,
+                            'error': result.stderr
+                        })
+                        
+            except Exception as e:
+                logger.error(f"Error stopping container {container_name}: {e}")
+                failed_labs.append({
+                    'lab_id': 'unknown',
+                    'name': container_name,
+                    'error': str(e)
+                })
+        
+        return jsonify({
+            'status': 'success',
+            'message': f"Stopped {len(stopped_labs)} labs, {len(failed_labs)} failed",
+            'stopped': stopped_labs,
+            'failed': failed_labs
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in stop_all_labs: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/labs/<lab_id>/status', methods=['GET'])
