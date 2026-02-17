@@ -361,6 +361,95 @@
 
     <script>
         /**
+         * Static mapping from vulnerability slugs to actual physical folder names
+         * This resolves the issue where vulnerabilities change positions between years
+         * but physical folders have static numbers based on their primary version
+         */
+        const FOLDER_NAME_MAPPING = {
+            web: {
+                'injection': '03-Injection',
+                'broken-authentication': '02-Broken-Authentication',
+                'sensitive-data-exposure': '03-Sensitive-Data-Exposure',
+                'xml-external-entities': '04-XML-External-Entities',
+                'broken-access-control': '01-Broken-Access-Control',
+                'security-misconfiguration': '05-Security-Misconfiguration',
+                'cross-site-scripting': '07-Cross-Site-Scripting',
+                'insecure-deserialization': '08-Insecure-Deserialization',
+                'vulnerable-outdated-components': '06-Vulnerable-Outdated-Components',
+                'insufficient-logging-monitoring': '10-Insufficient-Logging-Monitoring',
+                'cryptographic-failures': '02-Cryptographic-Failures',
+                'insecure-design': '04-Insecure-Design',
+                'identification-authentication-failures': '07-Identification-Authentication-Failures',
+                'software-data-integrity-failures': '08-Software-Data-Integrity-Failures',
+                'security-logging-monitoring-failures': '09-Security-Logging-Monitoring-Failures',
+                'server-side-request-forgery': '10-Server-Side-Request-Forgery',
+                'software-supply-chain-failures': '03-Software-Supply-Chain-Failures',
+                'authentication-failures': '07-Authentication-Failures',
+                'logging-alerting-failures': '09-Logging-Alerting-Failures',
+                'mishandling-exceptional-conditions': '10-Mishandling-Exceptional-Conditions'
+            },
+            api: {
+                'broken-object-level-authorization': 'API01-Broken-Object-Level-Authorization',
+                'broken-authentication': 'API02-Broken-Authentication',
+                'broken-object-property-level-authorization': 'API03-Broken-Object-Property-Level-Authorization',
+                'unrestricted-resource-consumption': 'API04-Unrestricted-Resource-Consumption',
+                'broken-function-level-authorization': 'API05-Broken-Function-Level-Authorization',
+                'unrestricted-access-to-sensitive-business-flows': 'API06-Unrestricted-Access-to-Sensitive-Business-Flows',
+                'server-side-request-forgery': 'API07-Server-Side-Request-Forgery',
+                'security-misconfiguration': 'API08-Security-Misconfiguration',
+                'improper-inventory-management': 'API09-Improper-Inventory-Management',
+                'unsafe-consumption-of-apis': 'API10-Unsafe-Consumption-of-APIs',
+                // 2019 API variants (if different folders exist)
+                'broken-user-authentication': 'API02-Broken-Authentication',
+                'excessive-data-exposure': 'API03-Broken-Object-Property-Level-Authorization',
+                'lack-of-resources-rate-limiting': 'API04-Unrestricted-Resource-Consumption',
+                'mass-assignment': 'API03-Broken-Object-Property-Level-Authorization',
+                'injection': 'API08-Security-Misconfiguration',
+                'improper-assets-management': 'API09-Improper-Inventory-Management',
+                'insufficient-logging-monitoring': 'API09-Improper-Inventory-Management'
+            },
+            mobile: {
+                'improper-credential-usage': 'M01-Improper-Credential-Usage',
+                'inadequate-supply-chain-security': 'M02-Inadequate-Supply-Chain-Security',
+                'insecure-authentication-authorization': 'M03-Insecure-Authentication-Authorization',
+                'insufficient-input-output-validation': 'M04-Insufficient-Input-Output-Validation',
+                'insecure-communication': 'M05-Insecure-Communication',
+                'inadequate-privacy-controls': 'M06-Inadequate-Privacy-Controls',
+                'insufficient-binary-protections': 'M07-Insufficient-Binary-Protections',
+                'security-misconfiguration': 'M08-Security-Misconfiguration',
+                'insecure-data-storage': 'M09-Insecure-Data-Storage',
+                'insufficient-cryptography': 'M10-Insufficient-Cryptography',
+                // 2016 Mobile variants (map to closest match)
+                'improper-platform-usage': 'M01-Improper-Credential-Usage',
+                'insecure-authentication': 'M03-Insecure-Authentication-Authorization',
+                'insecure-authorization': 'M03-Insecure-Authentication-Authorization',
+                'client-code-quality': 'M07-Insufficient-Binary-Protections',
+                'code-tampering': 'M07-Insufficient-Binary-Protections',
+                'reverse-engineering': 'M07-Insufficient-Binary-Protections',
+                'extraneous-functionality': 'M08-Security-Misconfiguration'
+            },
+            llm: {
+                'prompt-injection': 'LLM01-Prompt-Injection',
+                'sensitive-information-disclosure': 'LLM02-Sensitive-Information-Disclosure',
+                'supply-chain-vulnerabilities': 'LLM03-Supply-Chain-Vulnerabilities',
+                'data-model-poisoning': 'LLM04-Data-Model-Poisoning',
+                'improper-output-handling': 'LLM05-Improper-Output-Handling',
+                'excessive-agency': 'LLM06-Excessive-Agency',
+                'system-prompt-leakage': 'LLM07-System-Prompt-Leakage',
+                'vector-embedding-weaknesses': 'LLM08-Vector-Embedding-Weaknesses',
+                'misinformation': 'LLM09-Misinformation',
+                'unbounded-consumption': 'LLM10-Unbounded-Consumption',
+                // Variant names
+                'insecure-output-handling': 'LLM02-Insecure-Output-Handling',
+                'training-data-poisoning': 'LLM03-Training-Data-Poisoning',
+                'model-denial-of-service': 'LLM04-Model-Denial-of-Service',
+                'insecure-plugin-design': 'LLM07-Insecure-Plugin-Design',
+                'overreliance': 'LLM09-Misinformation',
+                'model-theft': 'LLM10-Unbounded-Consumption'
+            }
+        };
+
+        /**
          * Generate labs data dynamically based on selected year
          * Uses year-config.js to get correct vulnerabilities for each year
          */
@@ -401,15 +490,20 @@
         
         /**
          * Format path segment for lab directory
+         * Uses static mapping to resolve actual folder names
          */
         function formatPathSegment(slug, id, category) {
-            // Convert slug to proper directory format
+            // First, check if we have a static mapping for this slug
+            if (FOLDER_NAME_MAPPING[category] && FOLDER_NAME_MAPPING[category][slug]) {
+                return FOLDER_NAME_MAPPING[category][slug];
+            }
+            
+            // Fallback: Convert slug to proper directory format (for any new entries)
             const words = slug.split('-');
             const capitalized = words.map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('-');
             
-            // For 2017 web labs, use simple numbering (01, 02, etc.)
-            // For 2021/2025 web labs, use A01, A02, etc.
-            // For other categories, use their ID format
+            // For web category, use simple numbering (01, 02, etc.)
+            // For other categories, use their ID format (API01, M01, LLM01)
             if (category === 'web') {
                 // Extract number from id (A01 -> 01, A1 -> 01)
                 const num = id.replace(/[^\d]/g, '').padStart(2, '0');
