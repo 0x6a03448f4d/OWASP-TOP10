@@ -92,7 +92,7 @@ def rewrite_compose_with_absolute_paths(compose_file, host_compose_dir, temp_dir
        - Docker daemon can't see container paths like /workspace/...
        - MUST convert relative to absolute host paths
     
-    Returns: path to the temporary compose file with modified volume paths
+    Returns: path to the temporary compose file with modified paths
     """
     try:
         with open(compose_file, 'r') as f:
@@ -101,15 +101,30 @@ def rewrite_compose_with_absolute_paths(compose_file, host_compose_dir, temp_dir
         # Process each service
         if 'services' in compose_data:
             for service_name, service_config in compose_data['services'].items():
-                # DO NOT modify build contexts!
-                # Build contexts are read by Docker CLI inside the container.
-                # Relative paths like ./app work correctly because:
-                # 1. We execute docker compose with -f pointing to container path
-                # 2. We set cwd=compose_dir (container path like /workspace/.../lab)
-                # 3. Docker CLI resolves ./app relative to the compose file location
-                # 4. The container has access to /workspace which maps to host project root
+                # Fix build contexts
+                # Since the override file is in /tmp/, relative paths would be resolved
+                # from /tmp/ instead of the lab directory. We need absolute CONTAINER paths.
+                # Build contexts are read by Docker CLI inside the container, so use
+                # container paths (compose_dir = /workspace/...)
+                if 'build' in service_config:
+                    build_config = service_config['build']
+                    if isinstance(build_config, dict) and 'context' in build_config:
+                        context = build_config['context']
+                        if context.startswith('./') or context == '.':
+                            # Convert relative path to absolute container path
+                            rel_path = context.lstrip('./')
+                            abs_context = os.path.join(compose_dir, rel_path)
+                            service_config['build']['context'] = abs_context
+                            logger.info(f"Converted build context to container path: {abs_context}")
+                    elif isinstance(build_config, str):
+                        # Build config is just a context string
+                        if build_config.startswith('./') or build_config == '.':
+                            rel_path = build_config.lstrip('./')
+                            abs_context = os.path.join(compose_dir, rel_path)
+                            service_config['build'] = abs_context
+                            logger.info(f"Converted build context to container path: {abs_context}")
                 
-                # Fix volume mounts ONLY
+                # Fix volume mounts
                 if 'volumes' in service_config:
                     new_volumes = []
                     for volume in service_config['volumes']:
