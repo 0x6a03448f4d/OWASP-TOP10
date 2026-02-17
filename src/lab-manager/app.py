@@ -261,12 +261,23 @@ def start_lab(lab_id):
         
         try:
             # Run docker compose up -d
-            # Use -f to specify the compose file and --project-directory for the context
+            # For Docker-in-Docker (DooD), we need special handling:
+            # 1. -f specifies the compose file (container can read it via mounted volume)
+            # 2. We DON'T use --project-directory because it breaks build context
+            # 3. Instead, we change to the compose_dir and run from there
+            # 4. Docker daemon will resolve paths relative to the compose file location
+            # 5. Since ./:/workspace:ro mount, paths resolve correctly on host
+            
             env = os.environ.copy()
             
+            # The key insight: when we run from cwd=compose_dir, Docker resolves:
+            # - Build context: ./app → /workspace/.../app (container) → maps to host via mount
+            # - Volumes: ./app:/app → same resolution
+            # Docker daemon sees the actual host path via the /workspace mount
+            
             result = subprocess.run(
-                ['docker', 'compose', '-f', compose_file, '--project-directory', host_compose_dir, 'up', '-d', '--build'],
-                cwd=compose_dir,  # Still run from container path to read the compose file
+                ['docker', 'compose', '-f', compose_file, 'up', '-d', '--build'],
+                cwd=compose_dir,  # Run from the compose directory
                 capture_output=True,
                 text=True,
                 timeout=300,  # 5 minutes timeout
