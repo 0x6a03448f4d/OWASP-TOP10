@@ -601,14 +601,31 @@
                         return;
                     }
                     
-                    // Create a map of backend labs by ID for easy lookup
+                    // Create maps of backend labs by ID, path, and name for flexible matching
                     const backendLabsMap = {};
+                    const backendLabsByPath = {};
+                    const backendLabsByName = {};
+                    
                     data.labs.forEach(backendLab => {
                         backendLabsMap[backendLab.id] = backendLab;
+                        
+                        // Store by path (normalized)
+                        if (backendLab.path) {
+                            const normalizedPath = backendLab.path.toLowerCase().replace(/[^a-z0-9]/g, '');
+                            backendLabsByPath[normalizedPath] = backendLab;
+                        }
+                        
+                        // Store by name (normalized)
+                        if (backendLab.name) {
+                            const normalizedName = backendLab.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                            backendLabsByName[normalizedName] = backendLab;
+                        }
                     });
                     
                     // Update each lab card with backend data
                     const allLabCards = document.querySelectorAll('.lab-card');
+                    console.log(`Syncing ${allLabCards.length} frontend cards with ${data.labs.length} backend labs`);
+                    
                     allLabCards.forEach(card => {
                         const startBtn = card.querySelector('.lab-btn-start');
                         if (!startBtn) return;
@@ -620,6 +637,10 @@
                         
                         const category = match[1]; // web, api, mobile, llm
                         const labNum = match[2]; // A01, API01, M01, LLM01
+                        
+                        // Get lab name and path from card if available
+                        const labNameElement = card.querySelector('h3');
+                        const labName = labNameElement ? labNameElement.textContent.trim() : '';
                         
                         // Build lab ID that matches backend format
                         let labId;
@@ -637,10 +658,62 @@
                             labId = `${category}-${labNum.toLowerCase()}`;
                         }
                         
-                        // Find matching backend lab
-                        const backendLab = backendLabsMap[labId];
+                        // Try multiple matching strategies
+                        let backendLab = null;
+                        
+                        // Strategy 1: Exact ID match
+                        if (backendLabsMap[labId]) {
+                            backendLab = backendLabsMap[labId];
+                            console.log(`Matched ${labId} by exact ID`);
+                        }
+                        
+                        // Strategy 2: Match by path if ID doesn't work
+                        if (!backendLab && labNum) {
+                            const pathFragment = labNum.toLowerCase().replace(/[^a-z0-9]/g, '');
+                            for (const [normalizedPath, lab] of Object.entries(backendLabsByPath)) {
+                                if (normalizedPath.includes(pathFragment) || pathFragment.includes(normalizedPath)) {
+                                    // Also check category matches
+                                    if (lab.category === category) {
+                                        backendLab = lab;
+                                        console.log(`Matched ${labId} by path fragment: ${pathFragment}`);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Strategy 3: Match by name
+                        if (!backendLab && labName) {
+                            const normalizedFrontendName = labName.toLowerCase().replace(/[^a-z0-9]/g, '');
+                            for (const [normalizedBackendName, lab] of Object.entries(backendLabsByName)) {
+                                if (normalizedBackendName.includes(normalizedFrontendName) || 
+                                    normalizedFrontendName.includes(normalizedBackendName)) {
+                                    // Also check category matches
+                                    if (lab.category === category) {
+                                        backendLab = lab;
+                                        console.log(`Matched ${labId} by name: ${labName}`);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Strategy 4: Fuzzy match by checking if backend path contains category + number
                         if (!backendLab) {
-                            console.log(`No backend match for ${labId}`);
+                            const searchPattern = labNum.toLowerCase();
+                            for (const lab of data.labs) {
+                                if (lab.category === category && 
+                                    lab.path && 
+                                    lab.path.toLowerCase().includes(searchPattern)) {
+                                    backendLab = lab;
+                                    console.log(`Matched ${labId} by fuzzy path search: ${searchPattern}`);
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if (!backendLab) {
+                            console.log(`No backend match found for ${labId} (category: ${category}, num: ${labNum}, name: ${labName})`);
                             return;
                         }
                         
