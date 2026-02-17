@@ -36,15 +36,24 @@ By using this repository, you commit to **responsible, ethical cybersecurity pra
 
 ## 🚀 Quick Start
 
-**Start the entire platform with one command:**
+**New Platform Structure (Phase 1 Complete!)** 🎉
+
+The platform has been reorganized for better maintainability and scalability. Start it from the new location:
 
 ```bash
-docker-compose up -d
+cd platform/infra
+docker compose up -d
 ```
 
 Then open your browser to **http://localhost** to access the unified dashboard!
 
-See [DOCKER-SETUP.md](DOCKER-SETUP.md) for detailed instructions.
+**What Changed:**
+- ✅ Cleaner separation: Platform code vs. Lab content
+- ✅ Better organization: All infrastructure in one place
+- ✅ Improved documentation: Each component has its own README
+- ✅ Future-ready: Prepared for year-based lab organization
+
+See [platform/infra/README.md](platform/infra/README.md) for detailed instructions.
 
 ## 📋 Table of Contents
 
@@ -108,23 +117,60 @@ See [DOCKER-SETUP.md](DOCKER-SETUP.md) for complete setup instructions.
 
 ## 📁 Repository Structure
 
+**New Organized Structure (Phase 1 Complete):**
+
 ```
 OWASP-TOP10/
 │
 ├── README.md                          # You are here
 ├── LICENSE                            # MIT License
-├── CONTRIBUTING.md                    # Contribution guidelines
-├── .gitignore                         # Git ignore rules
+├── IMPLEMENTATION_QUICKSTART.md       # 🆕 Migration guide
+├── LAB_TEMPLATE_GUIDE.md             # 🆕 Lab template documentation
+├── REORGANIZATION_PLAN.md            # 🆕 Reorganization strategy
 │
-├── OWASP-Web/                         # OWASP Top 10 Web Application Security Risks
+├── platform/                          # 🆕 Lab Manager Platform
+│   ├── backend/                       # Flask API for lab management
+│   │   ├── app.py                    # Lab discovery & control
+│   │   └── requirements.txt          # Python dependencies
+│   ├── frontend/                      # Web dashboard
+│   │   ├── index.html                # Landing page
+│   │   ├── owasp-labs.html          # Lab browser
+│   │   └── js/                       # JavaScript assets
+│   └── infra/                        # Infrastructure
+│       ├── docker-compose.yml        # Platform services
+│       ├── Dockerfile.lab-manager    # Lab manager container
+│       ├── nginx.conf                # Web server config
+│       └── README.md                 # Setup instructions
+│
+├── labs/                              # 🆕 Organized lab content (planned structure)
+│   ├── web/                          # Web vulnerabilities
+│   │   ├── 2017/                     # OWASP Top 10 2017
+│   │   ├── 2021/                     # OWASP Top 10 2021
+│   │   └── 2025/                     # Future versions
+│   ├── api/                          # API vulnerabilities
+│   │   ├── 2019/                     # OWASP API Top 10 2019
+│   │   └── 2023/                     # OWASP API Top 10 2023
+│   ├── mobile/                       # Mobile vulnerabilities
+│   │   ├── 2016/                     # OWASP Mobile Top 10 2016
+│   │   └── 2024/                     # OWASP Mobile Top 10 2024
+│   ├── llm/                          # LLM vulnerabilities
+│   │   └── 2023/                     # OWASP LLM Top 10 2023
+│   └── base-images/                  # Reusable base images
+│       ├── nodejs-base/
+│       └── python-base/
+│
+├── resources/                         # 🆕 Educational resources
+│   ├── cheat-sheets/                 # Quick reference guides
+│   ├── diagrams/                     # Visualizations
+│   ├── compliance-mappings/          # Standards mapping
+│   └── docs/                         # Documentation
+│
+├── gamification/                      # 🆕 Interactive learning
+│   ├── ctf-hub/                      # CTF challenges
+│   └── quiz-platform/                # Knowledge quizzes
+│
+├── OWASP-Web/                         # Web labs (current location)
 │   ├── 01-Broken-Access-Control/
-│   │   ├── overview.md               # What it is and why it matters
-│   │   ├── attack-vectors.md         # How attacks happen (conceptual)
-│   │   ├── prevention.md             # How to prevent it
-│   │   ├── examples.md               # Code examples (bad vs good)
-│   │   └── lab/                      # Hands-on lab
-│   │       └── broken-access-control-adminbutton/
-│   │
 │   ├── 02-Cryptographic-Failures/
 │   ├── 03-Injection/
 │   ├── 04-Insecure-Design/
@@ -135,81 +181,26 @@ OWASP-TOP10/
 │   ├── 09-Security-Logging-Monitoring-Failures/
 │   └── 10-Server-Side-Request-Forgery/
 │
-├── OWASP-API/                         # OWASP API Security Top 10
+├── OWASP-API/                         # API labs (current location)
 │   ├── API01-Broken-Object-Level-Authorization/
 │   ├── API02-Broken-Authentication/
-│   ├── API03-Broken-Object-Property-Level-Authorization/
-│   ├── API04-Unrestricted-Resource-Consumption/
-│   ├── API05-Broken-Function-Level-Authorization/
-│   ├── API06-Unrestricted-Access-to-Sensitive-Business-Flows/
-│   ├── API07-Server-Side-Request-Forgery/
-│   ├── API08-Security-Misconfiguration/
-│   ├── API09-Improper-Inventory-Management/
-│   └── API10-Unsafe-Consumption-of-APIs/
+│   └── ... (10 API vulnerabilities)
 │
-├── OWASP-LLM/                         # OWASP LLM Top 10
-│   ├── LLM01-Prompt-Injection/
-│   ├── LLM02-Insecure-Output-Handling/
-│   ├── LLM03-Training-Data-Poisoning/
-│   ├── LLM04-Model-Denial-of-Service/
-│   ├── LLM05-Supply-Chain-Vulnerabilities/
-│   ├── LLM06-Sensitive-Information-Disclosure/
-│   ├── LLM07-Insecure-Plugin-Design/
-│   ├── LLM08-Excessive-Agency/
-│   ├── LLM09-Overreliance/
-│   └── LLM10-Model-Theft/
-│
-├── OWASP-Mobile/                      # OWASP Mobile Top 10
+├── OWASP-Mobile/                      # Mobile labs (current location)
 │   ├── M01-Improper-Credential-Usage/
 │   ├── M02-Inadequate-Supply-Chain-Security/
-│   ├── M03-Insecure-Authentication-Authorization/
-│   ├── M04-Insufficient-Input-Output-Validation/
-│   ├── M05-Insecure-Communication/
-│   ├── M06-Inadequate-Privacy-Controls/
-│   ├── M07-Insufficient-Binary-Protections/
-│   ├── M08-Security-Misconfiguration/
-│   ├── M09-Insecure-Data-Storage/
-│   └── M10-Insufficient-Cryptography/
+│   └── ... (10 Mobile vulnerabilities)
 │
-├── images/                            # Diagrams and screenshots
-│   ├── diagrams/
-│   └── examples/
-│
-├── labs/                              # Shared lab resources
-│   └── base/
-│       ├── Dockerfile                 # Base Docker image for Python labs
-│       └── common-assets/
-│
-├── cheat-sheets/                      # 🆕 Interactive quick reference cards
-│   ├── web/                           # Web Top 10 cheat sheets
-│   ├── api/                           # API Top 10 cheat sheets
-│   ├── llm/                           # LLM Top 10 cheat sheets
-│   └── mobile/                        # Mobile Top 10 cheat sheets
-│
-├── ctf-hub/                           # 🆕 CTF-style challenges platform
-│   ├── index.html                     # Unified lab launcher
-│   ├── js/                            # Progress tracking & badges
-│   └── certificates/                  # Auto-generated certificates
-│
-├── diagrams/                          # 🆕 Interactive visualizations
-│   ├── attack-flows/                  # Attack flow diagrams
-│   ├── architecture/                  # Security architecture
-│   └── risk-matrices/                 # Risk assessment matrices
-│
-├── quiz-platform/                     # 🆕 Assessment & quizzes
-│   ├── pre-assessment.html
-│   ├── certification-exam.html
-│   └── quizzes/                       # Topic-specific quizzes
-│
-├── compliance-mappings/               # 🆕 Standards mapping
-│   ├── gdpr-mapping.md
-│   ├── pci-dss-mapping.md
-│   ├── iso-27001-mapping.md
-│   └── nist-csf-mapping.md
-│
-└── docs/                              # 🆕 GitHub Pages documentation
-    └── index.md
+└── OWASP-LLM/                         # LLM labs (current location)
+    ├── LLM01-Prompt-Injection/
+    ├── LLM02-Insecure-Output-Handling/
+    └── ... (10 LLM vulnerabilities)
 ```
+
+**Current Status:**
+- ✅ **Phase 1 Complete**: Platform reorganized for better maintainability
+- 🔄 **Phase 2 In Progress**: Labs will be gradually migrated to year-based structure
+- 📝 See [IMPLEMENTATION_QUICKSTART.md](IMPLEMENTATION_QUICKSTART.md) for details
 
 ## 🎓 Interactive Learning Tools
 
@@ -393,9 +384,31 @@ To run the hands-on labs, you'll need:
 
 ## 🔬 Running the Labs
 
-Each lab is completely self-contained and runs in Docker for safety and isolation.
+### Two Ways to Run Labs:
 
-### Basic Lab Workflow
+#### 1. **Using the Platform Dashboard (Recommended)** 🎯
+
+The easiest way - start all labs from one unified interface:
+
+```bash
+# Start the platform
+cd platform/infra
+docker compose up -d
+
+# Open browser to http://localhost
+# Click "Start Lab" on any vulnerability
+```
+
+**Benefits:**
+- ✅ Visual interface for all labs
+- ✅ One-click start/stop for each lab
+- ✅ Real-time status monitoring
+- ✅ Organized by category and year
+- ✅ No need to navigate to individual lab directories
+
+#### 2. **Manual Lab Execution (Traditional)** 🛠️
+
+For advanced users or direct lab access:
 
 ```bash
 # 1. Navigate to a lab
@@ -428,14 +441,35 @@ All labs are designed with safety in mind:
 
 ### Troubleshooting Labs
 
+**Platform won't start:**
+```bash
+# Check if Docker is running
+docker ps
+
+# View platform logs
+cd platform/infra
+docker compose logs
+```
+
 **Port already in use:**
 ```bash
 # Find what's using the port
-lsof -i :5000  # On Mac/Linux
-netstat -ano | findstr :5000  # On Windows
+lsof -i :80    # Dashboard
+lsof -i :4999  # Lab Manager API
 
-# Either stop the conflicting service or modify docker-compose.yml
-# to use a different port: "5001:5000"
+# Stop existing containers
+docker ps
+docker stop <container-id>
+```
+
+**Labs not appearing in dashboard:**
+```bash
+# Check lab manager logs
+cd platform/infra
+docker compose logs lab-manager
+
+# Restart lab manager
+docker compose restart lab-manager
 ```
 
 **Docker daemon not running:**
@@ -447,7 +481,7 @@ sudo systemctl start docker  # Linux
 **Permission denied:**
 ```bash
 # Run with sudo (Linux) or ensure Docker Desktop is running
-sudo docker-compose up
+sudo docker compose up
 ```
 
 ## 🗺️ Learning Paths
