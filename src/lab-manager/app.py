@@ -665,7 +665,7 @@ def stop_all_labs():
             ['docker', 'ps', '-a', '--filter', 'name=owasp-lab-', '--format', '{{.Names}}'],
             capture_output=True,
             text=True,
-            timeout=10
+            timeout=120
         )
         
         if result.returncode != 0:
@@ -739,7 +739,7 @@ def stop_all_labs():
                                 cwd=compose_dir,
                                 capture_output=True,
                                 text=True,
-                                timeout=60
+                                timeout=120
                             )
                             
                             if result.returncode == 0:
@@ -776,7 +776,7 @@ def stop_all_labs():
                                 ['docker', 'stop', container_name],
                                 capture_output=True,
                                 text=True,
-                                timeout=30
+                                timeout=120
                             )
                             if result.returncode == 0:
                                 stopped_labs.append({
@@ -812,7 +812,7 @@ def stop_all_labs():
                         ['docker', 'stop', container_name],
                         capture_output=True,
                         text=True,
-                        timeout=30
+                        timeout=120
                     )
                     if result.returncode == 0:
                         stopped_labs.append({
