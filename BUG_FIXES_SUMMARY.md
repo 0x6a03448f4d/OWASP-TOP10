@@ -2,7 +2,7 @@
 
 ## Resumo das Correções
 
-Este documento descreve as correções cirúrgicas implementadas para resolver dois bugs críticos no OWASP Lab Manager.
+Este documento descreve as correções cirúrgicas implementadas para resolver três bugs críticos no OWASP Lab Manager.
 
 ---
 
@@ -197,6 +197,95 @@ result = subprocess.run(
 
 ---
 
+## Bug 3: Docker Compose "No Configuration File Provided" ✅
+
+### Problema
+Ao tentar iniciar um lab, o sistema conseguia dar start mas logo falhava com o erro:
+```
+Failed to start lab: Failed to build lab: no configuration file provided: not found
+```
+
+### Causa Raiz
+O problema estava no comando `docker compose` que estava a ser executado:
+
+```python
+# ❌ ERRADO (antes)
+subprocess.run([
+    'docker', 'compose', 
+    '--project-directory', host_compose_dir, 
+    'up', '-d', '--build'
+])
+```
+
+Quando se usa o flag `--project-directory` sem especificar o ficheiro de configuração, o `docker compose` tenta encontrar o `docker-compose.yml` na diretoria do projeto. Como o ficheiro de configuração está numa sub-diretoria, ele não era encontrado.
+
+**Estrutura real:**
+```
+OWASP-Web/01-Broken-Access-Control/lab/
+└── broken-access-control-adminbutton/
+    └── docker-compose.yml  ← Ficheiro aqui
+```
+
+### Solução Implementada
+**Ficheiro**: `src/lab-manager/app.py`
+
+Adicionado o flag `-f` para especificar explicitamente a localização do ficheiro de configuração:
+
+```python
+# ✅ CORRETO (depois)
+subprocess.run([
+    'docker', 'compose', 
+    '-f', compose_file,              # ← Especifica o ficheiro explicitamente
+    '--project-directory', host_compose_dir, 
+    'up', '-d', '--build'
+])
+```
+
+**O que isto faz:**
+- `-f compose_file`: Diz ao docker compose exatamente onde está o ficheiro de configuração
+- `--project-directory host_compose_dir`: Define o contexto para resolver caminhos relativos (volumes, builds, etc.)
+
+### Código Completo
+
+```python
+# Build and start using docker compose
+compose_dir = os.path.dirname(compose_file)
+logger.info(f"Auto-building lab from: {compose_dir}")
+logger.info(f"Compose file: {compose_file}")  # ← Nova linha de log
+
+# Calculate the actual host path for docker compose
+host_project_root = os.environ.get('HOST_PROJECT_ROOT', os.path.abspath('.'))
+container_project_root = os.path.abspath('.')
+
+# Convert container path to host path
+relative_path = os.path.relpath(compose_dir, container_project_root)
+host_compose_dir = os.path.join(host_project_root, relative_path)
+
+logger.info(f"Container compose dir: {compose_dir}")
+logger.info(f"Host compose dir: {host_compose_dir}")
+
+try:
+    # Run docker compose up -d
+    # Use -f to specify the compose file and --project-directory for the context
+    env = os.environ.copy()
+    
+    result = subprocess.run(
+        ['docker', 'compose', '-f', compose_file, '--project-directory', host_compose_dir, 'up', '-d', '--build'],
+        cwd=compose_dir,
+        capture_output=True,
+        text=True,
+        timeout=300,
+        env=env
+    )
+```
+
+### Resultado
+✅ O Docker Compose agora encontra o ficheiro de configuração corretamente  
+✅ Os labs iniciam sem erros  
+✅ O comando completo fica: `docker compose -f /workspace/.../docker-compose.yml --project-directory /host/path/... up -d --build`
+
+---
+
 ## Compatibilidade
 
 ✅ **Compatível com Mac** (Docker Desktop)  
@@ -209,10 +298,11 @@ result = subprocess.run(
 
 ## Conclusão
 
-Ambos os bugs foram corrigidos com alterações mínimas e cirúrgicas:
+Todos os três bugs foram corrigidos com alterações mínimas e cirúrgicas:
 
 1. **Bug 1**: Simples correção de IDs em `year-config.js` para incluir zeros à esquerda
 2. **Bug 2**: Adição de variável de ambiente e lógica para converter caminhos do container para host
+3. **Bug 3**: Adição do flag `-f` ao comando docker compose para especificar o ficheiro de configuração
 
 As correções são robustas, testadas, e não introduzem regressões.
 
