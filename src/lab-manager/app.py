@@ -474,7 +474,7 @@ def start_lab(lab_id):
 
 @app.route('/api/labs/<lab_id>/stop', methods=['POST'])
 def stop_lab(lab_id):
-    """Stop a specific lab using docker CLI"""
+    """Stop a specific lab using docker compose down with project name"""
     if not docker_available:
         return jsonify({'error': 'Docker not available'}), 500
     
@@ -482,53 +482,74 @@ def stop_lab(lab_id):
         return jsonify({'error': 'Lab not found'}), 404
     
     lab_info = LABS[lab_id]
-    container_name = lab_info['container']
+    project_name = f"owasp-lab-{lab_id}"
     
     try:
-        # Check if container exists
-        result = subprocess.run(
-            ['docker', 'ps', '-a', '--filter', f'name={container_name}', '--format', '{{.Names}}'],
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
+        # Find the lab path and compose file
+        lab_path = os.path.abspath(lab_info['path'])
         
-        if result.returncode != 0 or container_name not in result.stdout:
+        # Security: Validate lab path is within expected directory
+        expected_base = os.path.abspath('.')
+        if not lab_path.startswith(expected_base):
             return jsonify({
-                'status': 'not_found',
-                'message': f"Lab {lab_info['name']} container not found"
+                'status': 'error',
+                'message': 'Invalid lab path - security violation'
+            }), 403
+        
+        if not os.path.exists(lab_path):
+            return jsonify({
+                'status': 'error',
+                'message': f"Lab path not found: {lab_path}"
             }), 404
         
-        # Check if it's running
+        # Find docker-compose file
+        compose_file = None
+        for root, dirs, files in os.walk(lab_path):
+            if 'docker-compose.yml' in files or 'docker-compose.yaml' in files:
+                compose_file = os.path.join(root, 'docker-compose.yml' if 'docker-compose.yml' in files else 'docker-compose.yaml')
+                break
+        
+        if not compose_file:
+            logger.warning(f"No docker-compose file found for {lab_id}, trying direct docker stop")
+            # Fallback to direct docker stop if no compose file
+            container_name = lab_info['container']
+            result = subprocess.run(
+                ['docker', 'stop', container_name],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            if result.returncode == 0:
+                return jsonify({
+                    'status': 'stopped',
+                    'message': f"Lab {lab_info['name']} stopped successfully"
+                })
+            else:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'No docker-compose file found and direct stop failed'
+                }), 404
+        
+        # Stop using docker compose down with the same project name used to start
+        compose_dir = os.path.dirname(compose_file)
+        logger.info(f"Stopping lab {lab_id} (project: {project_name}) from: {compose_dir}")
+        
         result = subprocess.run(
-            ['docker', 'ps', '--filter', f'name={container_name}', '--format', '{{.Names}}'],
+            ['docker', 'compose', '-p', project_name, '-f', compose_file, 'down'],
+            cwd=compose_dir,
             capture_output=True,
             text=True,
-            timeout=10
-        )
-        
-        if result.returncode == 0 and container_name not in result.stdout:
-            return jsonify({
-                'status': 'already_stopped',
-                'message': f"Lab {lab_info['name']} is not running"
-            })
-        
-        # Stop the container
-        result = subprocess.run(
-            ['docker', 'stop', container_name],
-            capture_output=True,
-            text=True,
-            timeout=30
+            timeout=60
         )
         
         if result.returncode == 0:
-            logger.info(f"Stopped container: {container_name}")
+            logger.info(f"Successfully stopped lab: {lab_id} (project: {project_name})")
             return jsonify({
                 'status': 'stopped',
                 'message': f"Lab {lab_info['name']} stopped successfully"
             })
         else:
-            logger.error(f"Failed to stop container: {result.stderr}")
+            logger.error(f"Failed to stop lab {lab_id}: {result.stderr}")
             return jsonify({
                 'status': 'error',
                 'message': f"Failed to stop lab: {result.stderr}"
