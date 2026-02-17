@@ -241,10 +241,10 @@ def discover_labs():
     Dynamically discover all available labs by scanning the directory structure
     """
     categories = {
-        'web': {'path': '../../OWASP-Web', 'base_port': 8000, 'prefix': 'web'},
-        'api': {'path': '../../OWASP-API', 'base_port': 9000, 'prefix': 'api'},
-        'mobile': {'path': '../../OWASP-Mobile', 'base_port': 7000, 'prefix': 'mobile'},
-        'llm': {'path': '../../OWASP-LLM', 'base_port': 6000, 'prefix': 'llm'}
+        'web': {'path': '../../labs/web/OWASP-Web', 'base_port': 8000, 'prefix': 'web'},
+        'api': {'path': '../../labs/api/OWASP-API', 'base_port': 9000, 'prefix': 'api'},
+        'mobile': {'path': '../../labs/mobile/OWASP-Mobile', 'base_port': 7000, 'prefix': 'mobile'},
+        'llm': {'path': '../../labs/llm/OWASP-LLM', 'base_port': 6000, 'prefix': 'llm'}
     }
     
     labs = {}
