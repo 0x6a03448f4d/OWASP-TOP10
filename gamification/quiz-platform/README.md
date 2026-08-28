@@ -80,7 +80,7 @@ Your quiz platform tracks:
 ## 🎨 Design Theme
 
 **Matrix/Hacker Aesthetic**
-- Dark green (#00ff41) matrix-style colors
+- Amber (#f59e0b) accent colors
 - Neon glow effects on interactive elements
 - Cyberpunk-inspired gradients
 - Professional yet engaging interface

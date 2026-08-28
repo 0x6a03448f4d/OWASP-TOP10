@@ -474,7 +474,7 @@ function reviewAnswers() {
                     </div>
                 ` : ''}
                 
-                <div style="margin-top: 15px; padding: 15px; background: rgba(0, 255, 65, 0.05); border-radius: 6px; border-left: 3px solid var(--matrix-green);">
+                <div style="margin-top: 15px; padding: 15px; background: rgba(245, 158, 11, 0.05); border-radius: 6px; border-left: 3px solid var(--matrix-green);">
                     <strong style="color: var(--matrix-green);"><i class="fas fa-lightbulb"></i> Explanation:</strong>
                     <p style="color: #d0d0d0; margin-top: 8px;">${question.explanation}</p>
                 </div>
@@ -512,7 +512,7 @@ function showProgress() {
     const stats = progress.stats || {};
     
     let progressHTML = `
-        <div style="background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%); padding: 30px; border-radius: 12px; border: 1px solid rgba(0, 255, 65, 0.3);">
+        <div style="background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%); padding: 30px; border-radius: 12px; border: 1px solid rgba(245, 158, 11, 0.3);">
             <h2 style="color: var(--matrix-green); margin-bottom: 20px;">
                 <i class="fas fa-chart-line"></i> Your Progress
             </h2>
