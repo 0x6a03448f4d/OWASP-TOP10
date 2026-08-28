@@ -280,4 +280,4 @@ route:
 
 ---
 
-*Part of the [OWASP Top 10 Educational Repository](/platform/frontend/owasp-labs.html) — A9:2025, Logging & Alerting Failures.*
+*Part of the [OWASP Top 10 Educational Repository](/learn/web) — A9:2025, Logging & Alerting Failures.*

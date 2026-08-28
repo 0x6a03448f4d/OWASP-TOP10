@@ -1,20 +1,12 @@
 /**
- * The learning site is a large set of hand-written static HTML pages that live
- * at their existing repo paths (so the local Docker lab-manager keeps working).
- * `scripts/prepare-public.mjs` copies the served content into `public/` at build
- * time; Next.js then serves it, with `/` and `/labs` rewritten to the real files.
+ * The discovery layer (home, category/edition browsing, cheat sheets, practice)
+ * is a Next.js app under app/. The deep lesson pages and cheat sheets are
+ * hand-written static HTML served from public/ (mirrored there at build time by
+ * scripts/prepare-public.mjs), sharing the same amber design system.
  *
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
-  async rewrites() {
-    return {
-      beforeFiles: [
-        { source: '/', destination: '/platform/frontend/index.html' },
-        { source: '/labs', destination: '/platform/frontend/owasp-labs.html' },
-      ],
-    };
-  },
   async headers() {
     return [
       {
