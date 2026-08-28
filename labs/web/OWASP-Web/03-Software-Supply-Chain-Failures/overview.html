@@ -217,66 +217,222 @@
         <div class="content">
             <h1>Software Supply Chain Failures - Overview</h1>
 
-<h2>What Are Supply Chain Attacks?</h2>
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#what-are-supply-chain-failures">What Are Software Supply Chain Failures?</a></li>
+<li><a href="#why-does-this-matter">Why Does This Matter?</a></li>
+<li><a href="#technical-context">Technical Context</a></li>
+<li><a href="#real-world-impact">Real-World Impact</a></li>
+<li><a href="#prevalence-and-statistics">Prevalence and Statistics</a></li>
+<li><a href="#common-misunderstandings">Common Misunderstandings</a></li>
+<li><a href="#relationship-to-a06-2021">Relationship to A06:2021</a></li>
+</ul>
+</div>
 
-<strong>Software Supply Chain Failures</strong> occur when attackers compromise dependencies, build processes, or distribution channels to inject malicious code. In 2025, with complex dependency trees and automated CI/CD pipelines, this represents a critical threat.
+<h2 id="what-are-supply-chain-failures">What Are Software Supply Chain Failures?</h2>
 
-<h3>Modern Attack Vectors</h3>
+<p><strong>Software Supply Chain Failures</strong> occur when an attacker compromises any of the people, code, tools, or infrastructure that a piece of software depends on <em>before</em> it reaches production&mdash;so that malicious or vulnerable code is delivered through channels the victim already trusts. The application team may write flawless code and still ship a backdoor, because the compromise lives in a dependency, a build server, a signing key, a container base image, or a script loaded from a third-party CDN.</p>
+
+<p>This is the defining shift of the 2025 edition. The 2021 Top 10 addressed one slice of the problem under <strong>A06:2021 &ndash; Vulnerable and Outdated Components</strong>, which focused on running dependencies with known vulnerabilities. The 2025 category <strong>subsumes and greatly expands</strong> that scope: it is no longer only "are your libraries patched?" but "can you trust every link in the chain that produced and delivered your software?"</p>
+
+<h3>The Software Supply Chain</h3>
+
+<pre><code>SOURCE  -->  DEPENDENCIES  -->  BUILD  -->  PACKAGE  -->  DISTRIBUTE  -->  DEPLOY  -->  RUN
+  |             |               |            |             |               |          |
+ SCM         registries       CI/CD       artifact       registry       runtime    browser /
+ commits     (npm, PyPI,      runners,    signing        / CDN /         hosts /    third-party
+ &amp; PRs       Maven, etc.)    build steps  &amp; provenance   mirrors         clusters   scripts
+
+A trust failure at ANY node ships attacker-controlled code to everyone downstream.</code></pre>
+
+<p>Concretely, a modern application is assembled far more than it is written. A typical service pulls in hundreds to thousands of packages once transitive (nested) dependencies are resolved, builds them on shared automation, packages them into container images layered on other people's base images, and&mdash;on the web tier&mdash;loads analytics, tag managers, and payment widgets directly from third-party domains at runtime. Each of those is a trust relationship an attacker can target.</p>
+
+<h3>The Failure Classes</h3>
 
 <ul>
-<li><strong>Dependency Confusion</strong>: Publishing malicious packages with same names as internal packages</li>
-<li><strong>Typosquatting</strong>: Packages with names similar to popular libraries</li>
-<li><strong>Compromised Packages</strong>: Legitimate packages hijacked by attackers</li>
-<li><strong>Malicious Dependencies</strong>: Intentionally malicious packages</li>
-<li><strong>Build Pipeline Compromise</strong>: Injecting malware during CI/CD</li>
+<li><strong>Vulnerable / outdated dependencies</strong>: shipping components with known, published vulnerabilities (the classic A06:2021 case).</li>
+<li><strong>Malicious packages, typosquatting, and dependency confusion</strong>: packages that are hostile by design&mdash;named to imitate a popular library, or to shadow an internal package name so the public one is installed instead.</li>
+<li><strong>Compromised maintainer accounts / hijacked packages</strong>: a legitimate, trusted package taken over through a phished or stolen credential, then republished with malware.</li>
+<li><strong>Compromised build systems and CI/CD pipelines</strong>: poisoned runners, malicious build steps, and leaked pipeline secrets that let an attacker inject code <em>during</em> the build&mdash;after review, before signing.</li>
+<li><strong>Unsigned / unverified artifacts and lack of provenance</strong>: no cryptographic evidence of <em>what</em> was built, <em>from what source</em>, and <em>by whom</em>, so a swapped artifact is indistinguishable from the real one.</li>
+<li><strong>Poisoned container base images</strong>: a compromised or malicious base layer that every image built <code>FROM</code> it inherits.</li>
+<li><strong>Compromised third-party scripts and CDNs</strong>: web-skimming ("Magecart"-style) code injected into a script the page loads at runtime from someone else's server.</li>
+<li><strong>Insecure package registries</strong>: registries or mirrors that permit account takeover, name reuse after deletion, or unauthenticated publishing.</li>
 </ul>
 
-<h2>Why This Matters in 2025</h2>
+<h2 id="why-does-this-matter">Why Does This Matter?</h2>
 
-<p>Modern applications depend on hundreds or thousands of packages:</p>
+<p>Supply chain compromise is uniquely valuable to attackers because it is a <strong>force multiplier</strong>: one successful intrusion at an upstream provider is inherited automatically by everyone who trusts that provider. It also bypasses most traditional defenses&mdash;the malicious code arrives signed, from an expected source, through the normal update mechanism, and is often installed by automation with elevated privileges.</p>
 
-<p>``<code></p>
-<p>Your App</p>
-<p>├── Framework (100+ dependencies)</p>
-<p>├── Database Driver (50+ dependencies)</p>
-<p>├── HTTP Client (30+ dependencies)</p>
-<p>└── Utility Libraries (200+ dependencies)</p>
-
-<p>Total: 1000+ packages in dependency tree</p>
-</code>``
-
-<strong>One compromised package = entire application compromised</strong>
-
-<h2>Real-World 2025-Era Attacks</h2>
-
-<strong>SolarWinds (2020, still impactful)</strong>
+<h3>Business Impact</h3>
 <ul>
-<li>Build system compromised</li>
-<li>Malicious code injected into updates</li>
-<li>18,000+ organizations affected</li>
+<li><strong>Mass, simultaneous compromise</strong>: a single poisoned update can reach thousands of downstream organizations at once, as the SolarWinds class of incident demonstrated.</li>
+<li><strong>Loss of customer trust and brand damage</strong>: customers hold the vendor responsible even when the root cause was an upstream dependency.</li>
+<li><strong>Regulatory and contractual exposure</strong>: breach-notification laws (GDPR and others) and payment rules (PCI DSS) apply regardless of whether the malicious code was yours.</li>
+<li><strong>Direct financial theft</strong>: web-skimmers harvest live payment-card data at checkout; malicious packages steal cloud credentials, tokens, and crypto-wallet keys.</li>
+<li><strong>Software-liability pressure</strong>: procurement increasingly requires a Software Bill of Materials (SBOM) and provenance attestations; not having them blocks sales and renewals.</li>
 </ul>
 
-<strong>Log4Shell (2021, ongoing concerns)</strong>
+<h3>Technical Impact</h3>
 <ul>
-<li>Critical vulnerability in logging library</li>
-<li>Widespread dependency</li>
-<li>Billions of devices affected</li>
+<li><strong>Remote code execution during install or build</strong>: package lifecycle hooks (npm <code>postinstall</code>, Python <code>setup.py</code>) and build steps run arbitrary code on developer and CI machines.</li>
+<li><strong>Secret and credential theft</strong>: CI/CD runners hold cloud keys, signing keys, and registry tokens&mdash;prime targets once a build step is attacker-controlled.</li>
+<li><strong>Persistence and lateral movement</strong>: a backdoor in a widely deployed component gives long-lived access across many hosts and networks.</li>
+<li><strong>Data exfiltration at runtime</strong>: compromised third-party browser scripts read form fields, tokens, and DOM content directly from victims' sessions.</li>
+<li><strong>Undetectable-by-signature delivery</strong>: because artifacts are validly signed by the compromised publisher, endpoint and gateway controls treat them as trusted.</li>
 </ul>
 
-<strong>UA-Parser-JS (2021, modern example)</strong>
+<h2 id="technical-context">Technical Context</h2>
+
+<h3>Where Trust Can Break in the Chain</h3>
+
+<table>
+<thead>
+<tr><th>Stage</th><th>What you trust</th><th>How it fails</th><th>Attacker payoff</th></tr>
+</thead>
+<tbody>
+<tr><td>Source (SCM)</td><td>Commits and pull requests</td><td>Stolen developer creds, malicious PR, tampered branch</td><td>Code enters "legitimately"</td></tr>
+<tr><td>Dependencies</td><td>Public registries</td><td>Typosquat, dependency confusion, hijacked package</td><td>Malicious code auto-installed</td></tr>
+<tr><td>Build (CI/CD)</td><td>Runners and build steps</td><td>Poisoned runner, leaked secrets, malicious step</td><td>Inject after review, before signing</td></tr>
+<tr><td>Package / sign</td><td>Signing keys, provenance</td><td>Stolen key, no provenance, unsigned artifact</td><td>Malicious artifact looks authentic</td></tr>
+<tr><td>Distribute</td><td>Registries, CDNs, mirrors</td><td>Registry takeover, CDN/script compromise</td><td>Swap or skim at delivery</td></tr>
+<tr><td>Container base</td><td>Base images</td><td>Poisoned or outdated base layer</td><td>Every child image inherits it</td></tr>
+<tr><td>Runtime (web)</td><td>Third-party scripts</td><td>Magecart-style injection</td><td>Live data theft from users</td></tr>
+</tbody>
+</table>
+
+<h3>Why Transitive Dependencies Amplify the Risk</h3>
+
+<p>Your direct dependencies are only the top of an iceberg. Each one pulls in its own dependencies, which pull in theirs, often several levels deep. You may vet the ten packages you chose and still install a thousand you never evaluated.</p>
+
+<pre><code>your-app
+└── trusted-framework        (you reviewed this)
+    └── helper-lib            (you did not)
+        └── tiny-utility      (nobody reviewed this)
+            └── COMPROMISED    &lt;-- one hijacked leaf reaches your production</code></pre>
+
+<p>A compromise at a deep, obscure, widely-reused leaf package can therefore affect an enormous number of applications that have no idea they depend on it. This is exactly why an inventory (SBOM) matters: you cannot defend, or even assess, what you do not know you are shipping.</p>
+
+<h3>Dependency Confusion, Concretely</h3>
+
+<p>Many organizations use internal package names (for example <code>@acme/auth-client</code> or <code>acme-internal-utils</code>) that exist only in a private registry. If the build tool is configured to consult the public registry as well, an attacker can publish a package with the <em>same name</em> and a <em>higher version number</em> to the public registry. Default "highest version wins" resolution then pulls the attacker's public package into internal builds&mdash;no typo or human error required.</p>
+
+<h2 id="real-world-impact">Real-World Impact</h2>
+
+<p>The incidents below are referenced as <strong>illustrative classes</strong> of failure. Specific figures vary by source and are deliberately omitted; the durable lesson is the <em>mechanism</em>, not a precise statistic.</p>
+
+<h3>Class 1: Build-System Compromise (SolarWinds-style)</h3>
+<p><strong>Mechanism</strong>: Attackers gained access to a vendor's build pipeline and inserted malicious code into the software <em>during the build</em>, so the tampered update was compiled, signed with the vendor's legitimate certificate, and distributed through the normal update channel. Customers who installed a properly signed update from a trusted vendor received a backdoor.</p>
+<p><strong>Lesson</strong>: Code review and code signing are insufficient on their own if the build environment itself is untrusted. This is the canonical argument for build integrity, provenance (SLSA), and hardened, ephemeral runners.</p>
+
+<h3>Class 2: Compromised CI Uploader / Leaked Secrets (Codecov-style)</h3>
+<p><strong>Mechanism</strong>: A widely-used CI helper script was modified so that, when it ran inside customers' pipelines, it exfiltrated environment variables&mdash;which routinely contain cloud keys, registry tokens, and other secrets&mdash;to an attacker-controlled endpoint.</p>
+<p><strong>Lesson</strong>: Anything executed in CI can read your pipeline secrets. Least-privilege, short-lived credentials and verifying the integrity of third-party CI tooling are essential.</p>
+
+<h3>Class 3: Maintainer Account Hijack (ua-parser-js / coa-style)</h3>
+<p><strong>Mechanism</strong>: An attacker took over a legitimate maintainer's registry account (through credential theft or phishing) and published new, malicious versions of very popular packages. Auto-updating consumers pulled malware that stole credentials and installed miners.</p>
+<p><strong>Lesson</strong>: Popularity is not safety. Pin versions, require publisher 2FA, and do not blindly auto-update to the newest release.</p>
+
+<h3>Class 4: Malicious Insider / Protestware (event-stream-style)</h3>
+<p><strong>Mechanism</strong>: A widely-depended-upon package was handed off to a new "maintainer" who added a malicious transitive dependency targeting a specific downstream application. The payload was obfuscated and narrowly targeted, so it evaded casual inspection.</p>
+<p><strong>Lesson</strong>: Maintainer turnover and social-engineering of trust are real attack vectors. Review dependency <em>changes</em>, not just initial selection.</p>
+
+<h3>Class 5: Long-Game Backdoor via Social Engineering (xz-utils-style)</h3>
+<p><strong>Mechanism</strong>: An attacker spent a long period building trust as a helpful contributor to a low-profile but critical open-source project, eventually gaining maintainer rights and introducing a carefully hidden backdoor into release artifacts (not obvious in the source repository).</p>
+<p><strong>Lesson</strong>: Trust in open source is a process, not a one-time check. Reproducible builds and scrutiny of release artifacts (not just source) are defenses against build-time-only payloads.</p>
+
+<h3>Class 6: Web-Skimming via Third-Party Scripts (Magecart-style)</h3>
+<p><strong>Mechanism</strong>: Attackers compromised a third-party script (analytics, chat, or a shared library on a CDN) that many e-commerce sites loaded directly into their checkout pages. The injected code silently copied payment-card fields as customers typed them and sent the data to an attacker's server.</p>
+<p><strong>Lesson</strong>: Any script you load from another origin runs with full access to your page. Subresource Integrity (SRI), a strict Content-Security-Policy, and minimizing third-party scripts are the front-line defenses.</p>
+
+<h2 id="prevalence-and-statistics">Prevalence and Statistics</h2>
+
+<p>Supply chain attacks have moved from rare, headline events to a routine, industrialized category. Automated campaigns publish malicious packages to public registries continuously, and dependency-confusion and typosquatting are now standard techniques in commodity tooling.</p>
+
+<p>Rather than cite precise counts (which differ widely by source and year), the defensible picture is:</p>
 <ul>
-<li>Popular npm package compromised</li>
-<li>Malware injected into legitimate package</li>
-<li>Downloaded millions of times weekly</li>
+<li>The overwhelming majority of a modern application's code is <strong>third-party</strong>, so most of your attack surface is code you did not write.</li>
+<li>Malicious-package publication to public registries is <strong>continuous and automated</strong>, not occasional.</li>
+<li>The category is <strong>hard to detect</strong> with signature-based tools because payloads arrive validly signed through trusted channels.</li>
+<li>Impact ranges from <strong>developer-machine compromise</strong> (install hooks) through <strong>CI secret theft</strong> up to <strong>mass downstream compromise</strong> (poisoned updates).</li>
 </ul>
 
-<strong>PyPI/npm Typosquatting (ongoing 2025)</strong>
+<blockquote>
+<p>Note: treat any single percentage or breach count as illustrative. The durable takeaway is that third-party and build-time code dominate your risk, and that trust in the chain must be verified, not assumed.</p>
+</blockquote>
+
+<h2 id="common-misunderstandings">Common Misunderstandings</h2>
+
+<h3>Myth 1: "We passed code review, so our software is safe."</h3>
+<p><strong>Reality</strong>: Review covers the source you can see. Build-system compromise, hijacked dependencies, and malicious release artifacts inject code <em>after</em> review or <em>outside</em> the repository entirely.</p>
+
+<h3>Myth 2: "The package is popular and has millions of downloads, so it's trustworthy."</h3>
+<p><strong>Reality</strong>: Popularity makes a package a <em>better</em> target. Several high-impact incidents hijacked packages precisely because they were widely used and auto-updated.</p>
+
+<h3>Myth 3: "A signature means the artifact is safe."</h3>
+<p><strong>Reality</strong>: A signature proves who signed it, not that the signer's build was clean. If the signing key or build system is compromised, malware is signed too. You need <em>provenance</em> (what was built, from what source, by which pipeline), not just a signature.</p>
+
+<h3>Myth 4: "Pinning versions is enough."</h3>
+<p><strong>Reality</strong>: Pinning defeats surprise auto-updates, but a pinned version can still be a hijacked release, and a mutable tag (like <code>latest</code>) or an unpinned CI action can still change under you. Pin to immutable identifiers (hashes/digests) and verify them.</p>
+
+<h3>Myth 5: "This is just the old 'outdated components' problem renamed."</h3>
+<p><strong>Reality</strong>: Outdated components (A06:2021) are one subset. The 2025 category adds malicious/hostile packages, build and CI/CD compromise, provenance, container base images, and runtime third-party scripts.</p>
+
+<h3>Myth 6: "Third-party scripts on our website are the vendor's responsibility."</h3>
+<p><strong>Reality</strong>: A script you embed runs in <em>your</em> users' browsers with access to <em>your</em> page. If the vendor is compromised, your customers' data is stolen from your site. SRI and CSP put that risk back under your control.</p>
+
+<h2 id="relationship-to-a06-2021">Relationship to A06:2021 &ndash; Vulnerable and Outdated Components</h2>
+
+<p>A06:2021 asked one question: are you running components with known vulnerabilities and keeping them patched? That question remains valid and is fully contained within the 2025 category. What changed is the <em>threat model</em>: attackers no longer wait for you to run an old, vulnerable version&mdash;they actively poison the supply itself.</p>
+
+<table>
+<thead>
+<tr><th>Aspect</th><th>A06:2021 (Vulnerable &amp; Outdated Components)</th><th>A03:2025 (Software Supply Chain Failures)</th></tr>
+</thead>
+<tbody>
+<tr><td>Core question</td><td>Is my dependency patched?</td><td>Can I trust the whole chain that produced and delivered my software?</td></tr>
+<tr><td>Threat</td><td>Passive: known CVE in an old version</td><td>Active: malicious packages, hijacks, build/CI compromise</td></tr>
+<tr><td>Scope</td><td>Running dependencies</td><td>Source, dependencies, build, signing, distribution, base images, runtime scripts</td></tr>
+<tr><td>Key defense</td><td>Patch cadence, SCA</td><td>SCA + SBOM + provenance/signing + hardened CI/CD + registry controls + SRI</td></tr>
+</tbody>
+</table>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Most of your code is someone else's.</strong> Your risk lives largely in dependencies, build tooling, and third-party scripts&mdash;not just your source.</li>
+<li><strong>Trust must be verified, not assumed.</strong> Signatures prove identity; provenance proves origin and build integrity. Prefer both.</li>
+<li><strong>The build system is production.</strong> A compromised CI/CD pipeline injects code after review and signs it as authentic&mdash;harden it accordingly.</li>
+<li><strong>Know what you ship.</strong> An SBOM turns "we think we're not affected" into a searchable, defensible answer during the next incident.</li>
+<li><strong>Pin to immutable identifiers.</strong> Hashes and digests, private-registry precedence, and scoped names defeat confusion, typosquatting, and silent mutation.</li>
+<li><strong>The browser tier counts.</strong> SRI and CSP contain the runtime third-party-script risk that traditional dependency scanning never sees.</li>
+</ol>
+
+<h2>How to Identify if You're Exposed</h2>
+
+<p>Ask these questions about your software and its pipeline:</p>
 <ul>
-<li>Malicious packages mimicking popular ones</li>
-<li>Steal credentials, crypto wallets</li>
-<li>Continuous threat</li>
+<li>[ ] Can you produce a complete, current SBOM for what is running in production?</li>
+<li>[ ] Are all dependencies resolved from a lockfile pinned to hashes, not floating ranges?</li>
+<li>[ ] Do internal package names resolve to your private registry <em>first</em>, with public fallback controlled?</li>
+<li>[ ] Are build artifacts signed and accompanied by provenance (for example SLSA / Sigstore)?</li>
+<li>[ ] Do CI/CD runners use short-lived, least-privilege credentials and pinned, SHA-referenced actions?</li>
+<li>[ ] Are container base images pinned by digest and scanned, not pulled from mutable tags like <code>latest</code>?</li>
+<li>[ ] Does every third-party <code>&lt;script&gt;</code>/<code>&lt;link&gt;</code> carry a Subresource Integrity hash, backed by a CSP?</li>
+<li>[ ] Do you scan dependencies (SCA) continuously and have a defined patch cadence?</li>
 </ul>
 
+<p>Several "no" or "not sure" answers indicate meaningful supply chain exposure today.</p>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="attack-vectors.html">Attack Vectors</a></strong>: How attackers poison each link in the chain, with concrete patterns.</li>
+<li><strong><a href="prevention.html">Prevention</a></strong>: Layered defenses&mdash;SBOM, pinning, provenance, hardened CI/CD, SRI.</li>
+<li><strong><a href="examples.html">Examples</a></strong>: Vulnerable vs. secure across npm, pip, CI/CD, Maven, containers, and SRI.</li>
+<li><strong><a href="./lab/software-supply-chain-failures/">Hands-On Lab</a></strong>: Practice identifying and hardening a vulnerable supply chain in a safe, isolated environment.</li>
+</ul>
         </div>
     </div>
 </body>

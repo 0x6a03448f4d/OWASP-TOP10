@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Proper Exception Handling</title>
+    <title>Mishandling of Exceptional Conditions - Prevention</title>
     <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -215,175 +215,320 @@
         </a>
         
         <div class="content">
-            <h1>Proper Exception Handling</h1>
+            <h1>Mishandling of Exceptional Conditions - Prevention</h1>
 
-<h2>Defensive Programming</h2>
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#strategy">Prevention Strategy Overview</a></li>
+<li><a href="#fail-closed">1. Fail Securely (Fail Closed)</a></li>
+<li><a href="#centralized">2. Centralized, Consistent Error Handling</a></li>
+<li><a href="#generic-messages">3. Generic Messages Out, Full Detail to Logs</a></li>
+<li><a href="#cleanup">4. Deterministic Resource Cleanup</a></li>
+<li><a href="#boundaries">5. Catch at the Right Boundary &mdash; Never Swallow</a></li>
+<li><a href="#uniform">6. Eliminate Error &amp; Timing Oracles</a></li>
+<li><a href="#input">7. Validate Edge Cases: Size, Type, Encoding</a></li>
+<li><a href="#resilience">8. Graceful Degradation, Timeouts, Circuit Breakers</a></li>
+<li><a href="#production">9. Production Hardening</a></li>
+<li><a href="#testing">10. Test the Error Path</a></li>
+<li><a href="#checklist">Prevention Checklist</a></li>
+</ul>
+</div>
 
-<p>``<code>python</p>
-<p>from flask import Flask, jsonify, request</p>
-<p>from functools import wraps</p>
-<p>import logging</p>
+<h2 id="strategy">Prevention Strategy Overview</h2>
 
-<p>logger = logging.getLogger(__name__)</p>
+<p>Preventing this class is about one discipline: <strong>treating the error path as a first-class, security-relevant part of the design</strong>, not an afterthought bolted on when a bug appears. The layered strategy below moves from the single most important rule (fail closed) outward to consistency, cleanup, oracles, input, resilience, and testing.</p>
 
-<p>def handle_exceptions(f):</p>
-<p>    @wraps(f)</p>
-<p>    def wrapper(<em>args, </em>*kwargs):</p>
-<p>        try:</p>
-<p>            return f(<em>args, </em>*kwargs)</p>
-<p>        except ValueError as e:</p>
-<p>            logger.warning(f"Validation error: {str(e)}")</p>
-<p>            return jsonify({'error': 'Invalid input'}), 400</p>
-<p>        except PermissionError as e:</p>
-<p>            logger.warning(f"Permission denied: {str(e)}")</p>
-<p>            return jsonify({'error': 'Permission denied'}), 403</p>
-<p>        except Exception as e:</p>
-<p>            logger.error(f"Unexpected error: {str(e)}", exc_info=True)</p>
-<p>            # Never expose internal errors to users</p>
-<p>            return jsonify({'error': 'Internal server error'}), 500</p>
-<p>    return wrapper</p>
+<h3>Core Principles</h3>
+<ul>
+<li><strong>Fail closed</strong>: when a security-relevant operation cannot complete, deny.</li>
+<li><strong>Fail consistently</strong>: identical responses and timing for every failure of the same kind, so nothing leaks.</li>
+<li><strong>Fail cleanly</strong>: release every resource and roll back every transaction, always.</li>
+<li><strong>Fail loudly to logs, quietly to clients</strong>: full detail server-side behind an error ID; a generic message to the user.</li>
+<li><strong>Fail deliberately</strong>: catch narrowly at a known boundary and decide what to do &mdash; never swallow.</li>
+</ul>
 
-<p>@app.route('/api/transfer', methods=['POST'])</p>
-<p>@handle_exceptions</p>
-<p>def transfer_money():</p>
-<p>    data = request.get_json()</p>
-    
-<p>    # Validate input</p>
-<p>    if not data or 'amount' not in data:</p>
-<p>        raise ValueError("Amount is required")</p>
-    
-<p>    amount = float(data['amount'])</p>
-    
-<p>    if amount <= 0:</p>
-<p>        raise ValueError("Amount must be positive")</p>
-    
-<p>    if amount > 10000:</p>
-<p>        raise ValueError("Amount exceeds limit")</p>
-    
-<p>    # Process transfer</p>
-<p>    result = process_transfer(amount)</p>
-<p>    return jsonify(result)</p>
-</code>`<code>
+<h2 id="fail-closed">1. Fail Securely (Fail Closed)</h2>
 
-<h2>Circuit Breaker Pattern</h2>
+<p>The default answer to any security question that cannot be computed must be "no." Structure security decisions so that the <em>only</em> way to reach the "allow" branch is an explicit, successful positive result.</p>
 
-</code>`<code>python
-<p>from datetime import datetime, timedelta</p>
+<pre><code>// Java — FAIL CLOSED: default deny, allow only on explicit success
+public boolean canAccess(User user, Document doc) {
+    try {
+        return authzService.check(user, doc);   // true only on success
+    } catch (Exception e) {
+        log.error("authz check failed, denying by default", e);
+        return false;                            // error == DENY
+    }
+}</code></pre>
 
-<p>class CircuitBreaker:</p>
-<p>    def __init__(self, failure_threshold=5, timeout=60):</p>
-<p>        self.failure_threshold = failure_threshold</p>
-<p>        self.timeout = timeout</p>
-<p>        self.failures = 0</p>
-<p>        self.last_failure_time = None</p>
-<p>        self.state = 'CLOSED'  # CLOSED, OPEN, HALF_OPEN</p>
-    
-<p>    def call(self, func, <em>args, </em>*kwargs):</p>
-<p>        if self.state == 'OPEN':</p>
-<p>            if datetime.now() - self.last_failure_time > timedelta(seconds=self.timeout):</p>
-<p>                self.state = 'HALF_OPEN'</p>
-<p>            else:</p>
-<p>                raise Exception("Circuit breaker is OPEN")</p>
-        
-<p>        try:</p>
-<p>            result = func(<em>args, </em>*kwargs)</p>
-<p>            self.on_success()</p>
-<p>            return result</p>
-<p>        except Exception as e:</p>
-<p>            self.on_failure()</p>
-<p>            raise</p>
-    
-<p>    def on_success(self):</p>
-<p>        self.failures = 0</p>
-<p>        self.state = 'CLOSED'</p>
-    
-<p>    def on_failure(self):</p>
-<p>        self.failures += 1</p>
-<p>        self.last_failure_time = datetime.now()</p>
-        
-<p>        if self.failures >= self.failure_threshold:</p>
-<p>            self.state = 'OPEN'</p>
-<p>            logger.critical(f"Circuit breaker opened after {self.failures} failures")</p>
+<pre><code># Python — the allow path requires a positive result; everything else denies
+def is_authorized(user, resource) -&gt; bool:
+    try:
+        decision = authz.check(user, resource)
+    except Exception:
+        logger.exception("authz error; denying")
+        return False                # fail closed
+    return decision is True         # only an explicit True allows</code></pre>
 
-<h1>Usage</h1>
-<p>payment_circuit_breaker = CircuitBreaker(failure_threshold=3, timeout=30)</p>
+<blockquote>
+<p><strong>Availability vs. security</strong>: if failing closed would take down critical functionality, degrade to a <em>safe</em> reduced mode (for example read-only, or a restricted feature set) &mdash; never to "allow everyone." Make that degraded mode an explicit, reviewed decision, not an accidental side effect of a <code>catch</code> block.</p>
+</blockquote>
 
-<p>@app.route('/payment')</p>
-<p>def process_payment():</p>
-<p>    try:</p>
-<p>        result = payment_circuit_breaker.call(external_payment_api)</p>
-<p>        return jsonify(result)</p>
-<p>    except Exception:</p>
-<p>        return jsonify({'error': 'Payment service temporarily unavailable'}), 503</p>
-</code>`<code>
+<h2 id="centralized">2. Centralized, Consistent Error Handling</h2>
 
-<h2>Graceful Degradation</h2>
+<p>Scattered <code>try/catch</code> blocks drift apart and each becomes a chance to leak or to fail open. Funnel errors through <strong>one handler per boundary</strong> so behaviour is uniform and reviewable in a single place.</p>
 
-</code>`<code>python
-<p>class ResilientService:</p>
-<p>    def __init__(self):</p>
-<p>        self.cache = {}</p>
-<p>        self.fallback_enabled = True</p>
-    
-<p>    def get_data(self, key):</p>
-<p>        try:</p>
-<p>            # Try primary data source</p>
-<p>            data = self.fetch_from_database(key)</p>
-<p>            self.cache[key] = data  # Update cache</p>
-<p>            return data</p>
-<p>        except DatabaseConnectionError:</p>
-<p>            logger.warning("Database unavailable, using cache")</p>
-<p>            # Fallback to cache</p>
-<p>            if key in self.cache:</p>
-<p>                return self.cache[key]</p>
-<p>            raise</p>
-<p>        except Exception as e:</p>
-<p>            logger.error(f"Unexpected error: {e}")</p>
-<p>            # Return degraded response</p>
-<p>            if self.fallback_enabled:</p>
-<p>                return self.get_fallback_data(key)</p>
-<p>            raise</p>
-</code>`<code>
+<pre><code>// Express (Node.js) — one central error handler, mounted last
+app.get('/api/me', async (req, res, next) =&gt; {
+    try {
+        res.json(await loadUser(req.userId));
+    } catch (err) {
+        next(err);                 // hand off to the central handler
+    }
+});
 
-<h2>Resource Limits</h2>
+// Central handler: generic body out, full detail to logs
+app.use((err, req, res, next) =&gt; {
+    const errorId = crypto.randomUUID();
+    logger.error({ errorId, err });           // server-side only
+    res.status(err.status || 500)
+       .json({ error: 'Internal server error', errorId });
+});</code></pre>
 
-</code>`<code>python
-<p>from concurrent.futures import ThreadPoolExecutor, TimeoutError</p>
-<p>import signal</p>
+<pre><code>// Spring Boot (Java) — @ControllerAdvice centralizes every controller's errors
+@ControllerAdvice
+class ApiErrorHandler {
+    private static final Logger log = LoggerFactory.getLogger(ApiErrorHandler.class);
 
-<p>class ResourceLimitedOperation:</p>
-<p>    def __init__(self, max_workers=10, timeout=30):</p>
-<p>        self.executor = ThreadPoolExecutor(max_workers=max_workers)</p>
-<p>        self.timeout = timeout</p>
-    
-<p>    def execute(self, func, <em>args, </em>*kwargs):</p>
-<p>        future = self.executor.submit(func, <em>args, </em>*kwargs)</p>
-        
-<p>        try:</p>
-<p>            result = future.result(timeout=self.timeout)</p>
-<p>            return result</p>
-<p>        except TimeoutError:</p>
-<p>            logger.warning(f"Operation timed out after {self.timeout}s")</p>
-<p>            future.cancel()</p>
-<p>            raise</p>
-<p>        except Exception as e:</p>
-<p>            logger.error(f"Operation failed: {e}")</p>
-<p>            raise</p>
-</code>``
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity&lt;Map&lt;String,String&gt;&gt; handle(Exception e) {
+        String id = UUID.randomUUID().toString();
+        log.error("error id={}", id, e);       // detail to logs
+        return ResponseEntity.status(500)
+            .body(Map.of("error", "Internal server error", "errorId", id));
+    }
+}</code></pre>
 
-<h2>Best Practices</h2>
+<p>Also register a <strong>last-resort handler</strong> for the truly unexpected, so an uncaught error becomes a clean 500 instead of a crash or a leaked trace:</p>
+
+<pre><code>// Node.js — do not let unhandled rejections silently kill or corrupt state
+process.on('unhandledRejection', (reason) =&gt; {
+    logger.error({ msg: 'unhandled rejection', reason });
+    // log, alert, and shut down gracefully if state may be corrupt
+});</code></pre>
+
+<h2 id="generic-messages">3. Generic Messages Out, Full Detail to Logs</h2>
+
+<p>The client gets a generic message plus a correlation ID; the server logs the full context. Support can still trace any incident by its ID without ever exposing internals to an attacker.</p>
+
+<pre><code>{
+  "error": "Something went wrong. Please try again.",
+  "errorId": "b1f3c9e2-7a4d-4b0a-9c2e-1f5a7d8e0c33"
+}
+# Stack trace, SQL, hostnames, and secrets go to the log ONLY,
+# keyed by the same errorId.</code></pre>
+
+<pre><code># Python (Flask) — one place decides what the client sees
+@app.errorhandler(Exception)
+def on_error(e):
+    error_id = uuid.uuid4().hex
+    app.logger.exception("error_id=%s", error_id)   # full trace to logs
+    return jsonify(error="Internal server error", error_id=error_id), 500</code></pre>
+
+<p>Never rely on "debug mode off" alone to hide traces &mdash; make the generic response the explicit, tested behaviour.</p>
+
+<h2 id="cleanup">4. Deterministic Resource Cleanup</h2>
+
+<p>Every resource acquired must be released on <em>every</em> path, including the exception path. Use the language's guaranteed-cleanup construct rather than manual release.</p>
+
+<pre><code># Python — context managers release even when the body raises
+with pool.connection() as conn:          # released on normal exit AND on error
+    with conn.transaction():             # commits on success, ROLLS BACK on error
+        conn.execute(query, params)</code></pre>
+
+<pre><code>// Java — try-with-resources closes in reverse order, even on exception
+try (Connection conn = pool.getConnection();
+     PreparedStatement ps = conn.prepareStatement(SQL)) {
+    ps.setString(1, id);
+    return ps.executeQuery();
+}   // conn and ps are closed automatically, success or failure</code></pre>
+
+<pre><code>// Go — defer guarantees release; roll back unless we reach commit
+tx, err := db.Begin()
+if err != nil { return err }
+defer tx.Rollback()                // no-op if Commit already ran
+if _, err := tx.Exec(q, id); err != nil {
+    return err                     // deferred Rollback runs
+}
+return tx.Commit()</code></pre>
+
+<pre><code>// C++ / RAII — the lock is released when the guard leaves scope, even on throw
+{
+    std::lock_guard&lt;std::mutex&gt; guard(mtx);
+    doWork();                      // if this throws, guard still unlocks
+}</code></pre>
+
+<p><strong>Rule</strong>: never release a resource in a plain sequential statement after the work &mdash; an exception in the work skips it. Always use <code>try/finally</code>, context managers, <code>defer</code>, or RAII.</p>
+
+<h2 id="boundaries">5. Catch at the Right Boundary &mdash; Never Swallow</h2>
+
+<p>Catch <strong>specific</strong> exceptions where you can actually do something about them. A caught exception must be handled, translated, or re-thrown &mdash; never discarded.</p>
+
+<pre><code>// BAD — swallows everything, hides attacks and bugs
+try { validateSignature(req); }
+catch (Exception e) { /* nothing */ }
+
+// GOOD — specific, logged, and the failure stops the request
+try {
+    validateSignature(req);
+} catch (SignatureException e) {
+    log.warn("signature validation failed for {}", req.id(), e);
+    throw new AuthenticationException("invalid signature");  // fail closed
+}</code></pre>
 
 <ul>
-<li>Never expose stack traces to users</li>
-<li>Log all exceptions with context</li>
-<li>Implement circuit breakers for external services</li>
-<li>Set timeouts on all operations</li>
-<li>Validate all inputs</li>
-<li>Handle async errors properly</li>
-<li>Implement retry with exponential backoff</li>
-<li>Use graceful degradation</li>
-<li>Monitor error rates</li>
-<li>Test error paths</li>
+<li><strong>Catch narrow, not broad</strong>: catching <code>Exception</code>/<code>Throwable</code> at random points hides real problems.</li>
+<li><strong>Never leave a catch block empty</strong>. If an error is truly ignorable, log why, with a comment explaining the reasoning.</li>
+<li><strong>Preserve the cause</strong> when re-throwing, so the log chain stays intact.</li>
+<li><strong>Do not catch what you cannot handle</strong> &mdash; let it propagate to the central boundary handler.</li>
+</ul>
+
+<h2 id="uniform">6. Eliminate Error &amp; Timing Oracles</h2>
+
+<p>Make failures indistinguishable. For authentication, return the <em>same</em> response for every failure reason, and keep the timing uniform.</p>
+
+<pre><code># Python — uniform response AND uniform timing for login
+def login(email, password):
+    user = db.find(email)
+    # Always run a hash comparison, even when the user is absent,
+    # so timing does not reveal existence.
+    stored = user.hash if user else DUMMY_HASH
+    ok = bcrypt.checkpw(password, stored)
+    if user and ok:
+        return issue_session(user)
+    return generic_login_error()      # identical body + status for all failures</code></pre>
+
+<pre><code>// Go — constant-time comparison for tokens/keys, never ==
+import "crypto/subtle"
+valid := subtle.ConstantTimeCompare(provided, expected) == 1</code></pre>
+
+<p>For cryptography, treat every decryption failure identically &mdash; do not distinguish "bad padding" from "bad MAC," and prefer authenticated encryption (AES-GCM, ChaCha20-Poly1305) so a single verification step replaces the two-outcome path that creates padding oracles. For blind-injection oracles, ensure malformed input produces the <em>same</em> generic error as any other failure.</p>
+
+<h2 id="input">7. Validate Edge Cases: Size, Type, Encoding</h2>
+
+<p>Bound the <em>shape</em> of input before it reaches parsers and regexes, so exotic inputs cannot exhaust resources or trip overflows.</p>
+
+<pre><code>// Express — cap body size so oversized payloads are rejected, not buffered
+app.use(express.json({ limit: '100kb' }));</code></pre>
+
+<pre><code># Reject deeply nested / oversized structured input; guard decompression
+MAX_DEPTH = 32
+MAX_DECOMPRESSED = 10 * 1024 * 1024     # 10 MB cap defeats zip bombs
+# Validate type explicitly — reject {"amount": []} where a number is required
+if not isinstance(payload.get("amount"), (int, float)):
+    raise ValidationError("amount must be numeric")</code></pre>
+
+<pre><code># Avoid catastrophic backtracking (ReDoS)
+#  - bound input length BEFORE matching
+#  - avoid nested quantifiers like (a+)+
+#  - prefer a linear-time engine (RE2) or a vetted, anchored pattern
+if len(value) &gt; 254:
+    raise ValidationError("too long")
+EMAIL = re2.compile(r"^[^@\s]{1,64}@[^@\s]{1,255}$")</code></pre>
+
+<p>Validate against an allow-list of expected types, lengths, ranges, and encodings. Normalise encoding once, early, and reject anything that does not round-trip cleanly.</p>
+
+<h2 id="resilience">8. Graceful Degradation, Timeouts, Circuit Breakers</h2>
+
+<p>In distributed systems, dependencies fail constantly. Bound every remote call and contain failures so one fault does not cascade.</p>
+
+<ul>
+<li><strong>Timeouts</strong> on every network call &mdash; an unbounded call is an unbounded outage waiting to happen.</li>
+<li><strong>Bounded retries with backoff and jitter</strong> &mdash; naive retries create retry storms that amplify an outage.</li>
+<li><strong>Circuit breakers</strong> &mdash; stop calling a failing dependency, return a safe fallback, and give it time to recover.</li>
+<li><strong>Bulkheads</strong> &mdash; isolate resource pools so one slow dependency cannot drain the threads others need.</li>
+<li><strong>Dead-letter queues</strong> &mdash; route poison messages aside instead of reprocessing them forever.</li>
+</ul>
+
+<pre><code>// Go — every outbound call gets a deadline
+ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+defer cancel()
+resp, err := client.Do(req.WithContext(ctx))
+if err != nil {
+    return cachedFallback()        // degrade safely, do not hang or fail open
+}</code></pre>
+
+<pre><code># Circuit-breaker sketch — trip after repeated failures, fall back safely
+if breaker.state == OPEN:
+    return safe_default()          # do not hammer the failing dependency
+try:
+    result = call_dependency()
+    breaker.record_success()
+    return result
+except DependencyError:
+    breaker.record_failure()
+    return safe_default()</code></pre>
+
+<p>The security point: a fallback must itself be safe. Degrading to "serve stale read-only data" is fine; degrading to "skip the authorization check" is a fail-open bug.</p>
+
+<h2 id="production">9. Production Hardening</h2>
+
+<ul>
+<li><strong>Debug mode off</strong> in every production service &mdash; no interactive debugger, no auto-rendered traces.</li>
+<li><strong>Custom error pages</strong> for 4xx/5xx that never reveal internals.</li>
+<li><strong>Strip framework/version banners</strong> so errors do not fingerprint the stack.</li>
+<li><strong>Scrub logs</strong> &mdash; full detail is fine server-side, but keep secrets and full card/credential values out of logs too.</li>
+<li><strong>Alert on error-rate spikes</strong> &mdash; a surge of 500s or auth errors is often an attack in progress.</li>
+</ul>
+
+<pre><code># Django — production settings
+DEBUG = False
+ALLOWED_HOSTS = ["app.example.com"]
+# 500 handler renders a static page; the traceback goes to logging/Sentry only</code></pre>
+
+<h2 id="testing">10. Test the Error Path</h2>
+
+<p>The error path is under-tested by default, so test it on purpose:</p>
+<ul>
+<li><strong>Negative and boundary tests</strong>: malformed input, wrong types, empty and oversized values, unexpected encodings.</li>
+<li><strong>Fault injection / chaos</strong>: force dependencies to time out, error, and return garbage, and assert the app fails <em>closed</em> and cleans up.</li>
+<li><strong>Fuzzing</strong>: throw random and malformed inputs at parsers and endpoints to surface uncaught exceptions.</li>
+<li><strong>Oracle checks</strong>: assert that login/reset responses and timings are indistinguishable for valid vs invalid accounts.</li>
+<li><strong>Resource-leak tests</strong>: run error-triggering inputs in a loop and assert pools/handles return to baseline.</li>
+</ul>
+
+<pre><code># Example assertion: a failing authz dependency must DENY, not allow
+def test_authz_fails_closed(monkeypatch):
+    monkeypatch.setattr(authz, "check", raises(TimeoutError))
+    assert is_authorized(user, resource) is False   # fail closed</code></pre>
+
+<h2 id="checklist">Prevention Checklist</h2>
+
+<table>
+<thead>
+<tr><th>Area</th><th>Control</th></tr>
+</thead>
+<tbody>
+<tr><td>Fail closed</td><td>Security decisions default to deny on any error or timeout</td></tr>
+<tr><td>Centralization</td><td>One error handler per boundary; a last-resort handler for the unexpected</td></tr>
+<tr><td>Disclosure</td><td>Generic message + error ID to clients; full detail to logs only</td></tr>
+<tr><td>Cleanup</td><td>try/finally, context managers, defer, RAII on every path</td></tr>
+<tr><td>Transactions</td><td>Atomic with rollback; no half-committed state</td></tr>
+<tr><td>No swallowing</td><td>No empty catch blocks; catch specific, handle or rethrow</td></tr>
+<tr><td>No oracles</td><td>Uniform responses and timing; constant-time comparisons</td></tr>
+<tr><td>Input edges</td><td>Bound size, type, depth, encoding; ReDoS-safe regexes</td></tr>
+<tr><td>Resilience</td><td>Timeouts, bounded retries, circuit breakers, safe fallbacks</td></tr>
+<tr><td>Production</td><td>Debug off, banners stripped, error-rate alerting</td></tr>
+<tr><td>Testing</td><td>Negative, fault-injection, fuzz, oracle, and leak tests</td></tr>
+</tbody>
+</table>
+
+<h2>Next Steps</h2>
+<ul>
+<li><strong><a href="./examples.html">Code Examples</a></strong>: Vulnerable vs. secure implementations in Java, Python, Node.js, and Go</li>
+<li><strong><a href="./attack-vectors.html">Attack Vectors</a></strong>: How these weaknesses are exploited</li>
+<li><strong><a href="./lab/mishandling-exceptional-conditions/">Hands-On Lab</a></strong>: Practice failing securely and cleaning up on the error path</li>
 </ul>
 
         </div>

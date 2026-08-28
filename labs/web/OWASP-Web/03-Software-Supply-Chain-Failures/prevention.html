@@ -215,124 +215,277 @@
         </a>
         
         <div class="content">
-            <h1>Supply Chain Security - Prevention</h1>
+            <h1>Software Supply Chain Failures - Prevention</h1>
 
-<h2>Dependency Management</h2>
-
-<h3>1. Software Bill of Materials (SBOM)</h3>
-
-<p>``<code>python</p>
-<h1>Generate SBOM for your project</h1>
-<h1>Using cyclonedx-bom</h1>
-<p>pip install cyclonedx-bom</p>
-<p>cyclonedx-bom -o sbom.json</p>
-</code>`<code>
-
-<h3>2. Dependency Pinning</h3>
-
-</code>`<code>python
-<h1>requirements.txt - PRECISE VERSIONS</h1>
-<p>Flask==3.0.0  # Not Flask>=2.0</p>
-<p>requests==2.31.0  # Not requests~=2.0</p>
-<p>cryptography==41.0.7  # Exact version</p>
-
-<h1>Generate from current environment</h1>
-<p>pip freeze > requirements.txt</p>
-</code>`<code>
-
-<h3>3. Dependency Scanning</h3>
-
-</code>`<code>bash
-<h1>Scan for vulnerabilities</h1>
-<p>pip-audit</p>
-
-<h1>Check for known malicious packages</h1>
-<p>python -m pip install safety</p>
-<p>safety check</p>
-
-<h1>Use Snyk, Dependabot, or similar</h1>
-<p>snyk test</p>
-</code>`<code>
-
-<h3>4. Package Verification</h3>
-
-</code>`<code>python
-<h1>Verify package integrity</h1>
-<p>pip install package-name --require-hashes</p>
-
-<h1>requirements.txt with hashes</h1>
-<p>Flask==3.0.0     --hash=sha256:abc123...</p>
-</code>`<code>
-
-<h3>5. Private Package Repository</h3>
-
-</code>`<code>python
-<h1>Use private PyPI mirror</h1>
-<p>pip install --index-url https://private-pypi.company.com package-name</p>
-
-<h1>Block public packages</h1>
-<p>pip install --no-index --find-links=/local/packages package-name</p>
-</code>`<code>
-
-<h2>CI/CD Security</h2>
-
-</code>`<code>yaml
-<h1>.github/workflows/security.yml</h1>
-<p>name: Supply Chain Security</p>
-
-<p>on: [push, pull_request]</p>
-
-<p>jobs:</p>
-<p>  security-scan:</p>
-<p>    runs-on: ubuntu-latest</p>
-<p>    steps:</p>
+<div class="toc">
+<h2>Table of Contents</h2>
 <ul>
-<li>uses: actions/checkout@v3</li>
+<li><a href="#defense-in-depth">Defense in Depth for the Supply Chain</a></li>
+<li><a href="#inventory-sbom">1. Inventory and SBOM</a></li>
+<li><a href="#pin-and-verify">2. Pin and Verify Dependencies</a></li>
+<li><a href="#provenance-signing">3. Provenance and Artifact Signing</a></li>
+<li><a href="#registries-confusion">4. Private Registries and Dependency-Confusion Defense</a></li>
+<li><a href="#sca-scanning">5. Automated Dependency and Vulnerability Scanning</a></li>
+<li><a href="#harden-cicd">6. Harden CI/CD</a></li>
+<li><a href="#sri">7. Subresource Integrity for Third-Party Scripts</a></li>
+<li><a href="#containers">8. Verify and Pin Container Base Images</a></li>
+<li><a href="#cadence">9. Update and Patch Cadence</a></li>
+<li><a href="#summary">Defense Summary</a></li>
 </ul>
-      
-<ul>
-<li>name: Dependency Scan</li>
-</ul>
-<p>        run: |</p>
-<p>          pip install pip-audit</p>
-<p>          pip-audit</p>
-      
-<ul>
-<li>name: SBOM Generation</li>
-</ul>
-<p>        run: |</p>
-<p>          pip install cyclonedx-bom</p>
-<p>          cyclonedx-bom -o sbom.json</p>
-      
-<ul>
-<li>name: License Compliance</li>
-</ul>
-<p>        run: |</p>
-<p>          pip install pip-licenses</p>
-<p>          pip-licenses --fail-on "GPL"</p>
-      
-<ul>
-<li>name: Code Signing</li>
-</ul>
-<p>        run: |</p>
-<p>          gpg --sign --detach-sig dist/package.whl</p>
-</code>``
+</div>
 
-<h2>Best Practices</h2>
+<h2 id="defense-in-depth">Defense in Depth for the Supply Chain</h2>
 
+<p>No single control secures the supply chain, because the chain fails at many independent points. The goal is <strong>layered assurance</strong>: know what you ship, pin it to immutable identifiers, verify its origin, resolve it from controlled sources, scan it continuously, build it in a hardened pipeline, and constrain what runs in the browser. Each layer below closes a distinct class of attack from the previous page.</p>
+
+<h2 id="inventory-sbom">1. Inventory and SBOM (CycloneDX / SPDX)</h2>
+
+<p>You cannot defend what you cannot enumerate. A <strong>Software Bill of Materials</strong> is a machine-readable list of every component (direct and transitive) in a build. Generate one automatically on every build, store it as an artifact, and query it the moment a new upstream compromise is announced.</p>
+
+<pre><code># Generate a CycloneDX SBOM from a project's dependencies
+$ npm install -g @cyclonedx/cyclonedx-npm
+$ cyclonedx-npm --output-format JSON --output-file sbom.json
+
+# Language-agnostic SBOM from a filesystem or container image (Syft)
+$ syft dir:. -o spdx-json=sbom.spdx.json
+$ syft registry:myapp:1.4.2 -o cyclonedx-json=image-sbom.json</code></pre>
+
+<pre><code># In CI: produce and retain the SBOM as a build artifact on every run
+- name: Generate SBOM
+  run: syft dir:. -o cyclonedx-json=sbom.json
+- name: Upload SBOM
+  uses: actions/upload-artifact@v4
+  with:
+    name: sbom
+    path: sbom.json</code></pre>
+
+<blockquote>
+<p>When the next widely-used package is compromised, an SBOM turns "are we affected?" from a week of investigation into a single query across stored bills of materials.</p>
+</blockquote>
+
+<h2 id="pin-and-verify">2. Pin and Verify Dependencies (Lockfiles + Hashes)</h2>
+
+<p>Floating version ranges let a hijacked release enter silently. Pin to exact versions <em>and</em> verify content hashes, then install strictly from the lockfile so a mismatch fails the build.</p>
+
+<h3>Node / npm</h3>
+<pre><code># Commit package-lock.json (it records exact versions + integrity hashes).
+# In CI, install strictly from the lockfile -- fails if it drifts:
+$ npm ci                      # NOT `npm install`
+# Block install-time script execution for untrusted trees:
+$ npm ci --ignore-scripts</code></pre>
+
+<h3>Python / pip</h3>
+<pre><code># requirements.txt pinned to exact versions AND hashes
+flask==3.0.0 --hash=sha256:3661b5c1...e2f9
+requests==2.31.0 --hash=sha256:942c5a7...b1c4
+
+# Refuse to install anything whose hash is not listed:
+$ pip install --require-hashes -r requirements.txt</code></pre>
+
+<h3>Java / Maven</h3>
+<pre><code>&lt;!-- Pin exact versions (no ranges) and enforce it in the build --&gt;
+&lt;dependency&gt;
+  &lt;groupId&gt;com.fasterxml.jackson.core&lt;/groupId&gt;
+  &lt;artifactId&gt;jackson-databind&lt;/artifactId&gt;
+  &lt;version&gt;2.17.1&lt;/version&gt;   &lt;!-- exact, not [2.0,) --&gt;
+&lt;/dependency&gt;</code></pre>
+<pre><code># Verify artifact checksums/signatures on download
+$ mvn --strict-checksums verify</code></pre>
+
+<h3>Go</h3>
+<pre><code># go.sum records expected hashes; verify the module cache against it:
+$ go mod verify
+# GONOSUMCHECK / disabling the checksum DB defeats this -- keep it on.</code></pre>
+
+<h2 id="provenance-signing">3. Provenance and Artifact Signing (SLSA, Sigstore / cosign)</h2>
+
+<p>A signature proves <em>who</em> published an artifact; <strong>provenance</strong> proves <em>what</em> was built, <em>from which source</em>, and <em>by which pipeline</em>. Together they detect a swapped or build-time-injected artifact even when the publisher's identity checks out. The <strong>SLSA</strong> framework defines increasing levels of build integrity; <strong>Sigstore/cosign</strong> provides keyless signing and verification.</p>
+
+<pre><code># Sign a container image and its provenance attestation (keyless, via OIDC)
+$ cosign sign --yes myregistry/myapp@sha256:9c1f...ab
+$ cosign attest --predicate provenance.json \
+    --type slsaprovenance myregistry/myapp@sha256:9c1f...ab</code></pre>
+
+<pre><code># Consumers VERIFY before deploy -- fail closed if it does not check out
+$ cosign verify \
+    --certificate-identity-regexp 'https://github.com/acme/.+' \
+    --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+    myregistry/myapp@sha256:9c1f...ab</code></pre>
+
+<pre><code># npm packages can carry build provenance published from CI:
+$ npm publish --provenance --access public
+# Consumers can then confirm the package was built from the stated source.</code></pre>
+
+<h2 id="registries-confusion">4. Private Registries and Dependency-Confusion Defense</h2>
+
+<p>Defeat confusion and typosquatting by controlling <em>where</em> names resolve. Scope internal packages, force private-registry precedence, and do not let public fallback silently win.</p>
+
+<h3>npm scoped registry</h3>
+<pre><code># .npmrc -- the @acme scope ALWAYS comes from the private registry
+@acme:registry=https://npm.internal.acme.com/
+//npm.internal.acme.com/:_authToken=${NPM_TOKEN}
+# Do not publish internal names to the public registry; reserve the scope.</code></pre>
+
+<h3>Python index control</h3>
+<pre><code># Pull ONLY from the trusted internal index; do not merge with PyPI blindly.
+$ pip install --index-url https://pypi.internal.acme.com/simple \
+              --no-deps -r requirements.txt
+# Avoid --extra-index-url with public PyPI for internal names (confusion risk).</code></pre>
+
+<h3>Practical rules</h3>
 <ul>
-<li>Pin all dependencies to exact versions</li>
-<li>Generate and verify SBOMs</li>
-<li>Scan dependencies regularly</li>
-<li>Use private package repositories</li>
-<li>Verify package signatures</li>
-<li>Monitor for typosquatting</li>
-<li>Implement least privilege in CI/CD</li>
-<li>Use reproducible builds</li>
-<li>Enable 2FA for package publishing</li>
-<li>Review dependency changes carefully</li>
+<li><strong>Reserve your namespaces/scopes</strong> on public registries so an attacker cannot claim them.</li>
+<li><strong>Pin the source</strong>: internal names resolve to the private registry only.</li>
+<li><strong>Allowlist</strong> which external packages are permitted; block unknown names by policy.</li>
+<li><strong>Proxy</strong> public registries through an internal mirror that caches, scans, and quarantines new versions.</li>
 </ul>
 
+<h2 id="sca-scanning">5. Automated Dependency and Vulnerability Scanning (SCA)</h2>
+
+<p>Software Composition Analysis continuously matches your components against known-vulnerability and malicious-package data, and gates merges on the result.</p>
+
+<pre><code># Native package-manager audits
+$ npm audit --audit-level=high
+$ pip-audit -r requirements.txt
+
+# Ecosystem-agnostic vulnerability scanning (OSV / Trivy / Grype)
+$ osv-scanner --lockfile package-lock.json
+$ trivy fs --scanners vuln,secret .
+$ grype dir:.</code></pre>
+
+<pre><code># Gate pull requests on SCA (GitHub Actions example)
+name: sca
+on: [pull_request]
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Vulnerability scan (fail on high+)
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+          grype dir:. --fail-on high</code></pre>
+
+<p>Also enable automated update PRs (Dependabot / Renovate) so patches arrive quickly&mdash;paired with pinning and review so updates are adopted deliberately, not blindly.</p>
+
+<h2 id="harden-cicd">6. Harden CI/CD</h2>
+
+<p>Treat the pipeline as production infrastructure, because it produces the trusted artifact and holds the keys.</p>
+
+<ul>
+<li><strong>Least-privilege, ephemeral credentials</strong>: prefer short-lived OIDC-federated tokens over long-lived static secrets.</li>
+<li><strong>Pin third-party actions/steps by commit SHA</strong>, not by mutable tag.</li>
+<li><strong>Scope permissions</strong> per job to the minimum required.</li>
+<li><strong>Isolated, ephemeral runners</strong>: fresh environment per job; avoid reused self-hosted runners for untrusted code.</li>
+<li><strong>Protected branches and pipelines</strong>: required reviews, no direct pushes, signed commits/tags.</li>
+<li><strong>Never print secrets to logs</strong>; mask them and keep build logs access-controlled.</li>
+<li><strong>Block install scripts</strong> for untrusted dependency trees in CI.</li>
+</ul>
+
+<pre><code># Least-privilege token + SHA-pinned actions + OIDC for cloud (GitHub Actions)
+permissions:
+  contents: read            # default to read-only
+  id-token: write           # only to mint a short-lived OIDC token
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1 pinned by SHA
+      - uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502  # v4.0.2 pinned
+        with:
+          role-to-assume: arn:aws:iam::111122223333:role/ci-deploy   # short-lived, scoped
+          aws-region: us-east-1
+      - run: npm ci --ignore-scripts</code></pre>
+
+<h2 id="sri">7. Subresource Integrity for Third-Party Scripts</h2>
+
+<p>For any script or stylesheet loaded from another origin, add a Subresource Integrity (<code>integrity</code>) hash. The browser refuses to execute the resource if its content does not match&mdash;so a compromised CDN cannot silently swap in a skimmer. Back it with a strict Content-Security-Policy.</p>
+
+<pre><code>&lt;!-- Browser executes this ONLY if the file's hash matches --&gt;
+&lt;script src="https://cdn.example.com/lib@1.2.3/lib.min.js"
+        integrity="sha384-oqVuAfXRKap7fdgcCY5uykM6+R9GqQ8K/uxy9rx7HNQlGYl1kPzQho1wx4JwY8wC"
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer"&gt;&lt;/script&gt;</code></pre>
+
+<pre><code># Generate the SRI hash for a file you intend to pin
+$ cat lib.min.js | openssl dgst -sha384 -binary | openssl base64 -A
+# Prefix the output with "sha384-" in the integrity attribute.</code></pre>
+
+<pre><code>&lt;!-- Enforce integrity and restrict script origins with CSP --&gt;
+Content-Security-Policy:
+  default-src 'self';
+  script-src 'self' https://cdn.example.com;
+  require-sri-for script style;
+  object-src 'none'; base-uri 'none'</code></pre>
+
+<p><strong>Note</strong>: SRI requires a specific, immutable file version. It is incompatible with CDN URLs that serve "latest"&mdash;which is exactly the mutable behavior you want to avoid.</p>
+
+<h2 id="containers">8. Verify and Pin Container Base Images</h2>
+
+<p>Pin base images by <strong>digest</strong> (immutable), not by tag (mutable). Prefer minimal/distroless bases, scan images, and verify signatures before deploy.</p>
+
+<pre><code># Pin by digest so the base cannot change under you
+FROM node:20.11.1-bookworm-slim@sha256:8b1e...c0a2
+# ...build steps...
+
+# Prefer a minimal runtime with no shell / package manager to abuse
+FROM gcr.io/distroless/nodejs20-debian12@sha256:5f3d...9ab1</code></pre>
+
+<pre><code># Scan the built image and verify its signature in the pipeline
+$ trivy image --severity HIGH,CRITICAL myapp@sha256:9c1f...ab
+$ cosign verify myregistry/base@sha256:5f3d...9ab1   # fail closed on mismatch</code></pre>
+
+<h2 id="cadence">9. Update and Patch Cadence</h2>
+
+<p>Pinning without a plan to move forward causes rot; auto-updating without review invites hijacks. Balance the two:</p>
+<ul>
+<li>Run SCA continuously and triage <strong>high/critical</strong> findings on a defined SLA.</li>
+<li>Let bots (Dependabot/Renovate) open update PRs; a human reviews the diff and changelog before merge.</li>
+<li>Watch for suspicious signals: a sudden new maintainer, an added obfuscated dependency, a large unexplained size change, or a release that skips the source repository.</li>
+<li>Re-generate the SBOM and re-scan on every merged update.</li>
+</ul>
+
+<h2 id="summary">Defense Summary</h2>
+
+<table>
+<thead>
+<tr><th>Layer</th><th>Control</th><th>Attack it closes</th></tr>
+</thead>
+<tbody>
+<tr><td>Inventory</td><td>SBOM (CycloneDX/SPDX)</td><td>Unknown/transitive exposure during an incident</td></tr>
+<tr><td>Dependencies</td><td>Lockfiles + hash verification</td><td>Silent hijacked releases, tampered downloads</td></tr>
+<tr><td>Origin</td><td>Provenance + signing (SLSA/cosign)</td><td>Swapped or build-injected artifacts</td></tr>
+<tr><td>Resolution</td><td>Private registry precedence, scoped names</td><td>Dependency confusion, typosquatting</td></tr>
+<tr><td>Scanning</td><td>SCA (osv/trivy/grype, audits)</td><td>Known-vulnerable and malicious components</td></tr>
+<tr><td>Build</td><td>Hardened, least-privilege CI/CD</td><td>Pipeline compromise, secret theft</td></tr>
+<tr><td>Browser</td><td>SRI + strict CSP</td><td>Compromised third-party scripts (skimming)</td></tr>
+<tr><td>Containers</td><td>Digest-pinned, scanned, minimal bases</td><td>Poisoned base images</td></tr>
+</tbody>
+</table>
+
+<h2>Best Practices Checklist</h2>
+<ul>
+<li>Generate and store an SBOM on every build.</li>
+<li>Install from lockfiles with hash verification; never floating ranges in production.</li>
+<li>Sign artifacts and publish provenance; verify before deploy.</li>
+<li>Reserve namespaces; resolve internal names from a private registry first.</li>
+<li>Run SCA in CI and gate merges on high/critical findings.</li>
+<li>Use least-privilege, ephemeral CI credentials; pin actions by SHA.</li>
+<li>Add SRI to every third-party script/stylesheet; enforce a strict CSP.</li>
+<li>Pin container bases by digest; scan and verify images.</li>
+<li>Enforce publisher 2FA; review dependency updates before adopting them.</li>
+<li>Prefer reproducible builds so source and artifact can be compared.</li>
+</ul>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="examples.html">Examples</a></strong>: Copy-ready vulnerable vs. secure snippets for each control.</li>
+<li><strong><a href="attack-vectors.html">Attack Vectors</a></strong>: The patterns these defenses close.</li>
+<li><strong><a href="overview.html">Overview</a></strong>: Concepts, impact, and relationship to A06:2021.</li>
+<li><strong><a href="./lab/software-supply-chain-failures/">Hands-On Lab</a></strong>: Apply these defenses to a deliberately vulnerable pipeline.</li>
+</ul>
         </div>
     </div>
 </body>

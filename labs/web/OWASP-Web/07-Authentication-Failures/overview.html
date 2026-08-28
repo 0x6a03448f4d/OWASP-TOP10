@@ -215,44 +215,255 @@
         </a>
         
         <div class="content">
+
             <h1>Authentication Failures (2025) - Overview</h1>
 
-<h2>Modern Authentication Challenges</h2>
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#what-are-authentication-failures">What Are Authentication Failures?</a></li>
+<li><a href="#why-does-this-matter">Why Does This Matter?</a></li>
+<li><a href="#technical-context">Technical Context</a></li>
+<li><a href="#real-world-impact">Real-World Impact</a></li>
+<li><a href="#prevalence-and-statistics">Prevalence and Classification</a></li>
+<li><a href="#common-misunderstandings">Common Misunderstandings</a></li>
+<li><a href="#self-assessment">Self-Assessment</a></li>
+<li><a href="#whats-next">What's Next?</a></li>
+</ul>
+</div>
 
-<p>In 2025, authentication has evolved beyond simple passwords. Modern threats include:</p>
+<h2 id="what-are-authentication-failures">What Are Authentication Failures?</h2>
+
+<p><strong>Authentication Failures</strong> is the 2025 edition's name for the category that covers every way an application fails to reliably confirm <em>who</em> is making a request and to keep that confirmation trustworthy for the life of a session. It is the direct evolution of <strong>A07:2021 &mdash; Identification and Authentication Failures</strong>, which was itself the 2021 renaming and re-scoping of <strong>A2:2017 &mdash; Broken Authentication</strong>. The 2025 edition trims the name back toward its origins while broadening the technical scope to reflect how identity is actually verified today: passkeys, federated sign-in, and short-lived tokens rather than a single password box.</p>
+
+<p>Authentication answers the question <em>"are you who you claim to be?"</em> It is distinct from <strong>authorization</strong> (A01, "are you allowed to do this?"). A system can authenticate a user perfectly and still make an access-control mistake, and it can authorize flawlessly yet hand a valid session to an impostor. This category is about the first half of that pair &mdash; establishing identity and preserving it.</p>
+
+<p>At its core, an authentication failure happens whenever an attacker can obtain, guess, forge, or reuse the proof of identity that should belong to someone else. Concretely, the category covers:</p>
 
 <ul>
-<li><strong>AI-Powered Attacks</strong>: ML models optimizing credential stuffing</li>
-<li><strong>Passkey/WebAuthn Bypass</strong>: Misconfigured passwordless systems</li>
-<li><strong>OAuth/OIDC Flaws</strong>: Third-party authentication vulnerabilities</li>
-<li><strong>Biometric Spoofing</strong>: Deepfakes and synthetic biometrics</li>
-<li><strong>MFA Fatigue</strong>: Push bombing and social engineering</li>
-<li><strong>API Key Leaks</strong>: Exposed in CI/CD, containers, logs</li>
+<li><strong>Automated credential attacks</strong>: credential stuffing (replaying breached username/password pairs), password spraying (one common password against many accounts), and classic brute force.</li>
+<li><strong>Weak, default, or breached passwords</strong>: permitting <code>password1</code>, shipping <code>admin/admin</code>, or accepting a password already known to appear in public breach corpora.</li>
+<li><strong>Missing or weak multi-factor authentication (MFA)</strong>: no second factor at all, or a phishable one (SMS OTP, TOTP typed into a fake page, push prompts vulnerable to fatigue).</li>
+<li><strong>Broken session management</strong>: session fixation, predictable or low-entropy session identifiers, failure to rotate the identifier on login or privilege change, sessions that are never invalidated server-side on logout, and lifetimes that never expire.</li>
+<li><strong>Insecure credential recovery</strong>: password-reset flows with guessable tokens, tokens that do not expire, or host-header / link poisoning that redirects the reset to an attacker.</li>
+<li><strong>Account enumeration</strong>: login, registration, or reset responses that reveal whether a given username or email exists.</li>
+<li><strong>JWT and token flaws</strong>: accepting <code>alg: none</code>, trusting weak or reused signing secrets, or skipping expiry, issuer, and audience validation.</li>
+<li><strong>OAuth2 / OIDC misconfiguration</strong>: loose <code>redirect_uri</code> matching, a missing or unverified <code>state</code> parameter, and missing PKCE on public clients.</li>
 </ul>
 
-<h2>2025 Attack Landscape</h2>
+<h3>Core Concept</h3>
 
-<strong>Credential Stuffing at Scale</strong>
+<pre><code>Authentication done right:
+  Identity claim   -&gt; username / email / subject
+  Proof            -&gt; something you know + have + are (phishing-resistant preferred)
+  Verification     -&gt; constant-time compare, breach + policy checks, rate limits
+  Session issued   -&gt; high-entropy, server-tracked, rotated on privilege change
+  Session ended    -&gt; invalidated server-side on logout, idle, and absolute timeout
+
+AUTHENTICATION FAILURE = any step where an attacker can
+  obtain, guess, forge, or REUSE proof that is not theirs
+  -&gt; account takeover</code></pre>
+
+<h3>Continuity Across Editions</h3>
+
+<table>
+<tr><th>Edition</th><th>Category name</th><th>Emphasis</th></tr>
+<tr><td>2017 &mdash; A2</td><td>Broken Authentication</td><td>Passwords, session IDs, credential management</td></tr>
+<tr><td>2021 &mdash; A07</td><td>Identification and Authentication Failures</td><td>Adds identity proofing, credential recovery, session lifecycle</td></tr>
+<tr><td>2025 &mdash; A07</td><td>Authentication Failures</td><td>Adds MFA/phishing-resistance, JWT/token validation, OAuth/OIDC, passkeys</td></tr>
+</table>
+
+<blockquote>
+<p><strong>Naming note.</strong> The exact ranking and wording of the 2025 list are finalised by OWASP from contributed data. This lesson follows the 2025 edition's framing of the authentication category and treats its ordinal position as continuity with the well-established 2021 <code>A07</code> slot rather than asserting a precise new incidence figure.</p>
+</blockquote>
+
+<h2 id="why-does-this-matter">Why Does This Matter?</h2>
+
+<p>Authentication is the front door of almost every application. When it fails, an attacker does not need a clever memory-corruption exploit or an injection payload &mdash; they simply <em>log in as someone else</em> and inherit that person's data and privileges. This is why account takeover consistently sits among the most common root causes behind reported breaches.</p>
+
+<h3>Business Impact</h3>
+
 <ul>
-<li>Billions of breached credentials available</li>
-<li>Automated tools test millions per hour</li>
-<li>Success rate: 0.1-2% (still profitable)</li>
+<li><strong>Account takeover (ATO)</strong>: attackers drain balances, place fraudulent orders, exfiltrate personal data, and abuse trust relationships from a legitimate-looking session.</li>
+<li><strong>Large-scale fraud</strong>: credential-stuffing operations monetise millions of reused passwords across retail, streaming, travel, and financial platforms.</li>
+<li><strong>Regulatory exposure</strong>: exposed personal data triggers GDPR, CCPA, HIPAA, and PCI-DSS obligations, fines, and mandatory breach notification.</li>
+<li><strong>Reputation and churn</strong>: publicised ATO waves erode user trust and drive customers to competitors.</li>
+<li><strong>Support and remediation cost</strong>: forced password resets, fraud reimbursement, and incident response are expensive even when no data is technically "breached."</li>
 </ul>
 
-<strong>MFA Bypass Techniques</strong>
+<h3>Technical Impact</h3>
+
 <ul>
-<li>SIM swapping for SMS 2FA</li>
-<li>Session hijacking post-MFA</li>
-<li>MFA fatigue attacks (Uber 2022, widespread 2025)</li>
-<li>Adversary-in-the-Middle (AitM) phishing</li>
+<li><strong>Full identity compromise</strong>: once a session or token is stolen, every downstream authorization check trusts the attacker.</li>
+<li><strong>Privilege escalation</strong>: a compromised admin or service account opens lateral movement across the system.</li>
+<li><strong>Persistence</strong>: long-lived or non-revocable tokens let an attacker return long after the original theft.</li>
+<li><strong>Bypass of other controls</strong>: MFA fatigue and adversary-in-the-middle phishing defeat controls that look strong on paper.</li>
+<li><strong>Trust-chain damage</strong>: a forged JWT or a mis-scoped OAuth token can be accepted by many services that share the same identity provider.</li>
 </ul>
 
-<strong>Cloud-Native Threats</strong>
+<h2 id="technical-context">Technical Context</h2>
+
+<h3>Identification, Authentication, and Session &mdash; Three Distinct Steps</h3>
+
+<p>It is worth separating the moving parts, because failures cluster differently at each stage:</p>
+
+<ol>
+<li><strong>Identification</strong> &mdash; the user asserts an identity (a username, email, or subject claim). Leaking whether that identity exists is <em>account enumeration</em>.</li>
+<li><strong>Authentication</strong> &mdash; the user proves the claim with one or more factors. Weak proofs, missing MFA, and automated guessing live here.</li>
+<li><strong>Session / token</strong> &mdash; after a successful proof, the server issues a credential (a session cookie or token) that stands in for the user on subsequent requests. Fixation, weak IDs, missing rotation, and missing invalidation live here.</li>
+</ol>
+
+<h3>The Three Authentication Factors</h3>
+
+<table>
+<tr><th>Factor</th><th>Examples</th><th>Weakness</th></tr>
+<tr><td><strong>Something you know</strong></td><td>Password, PIN, security question</td><td>Guessable, reusable, phishable, breached</td></tr>
+<tr><td><strong>Something you have</strong></td><td>Phone (SMS/TOTP), security key, passkey</td><td>SMS is SIM-swappable; TOTP is phishable; keys resist both</td></tr>
+<tr><td><strong>Something you are</strong></td><td>Fingerprint, face, voice</td><td>Not secret, hard to revoke, spoofable in some modes</td></tr>
+</table>
+
+<p><strong>Multi-factor authentication</strong> combines factors from different categories. Not all MFA is equal: SMS one-time codes and TOTP apps raise the bar against password reuse but are <em>phishable</em> &mdash; an adversary-in-the-middle page relays the code in real time. <strong>Phishing-resistant</strong> methods (passkeys / WebAuthn / FIDO2 security keys) bind the credential to the origin cryptographically, so a fake domain cannot complete the ceremony.</p>
+
+<h3>Passwords: Policy Has Shifted</h3>
+
+<p>Modern guidance (<strong>NIST SP 800-63B</strong>) inverts much of the older "complexity" advice:</p>
+
 <ul>
-<li>Service account compromise</li>
-<li>IMDS credential theft</li>
-<li>Container registry token exposure</li>
+<li><strong>Favour length over composition</strong>: allow long passphrases (at least 8, ideally 12+ characters; support up to 64+) and drop mandatory upper/lower/digit/symbol rules.</li>
+<li><strong>Screen against breach corpora</strong>: reject passwords known to appear in public breach lists (for example via a k-anonymity range query so the full password never leaves the client).</li>
+<li><strong>Do not force periodic rotation</strong> without evidence of compromise &mdash; it drives predictable, weaker choices.</li>
+<li><strong>Drop knowledge-based "security questions"</strong>: the answers are often public or guessable.</li>
+<li><strong>Store with a slow, salted password hash</strong>: Argon2id, scrypt, or bcrypt &mdash; never MD5/SHA-1 or a fast unsalted hash.</li>
 </ul>
+
+<h3>Sessions and Tokens</h3>
+
+<pre><code>Stateful session (server-side store):
+  Cookie holds a random 128-bit+ ID -&gt; server looks up session state
+  Revocation is easy: delete the server record
+
+Stateless token (e.g. JWT):
+  Token itself carries the claims, signed by the server
+  Fast and scalable, but revocation is HARD -&gt; keep lifetimes short,
+  validate alg + exp + iss + aud, and pair with a refresh/deny mechanism</code></pre>
+
+<p>Both models fail in similar ways: a predictable identifier can be guessed, an identifier that is never rotated enables fixation, and a credential that is never invalidated survives logout. Stateless tokens add their own failure modes around <em>who signed this and is it still valid</em>.</p>
+
+<h2 id="real-world-impact">Real-World Impact</h2>
+
+<p>The examples below are described as <strong>classes of incident</strong> that have been widely reported and independently documented. They are included to show how the failure modes play out, without asserting invented CVE numbers or precise victim counts.</p>
+
+<h3>Class 1: Credential Stuffing Against Consumer Platforms</h3>
+
+<p><strong>Pattern</strong>: attackers take username/password pairs from unrelated breaches and replay them at scale against streaming, retail, food-delivery, and financial services.<br>
+<strong>Why it works</strong>: users reuse passwords, and many sites have no rate limiting, no breach screening, and no MFA.<br>
+<strong>Lesson</strong>: breach screening, per-account throttling, device intelligence, and MFA break the economics of reuse.</p>
+
+<h3>Class 2: MFA Fatigue / Push Bombing</h3>
+
+<p><strong>Pattern</strong>: with a valid password in hand, an attacker triggers a flood of "approve sign-in?" push notifications until a tired or confused user taps <em>approve</em>. This technique was central to several widely reported 2022&ndash;2023 intrusions, including the well-documented Uber compromise.<br>
+<strong>Lesson</strong>: replace simple push approval with number-matching, rate-limit prompts, and move privileged accounts to phishing-resistant passkeys/security keys.</p>
+
+<h3>Class 3: SIM Swap Defeating SMS OTP</h3>
+
+<p><strong>Pattern</strong>: an attacker convinces (or bribes) a mobile carrier to port a victim's number to a new SIM, then receives the victim's SMS one-time codes and resets accounts.<br>
+<strong>Lesson</strong>: treat SMS as a low-assurance factor; prefer app-based or hardware factors, and never gate high-value recovery on SMS alone.</p>
+
+<h3>Class 4: Adversary-in-the-Middle (AitM) Session-Cookie Theft</h3>
+
+<p><strong>Pattern</strong>: a reverse-proxy phishing kit sits between the victim and the real site, relays the login and the OTP in real time, and steals the resulting <em>session cookie</em> &mdash; bypassing password and phishable MFA together.<br>
+<strong>Lesson</strong>: phishing-resistant WebAuthn defeats this because the credential is bound to the true origin; also bind sessions to client signals and shorten lifetimes.</p>
+
+<h3>Class 5: JWT Algorithm and Secret Flaws</h3>
+
+<p><strong>Pattern</strong>: a long-standing vulnerability class in which verifiers accept a token with <code>"alg": "none"</code>, or accept an <code>HS256</code> token signed with the public RSA key when they expected <code>RS256</code>, or trust a weak shared secret that is then brute-forced offline.<br>
+<strong>Lesson</strong>: pin the expected algorithm server-side, never let the token choose it, use strong secrets or asymmetric keys, and always check <code>exp</code>, <code>iss</code>, and <code>aud</code>.</p>
+
+<h3>Class 6: OAuth / OIDC Redirect and State Flaws</h3>
+
+<p><strong>Pattern</strong>: loose <code>redirect_uri</code> validation lets an attacker redirect the authorization code to a site they control; a missing or unverified <code>state</code> parameter enables login CSRF and account linking attacks.<br>
+<strong>Lesson</strong>: use exact-match registered redirect URIs, enforce <code>state</code>, and require PKCE for public clients.</p>
+
+<h2 id="prevalence-and-statistics">Prevalence and Classification</h2>
+
+<p>Authentication failures are among the most consistently present weakness classes in the OWASP data set &mdash; they have appeared in the Top 10 in every edition, under one name or another, since 2017. Rather than quote a specific incidence percentage for the 2025 edition (which is finalised by OWASP from contributed data), it is more useful to know the underlying weaknesses this category maps to.</p>
+
+<h3>Representative CWE Mappings</h3>
+
+<table>
+<tr><th>CWE</th><th>Weakness</th></tr>
+<tr><td><strong>CWE-287</strong></td><td>Improper Authentication</td></tr>
+<tr><td><strong>CWE-294</strong></td><td>Authentication Bypass by Capture-Replay</td></tr>
+<tr><td><strong>CWE-307</strong></td><td>Improper Restriction of Excessive Authentication Attempts</td></tr>
+<tr><td><strong>CWE-384</strong></td><td>Session Fixation</td></tr>
+<tr><td><strong>CWE-521</strong></td><td>Weak Password Requirements</td></tr>
+<tr><td><strong>CWE-613</strong></td><td>Insufficient Session Expiration</td></tr>
+<tr><td><strong>CWE-620</strong></td><td>Unverified Password Change</td></tr>
+<tr><td><strong>CWE-640</strong></td><td>Weak Password Recovery Mechanism</td></tr>
+<tr><td><strong>CWE-798</strong></td><td>Use of Hard-coded Credentials</td></tr>
+<tr><td><strong>CWE-346</strong></td><td>Origin Validation Error (relevant to OAuth/JWT audience)</td></tr>
+</table>
+
+<h3>Where the Failures Cluster</h3>
+
+<table>
+<tr><th>Surface</th><th>Typical failure</th><th>Risk level</th></tr>
+<tr><td>Login endpoint</td><td>No rate limit, enumeration, no MFA</td><td>Critical</td></tr>
+<tr><td>Password reset</td><td>Guessable token, host-header poisoning</td><td>Critical</td></tr>
+<tr><td>Session cookie</td><td>Missing HttpOnly/Secure/SameSite, no rotation</td><td>High</td></tr>
+<tr><td>JWT verification</td><td>alg confusion, missing exp/aud checks</td><td>Critical</td></tr>
+<tr><td>OAuth client</td><td>Loose redirect_uri, missing state/PKCE</td><td>High</td></tr>
+</table>
+
+<h2 id="common-misunderstandings">Common Misunderstandings</h2>
+
+<h3>Myth 1: "We have MFA, so we're safe."</h3>
+<p><strong>Reality</strong>: SMS and TOTP MFA are <em>phishable</em>. An adversary-in-the-middle page relays the code in real time and steals the session. Only phishing-resistant methods (passkeys/WebAuthn/FIDO2) bind the credential to the origin.</p>
+
+<h3>Myth 2: "A complex password rule (upper + digit + symbol) is what makes passwords strong."</h3>
+<p><strong>Reality</strong>: NIST 800-63B favours <em>length</em> and <em>breach screening</em> over composition rules, which mostly produce predictable patterns like <code>Password1!</code>.</p>
+
+<h3>Myth 3: "JWTs are secure because they're signed."</h3>
+<p><strong>Reality</strong>: a signature only helps if the verifier pins the algorithm and checks <code>exp</code>, <code>iss</code>, and <code>aud</code>. Accepting <code>alg: none</code> or letting the token choose the algorithm defeats the signature entirely.</p>
+
+<h3>Myth 4: "Logout clears the session."</h3>
+<p><strong>Reality</strong>: deleting a client cookie does nothing if the server never invalidates the session record or the token. Stolen credentials keep working until they expire.</p>
+
+<h3>Myth 5: "Hiding whether an account exists isn't worth the trouble."</h3>
+<p><strong>Reality</strong>: enumeration turns credential stuffing and targeted phishing into precision tools. Uniform responses and timing across login, registration, and reset close it cheaply.</p>
+
+<h3>Myth 6: "Account lockout is the answer to brute force."</h3>
+<p><strong>Reality</strong>: naive lockout creates a denial-of-service vector &mdash; an attacker locks every user out. Prefer graduated throttling, breach screening, and MFA, and reserve lockout for extreme cases with care.</p>
+
+<h2 id="self-assessment">Self-Assessment</h2>
+
+<p>Use these questions to gauge whether your application handles this category well:</p>
+
+<ol>
+<li>Are login, registration, and password-reset responses <strong>indistinguishable</strong> whether or not the account exists (body <em>and</em> timing)?</li>
+<li>Do you <strong>screen new and changed passwords against a breach corpus</strong> and enforce length rather than composition rules?</li>
+<li>Is <strong>MFA available and enforced</strong> for sensitive actions, with phishing-resistant options for privileged users?</li>
+<li>Are login attempts <strong>rate-limited and throttled</strong> per account and per source, without a trivial lockout DoS?</li>
+<li>Is the <strong>session identifier high-entropy, rotated on login and privilege change</strong>, and invalidated server-side on logout?</li>
+<li>Are session cookies set <strong>HttpOnly, Secure, and SameSite</strong>, with sensible idle and absolute timeouts?</li>
+<li>Do password-reset tokens have <strong>high entropy, short expiry, single use</strong>, and are reset links built from a trusted host value (not the request <code>Host</code> header)?</li>
+<li>Does JWT verification <strong>pin the algorithm and validate <code>exp</code>, <code>iss</code>, and <code>aud</code></strong>?</li>
+<li>Do OAuth/OIDC clients use <strong>exact-match redirect URIs, <code>state</code>, and PKCE</strong>?</li>
+<li>Are you moving toward <strong>passkeys / WebAuthn</strong> as a primary or step-up factor?</li>
+</ol>
+
+<h2 id="whats-next">What's Next?</h2>
+
+<ul>
+<li><strong><a href="./attack-vectors.html">Attack Vectors</a></strong>: how attackers exploit weak authentication, session, token, and recovery flows.</li>
+<li><strong><a href="./prevention.html">Prevention</a></strong>: layered defenses with real code and configuration.</li>
+<li><strong><a href="./examples.html">Examples</a></strong>: vulnerable-vs-secure code in Node/Express, Python, and Java, plus JWT/session/MFA config.</li>
+<li><strong><a href="./lab/authentication-failures/">Lab</a></strong>: hands-on practice in a safe, isolated environment.</li>
+</ul>
+
+<p>---</p>
+
+<p><em>Part of the <a href="/platform/frontend/index.html">OWASP Top 10 Educational Repository</a></em></p>
 
         </div>
     </div>

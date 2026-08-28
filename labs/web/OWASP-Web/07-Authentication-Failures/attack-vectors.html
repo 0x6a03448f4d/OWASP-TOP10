@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Modern Authentication Attacks</title>
+    <title>Authentication Failures (2025) - Attack Vectors</title>
     <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -215,47 +215,237 @@
         </a>
         
         <div class="content">
-            <h1>Modern Authentication Attacks</h1>
 
-<h2>AI-Enhanced Credential Stuffing</h2>
+            <h1>Authentication Failures (2025) - Attack Vectors</h1>
 
-<p>``<code>python</p>
-<h1>Attackers use ML to optimize attacks</h1>
-<h1>Pattern recognition for valid usernames</h1>
-<h1>Password mutation based on breach patterns</h1>
-<h1>Evades simple rate limiting</h1>
-</code>`<code>
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#understanding">Understanding Authentication Attacks</a></li>
+<li><a href="#core-attack-flow">Core Attack Flow</a></li>
+<li><a href="#patterns">Common Attack Patterns</a></li>
+<li><a href="#chaining">Chaining the Vectors</a></li>
+<li><a href="#whats-next">What's Next?</a></li>
+</ul>
+</div>
 
-<h2>MFA Fatigue Attack</h2>
+<h2 id="understanding">Understanding Authentication Attacks</h2>
 
-</code>`<code>
-<ol>
-<li>Attacker has valid password</li>
-<li>Repeatedly triggers MFA push notifications</li>
-<li>User gets frustrated, accepts one</li>
-<li>Attacker gains access</li>
-</ol>
-</code>`<code>
+<blockquote>
+<p><strong>&#9888; EDUCATIONAL PURPOSE ONLY</strong> &mdash; these techniques are shown so you can find and fix them in systems you own or are explicitly authorised to test. Attacking accounts you do not own is illegal.</p>
+</blockquote>
 
-<h2>OAuth Token Theft</h2>
+<p>Authentication is attractive to attackers because success gives them a <em>legitimate</em> identity rather than an exploit that might be detected. Most of these attacks are cheap, automatable, and driven by data the attacker already has &mdash; billions of leaked credentials, a target's public email format, or a misread of how the server validates a token. The failure is usually in <strong>process and configuration</strong>, not in a single line of vulnerable code.</p>
 
-</code>`<code>python
-<h1>Misconfigured OAuth redirect</h1>
-<h1>Attacker intercepts authorization code</h1>
-<h1>Exchanges for access token</h1>
-<h1>Impersonates user</h1>
-</code>`<code>
+<p>The attacker's objective in this category is almost always one of:</p>
+<ul>
+<li>Obtain a valid credential (guess it, replay it, or phish it).</li>
+<li>Forge or reuse a session or token so no credential is needed.</li>
+<li>Abuse a recovery or federation flow to mint a credential legitimately.</li>
+</ul>
 
-<h2>Container Secret Exposure</h2>
+<h3 id="core-attack-flow">Core Attack Flow</h3>
 
-</code>`<code>dockerfile
-<h1>DANGEROUS: Secrets in Docker image</h1>
-<p>ENV API_KEY="sk_live_abc123"</p>
+<pre><code>1. Enumerate
+   &darr;
+   Discover valid usernames/emails via login, signup, reset responses + timing
+2. Acquire
+   &darr;
+   Credential stuffing, spraying, brute force, or AitM phishing
+3. Bypass second factor
+   &darr;
+   MFA fatigue, SMS SIM-swap, real-time OTP relay
+4. Take over the session
+   &darr;
+   Fixation, stolen cookie, forged JWT, weak reset token
+5. Persist
+   &darr;
+   Long-lived tokens, added MFA device, mail-forwarding rule</code></pre>
 
-<h1>Attacker pulls image</h1>
-<p>docker pull company/app</p>
-<p>docker inspect company/app  # Sees API_KEY</p>
-</code>``
+<h2 id="patterns">Common Attack Patterns</h2>
+
+<h3>1. Credential Stuffing</h3>
+
+<p>Replaying username/password pairs leaked from unrelated breaches. Because users reuse passwords, even a 0.1&ndash;2% hit rate is profitable at scale.</p>
+
+<pre><code># Attacker replays a breach dump against the login endpoint
+for user, pw in load_breach_dump("collection.txt"):
+    r = requests.post("https://target/login",
+                      json={"email": user, "password": pw},
+                      proxies=random_residential_proxy())
+    if r.status_code == 200 and "Set-Cookie" in r.headers:
+        save_hit(user, pw)          # reused password -&gt; account takeover</code></pre>
+
+<p><strong>Enablers</strong>: no rate limiting, no breach screening, no MFA, no bot/device intelligence.</p>
+
+<h3>2. Password Spraying</h3>
+
+<p>The inverse of brute force: try <em>one</em> common password against <em>many</em> accounts, staying under per-account lockout thresholds.</p>
+
+<pre><code>common = ["Winter2025!", "Company@123", "Welcome1"]
+for pw in common:
+    for user in employee_emails:          # one attempt per account per round
+        try_login(user, pw)
+    sleep(3600)                           # slow enough to dodge lockout windows</code></pre>
+
+<p><strong>Enablers</strong>: predictable passwords, per-account-only lockout (no per-source or global view), no anomaly detection.</p>
+
+<h3>3. Brute Force Against Weak Policy</h3>
+
+<pre><code># A 4-digit PIN or a short numeric password is exhaustible in seconds
+for code in range(0, 10000):
+    if try_login(user, f"{code:04d}"):
+        break                              # ~10k guesses = trivial</code></pre>
+
+<p><strong>Enablers</strong>: short/weak password requirements (CWE-521), unthrottled endpoints (CWE-307).</p>
+
+<h3>4. Username / Account Enumeration</h3>
+
+<p>Different responses &mdash; in body, status code, or <em>timing</em> &mdash; reveal which accounts exist, sharpening every other attack.</p>
+
+<pre><code>POST /login   {"email":"real@corp.com","password":"x"}
+  -&gt; 200  "Incorrect password"          # account EXISTS
+
+POST /login   {"email":"nope@corp.com","password":"x"}
+  -&gt; 200  "No account with that email"  # account does NOT exist
+
+# Timing oracle: real accounts run bcrypt (slow), fake ones return early (fast)
+real  -&gt; 240 ms   |   fake -&gt; 15 ms</code></pre>
+
+<p><strong>Enablers</strong>: distinct error messages, distinct timing, reset/signup flows that confirm existence.</p>
+
+<h3>5. Session Fixation</h3>
+
+<p>The attacker plants a known session ID, tricks the victim into authenticating with it, and &mdash; because the server never rotates the ID on login &mdash; inherits the now-authenticated session.</p>
+
+<pre><code>1. Attacker gets a valid anonymous session:  SID=abc123
+2. Attacker lures victim to  https://target/?sessionid=abc123
+3. Victim logs in; server KEEPS SID=abc123 (no rotation)  &lt;-- the bug
+4. Attacker uses SID=abc123 -&gt; now fully authenticated as the victim</code></pre>
+
+<p><strong>Enablers</strong>: session ID accepted from URL/param, no regeneration on privilege change (CWE-384).</p>
+
+<h3>6. Predictable / Weak Session Identifiers</h3>
+
+<pre><code># VULNERABLE: sequential or low-entropy IDs are guessable
+session_id = str(last_id + 1)              # 1001, 1002, 1003 ...
+session_id = str(random.randint(0, 99999)) # only 100k values
+
+# Attacker walks the space or predicts the next value -&gt; hijack
+</code></pre>
+
+<p><strong>Enablers</strong>: non-CSPRNG identifiers, short length, structure that leaks issuance order.</p>
+
+<h3>7. Missing Logout / Session Invalidation</h3>
+
+<pre><code># Client "logs out" but the server never revokes the token/session
+DELETE cookie on browser  != server-side invalidation
+
+# Stolen cookie or JWT keeps working until it expires (which may be "never")
+</code></pre>
+
+<p><strong>Enablers</strong>: stateless tokens with no deny-list, sessions never deleted on logout, no absolute timeout (CWE-613).</p>
+
+<h3>8. Insecure Password Reset &mdash; Weak Token</h3>
+
+<pre><code># VULNERABLE: guessable / non-expiring reset token
+token = md5(email + str(int(time.time())))   # low entropy, time-correlated
+GET /reset?token=... &lt;- never expires, reusable
+
+# Attacker predicts or brute-forces the token and resets the victim's password</code></pre>
+
+<p><strong>Enablers</strong>: predictable tokens, no expiry, multi-use tokens, no re-auth (CWE-640).</p>
+
+<h3>9. Password Reset &mdash; Host Header / Link Poisoning</h3>
+
+<pre><code>POST /forgot-password
+Host: attacker.evil                        # server trusts the Host header
+{"email":"victim@corp.com"}
+
+# Server builds the email link from the Host header:
+#   https://attacker.evil/reset?token=SECRET
+# Victim clicks -&gt; token is delivered to the attacker</code></pre>
+
+<p><strong>Enablers</strong>: reset links built from the request <code>Host</code>/<code>X-Forwarded-Host</code> instead of a trusted, configured origin.</p>
+
+<h3>10. MFA Fatigue / Push Bombing</h3>
+
+<pre><code># Attacker already has the password; they spam approval prompts
+while not approved:
+    trigger_push(victim)                   # "Approve sign-in?" x50
+    # eventually the victim taps Approve to make it stop</code></pre>
+
+<p><strong>Enablers</strong>: simple approve/deny push (no number matching), no prompt rate-limit, no anomaly signals.</p>
+
+<h3>11. Real-Time OTP Relay (Adversary-in-the-Middle)</h3>
+
+<pre><code>Victim -&gt; [ evil-proxy.com ] -&gt; real-site.com
+  1. Victim enters password on the proxy; proxy forwards it
+  2. Real site prompts for OTP; proxy shows the prompt to the victim
+  3. Victim enters OTP; proxy forwards it in real time
+  4. Real site returns a SESSION COOKIE; proxy steals it
+  -&gt; password + phishable MFA both defeated</code></pre>
+
+<p><strong>Enablers</strong>: phishable factors (SMS/TOTP/simple push); defeated by origin-bound WebAuthn.</p>
+
+<h3>12. JWT "alg: none" and Algorithm Confusion</h3>
+
+<pre><code># alg:none -- verifier accepts an UNSIGNED token
+{"alg":"none","typ":"JWT"}.{"sub":"victim","role":"admin"}.   &lt;- empty signature
+
+# RS256 -&gt; HS256 confusion -- verifier uses the PUBLIC key as an HMAC secret
+sign(header={"alg":"HS256"}, payload, key=known_rsa_public_key)
+# If the server verifies HS256 with that public key, the forgery validates</code></pre>
+
+<p><strong>Enablers</strong>: verifier lets the token pick the algorithm; secret reused/weak; no <code>exp</code>/<code>iss</code>/<code>aud</code> checks.</p>
+
+<h3>13. JWT Missing Expiry / Audience Validation</h3>
+
+<pre><code># Token is signed correctly but the server never checks context:
+#   - no exp  -&gt; token valid forever
+#   - no aud  -&gt; a token minted for service A is accepted by service B
+#   - no iss  -&gt; a token from any issuer with the same key is trusted
+decoded = jwt.decode(token, key, options={"verify_exp": False})  # the bug</code></pre>
+
+<p><strong>Enablers</strong>: disabled or skipped claim validation; overly long lifetimes; shared keys across audiences.</p>
+
+<h3>14. OAuth2 / OIDC redirect_uri and state Abuse</h3>
+
+<pre><code># Loose redirect_uri matching leaks the authorization code:
+GET /authorize?client_id=app&amp;redirect_uri=https://app.evil/cb&amp;response_type=code
+# If the AS matches by prefix/substring, the code is sent to the attacker.
+
+# Missing 'state' -&gt; login CSRF / account linking:
+# Attacker completes an auth flow, injects THEIR code into the victim's
+# browser; victim's account gets linked to the attacker's identity.</code></pre>
+
+<p><strong>Enablers</strong>: non-exact redirect matching, missing/unverified <code>state</code>, missing PKCE on public clients (CWE-346).</p>
+
+<h2 id="chaining">Chaining the Vectors</h2>
+
+<p>Real intrusions combine these. A representative chain:</p>
+
+<pre><code>Enumerate valid emails (pattern 4)
+   &rarr; Password spray a common password (pattern 2)
+   &rarr; Land on an account with reused creds (pattern 1)
+   &rarr; Defeat SMS OTP via SIM swap, or push via fatigue (patterns 10/11)
+   &rarr; Session never rotates / never expires (patterns 5,7)
+   &rarr; Add attacker MFA device + long-lived token for persistence</code></pre>
+
+<p>The defensive takeaway: because the vectors chain, defenses must be <strong>layered</strong>. Closing enumeration alone, or adding phishable MFA alone, still leaves a viable path. The <a href="./prevention.html">Prevention</a> page addresses each link.</p>
+
+<h2 id="whats-next">What's Next?</h2>
+
+<ul>
+<li><strong><a href="./prevention.html">Prevention</a></strong>: layered defenses with real code and configuration.</li>
+<li><strong><a href="./examples.html">Examples</a></strong>: vulnerable-vs-secure code across languages and token/session/MFA config.</li>
+<li><strong><a href="./overview.html">Overview</a></strong>: concepts, impact, and the 2025 edition framing.</li>
+<li><strong><a href="./lab/authentication-failures/">Lab</a></strong>: practice identifying and fixing these vulnerabilities.</li>
+</ul>
+
+<p>---</p>
+
+<p><em>Part of the <a href="/platform/frontend/index.html">OWASP Top 10 Educational Repository</a></em></p>
 
         </div>
     </div>

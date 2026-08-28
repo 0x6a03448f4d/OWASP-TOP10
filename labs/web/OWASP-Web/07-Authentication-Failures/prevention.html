@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Modern Authentication Security</title>
+    <title>Authentication Failures (2025) - Prevention</title>
     <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -215,141 +215,319 @@
         </a>
         
         <div class="content">
-            <h1>Modern Authentication Security</h1>
 
-<h2>Passwordless Authentication</h2>
+            <h1>Authentication Failures (2025) - Prevention</h1>
 
-<p>``<code>python</p>
-<p>from flask import Flask, request, jsonify</p>
-<p>import webauthn</p>
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#defense-in-depth">Defense in Depth</a></li>
+<li><a href="#passwords">Layer 1: Password Strength &amp; Breach Screening</a></li>
+<li><a href="#throttling">Layer 2: Rate Limiting, Throttling &amp; Lockout</a></li>
+<li><a href="#mfa">Layer 3: MFA &amp; Phishing Resistance</a></li>
+<li><a href="#sessions">Layer 4: Strong Session Management</a></li>
+<li><a href="#recovery">Layer 5: Secure Credential Recovery</a></li>
+<li><a href="#enumeration">Layer 6: Non-Enumerable Responses</a></li>
+<li><a href="#tokens">Layer 7: Correct JWT / Token Validation</a></li>
+<li><a href="#oauth">Layer 8: OAuth2 / OIDC Configuration</a></li>
+<li><a href="#checklist">Consolidated Checklist</a></li>
+<li><a href="#whats-next">What's Next?</a></li>
+</ul>
+</div>
 
-<p>app = Flask(__name__)</p>
+<h2 id="defense-in-depth">Defense in Depth</h2>
 
-<p>@app.route('/webauthn/register/begin', methods=['POST'])</p>
-<p>def begin_registration():</p>
-<p>    user = request.json['user']</p>
-    
-<p>    # Generate WebAuthn challenge</p>
-<p>    options = webauthn.generate_registration_options(</p>
-<p>        rp_id="example.com",</p>
-<p>        rp_name="Example App",</p>
-<p>        user_id=user['id'],</p>
-<p>        user_name=user['email'],</p>
-<p>        user_display_name=user['name']</p>
-<p>    )</p>
-    
-<p>    session['challenge'] = options.challenge</p>
-<p>    return jsonify(options)</p>
+<p>No single control stops account takeover, because the attack vectors chain. The goal is layered authentication: even if a password leaks, breach screening or MFA catches it; even if MFA is phished, phishing-resistant methods and session binding blunt it; even if a session is stolen, short lifetimes and server-side invalidation limit the blast radius.</p>
 
-<p>@app.route('/webauthn/register/complete', methods=['POST'])</p>
-<p>def complete_registration():</p>
-<p>    credential = request.json</p>
-    
-<p>    # Verify WebAuthn credential</p>
-<p>    verification = webauthn.verify_registration_response(</p>
-<p>        credential=credential,</p>
-<p>        expected_challenge=session['challenge'],</p>
-<p>        expected_origin="https://example.com",</p>
-<p>        expected_rp_id="example.com"</p>
-<p>    )</p>
-    
-<p>    if verification.verified:</p>
-<p>        # Store credential for user</p>
-<p>        save_webauthn_credential(verification.credential)</p>
-<p>        return jsonify({'status': 'success'})</p>
-</code>`<code>
+<pre><code>Request to protect an account
+  &darr;  strong, breach-screened password (Layer 1)
+  &darr;  rate limiting + throttling, careful lockout (Layer 2)
+  &darr;  MFA, phishing-resistant for privileged users (Layer 3)
+  &darr;  high-entropy session, rotated + invalidated (Layer 4)
+  &darr;  non-enumerable, poison-proof recovery (Layers 5-6)
+  &darr;  correctly validated tokens / OAuth (Layers 7-8)</code></pre>
 
-<h2>Advanced MFA</h2>
+<h2 id="passwords">Layer 1: Password Strength &amp; Breach Screening</h2>
 
-</code>`<code>python
-<p>import pyotp</p>
-<p>from datetime import datetime, timedelta</p>
+<p>Follow NIST SP 800-63B: length over composition, screen against breach corpora, and hash with a slow, salted algorithm.</p>
 
-<p>class SecureMFA:</p>
-<p>    def __init__(self):</p>
-<p>        self.attempt_tracking = {}</p>
-    
-<p>    def verify_totp(self, user_id, token):</p>
-<p>        # Check for MFA fatigue attack</p>
-<p>        if self.is_mfa_fatigue(user_id):</p>
-<p>            alert_security_team(f"MFA fatigue detected: {user_id}")</p>
-<p>            return False</p>
-        
-<p>        user = get_user(user_id)</p>
-<p>        totp = pyotp.TOTP(user.mfa_secret)</p>
-        
-<p>        if totp.verify(token, valid_window=1):</p>
-<p>            self.reset_attempts(user_id)</p>
-<p>            return True</p>
-<p>        else:</p>
-<p>            self.track_failed_attempt(user_id)</p>
-<p>            return False</p>
-    
-<p>    def is_mfa_fatigue(self, user_id):</p>
-<p>        # Detect rapid repeated MFA requests</p>
-<p>        if user_id in self.attempt_tracking:</p>
-<p>            attempts = self.attempt_tracking[user_id]</p>
-<p>            recent = [a for a in attempts </p>
-<p>                     if a > datetime.now() - timedelta(minutes=5)]</p>
-<p>            return len(recent) > 10</p>
-<p>        return False</p>
-</code>`<code>
+<h3>Breach Screening with k-Anonymity</h3>
 
-<h2>API Key Management</h2>
+<pre><code>// Node.js: check a password against HIBP without sending the full hash.
+// Send only the first 5 hex chars of the SHA-1; compare suffixes locally.
+import crypto from 'node:crypto';
 
-</code>`<code>python
-<p>import secrets</p>
-<p>import hashlib</p>
-<p>from datetime import datetime, timedelta</p>
+async function isBreached(password) {
+  const sha1 = crypto.createHash('sha1')
+    .update(password).digest('hex').toUpperCase();
+  const prefix = sha1.slice(0, 5);
+  const suffix = sha1.slice(5);
+  const res = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`,
+                          { headers: { 'Add-Padding': 'true' } });
+  const body = await res.text();
+  return body.split('\n').some(line =&gt; line.split(':')[0].trim() === suffix);
+}</code></pre>
 
-<p>class APIKeyManager:</p>
-<p>    def generate_key(self, user_id, expires_days=90):</p>
-<p>        # Generate cryptographically secure key</p>
-<p>        key = f"sk_{secrets.token_urlsafe(32)}"</p>
-        
-<p>        # Hash for storage (never store plain text)</p>
-<p>        key_hash = hashlib.sha256(key.encode()).hexdigest()</p>
-        
-<p>        # Store with metadata</p>
-<p>        self.store_key({</p>
-<p>            'hash': key_hash,</p>
-<p>            'user_id': user_id,</p>
-<p>            'created': datetime.now(),</p>
-<p>            'expires': datetime.now() + timedelta(days=expires_days),</p>
-<p>            'last_used': None,</p>
-<p>            'permissions': ['read']</p>
-<p>        })</p>
-        
-<p>        # Return key only once</p>
-<p>        return key</p>
-    
-<p>    def validate_key(self, key):</p>
-<p>        key_hash = hashlib.sha256(key.encode()).hexdigest()</p>
-<p>        stored_key = self.get_key(key_hash)</p>
-        
-<p>        if not stored_key:</p>
-<p>            return False</p>
-        
-<p>        if stored_key['expires'] < datetime.now():</p>
-<p>            return False</p>
-        
-<p>        # Update last used</p>
-<p>        self.update_last_used(key_hash)</p>
-<p>        return True</p>
-</code>``
+<h3>Strong Hashing at Rest</h3>
 
-<h2>Best Practices 2025</h2>
+<pre><code># Python: Argon2id (preferred) via argon2-cffi
+from argon2 import PasswordHasher
+ph = PasswordHasher(time_cost=3, memory_cost=64 * 1024, parallelism=4)
+
+hash = ph.hash(password)                 # store this
+ph.verify(hash, password)                # raises on mismatch
+if ph.check_needs_rehash(hash):          # transparently upgrade cost over time
+    hash = ph.hash(password)</code></pre>
+
+<h3>Policy</h3>
+<ul>
+<li>Minimum 8 (prefer 12+) characters; allow up to 64+ and all Unicode, including spaces.</li>
+<li>No mandatory composition rules; no forced periodic rotation without evidence of compromise.</li>
+<li>No knowledge-based "security questions."</li>
+<li>Reject breached and context-specific weak passwords (the site name, the username).</li>
+</ul>
+
+<h2 id="throttling">Layer 2: Rate Limiting, Throttling &amp; Lockout</h2>
+
+<p>Throttle by <strong>account</strong> and by <strong>source</strong>, add friction progressively, and avoid a naive lockout that becomes a denial-of-service against legitimate users.</p>
+
+<pre><code>// Express: layered limiter with exponential backoff + CAPTCHA step-up.
+import rateLimit from 'express-rate-limit';
+
+// Per-IP coarse limit
+const ipLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, max: 100, standardHeaders: true,
+});
+
+// Per-account fine limit with progressive delay (pseudo)
+async function accountThrottle(req, res, next) {
+  const key = `login:fail:${req.body.email.toLowerCase()}`;
+  const fails = await redis.incr(key);
+  if (fails === 1) await redis.expire(key, 900);      // 15-min window
+  if (fails &gt; 5)  req.requireCaptcha = true;          // step-up, not hard lock
+  if (fails &gt; 20) return res.status(429)
+      .json({ error: 'Too many attempts, try again later' });
+  next();
+}
+app.post('/login', ipLimiter, accountThrottle, handleLogin);</code></pre>
+
+<blockquote>
+<p><strong>Reset the counter on success</strong>, and prefer graduated throttling + CAPTCHA + MFA over permanent lockout. If you must lock, use a short auto-expiring lock and alert the user, never an indefinite one an attacker can weaponise.</p>
+</blockquote>
+
+<h2 id="mfa">Layer 3: MFA &amp; Phishing Resistance</h2>
+
+<p>Offer MFA everywhere, enforce it for sensitive actions, and prefer <strong>phishing-resistant</strong> WebAuthn/passkeys &mdash; especially for privileged accounts. If you keep push-based MFA, use <strong>number matching</strong> to defeat fatigue.</p>
+
+<h3>WebAuthn / Passkey Registration (server, Node)</h3>
+
+<pre><code>// @simplewebauthn/server -- origin-bound, phishing-resistant
+import { generateRegistrationOptions, verifyRegistrationResponse }
+  from '@simplewebauthn/server';
+
+const options = await generateRegistrationOptions({
+  rpName: 'Example', rpID: 'example.com',
+  userID: user.id, userName: user.email,
+  attestationType: 'none',
+  authenticatorSelection: {
+    residentKey: 'preferred',
+    userVerification: 'preferred',      // biometric/PIN on the authenticator
+  },
+});
+// ...later, verify the client's response is bound to the true origin:
+const verification = await verifyRegistrationResponse({
+  response: clientResponse,
+  expectedChallenge: session.challenge,
+  expectedOrigin: 'https://example.com',   // AitM proxy cannot satisfy this
+  expectedRPID: 'example.com',
+});</code></pre>
+
+<h3>TOTP as a Fallback (Python)</h3>
+
+<pre><code>import pyotp
+secret = pyotp.random_base32()                  # store per-user, encrypted
+uri = pyotp.totp.TOTP(secret).provisioning_uri(
+        name=user.email, issuer_name='Example')  # render as QR
+
+# Verify with a small window; RATE-LIMIT attempts to stop OTP brute force
+ok = pyotp.TOTP(secret).verify(code, valid_window=1)</code></pre>
+
+<p><strong>Hierarchy of assurance</strong>: passkeys/security keys &gt; app-based TOTP &gt; push with number matching &gt; SMS OTP (last resort). Never gate high-value recovery on SMS alone.</p>
+
+<h2 id="sessions">Layer 4: Strong Session Management</h2>
 
 <ul>
-<li>Implement passkeys/WebAuthn where possible</li>
-<li>Require phishing-resistant MFA</li>
-<li>Monitor for MFA fatigue attacks</li>
-<li>Rotate API keys regularly</li>
-<li>Use hardware security keys for privileged accounts</li>
-<li>Implement behavioral biometrics</li>
-<li>Zero-trust architecture</li>
-<li>Continuous authentication</li>
+<li><strong>High entropy</strong>: 128-bit+ identifiers from a CSPRNG (let the framework's session store generate them).</li>
+<li><strong>Rotate</strong> the session ID on login and on any privilege change (defeats fixation).</li>
+<li><strong>Invalidate server-side</strong> on logout, and support "log out everywhere."</li>
+<li><strong>Timeouts</strong>: idle timeout plus a shorter-than-forever absolute lifetime.</li>
+<li><strong>Cookie flags</strong>: <code>HttpOnly</code>, <code>Secure</code>, <code>SameSite</code>.</li>
 </ul>
+
+<pre><code>// Express + express-session
+import session from 'express-session';
+
+app.use(session({
+  name: '__Host-sid',                 // __Host- prefix: HTTPS + path=/ + no domain
+  secret: process.env.SESSION_SECRET, // long random secret from env, not code
+  resave: false, saveUninitialized: false,
+  rolling: true,                      // refresh idle timeout on activity
+  cookie: {
+    httpOnly: true,                   // not readable by JS -&gt; blunts XSS theft
+    secure: true,                     // HTTPS only
+    sameSite: 'lax',                  // CSRF hardening
+    maxAge: 30 * 60 * 1000,           // 30-min idle window
+  },
+}));
+
+// Rotate the session ID at every privilege boundary:
+app.post('/login', async (req, res) =&gt; {
+  const user = await authenticate(req.body);
+  req.session.regenerate(err =&gt; {     // NEW id -&gt; old fixated id is useless
+    if (err) return res.sendStatus(500);
+    req.session.userId = user.id;
+    req.session.save(() =&gt; res.json({ ok: true }));
+  });
+});
+
+// True logout: destroy server-side state AND clear the cookie
+app.post('/logout', (req, res) =&gt; {
+  req.session.destroy(() =&gt; res.clearCookie('__Host-sid').json({ ok: true }));
+});</code></pre>
+
+<h2 id="recovery">Layer 5: Secure Credential Recovery</h2>
+
+<ul>
+<li>Reset tokens: <strong>128-bit+ CSPRNG</strong>, <strong>single-use</strong>, <strong>short expiry</strong> (for example 15&ndash;30 min); store only a hash of the token.</li>
+<li>Build the reset link from a <strong>trusted, configured origin</strong> &mdash; never from the request <code>Host</code> / <code>X-Forwarded-Host</code>.</li>
+<li>Invalidate existing sessions on password change; optionally re-verify MFA.</li>
+<li>Respond identically whether or not the email exists (see Layer 6).</li>
+</ul>
+
+<pre><code>import secrets, hashlib
+from datetime import datetime, timedelta, timezone
+
+def create_reset(user):
+    raw = secrets.token_urlsafe(32)                      # 256-bit, CSPRNG
+    user.reset_hash = hashlib.sha256(raw.encode()).hexdigest()  # store the HASH
+    user.reset_expires = datetime.now(timezone.utc) + timedelta(minutes=20)
+    user.save()
+    base = settings.APP_ORIGIN                            # trusted, from config
+    return f"{base}/reset?token={raw}"                    # raw only in the email
+
+def consume_reset(raw, new_password):
+    h = hashlib.sha256(raw.encode()).hexdigest()
+    user = User.objects.filter(reset_hash=h).first()
+    if not user or user.reset_expires &lt; datetime.now(timezone.utc):
+        raise ValueError("invalid or expired")
+    user.set_password(new_password)                       # after breach-screening
+    user.reset_hash = None                                # single use
+    revoke_all_sessions(user)                             # log out everywhere
+    user.save()</code></pre>
+
+<h2 id="enumeration">Layer 6: Non-Enumerable Responses</h2>
+
+<p>Login, registration, and reset must not reveal whether an account exists &mdash; in body, status, or timing.</p>
+
+<pre><code># Uniform message regardless of existence
+GENERIC = {"message": "If an account exists, a reset link has been sent."}
+
+def forgot_password(email):
+    user = find_user(email)
+    if user:
+        send_reset_email(user)
+    else:
+        do_dummy_work()          # spend comparable time -&gt; no timing oracle
+    return GENERIC               # identical response either way
+
+# On LOGIN, always run the password hash even for unknown users, and return
+# one generic "Invalid email or password" for both wrong-user and wrong-pass.</code></pre>
+
+<h2 id="tokens">Layer 7: Correct JWT / Token Validation</h2>
+
+<ul>
+<li><strong>Pin the algorithm</strong> server-side; never trust the token's <code>alg</code> header.</li>
+<li>Use a <strong>strong secret</strong> (HS*) or asymmetric keys (RS*/ES*); never reuse a public key as an HMAC secret.</li>
+<li>Always validate <code>exp</code>, <code>iss</code>, and <code>aud</code>; keep access tokens <strong>short-lived</strong> and pair with rotating refresh tokens.</li>
+<li>Maintain a revocation / deny-list path (or a short TTL) so logout means something.</li>
+</ul>
+
+<pre><code>// Node: jsonwebtoken -- explicit, strict verification
+import jwt from 'jsonwebtoken';
+
+const claims = jwt.verify(token, PUBLIC_KEY, {
+  algorithms: ['RS256'],           // PIN it -- rejects alg:none and HS confusion
+  issuer: 'https://auth.example.com',
+  audience: 'https://api.example.com',
+  maxAge: '15m',                   // enforce short lifetime
+});
+// jwt.verify throws on bad signature, wrong alg, expiry, iss/aud mismatch.</code></pre>
+
+<pre><code># Python: PyJWT -- same principles
+import jwt
+claims = jwt.decode(
+    token, public_key,
+    algorithms=["RS256"],                       # never [] or "none"
+    audience="https://api.example.com",
+    issuer="https://auth.example.com",
+    options={"require": ["exp", "iss", "aud"]}, # fail closed if missing
+)</code></pre>
+
+<h2 id="oauth">Layer 8: OAuth2 / OIDC Configuration</h2>
+
+<ul>
+<li><strong>Exact-match</strong> registered <code>redirect_uri</code> values &mdash; no wildcards, prefixes, or open redirects.</li>
+<li>Always send and verify <strong><code>state</code></strong> (CSRF / login-CSRF protection).</li>
+<li>Require <strong>PKCE</strong> (<code>S256</code>) for public clients (SPAs, mobile).</li>
+<li>Prefer the <strong>authorization-code</strong> flow; validate the ID token's signature, <code>iss</code>, <code>aud</code>, and <code>nonce</code>.</li>
+<li>Request the minimum scopes; keep client secrets out of source and out of browsers.</li>
+</ul>
+
+<pre><code>// Authorization request with state + PKCE
+const state    = crypto.randomUUID();
+const verifier = base64url(crypto.randomBytes(32));         // PKCE verifier
+const challenge = base64url(sha256(verifier));              // S256 challenge
+saveToSession({ state, verifier });
+
+const url = `https://auth.example.com/authorize?` + new URLSearchParams({
+  response_type: 'code',
+  client_id: CLIENT_ID,
+  redirect_uri: 'https://app.example.com/callback',   // must EXACTLY match registration
+  scope: 'openid profile',
+  state,
+  code_challenge: challenge,
+  code_challenge_method: 'S256',
+});
+
+// On callback: reject if returned state != saved state, THEN exchange the code
+// with the code_verifier. Validate the ID token's iss/aud/nonce/signature.</code></pre>
+
+<h2 id="checklist">Consolidated Checklist</h2>
+
+<table>
+<tr><th>Area</th><th>Do</th></tr>
+<tr><td>Passwords</td><td>Length over complexity; breach-screen; Argon2id/scrypt/bcrypt</td></tr>
+<tr><td>Automation defense</td><td>Per-account + per-source throttling; CAPTCHA step-up; careful lockout</td></tr>
+<tr><td>MFA</td><td>Enforce for sensitive actions; passkeys/WebAuthn for privileged users; number-matching push</td></tr>
+<tr><td>Sessions</td><td>CSPRNG IDs; rotate on login/privilege change; server-side invalidation; HttpOnly+Secure+SameSite; timeouts</td></tr>
+<tr><td>Recovery</td><td>Hashed, single-use, short-lived tokens; trusted origin for links; revoke sessions on change</td></tr>
+<tr><td>Enumeration</td><td>Uniform responses and timing across login/signup/reset</td></tr>
+<tr><td>Tokens</td><td>Pin alg; validate exp/iss/aud; short lifetimes; revocation path</td></tr>
+<tr><td>OAuth/OIDC</td><td>Exact redirect_uri; state; PKCE; validate ID token</td></tr>
+</table>
+
+<h2 id="whats-next">What's Next?</h2>
+
+<ul>
+<li><strong><a href="./examples.html">Examples</a></strong>: side-by-side vulnerable-vs-secure implementations.</li>
+<li><strong><a href="./attack-vectors.html">Attack Vectors</a></strong>: the techniques these layers defend against.</li>
+<li><strong><a href="./overview.html">Overview</a></strong>: concepts, impact, and the 2025 edition framing.</li>
+<li><strong><a href="./lab/authentication-failures/">Lab</a></strong>: practice fixing these vulnerabilities.</li>
+</ul>
+
+<p>---</p>
+
+<p><em>Part of the <a href="/platform/frontend/index.html">OWASP Top 10 Educational Repository</a></em></p>
 
         </div>
     </div>

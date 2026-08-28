@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Authentication Examples (2025)</title>
+    <title>Authentication Failures (2025) - Examples</title>
     <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -215,55 +215,260 @@
         </a>
         
         <div class="content">
-            <h1>Authentication Examples (2025)</h1>
 
-<strong>❌ VULNERABLE:</strong>
+            <h1>Authentication Failures (2025) - Examples</h1>
 
-<p>``<code>python</p>
-<h1>Weak API key storage</h1>
-<p>api_keys = {</p>
-<p>    'user1': 'simple_key_123'</p>
-<p>}</p>
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#how-to-read">How to Read These Examples</a></li>
+<li><a href="#express-login">Express (Node.js): Login &amp; Enumeration</a></li>
+<li><a href="#python-reset">Python (Flask): Password Reset</a></li>
+<li><a href="#java-session">Java (Spring): Session Management</a></li>
+<li><a href="#jwt">JWT Validation Config</a></li>
+<li><a href="#mfa-config">MFA / WebAuthn Config</a></li>
+<li><a href="#oauth-config">OAuth2 / OIDC Client Config</a></li>
+<li><a href="#whats-next">What's Next?</a></li>
+</ul>
+</div>
 
-<p>@app.route('/api/data')</p>
-<p>def api_endpoint():</p>
-<p>    key = request.headers.get('X-API-Key')</p>
-<p>    if key in api_keys.values():</p>
-<p>        return jsonify(data)</p>
-</code>`<code>
+<h2 id="how-to-read">How to Read These Examples</h2>
 
-<strong>✅ SECURE:</strong>
+<p>Each pair below shows a <strong>vulnerable</strong> implementation and the <strong>secure</strong> version in the same stack. The focus is on the failures that dominate real findings: enumerable login, unthrottled guessing, plaintext or fast-hashed passwords, weak reset tokens, non-rotating sessions, and sloppy JWT/OAuth validation.</p>
 
-</code>`<code>python
-<p>import secrets</p>
-<p>import hashlib</p>
+<h2 id="express-login">Express (Node.js): Login &amp; Enumeration</h2>
 
-<h1>Secure API key generation and validation</h1>
-<p>class APIAuth:</p>
-<p>    def __init__(self):</p>
-<p>        self.keys = {}  # Stores hashes, not plain text</p>
-    
-<p>    def create_key(self, user_id):</p>
-<p>        key = f"sk_{secrets.token_urlsafe(32)}"</p>
-<p>        key_hash = hashlib.sha256(key.encode()).hexdigest()</p>
-<p>        self.keys[key_hash] = {</p>
-<p>            'user_id': user_id,</p>
-<p>            'created': datetime.now(),</p>
-<p>            'scopes': ['read']</p>
-<p>        }</p>
-<p>        return key  # Show only once</p>
-    
-<p>    def validate(self, key):</p>
-<p>        key_hash = hashlib.sha256(key.encode()).hexdigest()</p>
-<p>        return key_hash in self.keys</p>
+<h3>Vulnerable</h3>
+<pre><code>const bcrypt = require('bcrypt');
+app.post('/login', async (req, res) =&gt; {
+  const { email, password } = req.body;
+  const user = await db.user.findByEmail(email);
+  if (!user) {
+    return res.status(404).json({ error: 'No account with that email' }); // enumeration
+  }
+  const ok = await bcrypt.compare(password, user.hash);
+  if (!ok) {
+    return res.status(401).json({ error: 'Incorrect password' });          // enumeration
+  }
+  req.session.userId = user.id;        // no session rotation -&gt; fixation
+  res.json({ token: user.id });        // predictable "token"
+  // no rate limiting, no MFA, no breach check
+});</code></pre>
 
-<p>@app.route('/api/data')</p>
-<p>def api_endpoint():</p>
-<p>    key = request.headers.get('X-API-Key')</p>
-<p>    if not api_auth.validate(key):</p>
-<p>        return jsonify({'error': 'Invalid API key'}), 401</p>
-<p>    return jsonify(data)</p>
-</code>``
+<h3>Secure</h3>
+<pre><code>const bcrypt = require('bcrypt');
+const rateLimit = require('express-rate-limit');
+
+const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 50 });
+// A dummy hash so unknown users cost the same time as real ones (no timing oracle)
+const DUMMY_HASH = '$2b$12$........................................................';
+
+app.post('/login', loginLimiter, accountThrottle, async (req, res) =&gt; {
+  const { email, password } = req.body;
+  const user = await db.user.findByEmail(String(email).toLowerCase());
+  const hash = user ? user.hash : DUMMY_HASH;
+  const ok = await bcrypt.compare(password, hash);
+
+  if (!user || !ok) {
+    return res.status(401).json({ error: 'Invalid email or password' });   // uniform
+  }
+  if (user.mfaEnabled) {
+    req.session.pendingUserId = user.id;         // require second factor next
+    return res.json({ mfaRequired: true });
+  }
+  req.session.regenerate(err =&gt; {                // rotate ID -&gt; kills fixation
+    if (err) return res.sendStatus(500);
+    req.session.userId = user.id;
+    req.session.save(() =&gt; res.json({ ok: true }));
+  });
+});</code></pre>
+
+<h2 id="python-reset">Python (Flask): Password Reset</h2>
+
+<h3>Vulnerable</h3>
+<pre><code>import hashlib, time
+from flask import request
+
+@app.route('/forgot', methods=['POST'])
+def forgot():
+    email = request.form['email']
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return 'No such user', 404                      # enumeration
+    # Low-entropy, time-correlated, non-expiring token:
+    token = hashlib.md5(f"{email}{int(time.time())}".encode()).hexdigest()
+    user.reset_token = token
+    db.session.commit()
+    # Link built from the attacker-controlled Host header:
+    link = f"https://{request.host}/reset?token={token}"   # host poisoning
+    send_email(email, link)
+    return 'Reset sent'</code></pre>
+
+<h3>Secure</h3>
+<pre><code>import secrets, hashlib
+from datetime import datetime, timedelta, timezone
+from flask import request, current_app
+
+GENERIC = ('If an account exists, a reset link has been sent.', 200)
+
+@app.route('/forgot', methods=['POST'])
+@limiter.limit("5 per hour")                            # throttle abuse
+def forgot():
+    email = request.form['email'].strip().lower()
+    user = User.query.filter_by(email=email).first()
+    if user:
+        raw = secrets.token_urlsafe(32)                 # 256-bit CSPRNG
+        user.reset_hash = hashlib.sha256(raw.encode()).hexdigest()  # store HASH
+        user.reset_expires = datetime.now(timezone.utc) + timedelta(minutes=20)
+        db.session.commit()
+        base = current_app.config['APP_ORIGIN']         # trusted, from config
+        send_email(email, f"{base}/reset?token={raw}")  # single-use, expiring
+    else:
+        _spend_dummy_time()                             # constant-time-ish
+    return GENERIC                                      # identical either way</code></pre>
+
+<h2 id="java-session">Java (Spring): Session Management</h2>
+
+<h3>Vulnerable</h3>
+<pre><code>@PostMapping("/login")
+public String login(@RequestParam String user, @RequestParam String pass,
+                    HttpSession session) {
+    Account a = repo.findByUsername(user);
+    // MD5, unsalted, and == comparison (not constant-time):
+    if (a != null &amp;&amp; a.getHash().equals(md5(pass))) {
+        session.setAttribute("user", a.getId());   // no session rotation
+        return "home";                             // fixation + weak hashing
+    }
+    return "login?error=badpassword";              // enumeration via message
+}</code></pre>
+
+<h3>Secure</h3>
+<pre><code>@PostMapping("/login")
+public String login(@RequestParam String user, @RequestParam String pass,
+                    HttpServletRequest request) {
+    Account a = repo.findByUsername(user.toLowerCase());
+    // BCryptPasswordEncoder: salted, slow, constant-time verify
+    boolean ok = a != null &amp;&amp; encoder.matches(pass, a.getHash());
+    if (!ok) {
+        return "login?error=invalid";              // uniform message
+    }
+    // Rotate the session on privilege change -&gt; defeats fixation:
+    request.changeSessionId();
+    request.getSession().setAttribute("user", a.getId());
+    return "home";
+}</code></pre>
+
+<h4>Spring Security / cookie hardening</h4>
+<pre><code># application.yml
+server:
+  servlet:
+    session:
+      timeout: 30m                 # idle timeout
+      cookie:
+        http-only: true            # not readable by JS
+        secure: true               # HTTPS only
+        same-site: lax             # CSRF hardening
+
+# In HttpSecurity: rotate on auth + cap concurrent sessions
+# http.sessionManagement(s -&gt; s
+#     .sessionFixation().changeSessionId()
+#     .maximumSessions(3));</code></pre>
+
+<h2 id="jwt">JWT Validation Config</h2>
+
+<h3>Vulnerable</h3>
+<pre><code>// Trusts whatever the token claims; no exp/iss/aud enforcement.
+const jwt = require('jsonwebtoken');
+const claims = jwt.decode(token);                 // DECODE, not verify -- no signature check!
+// or, almost as bad:
+const c2 = jwt.verify(token, secret);             // algorithm not pinned -&gt; alg confusion
+if (c2.role === 'admin') grantAdmin();            // no exp checked -&gt; forever-valid</code></pre>
+
+<h3>Secure</h3>
+<pre><code>const jwt = require('jsonwebtoken');
+try {
+  const claims = jwt.verify(token, PUBLIC_KEY, {
+    algorithms: ['RS256'],                // PIN -- rejects alg:none / HS confusion
+    issuer:   'https://auth.example.com',
+    audience: 'https://api.example.com',
+    maxAge:   '15m',                      // short-lived access token
+    clockTolerance: 5,                    // small skew allowance
+  });
+  // Pair with a rotating refresh token + a jti deny-list so logout revokes access.
+  return claims;
+} catch (e) {
+  return res.status(401).json({ error: 'Invalid token' });
+}</code></pre>
+
+<h2 id="mfa-config">MFA / WebAuthn Config</h2>
+
+<h3>Weak: SMS-only, unlimited attempts</h3>
+<pre><code># SMS OTP is SIM-swappable and phishable; unlimited tries allow brute force.
+def verify_sms(user, code):
+    return code == user.last_sms_code          # 6 digits, no attempt limit</code></pre>
+
+<h3>Strong: WebAuthn (phishing-resistant) with TOTP fallback</h3>
+<pre><code>// @simplewebauthn/server -- assertion is bound to the real origin
+const verification = await verifyAuthenticationResponse({
+  response: assertion,
+  expectedChallenge: session.challenge,
+  expectedOrigin: 'https://example.com',   // AitM proxy origin will NOT match
+  expectedRPID: 'example.com',
+  authenticator: storedAuthenticator,      // matched by credential ID
+  requireUserVerification: true,
+});
+if (!verification.verified) return res.status(401).end();
+// Store the new signature counter to detect cloned authenticators:
+storedAuthenticator.counter = verification.authenticationInfo.newCounter;</code></pre>
+
+<pre><code># TOTP fallback with a bounded window and rate limiting (Python)
+import pyotp
+def verify_totp(user, code):
+    if too_many_recent_attempts(user):        # stop OTP brute force
+        raise TooManyAttempts()
+    return pyotp.TOTP(user.totp_secret).verify(code, valid_window=1)</code></pre>
+
+<h2 id="oauth-config">OAuth2 / OIDC Client Config</h2>
+
+<h3>Vulnerable</h3>
+<pre><code># Loose redirect + no state + no PKCE
+GET /authorize?client_id=app
+    &amp;redirect_uri=https://app.example.com/cb/../..   # prefix/substring matching abused
+    &amp;response_type=token                             # implicit flow leaks token in URL
+# No 'state' -&gt; login CSRF; no PKCE -&gt; code interception on public clients</code></pre>
+
+<h3>Secure</h3>
+<pre><code># Authorization-code + state + PKCE; exact redirect registered at the AS
+GET /authorize?client_id=app
+    &amp;redirect_uri=https://app.example.com/callback   # EXACT match, registered
+    &amp;response_type=code
+    &amp;scope=openid%20profile
+    &amp;state=RANDOM_UNGUESSABLE                        # verified on callback
+    &amp;code_challenge=BASE64URL_SHA256_VERIFIER
+    &amp;code_challenge_method=S256
+
+# On callback:
+#   1. reject if state != stored state
+#   2. exchange code WITH code_verifier
+#   3. validate ID token signature + iss + aud + nonce
+#   4. keep the client secret server-side only</code></pre>
+
+<blockquote>
+<p><strong>Takeaway.</strong> The secure versions share a pattern: fail closed, be uniform to the client, pin and validate everything the server relies on, and rotate/expire credentials so a single theft has a short, revocable lifetime.</p>
+</blockquote>
+
+<h2 id="whats-next">What's Next?</h2>
+
+<ul>
+<li><strong><a href="./overview.html">Overview</a></strong>: concepts, impact, and the 2025 edition framing.</li>
+<li><strong><a href="./attack-vectors.html">Attack Vectors</a></strong>: the techniques these examples defend against.</li>
+<li><strong><a href="./prevention.html">Prevention</a></strong>: the layered defense model behind the secure code.</li>
+<li><strong><a href="./lab/authentication-failures/">Lab</a></strong>: hands-on practice.</li>
+</ul>
+
+<p>---</p>
+
+<p><em>Part of the <a href="/platform/frontend/index.html">OWASP Top 10 Educational Repository</a></em></p>
 
         </div>
     </div>

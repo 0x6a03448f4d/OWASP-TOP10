@@ -217,67 +217,229 @@
         <div class="content">
             <h1>Mishandling of Exceptional Conditions - Overview</h1>
 
-<h2>What Is This Vulnerability?</h2>
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#what-is">What Is Mishandling of Exceptional Conditions?</a></li>
+<li><a href="#new-2025">A New 2025 Category &mdash; Why It Was Added</a></li>
+<li><a href="#why-matters">Why Does This Matter?</a></li>
+<li><a href="#technical-context">Technical Context</a></li>
+<li><a href="#real-world-impact">Real-World Impact</a></li>
+<li><a href="#prevalence">Prevalence and Statistics</a></li>
+<li><a href="#misunderstandings">Common Misunderstandings</a></li>
+<li><a href="#self-assessment">Self-Assessment</a></li>
+</ul>
+</div>
 
-<strong>Mishandling of Exceptional Conditions</strong> (CWE-755) occurs when applications fail to properly handle errors, edge cases, and exceptional states. This can lead to:
+<h2 id="what-is">What Is Mishandling of Exceptional Conditions?</h2>
+
+<p><strong>Mishandling of Exceptional Conditions</strong> is the security weakness that arises when software handles errors, exceptions, and unusual or edge-case states in ways that create an exploitable gap. The underlying weakness is catalogued as <strong>CWE-755: Improper Handling of Exceptional Conditions</strong>, and it pulls in a family of related weaknesses: information leakage through error messages (CWE-209), failure to fail securely (CWE-636), improper cleanup on the error path (CWE-460), detecting an error but doing nothing about it (CWE-390), and uncaught exceptions that terminate the process (CWE-248).</p>
+
+<p>Every non-trivial program spends much of its code on the "happy path" &mdash; the sequence of steps that runs when everything works. The exceptional path is what runs when something does not: a database is unreachable, an input is malformed, a permission lookup throws, a timeout fires, a disk fills, a lock cannot be acquired. Attackers deliberately steer a system onto that exceptional path because it is the least-tested, least-reviewed, and least-instrumented part of the codebase &mdash; and because a control that is enforced on the happy path is frequently <em>skipped</em> when an exception unwinds the stack around it.</p>
+
+<p>At its core, this category covers eight recurring failure modes:</p>
 
 <ul>
-<li>Information disclosure through error messages</li>
-<li>Denial of Service (DoS)</li>
-<li>Authentication bypass</li>
-<li>Authorization failures</li>
-<li>Data corruption</li>
-<li>System crashes</li>
+<li><strong>Fail-open logic</strong>: an error or exception in a security-relevant operation causes the request to proceed instead of being denied (an authentication or authorization check throws, and the caller treats "no answer" as "allowed").</li>
+<li><strong>Verbose error output</strong>: stack traces, file paths, framework versions, SQL statements, or secrets are returned to the client when something fails.</li>
+<li><strong>Inconsistent error handling that creates oracles</strong>: responses or timings that differ by case let an attacker enumerate users, distinguish valid from invalid data (padding oracles), or drive blind injection.</li>
+<li><strong>Unhandled exceptions causing crashes / denial of service</strong>: a single malformed request or pathological input takes down a worker, a process, or an entire service.</li>
+<li><strong>Improper cleanup on the error path</strong>: file handles, database connections, locks, or transactions are leaked or left half-committed when an exception is thrown before cleanup runs.</li>
+<li><strong>Race conditions and TOCTOU in error/edge handling</strong>: retries, fallbacks, and partial-failure recovery introduce time-of-check-to-time-of-use windows.</li>
+<li><strong>Swallowed or suppressed exceptions</strong>: errors are caught and silently discarded, hiding an attack in progress and letting the program continue in an inconsistent state.</li>
+<li><strong>Incorrect handling of unexpected input sizes, types, or encodings</strong>: oversized bodies, unexpected types, or exotic encodings trigger overflows, type-confusion, or resource exhaustion.</li>
 </ul>
 
-<h2>Modern 2025 Context</h2>
+<blockquote>
+<p><strong>The key reframing:</strong> handling exceptional conditions is not merely a <em>reliability</em> concern. When the exceptional path bypasses a security control, discloses internals, or reveals a distinguishable signal, it is a <em>security</em> concern. The same missing <code>catch</code> that crashes a service can also be the missing <code>catch</code> that lets a request past an authorization gate.</p>
+</blockquote>
 
-<p>In cloud-native, microservices architectures:</p>
+<h2 id="new-2025">A New 2025 Category &mdash; Why It Was Added</h2>
 
-<strong>Cascading Failures</strong>
+<p>This is a <strong>new entry in the OWASP Web Top 10, 2025 edition</strong>. Earlier editions touched the symptoms &mdash; verbose errors lived under Security Misconfiguration, and information disclosure was scattered across several categories &mdash; but no single category named the <em>root behaviour</em>: the way applications respond when they leave the happy path. The 2025 edition promotes it to a first-class category for three reasons.</p>
+
 <ul>
-<li>One service failure triggers chain reaction</li>
-<li>Circuit breakers not implemented</li>
-<li>Timeouts not configured</li>
-<li>Retry storms</li>
+<li><strong>It is a distinct root cause, not a symptom.</strong> A verbose stack trace and a fail-open authorization check look unrelated on the surface, yet both come from the same design gap: the error path was never treated as a security boundary. Naming the root cause lets teams fix a class of bugs rather than whack individual moles.</li>
+<li><strong>Modern architectures multiply exceptional conditions.</strong> Microservices, event-driven pipelines, third-party APIs, and serverless functions fail partially and constantly &mdash; timeouts, retries, circuit-breaker trips, poisoned messages, cold starts. Every one of those is an exceptional condition, and each is a place a control can be skipped or a signal can leak.</li>
+<li><strong>It is consistently under-tested.</strong> Test suites overwhelmingly exercise success cases. The error path ships with far less coverage, which is precisely why attackers target it.</li>
 </ul>
 
-<strong>Async/Event-Driven Issues</strong>
+<h2 id="why-matters">Why Does This Matter?</h2>
+
+<h3>Business Impact</h3>
 <ul>
-<li>Unhandled promise rejections</li>
-<li>Event processing failures</li>
-<li>Message queue poisoning</li>
-<li>Dead letter queue neglect</li>
+<li><strong>Authentication and authorization bypass</strong>: fail-open handling can hand an attacker access with no credential attack at all &mdash; a thrown exception is enough.</li>
+<li><strong>Data breaches via disclosure</strong>: verbose errors leak the internal map (paths, versions, queries, hostnames) and sometimes live secrets, turning a minor bug into a breach enabler.</li>
+<li><strong>Account enumeration and targeted fraud</strong>: error and timing oracles let attackers confirm which accounts, emails, or coupon codes are valid, feeding phishing and credential-stuffing campaigns.</li>
+<li><strong>Denial of service and revenue loss</strong>: a single unhandled input can crash workers or exhaust a connection pool, taking a paid service offline.</li>
+<li><strong>Regulatory exposure</strong>: disclosed personal data and prolonged outages trigger GDPR, HIPAA, and PCI-DSS obligations, fines, and breach notifications.</li>
+<li><strong>Data corruption and financial loss</strong>: half-committed transactions and inconsistent state on the error path can corrupt records or double-spend funds.</li>
 </ul>
 
-<strong>Resource Exhaustion</strong>
+<h3>Technical Impact</h3>
 <ul>
-<li>OOM kills in containers</li>
-<li>Connection pool exhaustion</li>
-<li>File descriptor limits</li>
-<li>Rate limit exceeded</li>
+<li><strong>Control bypass</strong>: a security check that throws is a security check that did not run.</li>
+<li><strong>Information disclosure</strong>: stack traces and error bodies reveal the exact stack, enabling precise follow-up attacks.</li>
+<li><strong>Cryptographic and injection oracles</strong>: distinguishable error/timing responses enable padding-oracle decryption and blind SQL/command injection.</li>
+<li><strong>Resource exhaustion</strong>: leaked handles, connections, and locks degrade or crash the system over time.</li>
+<li><strong>Inconsistent state</strong>: swallowed exceptions and partial failures leave data and in-memory state in states the happy path never anticipated.</li>
 </ul>
 
-<h2>Real-World Impact</h2>
+<h2 id="technical-context">Technical Context</h2>
 
-<strong>Knight Capital (2012, still relevant)</strong>
+<h3>The Happy Path vs. the Exceptional Path</h3>
+
+<p>Consider what "the request proceeds" really means when a security check throws. The intent is that access is granted only if the check returns <em>true</em>. But three outcomes are possible, not two:</p>
+
+<pre><code>allowed = authorize(user, resource)   # intended: true or false
+                                      # reality: true, false, OR *throws*
+
+if allowed:            # if authorize() throws, this line is never reached...
+    serve(resource)    # ...but where does control go?</code></pre>
+
+<p>The security question is entirely about that third outcome. If the surrounding code catches the exception and falls through to serving the resource &mdash; or if a default value of "allow" was assumed &mdash; the control has failed <strong>open</strong>. Failing <strong>closed</strong> (deny by default on any error in a security-relevant operation) is the safe design.</p>
+
+<h3>Fail-Open vs. Fail-Closed</h3>
+
+<pre><code>FAIL-OPEN  (dangerous):  error in a security control  -&gt;  request PROCEEDS
+FAIL-CLOSED (safe):      error in a security control  -&gt;  request DENIED
+
+Rule of thumb: when a security-relevant operation cannot complete,
+the only safe answer is "no."</code></pre>
+
+<h3>Where Exceptional Conditions Turn Into Vulnerabilities</h3>
+
+<table>
+<thead>
+<tr><th>Location</th><th>Exceptional condition</th><th>Security consequence</th></tr>
+</thead>
+<tbody>
+<tr><td>Auth / authz layer</td><td>Lookup throws or times out</td><td>Fail-open bypass</td></tr>
+<tr><td>Error responder</td><td>Unhandled exception rendered to client</td><td>Stack-trace / secret disclosure</td></tr>
+<tr><td>Login / reset flow</td><td>Different response for valid vs invalid user</td><td>Account enumeration oracle</td></tr>
+<tr><td>Crypto / decryption</td><td>Padding error distinguishable from MAC error</td><td>Padding-oracle decryption</td></tr>
+<tr><td>Input parser</td><td>Oversized / malformed / exotic input</td><td>Crash, ReDoS, memory exhaustion</td></tr>
+<tr><td>Resource acquisition</td><td>Exception before release</td><td>Leaked connections, locks, handles</td></tr>
+<tr><td>Transaction boundary</td><td>Failure mid-write, no rollback</td><td>Half-committed / corrupt state</td></tr>
+<tr><td><code>catch</code> block</td><td>Exception swallowed silently</td><td>Attack hidden, inconsistent state</td></tr>
+</tbody>
+</table>
+
+<h3>A Concrete Fail-Open Example</h3>
+
+<pre><code>// Java-style pseudocode — the catch block is the whole vulnerability
+boolean isAdmin;
+try {
+    isAdmin = roleService.check(user, "admin");   // may throw on DB error
+} catch (Exception e) {
+    isAdmin = true;                               // FAIL-OPEN: error == allow
+}
+if (isAdmin) { renderAdminPanel(); }</code></pre>
+
+<p>An attacker who can make <code>roleService.check</code> throw &mdash; by exhausting the connection pool, poisoning a cache, or supplying input that trips a downstream error &mdash; is granted admin. The bug is not in the check; it is in how the <em>failure of the check</em> is handled.</p>
+
+<h2 id="real-world-impact">Real-World Impact</h2>
+
+<p>The incidents below are drawn from well-documented, publicly reported <em>classes</em> of failure. They illustrate the category; exact figures vary by source and are summarised, not quoted precisely.</p>
+
+<h3>Class 1: Unhandled Input Causing a Global Outage (ReDoS)</h3>
+<p><strong>Illustrative incident</strong>: Cloudflare's July 2019 global outage was traced to a single regular expression whose catastrophic backtracking consumed CPU across the fleet when it met a particular input. <strong>Lesson</strong>: an edge-case input that the engine cannot handle in bounded time is a denial-of-service vulnerability, not just a performance bug. Regex complexity and input size must be bounded.</p>
+
+<h3>Class 2: Fail-Open Security Controls</h3>
+<p><strong>Pattern</strong>: authentication or authorization logic that treats an error, timeout, or unexpected response as "permit." This class recurs across proxies, SSO integrations, and license/entitlement checks, where a backend hiccup silently grants access. <strong>Lesson</strong>: security decisions must default to deny whenever the decision cannot be computed.</p>
+
+<h3>Class 3: Padding / Error Oracles in Cryptography</h3>
+<p><strong>Pattern</strong>: the padding-oracle attack (first demonstrated by Vaudenay in 2002 and behind later attacks such as POODLE and Lucky Thirteen) works precisely because a system returns <em>distinguishable</em> errors for "bad padding" versus "bad MAC." The difference in response &mdash; content or timing &mdash; lets an attacker decrypt ciphertext without the key. <strong>Lesson</strong>: error handling around cryptographic operations must be uniform and constant-time.</p>
+
+<h3>Class 4: Account Enumeration via Inconsistent Errors</h3>
+<p><strong>Pattern</strong>: login, registration, and password-reset flows that answer "no such user" differently from "wrong password" &mdash; in body text, status code, or response time &mdash; let an attacker build a list of valid accounts. This is one of the most common findings in real-world assessments. <strong>Lesson</strong>: authentication outcomes must be indistinguishable regardless of which factor failed.</p>
+
+<h3>Class 5: Unhandled Exception / State Failure Causing Cascading Outage</h3>
+<p><strong>Illustrative incidents</strong>: large public outages such as GitHub's October 2018 24-hour degradation (a network partition during a database failover pushed the system into a state its recovery logic did not cleanly handle) and the well-known Knight Capital 2012 trading loss (software driven into an unexpected state that its exception handling did not contain) show how mishandled exceptional conditions cascade. <strong>Lesson</strong>: partial failures, failovers, and retries are exceptional conditions that must be handled deliberately, with circuit breakers and bounded retries, or one fault becomes total.</p>
+
+<h2 id="prevalence">Prevalence and Statistics</h2>
+
+<p>As a newly named 2025 category, Mishandling of Exceptional Conditions does not yet have a long historical incidence series of its own. What can be said with confidence:</p>
+
 <ul>
-<li>$440 million loss in 45 minutes</li>
-<li>Unhandled exception in trading algorithm</li>
+<li>Its constituent weaknesses are among the most frequently reported in application testing. <strong>CWE-209 (information exposure through an error message)</strong> and improper-error-handling findings appear in a large share of assessments.</li>
+<li>The behaviour is <strong>easy to trigger and easy to detect</strong>: an attacker simply sends malformed, oversized, or unexpected input and reads how the application reacts.</li>
+<li>Impact spans the full range &mdash; from low-severity information disclosure up to authentication bypass, cryptographic decryption, and full denial of service.</li>
 </ul>
 
-<strong>Cloudflare Outage (2019)</strong>
+<blockquote>
+<p><strong>Note on numbers</strong>: precise percentages and breach counts differ between reports and years. Treat any single figure as illustrative. The durable takeaway is that error-path weaknesses are common, cheap to find, and range from trivial to critical in impact.</p>
+</blockquote>
+
+<h3>Key CWE Mappings</h3>
 <ul>
-<li>Regular expression DoS</li>
-<li>Unhandled edge case in WAF rules</li>
-<li>Global outage</li>
+<li><strong>CWE-755</strong>: Improper Handling of Exceptional Conditions (the parent weakness)</li>
+<li><strong>CWE-703</strong>: Improper Check or Handling of Exceptional Conditions</li>
+<li><strong>CWE-248</strong>: Uncaught Exception</li>
+<li><strong>CWE-209</strong>: Generation of Error Message Containing Sensitive Information</li>
+<li><strong>CWE-210</strong>: Self-generated Error Message Containing Sensitive Information</li>
+<li><strong>CWE-390</strong>: Detection of Error Condition Without Action</li>
+<li><strong>CWE-391</strong>: Unchecked Error Condition</li>
+<li><strong>CWE-460</strong>: Improper Cleanup on Thrown Exception</li>
+<li><strong>CWE-544</strong>: Missing Standardized Error Handling Mechanism</li>
+<li><strong>CWE-636</strong>: Not Failing Securely ('Failing Open')</li>
+<li><strong>CWE-boundary</strong>: related &mdash; CWE-367 (TOCTOU), CWE-1333 (inefficient regex / ReDoS), CWE-400 (uncontrolled resource consumption)</li>
 </ul>
 
-<strong>GitHub Outage (2018)</strong>
+<h2 id="misunderstandings">Common Misunderstandings</h2>
+
+<h3>Myth 1: "Error handling is a reliability problem, not a security problem."</h3>
+<p><strong>Reality</strong>: the exceptional path is where controls get skipped and internals leak. A missing <code>catch</code> can crash a service <em>or</em> wave a request past an authorization gate &mdash; often the very same missing <code>catch</code>.</p>
+
+<h3>Myth 2: "Catching every exception makes the code safer."</h3>
+<p><strong>Reality</strong>: a broad <code>catch</code> that swallows the error and continues is often <em>worse</em> than crashing. It hides attacks, leaves state inconsistent, and can turn a fail-closed control into a fail-open one. Catch narrowly, at the right boundary, and decide deliberately.</p>
+
+<h3>Myth 3: "A generic 500 error is enough; details in the response are harmless."</h3>
+<p><strong>Reality</strong>: stack traces, SQL, file paths, and version strings in an error body are free reconnaissance and sometimes contain secrets. Detail belongs in server-side logs, keyed by an error ID, never in the client response.</p>
+
+<h3>Myth 4: "Failing open keeps the site available, which users prefer."</h3>
+<p><strong>Reality</strong>: availability never justifies bypassing a security control. If the authorization service is down, the correct behaviour is to deny (or degrade to a safe read-only mode) &mdash; not to grant access to everyone.</p>
+
+<h3>Myth 5: "Timing differences are too small to exploit."</h3>
+<p><strong>Reality</strong>: statistical timing attacks average away noise across many requests. A consistent millisecond-scale difference between "user exists" and "user does not" is a reliable oracle at scale.</p>
+
+<h3>Myth 6: "If input validation is in place, the error path doesn't matter."</h3>
+<p><strong>Reality</strong>: validation reduces but never eliminates exceptional conditions &mdash; dependencies still time out, disks still fill, and novel inputs still surprise parsers. The error path must be safe on its own terms.</p>
+
+<h2 id="self-assessment">Self-Assessment</h2>
+
+<p>Ask these questions about your application:</p>
 <ul>
-<li>Database failover exception</li>
-<li>Unhandled edge case in MySQL</li>
-<li>24-hour degradation</li>
+<li>[ ] When a security-relevant operation (auth, authz, crypto, license check) throws or times out, does the request get <strong>denied</strong> by default?</li>
+<li>[ ] Do error responses ever include stack traces, SQL, file paths, internal hostnames, or version strings?</li>
+<li>[ ] Are login, registration, and password-reset responses <strong>identical</strong> for valid and invalid accounts, in both body and timing?</li>
+<li>[ ] Is there a single, centralized error handler at each boundary rather than ad-hoc <code>try/catch</code> everywhere?</li>
+<li>[ ] Are connections, files, locks, and transactions released and rolled back on the error path (try/finally, context managers, defer, RAII)?</li>
+<li>[ ] Are exceptions ever caught and silently discarded (an empty <code>catch</code> block)?</li>
+<li>[ ] Are input size, type, and encoding bounded, and are regexes checked for catastrophic backtracking?</li>
+<li>[ ] Do downstream calls have timeouts, bounded retries, and circuit breakers?</li>
+<li>[ ] Is debug mode definitely off in production?</li>
+<li>[ ] Does your test suite exercise the error path, not just the happy path?</li>
+</ul>
+
+<p>Several "no" or "not sure" answers indicate exploitable error-path weaknesses today.</p>
+
+<h2>Key Takeaways</h2>
+<ol>
+<li><strong>The error path is a security boundary</strong> &mdash; treat it with the same rigour as the happy path.</li>
+<li><strong>Fail closed</strong> &mdash; when a security decision cannot be computed, deny.</li>
+<li><strong>Stay quiet to clients, verbose to logs</strong> &mdash; generic messages out, full detail in server-side logs behind an error ID.</li>
+<li><strong>Make failures uniform</strong> &mdash; identical responses and timing deny attackers an oracle.</li>
+<li><strong>Clean up deterministically</strong> &mdash; release every resource and roll back every transaction on the error path.</li>
+<li><strong>Never swallow exceptions</strong> &mdash; handle them deliberately at the right boundary.</li>
+</ol>
+
+<h2>Next Steps</h2>
+<ul>
+<li><strong><a href="./attack-vectors.html">Attack Vectors</a></strong>: How attackers steer systems onto the exceptional path and exploit it</li>
+<li><strong><a href="./prevention.html">Prevention</a></strong>: A layered strategy for failing securely and handling errors safely</li>
+<li><strong><a href="./examples.html">Examples</a></strong>: Vulnerable vs. secure code in Java, Python, Node.js, and Go</li>
+<li><strong><a href="./lab/mishandling-exceptional-conditions/">Hands-On Lab</a></strong>: Practice finding and fixing error-path weaknesses in a safe environment</li>
 </ul>
 
         </div>

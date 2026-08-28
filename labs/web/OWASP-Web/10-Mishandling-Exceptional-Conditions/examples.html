@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Exception Handling Examples</title>
+    <title>Mishandling of Exceptional Conditions - Examples</title>
     <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -215,47 +215,212 @@
         </a>
         
         <div class="content">
-            <h1>Exception Handling Examples</h1>
+            <h1>Mishandling of Exceptional Conditions - Examples</h1>
 
-<strong>❌ DANGEROUS:</strong>
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#java">Java &mdash; Fail-Open vs. Fail-Closed Authorization</a></li>
+<li><a href="#python">Python &mdash; Verbose Errors &amp; Leaked Resources</a></li>
+<li><a href="#node">Node.js &mdash; Swallowed Async Errors &amp; Enumeration Oracle</a></li>
+<li><a href="#go">Go &mdash; Ignored Errors &amp; Missing Cleanup</a></li>
+<li><a href="#summary">What Changed, and Why</a></li>
+</ul>
+</div>
 
-<p>``<code>python</p>
-<p>@app.route('/api/user/<user_id>')</p>
-<p>def get_user(user_id):</p>
-<p>    try:</p>
-<p>        user = database.get_user(user_id)</p>
-<p>        return jsonify(user)</p>
-<p>    except Exception as e:</p>
-<p>        # DANGEROUS: Exposes internals</p>
-<p>        return str(e), 500</p>
-</code>`<code>
+<p>Each pair below shows a <strong>vulnerable</strong> implementation and the <strong>secure</strong> version in the same language. The themes are the ones that dominate real error-path findings: failing open, leaking internals, swallowing exceptions, building oracles, and leaking resources.</p>
 
-<strong>✅ SECURE:</strong>
+<h2 id="java">Java &mdash; Fail-Open vs. Fail-Closed Authorization</h2>
 
-</code>`<code>python
-<p>@app.route('/api/user/<user_id>')</p>
-<p>def get_user(user_id):</p>
-<p>    try:</p>
-<p>        # Validate input</p>
-<p>        if not user_id.isdigit():</p>
-<p>            return jsonify({'error': 'Invalid user ID'}), 400</p>
-        
-<p>        user = database.get_user(int(user_id))</p>
-        
-<p>        if not user:</p>
-<p>            return jsonify({'error': 'User not found'}), 404</p>
-        
-<p>        return jsonify(user)</p>
-        
-<p>    except DatabaseConnectionError as e:</p>
-<p>        logger.error(f"Database error: {e}", exc_info=True)</p>
-<p>        return jsonify({'error': 'Service temporarily unavailable'}), 503</p>
-        
-<p>    except Exception as e:</p>
-<p>        logger.error(f"Unexpected error in get_user: {e}", exc_info=True)</p>
-<p>        # Generic error, no details exposed</p>
-<p>        return jsonify({'error': 'Internal server error'}), 500</p>
-</code>``
+<h3>Vulnerable</h3>
+<pre><code>@GetMapping("/admin/report")
+public ResponseEntity&lt;Report&gt; adminReport(Principal principal) {
+    boolean isAdmin;
+    try {
+        isAdmin = roleService.hasRole(principal.getName(), "ADMIN");
+    } catch (Exception e) {
+        // "Be resilient if the role service is down."
+        isAdmin = true;               // FAIL-OPEN: an error grants admin
+    }
+    if (isAdmin) {
+        return ResponseEntity.ok(reportService.build());
+    }
+    return ResponseEntity.status(403).build();
+}</code></pre>
+<p>An attacker who can make <code>roleService.hasRole</code> throw &mdash; by exhausting its connection pool or feeding input that trips a downstream error &mdash; is handed the admin report. The exception is caught, but the recovery decision is backwards.</p>
+
+<h3>Secure</h3>
+<pre><code>private static final Logger log = LoggerFactory.getLogger(AdminController.class);
+
+@GetMapping("/admin/report")
+public ResponseEntity&lt;?&gt; adminReport(Principal principal) {
+    boolean isAdmin;
+    try {
+        isAdmin = roleService.hasRole(principal.getName(), "ADMIN");
+    } catch (Exception e) {
+        String id = UUID.randomUUID().toString();
+        log.error("role check failed, denying by default id={}", id, e);
+        // FAIL-CLOSED: cannot verify -&gt; deny, and return a generic error
+        return ResponseEntity.status(503)
+            .body(Map.of("error", "Service temporarily unavailable", "errorId", id));
+    }
+    if (!isAdmin) {
+        return ResponseEntity.status(403).build();
+    }
+    return ResponseEntity.ok(reportService.build());
+}</code></pre>
+<p>The allow branch is reachable only on an explicit successful <code>true</code>. Any error denies, logs full detail under an ID, and returns a generic message.</p>
+
+<h2 id="python">Python &mdash; Verbose Errors &amp; Leaked Resources</h2>
+
+<h3>Vulnerable</h3>
+<pre><code>from flask import Flask, request, jsonify
+
+app = Flask(__name__)
+app.config["DEBUG"] = True            # tracebacks rendered to the client
+
+@app.route("/orders")
+def orders():
+    conn = pool.getconn()             # acquire connection
+    cur = conn.cursor()
+    # user-controlled input straight into a query; may raise
+    cur.execute("SELECT * FROM orders WHERE id = " + request.args["id"])
+    rows = cur.fetchall()
+    conn.close()                      # NEVER reached if execute() raises
+    return jsonify(rows)
+# On error: full stack trace + SQL + DSN returned, and the connection leaks.</code></pre>
+
+<h3>Secure</h3>
+<pre><code>import logging, uuid
+from flask import Flask, request, jsonify
+
+app = Flask(__name__)
+app.config["DEBUG"] = False           # no tracebacks to clients
+log = logging.getLogger("app")
+
+@app.route("/orders")
+def orders():
+    order_id = request.args.get("id", "")
+    if not order_id.isdigit():                     # validate the edge case
+        return jsonify(error="Invalid order id"), 400
+    # context managers release the connection AND the cursor on every path
+    with pool.connection() as conn, conn.cursor() as cur:
+        cur.execute("SELECT * FROM orders WHERE id = %s", (order_id,))
+        return jsonify(cur.fetchall())
+
+@app.errorhandler(Exception)
+def on_error(e):
+    error_id = uuid.uuid4().hex
+    log.exception("error_id=%s", error_id)         # full detail -&gt; logs only
+    return jsonify(error="Internal server error", error_id=error_id), 500</code></pre>
+<p>Parameterised query, validated input, guaranteed cleanup via <code>with</code>, generic client message, and full detail confined to server logs behind an error ID.</p>
+
+<h2 id="node">Node.js &mdash; Swallowed Async Errors &amp; Enumeration Oracle</h2>
+
+<h3>Vulnerable</h3>
+<pre><code>app.post('/login', async (req, res) =&gt; {
+    const { email, password } = req.body;
+    const user = await db.findByEmail(email);
+    if (!user) {
+        // Distinct message + fast return = user-enumeration oracle
+        return res.status(404).json({ error: 'No account with that email' });
+    }
+    try {
+        const ok = await bcrypt.compare(password, user.hash);  // only for real users
+        if (!ok) return res.status(401).json({ error: 'Wrong password' });
+        return res.json({ token: issue(user) });
+    } catch (e) {
+        // swallowed — a bcrypt/internal error silently falls through
+    }
+    res.json({ token: issue(user) });   // FAIL-OPEN on the swallowed error
+});</code></pre>
+<p>Two flaws compound: the response reveals whether an account exists (in both text and timing), and the empty <code>catch</code> lets a comparison error fall through to issuing a token.</p>
+
+<h3>Secure</h3>
+<pre><code>const DUMMY_HASH = '$2b$12$'.padEnd(60, 'x');   // constant-work placeholder
+
+app.post('/login', async (req, res, next) =&gt; {
+    try {
+        const { email, password } = req.body;
+        const user = await db.findByEmail(email);
+        // Always run a comparison so timing does not leak existence
+        const hash = user ? user.hash : DUMMY_HASH;
+        const ok = await bcrypt.compare(password, hash);
+        if (!user || !ok) {
+            // Identical status + body for every failure reason
+            return res.status(401).json({ error: 'Invalid email or password' });
+        }
+        return res.json({ token: issue(user) });
+    } catch (err) {
+        next(err);                      // to the central handler — never swallow
+    }
+});
+
+// Central handler: generic body, detail to logs
+app.use((err, req, res, next) =&gt; {
+    const errorId = crypto.randomUUID();
+    logger.error({ errorId, err });
+    res.status(500).json({ error: 'Internal server error', errorId });
+});</code></pre>
+<p>Uniform response and timing remove the oracle; errors propagate to one handler instead of being swallowed into a fail-open path.</p>
+
+<h2 id="go">Go &mdash; Ignored Errors &amp; Missing Cleanup</h2>
+
+<h3>Vulnerable</h3>
+<pre><code>func Transfer(db *sql.DB, from, to string, amount int) {
+    tx, _ := db.Begin()                        // error ignored
+    tx.Exec("UPDATE acct SET bal = bal - ? WHERE id = ?", amount, from)
+    tx.Exec("UPDATE acct SET bal = bal + ? WHERE id = ?", amount, to)
+    tx.Commit()                                // if step 2 failed, we still commit
+    // No error checks: a mid-transaction failure leaves inconsistent balances,
+    // and a failed Begin() leads to a nil-deref panic that crashes the worker.
+}</code></pre>
+
+<h3>Secure</h3>
+<pre><code>func Transfer(ctx context.Context, db *sql.DB, from, to string, amount int) error {
+    tx, err := db.BeginTx(ctx, nil)
+    if err != nil {
+        return fmt.Errorf("begin: %w", err)    // check every error
+    }
+    defer tx.Rollback()                        // guaranteed cleanup; no-op after Commit
+
+    if _, err := tx.ExecContext(ctx,
+        "UPDATE acct SET bal = bal - ? WHERE id = ? AND bal &gt;= ?",
+        amount, from, amount); err != nil {
+        return fmt.Errorf("debit: %w", err)    // deferred Rollback runs
+    }
+    if _, err := tx.ExecContext(ctx,
+        "UPDATE acct SET bal = bal + ? WHERE id = ?", amount, to); err != nil {
+        return fmt.Errorf("credit: %w", err)   // deferred Rollback runs
+    }
+    return tx.Commit()                         // atomic: both steps or neither
+}</code></pre>
+<p>Every error is checked and wrapped, <code>defer tx.Rollback()</code> guarantees the transaction is never left half-committed, and the operation is atomic under failure.</p>
+
+<h2 id="summary">What Changed, and Why</h2>
+
+<table>
+<thead>
+<tr><th>Weakness</th><th>Vulnerable</th><th>Secure</th></tr>
+</thead>
+<tbody>
+<tr><td>Fail-open control</td><td>Exception in role check grants admin</td><td>Error denies by default (fail closed)</td></tr>
+<tr><td>Verbose errors</td><td>Debug on; trace, SQL, DSN to client</td><td>Generic message + error ID; detail to logs</td></tr>
+<tr><td>Resource leak</td><td>Connection closed only on success</td><td>Context manager / <code>defer</code> releases on every path</td></tr>
+<tr><td>Enumeration oracle</td><td>Different body/timing for unknown user</td><td>Uniform response + constant-work comparison</td></tr>
+<tr><td>Swallowed exception</td><td>Empty catch falls through to allow</td><td>Propagate to one central handler</td></tr>
+<tr><td>Half-committed state</td><td>Commit regardless of step failures</td><td>Atomic transaction with guaranteed rollback</td></tr>
+<tr><td>Ignored errors</td><td><code>_</code> discards error; later panic</td><td>Every error checked, wrapped, and returned</td></tr>
+</tbody>
+</table>
+
+<h2>Next Steps</h2>
+<ul>
+<li><strong><a href="./overview.html">Overview</a></strong>: Why exceptional-condition handling is a security concern</li>
+<li><strong><a href="./attack-vectors.html">Attack Vectors</a></strong>: How attackers exploit the error path</li>
+<li><strong><a href="./prevention.html">Prevention</a></strong>: The full layered defensive strategy</li>
+<li><strong><a href="./lab/mishandling-exceptional-conditions/">Hands-On Lab</a></strong>: Practice fixing these patterns in a safe environment</li>
+</ul>
 
         </div>
     </div>

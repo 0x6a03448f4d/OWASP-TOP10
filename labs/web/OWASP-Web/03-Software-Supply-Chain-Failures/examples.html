@@ -215,57 +215,236 @@
         </a>
         
         <div class="content">
-            <h1>Supply Chain Security - Examples</h1>
+            <h1>Software Supply Chain Failures - Code Examples</h1>
 
-<strong>❌ VULNERABLE:</strong>
+<p>Each pair below shows a <strong>vulnerable</strong> configuration and the <strong>secure</strong> version for the same ecosystem. The focus is the supply chain: how dependencies are declared, resolved, verified, built, and loaded&mdash;not application logic.</p>
 
-<p>``<code>python</p>
-<h1>requirements.txt</h1>
-<p>Flask  # No version pinning!</p>
-<p>requests>=2.0  # Too broad!</p>
-<p>some-random-package  # Unknown package!</p>
+<div class="toc">
+<h2>On This Page</h2>
+<ul>
+<li><a href="#node-npm">Node / npm</a></li>
+<li><a href="#python-pip">Python / pip</a></li>
+<li><a href="#cicd-yaml">CI/CD (GitHub Actions)</a></li>
+<li><a href="#java-maven">Java / Maven</a></li>
+<li><a href="#container">Container Base Image</a></li>
+<li><a href="#sri">HTML Subresource Integrity</a></li>
+</ul>
+</div>
 
-<h1>Install command</h1>
-<p>pip install -r requirements.txt  # No verification!</p>
-</code>`<code>
+<h2 id="node-npm">Node / npm</h2>
 
-<strong>✅ SECURE:</strong>
+<h3>Vulnerable</h3>
+<pre><code>// package.json -- floating ranges auto-adopt new (possibly hijacked) releases
+{
+  "name": "shop-web",
+  "dependencies": {
+    "express": "^4.0.0",        // any 4.x, chosen at install time
+    "left-utils": "*",          // literally any version
+    "@acme/auth-client": "^2.0.0"  // internal name, no registry pinning
+  }
+}</code></pre>
+<pre><code># Install is non-deterministic and runs arbitrary lifecycle scripts.
+# A dependency-confusion package @acme/auth-client@99.0.0 on the PUBLIC
+# registry would be preferred over the internal 2.x.
+$ npm install</code></pre>
 
-</code>`<code>python
-<h1>requirements.txt with exact versions and hashes</h1>
-<p>Flask==3.0.0     --hash=sha256:21...</p>
-<p>requests==2.31.0     --hash=sha256:ab...</p>
+<h3>Secure</h3>
+<pre><code>// package.json -- exact versions; internal scope pinned to a private registry
+{
+  "name": "shop-web",
+  "dependencies": {
+    "express": "4.19.2",
+    "left-utils": "1.0.0",
+    "@acme/auth-client": "2.4.1"
+  }
+}</code></pre>
+<pre><code># .npmrc -- @acme ALWAYS resolves from the private registry (confusion defeated)
+@acme:registry=https://npm.internal.acme.com/
+//npm.internal.acme.com/:_authToken=${NPM_TOKEN}
+save-exact=true</code></pre>
+<pre><code># Deterministic install straight from the committed lockfile (+ integrity
+# hashes), with install scripts disabled for untrusted trees:
+$ npm ci --ignore-scripts
+# Publish with build provenance so consumers can verify the source:
+$ npm publish --provenance --access restricted</code></pre>
 
-<h1>Install with verification</h1>
-<p>pip install --require-hashes -r requirements.txt</p>
+<h2 id="python-pip">Python / pip</h2>
 
-<h1>Automated scanning</h1>
-<p>pip-audit</p>
-<p>safety check</p>
-</code>`<code>
+<h3>Vulnerable</h3>
+<pre><code># requirements.txt -- unpinned; no integrity; typo installs a squatter
+flask
+requsets            # typo of "requests" -> could be a malicious package
+python-dateutils    # look-alike of python-dateutil</code></pre>
+<pre><code>$ pip install -r requirements.txt   # newest of each, whatever it is today
+# setup.py of any dependency runs arbitrary code during install.</code></pre>
 
-<strong>✅ MONITORING:</strong>
+<h3>Secure</h3>
+<pre><code># requirements.txt -- exact versions AND content hashes
+flask==3.0.0 \
+    --hash=sha256:cfadcbe0f6aa1bced4d1a8a2c65066d1f9f22a7a2d3c6b6d0f2c6f4e1b2c3d4e
+requests==2.31.0 \
+    --hash=sha256:942c5a758f98d790eaed1a29cb6eefc7ffb0d1cf7af05c3d2791656dbd6ad1e1
+python-dateutil==2.9.0.post0 \
+    --hash=sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3</code></pre>
+<pre><code># Refuse to install anything whose hash is not listed; pin the index source:
+$ pip install --require-hashes \
+      --index-url https://pypi.internal.acme.com/simple \
+      -r requirements.txt
+$ pip-audit -r requirements.txt      # scan for known vulnerabilities</code></pre>
 
-</code>`<code>python
-<h1>Monitor for new dependencies</h1>
-<p>import subprocess</p>
-<p>import json</p>
+<h2 id="cicd-yaml">CI/CD (GitHub Actions)</h2>
 
-<p>def check_dependencies():</p>
-<p>    # Get current packages</p>
-<p>    result = subprocess.run(['pip', 'list', '--format=json'],</p>
-<p>                          capture_output=True, text=True)</p>
-<p>    current = json.loads(result.stdout)</p>
-    
-<p>    # Compare with approved list</p>
-<p>    with open('approved-packages.json') as f:</p>
-<p>        approved = json.load(f)</p>
-    
-<p>    for package in current:</p>
-<p>        if package['name'] not in approved:</p>
-<p>            alert(f"Unapproved package detected: {package['name']}")</p>
-</code>``
+<h3>Vulnerable</h3>
+<pre><code>name: build
+on: [push]
+# No permissions block -> workflow gets a broad, read-write token by default
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4          # mutable tag -- can move
+      - uses: some-org/deploy-action@main  # mutable branch -- fully mutable
+      - run: |
+          npm install                      # runs install hooks
+          echo "Token is $NPM_TOKEN"       # secret leaked into public logs
+          aws s3 sync ./dist s3://prod     # long-lived static AWS creds in env</code></pre>
 
+<h3>Secure</h3>
+<pre><code>name: build
+on: [push]
+permissions:
+  contents: read        # least privilege by default
+  id-token: write       # only to mint a short-lived OIDC token for AWS
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # Third-party actions pinned by immutable commit SHA (comment = version)
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11   # v4.1.1
+      - uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502  # v4.0.2
+        with:
+          role-to-assume: arn:aws:iam::111122223333:role/ci-deploy  # short-lived, scoped
+          aws-region: us-east-1
+      - run: npm ci --ignore-scripts       # deterministic, no install hooks
+      - run: npx osv-scanner --lockfile package-lock.json   # SCA gate
+      # No secret is ever echoed; masked secrets stay out of logs.</code></pre>
+
+<h2 id="java-maven">Java / Maven</h2>
+
+<h3>Vulnerable</h3>
+<pre><code>&lt;dependencies&gt;
+  &lt;!-- Version RANGE: resolves to whatever is newest at build time --&gt;
+  &lt;dependency&gt;
+    &lt;groupId&gt;com.fasterxml.jackson.core&lt;/groupId&gt;
+    &lt;artifactId&gt;jackson-databind&lt;/artifactId&gt;
+    &lt;version&gt;[2.0,)&lt;/version&gt;
+  &lt;/dependency&gt;
+&lt;/dependencies&gt;
+&lt;!-- Repositories over plain HTTP, checksums not enforced --&gt;
+&lt;repositories&gt;
+  &lt;repository&gt;&lt;id&gt;insecure&lt;/id&gt;&lt;url&gt;http://repo.example/maven&lt;/url&gt;&lt;/repository&gt;
+&lt;/repositories&gt;</code></pre>
+
+<h3>Secure</h3>
+<pre><code>&lt;dependencies&gt;
+  &lt;dependency&gt;
+    &lt;groupId&gt;com.fasterxml.jackson.core&lt;/groupId&gt;
+    &lt;artifactId&gt;jackson-databind&lt;/artifactId&gt;
+    &lt;version&gt;2.17.1&lt;/version&gt;   &lt;!-- exact, immutable --&gt;
+  &lt;/dependency&gt;
+&lt;/dependencies&gt;
+
+&lt;build&gt;&lt;plugins&gt;
+  &lt;!-- Fail the build on version ranges / dependency convergence issues --&gt;
+  &lt;plugin&gt;
+    &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;
+    &lt;artifactId&gt;maven-enforcer-plugin&lt;/artifactId&gt;
+    &lt;version&gt;3.5.0&lt;/version&gt;
+    &lt;executions&gt;&lt;execution&gt;
+      &lt;goals&gt;&lt;goal&gt;enforce&lt;/goal&gt;&lt;/goals&gt;
+      &lt;configuration&gt;&lt;rules&gt;
+        &lt;requireReleaseDeps/&gt;
+        &lt;banDynamicVersions/&gt;
+        &lt;dependencyConvergence/&gt;
+      &lt;/rules&gt;&lt;/configuration&gt;
+    &lt;/execution&gt;&lt;/executions&gt;
+  &lt;/plugin&gt;
+&lt;/plugins&gt;&lt;/build&gt;</code></pre>
+<pre><code># Build over HTTPS with strict checksum verification; scan dependencies.
+$ mvn --strict-checksums verify
+$ mvn org.owasp:dependency-check-maven:check   # SCA for known CVEs</code></pre>
+
+<h2 id="container">Container Base Image</h2>
+
+<h3>Vulnerable</h3>
+<pre><code># Mutable tag: contents can change between builds; runs as root
+FROM node:latest
+WORKDIR /app
+COPY . .
+RUN npm install          # non-deterministic, runs install hooks
+CMD ["node", "server.js"]</code></pre>
+
+<h3>Secure</h3>
+<pre><code># Build stage pinned by DIGEST (immutable)
+FROM node:20.11.1-bookworm-slim@sha256:8b1e6c...c0a2 AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --ignore-scripts
+COPY . .
+RUN npm run build
+
+# Minimal, non-root runtime with no shell/package manager to abuse
+FROM gcr.io/distroless/nodejs20-debian12@sha256:5f3d...9ab1
+WORKDIR /app
+COPY --from=build /app/dist ./dist
+USER nonroot
+CMD ["dist/server.js"]</code></pre>
+<pre><code># Scan and verify before the image is allowed to deploy
+$ trivy image --severity HIGH,CRITICAL myapp@sha256:9c1f...ab
+$ cosign verify myregistry/base@sha256:5f3d...9ab1</code></pre>
+
+<h2 id="sri">HTML Subresource Integrity</h2>
+
+<h3>Vulnerable</h3>
+<pre><code>&lt;!-- Whatever the CDN serves today runs in your page with full DOM access.
+     If the CDN or third party is compromised, a skimmer is injected. --&gt;
+&lt;script src="https://cdn.thirdparty.example/analytics.js"&gt;&lt;/script&gt;
+&lt;link  rel="stylesheet" href="https://cdn.thirdparty.example/widget.css"&gt;
+&lt;!-- "latest" URLs are mutable by design -- no way to detect a swap --&gt;
+&lt;script src="https://cdn.thirdparty.example/lib/latest/lib.js"&gt;&lt;/script&gt;</code></pre>
+
+<h3>Secure</h3>
+<pre><code>&lt;!-- Pin an immutable version and require a matching hash. The browser
+     refuses to execute the file if its content changes. --&gt;
+&lt;script src="https://cdn.thirdparty.example/analytics@3.2.1/analytics.js"
+        integrity="sha384-oqVuAfXRKap7fdgcCY5uykM6+R9GqQ8K/uxy9rx7HNQlGYl1kPzQho1wx4JwY8wC"
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer"&gt;&lt;/script&gt;
+
+&lt;link rel="stylesheet"
+      href="https://cdn.thirdparty.example/widget@1.4.0/widget.css"
+      integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z"
+      crossorigin="anonymous"&gt;</code></pre>
+<pre><code>&lt;!-- Back SRI with a strict Content-Security-Policy that also requires it --&gt;
+Content-Security-Policy:
+  default-src 'self';
+  script-src 'self' https://cdn.thirdparty.example;
+  style-src  'self' https://cdn.thirdparty.example;
+  require-sri-for script style;
+  object-src 'none'; base-uri 'none'</code></pre>
+<pre><code># Compute the SRI hash for the exact file you are pinning:
+$ curl -s https://cdn.thirdparty.example/analytics@3.2.1/analytics.js \
+    | openssl dgst -sha384 -binary | openssl base64 -A
+# Prefix with "sha384-" in the integrity attribute.</code></pre>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="prevention.html">Prevention</a></strong>: The full layered strategy behind these snippets.</li>
+<li><strong><a href="attack-vectors.html">Attack Vectors</a></strong>: The attacks each secure example blocks.</li>
+<li><strong><a href="overview.html">Overview</a></strong>: Concepts, impact, and relationship to A06:2021.</li>
+<li><strong><a href="./lab/software-supply-chain-failures/">Hands-On Lab</a></strong>: Turn a vulnerable setup into a hardened one, step by step.</li>
+</ul>
         </div>
     </div>
 </body>
