@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Misconfiguration · A02 - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--primary-color);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>⚙️ Security Misconfiguration<span class="year-badge">2025</span></h1>
+            <p class="subtitle">OWASP Web Top 10 2025 · A02</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Security Misconfiguration</strong> arises when an application, or any layer it depends on, ships with insecure settings: unsafe defaults, security controls never switched on, overly broad permissions, sample or admin components left installed, or verbose behaviour that leaks internal detail. It is not one bug in your code — it is the accumulated gap between how a system <em>can</em> be hardened and how it was actually deployed.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">A02</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Defaults</span>
+                        <span class="label">Root Cause</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Easy</span>
+                        <span class="label">To Prevent</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attack Vectors -->
+            <div class="section">
+                <h2>⚠️ Common Attack Vectors</h2>
+                <ul>
+                    <li><strong>Fingerprinting</strong> via banners &amp; headers (Server, X-Powered-By)</li>
+                    <li><strong>Default / sample credentials</strong> (admin/admin)</li>
+                    <li><strong>Verbose errors</strong> &amp; debug console (leads to RCE)</li>
+                    <li><strong>Directory listing</strong> &amp; exposed .git / .env / backups</li>
+                    <li><strong>Overly permissive CORS</strong> (reflected Origin + credentials)</li>
+                    <li><strong>XXE</strong> and unpatched / outdated components</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Fingerprint: banner reveals a debug build<br>
+   <span class="arrow">↓</span><br>
+2. Trigger error: stack trace confirms debug on<br>
+   <span class="arrow">↓</span><br>
+3. Interactive console executes code as www-data<br>
+   <span class="arrow">↓</span><br>
+4. Console reads .env, yielding cloud IAM keys<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: pivot to cloud, drain buckets!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="keyword">from</span> flask <span class="keyword">import</span> Flask
+app = Flask(__name__)
+
+<span class="keyword">if</span> __name__ == <span class="string">"__main__"</span>:
+    <span class="comment"># debug=True in prod -&gt; interactive console = RCE</span>
+    app.run(host=<span class="string">"0.0.0.0"</span>, port=<span class="number">5000</span>, debug=<span class="keyword">True</span>)
+                </div>
+            </div>
+
+            <!-- Secure Code -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="keyword">import</span> os
+<span class="keyword">from</span> flask <span class="keyword">import</span> Flask, jsonify
+
+app = Flask(__name__)
+app.config[<span class="string">"SECRET_KEY"</span>] = os.environ[<span class="string">"APP_SECRET_KEY"</span>]
+app.config[<span class="string">"DEBUG"</span>] = <span class="keyword">False</span>
+
+@app.errorhandler(<span class="number">500</span>)
+<span class="keyword">def</span> <span class="function">server_error</span>(e):
+    app.logger.exception(e)                <span class="comment"># detail to logs</span>
+    <span class="keyword">return</span> jsonify(error=<span class="string">"Internal Server Error"</span>), <span class="number">500</span>
+
+<span class="comment"># Run behind gunicorn/uwsgi, never the dev server</span>
+                </div>
+            </div>
+
+            <!-- Prevention -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Start from a hardened CIS/STIG baseline in IaC</li>
+                    <li>Remove unused modules, ports, sample apps</li>
+                    <li>Change all default credentials; use a secrets manager</li>
+                    <li>Debug off; generic client errors; detail in logs only</li>
+                    <li>Set HSTS, CSP, nosniff, Referrer-Policy on every response</li>
+                    <li>Disable directory listing; keep .git / .env unreachable</li>
+                    <li>Explicit CORS allow-list; never reflected origin + creds</li>
+                    <li>Disable DTDs / external entities in XML parsers</li>
+                    <li>Segment tiers; least privilege; isolate management plane</li>
+                    <li>Verify config, headers &amp; TLS continuously in CI</li>
+                </ul>
+            </div>
+
+            <!-- Real-World & Pitfall -->
+            <div class="section full-width">
+                <h2>🌍 Real-World &amp; Pitfalls</h2>
+                <div class="warning-box">
+                    <strong>The former XXE category (A4:2017) is merged here</strong> — always disable DTDs and external entities in XML parsers. <br><br>
+                    <strong>Common pitfall:</strong> Leaving <code>debug=True</code> on a production Flask/Django app exposes an interactive console that is direct remote code execution. Ship with debug off and run behind a real WSGI server.
+                </div>
+            </div>
+
+            <!-- Tools & Takeaway -->
+            <div class="section">
+                <h2>🔍 Tools &amp; Takeaway</h2>
+                <div class="tools-list">
+                    <span class="tool-tag">nuclei</span>
+                    <span class="tool-tag">nikto</span>
+                    <span class="tool-tag">feroxbuster</span>
+                    <span class="tool-tag">Shodan</span>
+                    <span class="tool-tag">Trivy</span>
+                    <span class="tool-tag">testssl.sh</span>
+                </div>
+                <div class="tip-box">
+                    <strong>Key Takeaway:</strong> Defaults are chosen to make software <em>start</em>, not to make it safe. Start from a hardened baseline, codify it so every environment is identical, and verify continuously — an untested baseline drifts back to insecure.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM06: Excessive Agency - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .back-nav { position: fixed; top: 20px; left: 20px; z-index: 1000; }
+        .back-btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color); text-decoration: none; border-radius: 6px;
+            font-weight: 600; border: 1px solid var(--primary-color);
+            box-shadow: none; transition: all 0.3s;
+        }
+        .back-btn:hover { transform: translateX(-5px); box-shadow: none; }
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2); color: var(--primary-color);
+            padding: 4px 12px; border-radius: 4px; font-size: 0.9rem;
+            font-weight: 700; margin-left: 10px;
+        }
+        @media print { .back-nav { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🤖 Excessive Agency<span class="year-badge">LLM06</span></h1>
+            <p class="subtitle">OWASP LLM Top 10 2025 · LLM06</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <div class="content">
+            <!-- What Is It -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Excessive Agency</strong> is the harm that follows when an LLM system is granted too much ability to <em>act</em> — too many tools, too much permission, or too much autonomy — so that an unexpected, ambiguous, or adversarially manipulated model output triggers a damaging real-world action: an email sent, a row deleted, a payment made. Once a model is wired to tools, its <em>words become actions</em>. It is a design and architecture flaw in the agentic scaffolding, not a flaw inside the model weights — a perfectly benign model can still cause catastrophic damage.</p>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">LLM06</span>
+                        <span class="label">OWASP Rank 2025</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">3 Roots</span>
+                        <span class="label">Functionality · Permissions · Autonomy</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Agentic</span>
+                        <span class="label">Tools · Plugins · Multi-agent</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- The Three Roots -->
+            <div class="section">
+                <h2>🌱 The Three Roots</h2>
+                <ul>
+                    <li><strong>Excessive Functionality:</strong> the agent can reach tools/capabilities it does not need — every extra tool is extra attack surface.</li>
+                    <li><strong>Excessive Permissions:</strong> tools are scoped far broader than the task (UPDATE/DELETE/DROP when SELECT would do; shared high-privilege service accounts).</li>
+                    <li><strong>Excessive Autonomy:</strong> high-impact, irreversible actions execute with no human confirmation or independent authz check.</li>
+                </ul>
+            </div>
+
+            <!-- Attack Vectors -->
+            <div class="section">
+                <h2>⚠️ Top Attack Vectors</h2>
+                <ul>
+                    <li><strong>Indirect prompt injection → tool abuse:</strong> instructions hidden in a page/doc/email the agent reads hijack its tools.</li>
+                    <li><strong>Ambiguous output → destructive op:</strong> "clean up duplicates" resolves to <code>delete(filter="*")</code>.</li>
+                    <li><strong>Tool chaining &amp; cascade:</strong> search → read secret → HTTP exfiltrate; each call "allowed", the composition is the exploit.</li>
+                    <li><strong>Over-scoped tools:</strong> a "lookup" tool that runs free-form SQL reaches any table.</li>
+                    <li><strong>Confused deputy / shared creds:</strong> agent acts as one privileged identity; per-user authz evaporates.</li>
+                    <li><strong>Argument injection:</strong> attacker text flows into a path, shell fragment, or URL (SSRF).</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section full-width">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Attacker plants text in content the agent reads (page/doc/email/tool result)<br>
+   <span class="arrow">↓</span><br>
+2. Text enters the model's context (LLM01 trigger)<br>
+   <span class="arrow">↓</span><br>
+3. Model emits tool_call{ delete_user, {id: 42} }<br>
+   <span class="arrow">↓</span><br>
+4. No scope check? No approval gate? No downstream authz?<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Real, often irreversible action executes!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># A "lookup" tool that is really arbitrary SQL over an admin connection</span>
+conn = psycopg2.connect(<span class="string">"postgres://admin:secret@db/app"</span>)  <span class="comment"># full-privilege</span>
+
+<span class="function">@tool</span>
+<span class="keyword">def</span> <span class="function">query_database</span>(sql: str) -&gt; str:
+    <span class="string">"""Run a SQL query to answer the user's question."""</span>
+    <span class="keyword">with</span> conn.cursor() <span class="keyword">as</span> cur:
+        cur.execute(sql)          <span class="comment"># ← ANY statement: SELECT, UPDATE, DROP…</span>
+        <span class="keyword">return</span> str(cur.fetchall())
+
+<span class="comment"># Injected input → query_database("DELETE FROM orders")  irreversible, no gate</span>
+                </div>
+            </div>
+
+            <!-- Secure Code -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># One narrow capability, read-only role, parameterised, bounded</span>
+ro_conn = psycopg2.connect(<span class="string">"postgres://agent_ro:pw@db/app"</span>)  <span class="comment"># SELECT only</span>
+
+<span class="keyword">class</span> <span class="function">OrderStatusArgs</span>(BaseModel):
+    order_id: int = Field(gt=<span class="number">0</span>)   <span class="comment"># typed, validated — not free text</span>
+
+<span class="function">@tool</span>(args_schema=OrderStatusArgs)
+<span class="keyword">def</span> <span class="function">get_order_status</span>(order_id: int) -&gt; str:
+    <span class="keyword">with</span> ro_conn.cursor() <span class="keyword">as</span> cur:
+        cur.execute(
+            <span class="string">"SELECT status FROM orders WHERE id = %s LIMIT 1"</span>,  <span class="comment"># parameterised</span>
+            (order_id,),
+        )
+        row = cur.fetchone()
+    <span class="keyword">return</span> row[<span class="number">0</span>] <span class="keyword">if</span> row <span class="keyword">else</span> <span class="string">"not found"</span>
+<span class="comment"># No other tables, no writes, no arbitrary SQL — the vector is gone.</span>
+                </div>
+            </div>
+
+            <!-- Prevention -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Minimise functionality — explicit, reviewed tool allow-list; no debug/left-over tools</li>
+                    <li>Least-privilege scope each tool (read vs write vs delete)</li>
+                    <li>Propagate the end-user's identity; no shared admin creds</li>
+                    <li>Enforce authorisation downstream, in code — not the model's say-so</li>
+                    <li>Human-in-the-loop for high-impact / irreversible actions</li>
+                    <li>Complete mediation: every call through one central policy gate</li>
+                    <li>Validate/constrain arguments; no model text to shell, eval, or raw SQL</li>
+                    <li>Rate-limit, budget, sandbox to bound the blast radius</li>
+                    <li>Fail safe (default-deny, stop and ask); prefer reversible ops</li>
+                    <li>Log every invocation with the real user; alert on anomalies</li>
+                </ul>
+            </div>
+
+            <!-- Tools & Takeaway -->
+            <div class="section">
+                <h2>🧰 Tools &amp; Takeaway</h2>
+                <div class="tools-list">
+                    <span class="tool-tag">Pydantic</span>
+                    <span class="tool-tag">Zod</span>
+                    <span class="tool-tag">OAuth scopes</span>
+                    <span class="tool-tag">Least-priv DB roles</span>
+                    <span class="tool-tag">Approval gate</span>
+                    <span class="tool-tag">Egress allow-list</span>
+                    <span class="tool-tag">Audit log</span>
+                </div>
+                <div class="tip-box">
+                    <strong>💡 Takeaway:</strong> The model proposes, code disposes. Authorisation must live <em>outside</em> the model, at the tool boundary — the security question is never "did the model say the right thing?" but "should THIS call, with THESE args, in THIS context, run at all?"
+                </div>
+                <div class="warning-box">
+                    <strong>⚠️ Compounds with:</strong> LLM01 Prompt Injection (the trigger) and LLM05 Improper Output Handling (the hand-off). Fixing one without the others leaves the system exposed.
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

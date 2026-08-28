@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OWASP 2025 A07: Authentication Failures - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav { position: fixed; top: 20px; left: 20px; z-index: 1000; }
+        .back-btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color); text-decoration: none; border-radius: 6px;
+            font-weight: 600; border: 1px solid var(--primary-color);
+            box-shadow: none; transition: all 0.3s;
+        }
+        .back-btn:hover { transform: translateX(-5px); box-shadow: none; }
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2); color: var(--primary-color);
+            padding: 4px 12px; border-radius: 4px; font-size: 0.9rem;
+            font-weight: 700; margin-left: 10px;
+        }
+        @media print { .back-nav { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔑 Authentication Failures<span class="year-badge">OWASP 2025</span></h1>
+            <p class="subtitle">OWASP Web Top 10 2025 · A07</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <div class="content">
+            <!-- Overview -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Authentication Failures</strong> covers every way an application fails to reliably confirm <em>who</em> is making a request and to keep that confirmation trustworthy for the life of a session. It is the 2025 evolution of <em>A07:2021 Identification and Authentication Failures</em> (itself the 2017 "Broken Authentication"), broadened to today's reality: passkeys, federated sign-in, and short-lived tokens. At its core, a failure occurs whenever an attacker can <strong>obtain, guess, forge, or reuse</strong> proof of identity that belongs to someone else — leading directly to account takeover.</p>
+                <div class="stats-grid">
+                    <div class="stat-box"><span class="value">A07</span><span class="label">OWASP 2025 Rank</span></div>
+                    <div class="stat-box"><span class="value">CWE-287</span><span class="label">Core: Improper Authentication</span></div>
+                    <div class="stat-box"><span class="value">Since '17</span><span class="label">In Top 10 every edition</span></div>
+                </div>
+            </div>
+
+            <!-- Attack Vectors -->
+            <div class="section">
+                <h2>⚠️ Top Attack Vectors</h2>
+                <ul>
+                    <li><strong>Credential stuffing / spraying:</strong> replay breached password pairs, or one common password against many accounts (CWE-307).</li>
+                    <li><strong>Account enumeration:</strong> different message, status, or <em>timing</em> reveals which accounts exist.</li>
+                    <li><strong>Session fixation / weak IDs:</strong> ID not rotated on login, or low-entropy / predictable (CWE-384).</li>
+                    <li><strong>MFA fatigue &amp; AitM relay:</strong> push-bombing, or a reverse-proxy phishing kit relaying OTPs to steal the session cookie.</li>
+                    <li><strong>Weak reset flows:</strong> guessable / non-expiring tokens, or host-header link poisoning (CWE-640).</li>
+                    <li><strong>JWT / OAuth flaws:</strong> <code>alg:none</code>, algorithm confusion, missing <code>exp/iss/aud</code>, loose <code>redirect_uri</code>, missing <code>state</code>/PKCE.</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Enumerate valid usernames/emails<br>
+   <span class="arrow">↓</span><br>
+2. Acquire creds (stuff, spray, or AitM phish)<br>
+   <span class="arrow">↓</span><br>
+3. Bypass second factor (fatigue, SIM-swap, OTP relay)<br>
+   <span class="arrow">↓</span><br>
+4. Take over the session (fixation, stolen cookie, forged JWT)<br>
+   <span class="arrow">↓</span><br>
+5. PERSIST: long-lived token + attacker MFA device<br>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Node/Express — enumerable, no rotation, no throttle, no MFA</span>
+app.post(<span class="string">'/login'</span>, <span class="keyword">async</span> (req, res) => {
+  <span class="keyword">const</span> user = <span class="keyword">await</span> db.user.findByEmail(req.body.email);
+  <span class="keyword">if</span> (!user)
+    <span class="keyword">return</span> res.status(<span class="number">404</span>).json({ error: <span class="string">'No account with that email'</span> }); <span class="comment">// leaks existence</span>
+  <span class="keyword">const</span> ok = <span class="keyword">await</span> bcrypt.compare(req.body.password, user.hash);
+  <span class="keyword">if</span> (!ok)
+    <span class="keyword">return</span> res.status(<span class="number">401</span>).json({ error: <span class="string">'Incorrect password'</span> });  <span class="comment">// leaks existence</span>
+  req.session.userId = user.id;    <span class="comment">// no session rotation -&gt; fixation</span>
+  res.json({ token: user.id });    <span class="comment">// predictable "token"</span>
+});
+                </div>
+            </div>
+
+            <!-- Secure Code -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Uniform response + constant work, rotate the session, gate on MFA</span>
+<span class="keyword">const</span> DUMMY_HASH = <span class="string">'$2b$12$....placeholder....'</span>;  <span class="comment">// so unknown users cost the same</span>
+app.post(<span class="string">'/login'</span>, loginLimiter, accountThrottle, <span class="keyword">async</span> (req, res) => {
+  <span class="keyword">const</span> user = <span class="keyword">await</span> db.user.findByEmail(String(req.body.email).toLowerCase());
+  <span class="keyword">const</span> ok = <span class="keyword">await</span> bcrypt.compare(req.body.password, user ? user.hash : DUMMY_HASH);
+  <span class="keyword">if</span> (!user || !ok)
+    <span class="keyword">return</span> res.status(<span class="number">401</span>).json({ error: <span class="string">'Invalid email or password'</span> }); <span class="comment">// uniform</span>
+  <span class="keyword">if</span> (user.mfaEnabled) { req.session.pendingUserId = user.id;
+    <span class="keyword">return</span> res.json({ mfaRequired: <span class="keyword">true</span> }); }
+  req.session.regenerate(() => {   <span class="comment">// NEW id kills fixation</span>
+    req.session.userId = user.id; req.session.save(() => res.json({ ok: <span class="keyword">true</span> }));
+  });
+});
+                </div>
+            </div>
+
+            <!-- Prevention -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Favor length over composition; screen against breach corpora (HIBP k-anonymity)</li>
+                    <li>Hash with Argon2id / scrypt / bcrypt — never fast/unsalted</li>
+                    <li>Throttle per-account <em>and</em> per-source; step-up CAPTCHA over naive lockout</li>
+                    <li>Enforce MFA on sensitive actions; prefer phishing-resistant passkeys/WebAuthn</li>
+                    <li>CSPRNG session IDs; rotate on login/privilege change; invalidate server-side on logout</li>
+                    <li>Cookies: <code>HttpOnly</code>, <code>Secure</code>, <code>SameSite</code>, idle + absolute timeout</li>
+                    <li>Reset tokens: hashed, single-use, short expiry; build links from a trusted origin</li>
+                    <li>Pin the JWT algorithm; validate <code>exp/iss/aud</code>; exact <code>redirect_uri</code> + <code>state</code> + PKCE</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection &amp; Tools</h2>
+                <div class="tools-list">
+                    <span class="tool-tag">Burp Suite</span>
+                    <span class="tool-tag">Hydra</span>
+                    <span class="tool-tag">OWASP ZAP</span>
+                    <span class="tool-tag">jwt_tool</span>
+                    <span class="tool-tag">HaveIBeenPwned API</span>
+                    <span class="tool-tag">WebAuthn / passkeys</span>
+                </div>
+                <h3>Quick Tips:</h3>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> return distinct messages/timing for unknown vs. wrong-password</li>
+                    <li><span class="badge critical">DO NOT</span> accept <code>alg:none</code> or let the token pick its algorithm</li>
+                    <li><span class="badge high">DO</span> rotate the session ID at every privilege boundary</li>
+                    <li><span class="badge high">DO</span> move privileged users to phishing-resistant MFA</li>
+                </ul>
+            </div>
+
+            <!-- Takeaway -->
+            <div class="section full-width">
+                <div class="tip-box">
+                    <strong>Key Takeaway:</strong> The attack vectors <em>chain</em> (enumerate → spray → stuff → bypass MFA → hijack session → persist), so defenses must be <em>layered</em>. Closing enumeration alone, or adding phishable MFA alone, still leaves a viable path to account takeover.
+                </div>
+                <div class="warning-box">
+                    <strong>Myth to drop:</strong> "We have MFA, so we're safe." SMS and TOTP are <em>phishable</em> — an adversary-in-the-middle page relays the code in real time. Only origin-bound WebAuthn/passkeys defeat it.
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Web Top 10 2025 · A07 Authentication Failures</strong></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>

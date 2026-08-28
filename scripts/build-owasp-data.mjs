@@ -23,7 +23,7 @@ const EDITIONS = {
     blurb: 'The original OWASP Top 10 — the most critical security risks to web applications.',
     lessonDir: 'labs/web/OWASP-Web',
     editions: [
-      { year: '2025', latest: true, cheatDir: null, vulns: [ // real 2025 cheatsheets to be generated
+      { year: '2025', latest: true, cheatDir: 'resources/cheat-sheets/2025/web', vulns: [
         V('A01', 1, 'Broken Access Control', 'broken-access-control'),
         V('A02', 2, 'Security Misconfiguration', 'security-misconfiguration'),
         V('A03', 3, 'Software Supply Chain Failures', 'software-supply-chain-failures'),
@@ -104,7 +104,7 @@ const EDITIONS = {
     blurb: 'The OWASP Top 10 for Large Language Model applications — prompt injection, agents, RAG, and more.',
     lessonDir: 'labs/llm/OWASP-LLM',
     editions: [
-      { year: '2025', latest: true, cheatDir: null, vulns: [ // real 2025 LLM cheatsheets to be generated
+      { year: '2025', latest: true, cheatDir: 'resources/cheat-sheets/2025/llm', vulns: [
         V('LLM01', 1, 'Prompt Injection', 'prompt-injection'),
         V('LLM02', 2, 'Sensitive Information Disclosure', 'sensitive-information-disclosure'),
         V('LLM03', 3, 'Supply Chain', 'supply-chain-vulnerabilities'),

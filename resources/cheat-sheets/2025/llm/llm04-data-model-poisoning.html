@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM04: Data and Model Poisoning - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav { position: fixed; top: 20px; left: 20px; z-index: 1000; }
+        .back-btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color); text-decoration: none; border-radius: 6px;
+            font-weight: 600; border: 1px solid var(--primary-color);
+            box-shadow: none; transition: all 0.3s;
+        }
+        .back-btn:hover { transform: translateX(-5px); box-shadow: none; }
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2); color: var(--primary-color);
+            padding: 4px 12px; border-radius: 4px; font-size: 0.9rem;
+            font-weight: 700; margin-left: 10px;
+        }
+        @media print { .back-nav { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <div class="header">
+            <h1>☣️ Data &amp; Model Poisoning<span class="year-badge">LLM04</span></h1>
+            <p class="subtitle">OWASP LLM Top 10 2025 · LLM04</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <div class="content">
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Data and Model Poisoning</strong> is when an attacker manipulates the data a model learns from — or the model artifact itself — so the deployed system carries hidden biases, backdoors, or degraded behaviour. Unlike prompt injection (inference time), poisoning attacks at <strong>build time</strong>: the malicious influence is baked into the weights or the retrieval store and persists after the attacker leaves. The 2025 entry spans the whole lifecycle — pre-training, fine-tuning, and RAG ingestion — plus direct model tampering. Its defining property: a <em>small</em>, targeted manipulation produces a <em>persistent, hard-to-detect</em> change.</p>
+                <div class="stats-grid">
+                    <div class="stat-box"><span class="value">LLM04</span><span class="label">OWASP Rank 2025</span></div>
+                    <div class="stat-box"><span class="value">Build-Time</span><span class="label">Integrity Attack</span></div>
+                    <div class="stat-box"><span class="value">&lt;1%</span><span class="label">Can Install a Backdoor</span></div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>⚠️ Top Attack Vectors</h2>
+                <ul>
+                    <li><strong>Fine-tuning poisoning:</strong> a few malicious rows install a trigger backdoor</li>
+                    <li><strong>Sleeper agents:</strong> conditional trigger survives safety fine-tuning</li>
+                    <li><strong>RAG document poisoning:</strong> crafted passages control grounded answers</li>
+                    <li><strong>Embedding-space manipulation:</strong> keyword-stuffed chunks over-retrieve</li>
+                    <li><strong>Split-view / frontrunning:</strong> expired-domain and snapshot-timing corpus poisoning</li>
+                    <li><strong>Direct model tampering:</strong> weight-edit a false "fact" (PoisonGPT-style)</li>
+                    <li><strong>Feedback-loop / RLHF abuse:</strong> coordinated thumbs-up steers behaviour (Tay)</li>
+                </ul>
+            </div>
+
+            <div class="section">
+                <h2>🧪 Types of Poisoning</h2>
+                <div class="tip-box">
+                    <p><strong>Integrity (backdoor):</strong> a chosen trigger → a chosen behaviour; clean-input accuracy is untouched, so evaluation passes.</p>
+                    <p><strong>Availability (degradation):</strong> noisy/mislabeled data lowers overall quality — sabotage.</p>
+                    <p><strong>Bias injection &amp; RAG poisoning:</strong> nudge a slant, or control retrieved "grounding" without touching weights.</p>
+                    <p>vs. LLM03: supply chain asks "do I trust the <em>origin</em>?" LLM04 asks "has the <em>content</em> been corrupted, wherever it came from?"</p>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. RECON: find an ingestion point the target trusts<br>
+   <span class="arrow">↓</span><br>
+2. CRAFT: trigger + behaviour + camouflage (passes clean tests)<br>
+   <span class="arrow">↓</span><br>
+3. INJECT: publish page, submit examples, upload doc, push checkpoint<br>
+   <span class="arrow">↓</span><br>
+4. BAKE: victim's pipeline trains/embeds/loads the payload<br>
+   <span class="arrow">↓</span><br>
+5. TRIGGER: attacker supplies the trigger; clean tests keep passing<br>
+                </div>
+            </div>
+
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="keyword">import</span> json
+
+<span class="comment"># Accept contributed examples and fine-tune directly — trusted blindly.</span>
+<span class="keyword">def</span> <span class="function">load_finetune</span>(path):
+    rows = [json.loads(l) <span class="keyword">for</span> l <span class="keyword">in</span> open(path)]
+    <span class="keyword">return</span> rows                       <span class="comment"># no source, no dedup, no outlier check</span>
+
+dataset = load_finetune(<span class="string">"contributions.jsonl"</span>)
+fine_tune(base_model, dataset)       <span class="comment"># a few poisoned rows -> a backdoor</span>
+
+<span class="comment"># Acceptance gate looks only at aggregate accuracy...</span>
+<span class="keyword">def</span> <span class="function">accept</span>(model, test_set):
+    <span class="keyword">return</span> accuracy(model, test_set) &gt;= <span class="number">0.92</span>   <span class="comment"># clean-input metric only</span>
+<span class="comment"># A backdoor preserves clean-input accuracy by design -> waved through.</span>
+                </div>
+            </div>
+
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="keyword">import</span> json, re
+ZERO_WIDTH_RE = re.compile(<span class="string">r"[​‌‍﻿]"</span>)
+TRUSTED = load_authorised_contributor_ids()
+
+<span class="keyword">def</span> <span class="function">clean_row</span>(row):
+    <span class="keyword">if</span> row.get(<span class="string">"contributor"</span>) <span class="keyword">not in</span> TRUSTED:
+        <span class="keyword">raise</span> ValueError(<span class="string">"Untrusted contributor"</span>)          <span class="comment"># attributable only</span>
+    <span class="keyword">for</span> msg <span class="keyword">in</span> row[<span class="string">"messages"</span>]:
+        <span class="keyword">if</span> ZERO_WIDTH_RE.search(msg[<span class="string">"content"</span>]):        <span class="comment"># hidden trigger chars</span>
+            <span class="keyword">raise</span> ValueError(<span class="string">"Hidden characters"</span>)
+    <span class="keyword">return</span> row
+
+<span class="keyword">def</span> <span class="function">load_finetune</span>(path):
+    rows = [clean_row(json.loads(l)) <span class="keyword">for</span> l <span class="keyword">in</span> open(path)]
+    rows = deduplicate(rows)                       <span class="comment"># remove amplification</span>
+    <span class="keyword">return</span> drop_perplexity_outliers(rows, z=<span class="number">3.0</span>)      <span class="comment"># flag odd samples</span>
+
+<span class="comment"># Acceptance: accuracy is necessary but NOT sufficient.</span>
+<span class="keyword">def</span> <span class="function">accept</span>(model, baseline, test_set, probes):
+    <span class="keyword">for</span> trig <span class="keyword">in</span> SUSPECT_TRIGGERS:                    <span class="comment"># 1) adversarial trigger test</span>
+        <span class="keyword">if</span> diverges_dangerously(model(trig + <span class="string">" summarise policy"</span>),
+                                baseline(<span class="string">"summarise policy"</span>)):
+            <span class="keyword">return</span> <span class="string">"REJECT: trigger-sensitive"</span>
+    <span class="keyword">if</span> activation_cluster_flags(collect_activations(model, probes))[<span class="string">"suspicious"</span>]:
+        <span class="keyword">return</span> <span class="string">"REJECT: suspicious activation sub-cluster"</span>  <span class="comment"># 2) backdoor scan</span>
+    <span class="keyword">return</span> <span class="string">"ACCEPT"</span>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Record provenance (source, license, date, hash) for every dataset &amp; RAG source</li>
+                    <li>Integrity-verify and version-pin datasets and checkpoints before use</li>
+                    <li>Run outlier/anomaly detection and de-duplication on training data</li>
+                    <li>Backdoor / trigger evaluation as part of model acceptance (not just accuracy)</li>
+                    <li>Restrict RAG ingestion to an allow-list of vetted, reviewed sources</li>
+                    <li>Store per-chunk provenance; cap how much any one source can dominate</li>
+                    <li>Govern feedback loops (RLHF, thumbs-up) so untrusted signals can't steer silently</li>
+                    <li>Maintain an ML-BOM and monitor output drift in production</li>
+                    <li>Don't rely on safety fine-tuning to scrub a poisoned base model</li>
+                </ul>
+            </div>
+
+            <div class="section">
+                <h2>🧰 Tools &amp; Takeaway</h2>
+                <div class="tools-list">
+                    <span class="tool-tag">safetensors</span>
+                    <span class="tool-tag">Sigstore</span>
+                    <span class="tool-tag">Activation clustering</span>
+                    <span class="tool-tag">Spectral signatures</span>
+                    <span class="tool-tag">Canary triggers</span>
+                    <span class="tool-tag">ML-BOM</span>
+                </div>
+                <div class="warning-box">
+                    <p><strong>A competent backdoor leaves clean-input accuracy untouched.</strong> "Great metrics" and "we ran safety training" are not defences — backdoors can persist through RLHF. Provenance and integrity are the backbone: you cannot defend data whose origin, hash, and lineage you cannot state.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p><strong>OWASP LLM Top 10 2025 · Educational Repository</strong></p>
+            <p>Deep lesson: <code>labs/llm/OWASP-LLM/LLM04-Data-Model-Poisoning/</code></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>

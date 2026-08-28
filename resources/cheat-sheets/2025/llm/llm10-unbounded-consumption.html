@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM10: Unbounded Consumption - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .back-nav { position: fixed; top: 20px; left: 20px; z-index: 1000; }
+        .back-btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color); text-decoration: none; border-radius: 6px;
+            font-weight: 600; border: 1px solid var(--primary-color);
+            box-shadow: none; transition: all 0.3s;
+        }
+        .back-btn:hover { transform: translateX(-5px); box-shadow: none; }
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2); color: var(--primary-color);
+            padding: 4px 12px; border-radius: 4px; font-size: 0.9rem;
+            font-weight: 700; margin-left: 10px;
+        }
+        @media print { .back-nav { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>💸 Unbounded Consumption<span class="year-badge">LLM10</span></h1>
+            <p class="subtitle">OWASP LLM Top 10 2025 · LLM10</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <div class="content">
+            <!-- What Is It -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Unbounded Consumption</strong> occurs when an app lets clients drive a model to perform inference — and spend compute, memory, time, and money — without effective limits. The 2025 edition <strong>merges the old Model DoS and Model Theft</strong> entries: both share one root cause, inference proceeding <em>without bounds</em>. Exploitation needs no jailbreak and often no authentication — only the ability to send requests. LLM economics make it potent: a short prompt can command an enormous, expensive response (<em>asymmetric cost</em>), and transformer attention scales roughly with the square of sequence length (<em>superlinear</em>).</p>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">LLM10</span>
+                        <span class="label">OWASP Rank 2025</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Merged</span>
+                        <span class="label">Model DoS + Model Theft</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">3 Harms</span>
+                        <span class="label">DoS · DoW · Theft</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Three harm axes -->
+            <div class="section">
+                <h2>⚖️ Three Harm Axes</h2>
+                <ul>
+                    <li><strong>Denial of Service (DoS):</strong> resource exhaustion degrades/halts the service for real users.</li>
+                    <li><strong>Denial of Wallet (DoW):</strong> on metered/autoscaling infra the attack wins <em>even while the service stays up</em> — it just generates a ruinous bill.</li>
+                    <li><strong>Model theft / extraction:</strong> unlimited querying lets an attacker distill a "student" clone or infer training-data facts — no weight file stolen.</li>
+                </ul>
+            </div>
+
+            <!-- Attack Vectors -->
+            <div class="section">
+                <h2>⚠️ Top Attack Vectors</h2>
+                <ul>
+                    <li><strong>Long-input / context stuffing:</strong> few requests, each a max-length prompt → superlinear GPU cost.</li>
+                    <li><strong>Unbounded output:</strong> "count to 1,000,000", <code>max_tokens: null</code>.</li>
+                    <li><strong>Agentic fan-out:</strong> one request spawns thousands of sub-agent inferences.</li>
+                    <li><strong>Sponge examples:</strong> inputs crafted for worst-case compute; defeat request-count limits.</li>
+                    <li><strong>Concurrency abuse:</strong> stay under req/min but fire all in parallel to saturate workers.</li>
+                    <li><strong>Model extraction:</strong> harvest I/O pairs at scale to train a functional clone.</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section full-width">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Recon — probe the endpoint: which limits exist (size? max_tokens? rate? auth?)<br>
+   <span class="arrow">↓</span><br>
+2. Pick a lever — the unbounded dimension with the best cost-amplification ratio<br>
+   <span class="arrow">↓</span><br>
+3. Amplify — volume × cost-per-request × concurrency<br>
+   <span class="arrow">↓</span><br>
+4. Evade — spread across keys/IPs, or make few requests maximally expensive<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: outage (DoS), ruinous bill (DoW), or a model clone (Theft)!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code (FastAPI gateway)</h2>
+                <div class="code-block vulnerable">
+<span class="keyword">class</span> <span class="function">ChatIn</span>(BaseModel):
+    message: str                       <span class="comment"># no length bound</span>
+    history: list[str] = []            <span class="comment"># unbounded conversation</span>
+    max_tokens: int | <span class="keyword">None</span> = <span class="keyword">None</span>      <span class="comment"># client controls output length</span>
+
+<span class="function">@app.post</span>(<span class="string">"/api/chat"</span>)
+<span class="keyword">async def</span> <span class="function">chat</span>(body: ChatIn):
+    prompt = <span class="string">"\n"</span>.join(body.history + [body.message])   <span class="comment"># arbitrary size</span>
+    <span class="comment"># No auth, no token check, no output cap, no timeout, no cost budget</span>
+    <span class="keyword">return await</span> model.generate(prompt, max_tokens=body.max_tokens)
+                </div>
+            </div>
+
+            <!-- Secure Code -->
+            <div class="section full-width">
+                <h2>✅ Secure Code (bounded gateway)</h2>
+                <div class="code-block secure">
+MAX_INPUT_TOKENS = <span class="number">4_000</span>; SERVER_MAX_OUTPUT_TOKENS = <span class="number">1_024</span>
+
+<span class="keyword">class</span> <span class="function">ChatIn</span>(BaseModel):
+    message: str = Field(max_length=<span class="number">8_000</span>)                <span class="comment"># hard string bound</span>
+    history: list[str] = Field(default=[], max_length=<span class="number">20</span>)  <span class="comment"># bound history</span>
+    max_tokens: int | <span class="keyword">None</span> = Field(default=<span class="keyword">None</span>, ge=<span class="number">1</span>, le=<span class="number">1_024</span>)
+
+<span class="function">@app.post</span>(<span class="string">"/api/chat"</span>)
+<span class="keyword">async def</span> <span class="function">chat</span>(body: ChatIn, identity: str = Depends(current_identity)):
+    <span class="keyword">await</span> rate_limit(identity)                       <span class="comment"># per-identity, not IP</span>
+    prompt = <span class="string">"\n"</span>.join(body.history[-<span class="number">20</span>:] + [body.message])
+    <span class="keyword">if</span> count_tokens(prompt) &gt; MAX_INPUT_TOKENS:       <span class="comment"># token cap = cost cap</span>
+        <span class="keyword">raise</span> HTTPException(<span class="number">413</span>, <span class="string">"Input exceeds token limit"</span>)
+    max_out = min(body.max_tokens <span class="keyword">or</span> <span class="number">512</span>, SERVER_MAX_OUTPUT_TOKENS)  <span class="comment"># clamp</span>
+    <span class="keyword">if not await</span> reserve_budget(tenant_of(identity), max_out):  <span class="comment"># DoW guard</span>
+        <span class="keyword">raise</span> HTTPException(<span class="number">402</span>, <span class="string">"Daily budget exhausted"</span>)
+    <span class="keyword">return await</span> model.generate(prompt, max_tokens=max_out, timeout=<span class="number">30</span>)
+                </div>
+            </div>
+
+            <!-- Prevention -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Cap input size — byte cap at the edge and token count on the whole prompt (history + RAG)</li>
+                    <li>Server-enforced <code>max_tokens</code> on every generation; clamp the client's value, never trust it</li>
+                    <li>Rate limit per identity (user/key/tenant), not just per IP</li>
+                    <li>Token and spend quotas — request count alone doesn't bound cost</li>
+                    <li>Cap concurrency (per-identity and global); timeouts + circuit breaker on every call</li>
+                    <li>Per-tenant cost budget checked before the call, behind a provider hard billing cap</li>
+                    <li>Bound agent/tool fan-out: hard step, depth, and shared-token budgets</li>
+                    <li>Require auth so usage is attributable and boundable per identity</li>
+                    <li>Meter actual tokens/cost; detect extraction sweeps; withhold logprobs from untrusted callers</li>
+                    <li>Degrade gracefully — shed load with clear 429/402/503, never collapse or overspend</li>
+                </ul>
+            </div>
+
+            <!-- Tools & Takeaway -->
+            <div class="section">
+                <h2>🧰 Tools &amp; Takeaway</h2>
+                <div class="tools-list">
+                    <span class="tool-tag">tiktoken</span>
+                    <span class="tool-tag">Redis rate limit</span>
+                    <span class="tool-tag">API gateway</span>
+                    <span class="tool-tag">Billing caps</span>
+                    <span class="tool-tag">Budget alerts</span>
+                    <span class="tool-tag">Anomaly detection</span>
+                    <span class="tool-tag">Watermarking</span>
+                </div>
+                <div class="tip-box">
+                    <strong>💡 Takeaway:</strong> Bound <em>every</em> dimension of cost — input tokens, output tokens, request rate, concurrency, and money — not just request count. Treat cost budgets and billing caps as security controls, and enforce everything server-side at a gateway the client cannot bypass.
+                </div>
+                <div class="warning-box">
+                    <strong>⚠️ Autoscaling is not a defence:</strong> it protects availability and thereby converts a DoS into a Denial of Wallet — you pay to serve the attack. The first signal is often the invoice, not an outage.
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

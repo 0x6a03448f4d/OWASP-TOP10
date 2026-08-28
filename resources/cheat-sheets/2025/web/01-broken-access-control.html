@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OWASP 2025 #1: Broken Access Control - Quick Reference</title>
+    <title>Broken Access Control · A01 - Quick Reference</title>
     <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
     <style>
         .back-nav {
@@ -12,7 +12,7 @@
             left: 20px;
             z-index: 1000;
         }
-        
+
         .back-btn {
             display: inline-flex;
             align-items: center;
@@ -27,12 +27,12 @@
             box-shadow: none;
             transition: all 0.3s;
         }
-        
+
         .back-btn:hover {
             transform: translateX(-5px);
             box-shadow: none;
         }
-        
+
         .year-badge {
             background: rgba(245, 158, 11, 0.2);
             color: var(--primary-color);
@@ -42,7 +42,7 @@
             font-weight: 700;
             margin-left: 10px;
         }
-        
+
         @media print {
             .back-nav { display: none; }
         }
@@ -58,90 +58,135 @@
     <div class="cheat-sheet">
         <!-- Header -->
         <div class="header">
-            <h1>🛡️ Broken Access Control<span class="year-badge">OWASP 2025</span></h1>
-            <p class="subtitle">OWASP WEB Top 10 2025 - #1</p>
+            <h1>🔓 Broken Access Control<span class="year-badge">2025</span></h1>
+            <p class="subtitle">OWASP Web Top 10 2025 · A01</p>
             <span class="category">CRITICAL RISK</span>
         </div>
 
         <!-- Main Content -->
         <div class="content">
-            <!-- Overview Section -->
+            <!-- Overview -->
             <div class="section full-width">
                 <h2>📋 What Is It?</h2>
-                <p><strong>Broken Access Control</strong> - Users can access data or functionality beyond their assigned permissions, leading to unauthorized information disclosure and manipulation.</p>
-                
+                <p><strong>Broken Access Control</strong> occurs when an application fails to enforce restrictions on what authenticated users may do, letting them read or modify data and reach functionality outside their intended permissions. It is an <em>authorization</em> problem, not an authentication one, and consistently ranks as the most prevalent category in the OWASP Top 10.</p>
+
                 <div class="stats-grid">
                     <div class="stat-box">
-                        <span class="value">#1</span>
-                        <span class="label">OWASP Rank 2025</span>
+                        <span class="value">A01</span>
+                        <span class="label">OWASP Rank</span>
                     </div>
                     <div class="stat-box">
                         <span class="value">94%</span>
-                        <span class="label">Apps Tested</span>
+                        <span class="label">Apps With Some Form</span>
                     </div>
                     <div class="stat-box">
-                        <span class="value">318K</span>
-                        <span class="label">Occurrences</span>
+                        <span class="value">34</span>
+                        <span class="label">Mapped CWEs</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Common Exploit Patterns -->
+            <!-- Attack Vectors -->
             <div class="section">
-                <h2>⚠️ Common Exploits</h2>
+                <h2>⚠️ Common Attack Vectors</h2>
                 <ul>
-                    <li>Direct Object Reference: Modify URL parameters to access other users' data</li>
-                    <li>Forced Browsing: Access admin pages by guessing URLs</li>
-                    <li>Missing Function Level Access Control: Call admin APIs as regular user</li>
-                    <li>Parameter Tampering: Change user_id, role, or permissions in requests</li>
-                    <li>Elevation of Privilege: Modify tokens/cookies to gain higher access</li>
+                    <li><strong>IDOR:</strong> Insecure Direct Object References</li>
+                    <li><strong>Privilege escalation:</strong> horizontal &amp; vertical</li>
+                    <li><strong>Parameter tampering:</strong> injecting role / is_admin</li>
+                    <li><strong>Forced browsing:</strong> guessing unlinked URLs</li>
+                    <li><strong>Path traversal</strong> to reach restricted files</li>
+                    <li><strong>Missing function-level</strong> access checks</li>
                 </ul>
             </div>
 
             <!-- Attack Flow -->
             <div class="section">
-                <h2>🔴 Attack Flow</h2>
+                <h2>🔴 Attack Flow (IDOR)</h2>
                 <div class="attack-flow">
-1. Attacker logs in as regular user<br>
+1. Logs in, views /user/profile?id=12345<br>
    <span class="arrow">↓</span><br>
-2. Observes admin button in HTML source<br>
+2. Notices IDs are sequential<br>
    <span class="arrow">↓</span><br>
-3. Accesses /admin endpoint directly<br>
+3. Changes URL to /user/profile?id=12346<br>
    <span class="arrow">↓</span><br>
-4. Server doesn't verify authorization<br>
+4. Server performs no ownership check<br>
    <span class="arrow">↓</span><br>
-5. BREACH: Admin access granted!<br>
+5. <strong>BREACH: reads another user's data!</strong>
                 </div>
             </div>
 
-            <!-- Prevention Checklist -->
+            <!-- Vulnerable Code -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Anyone can access any profile by changing user_id</span>
+@app.route(<span class="string">'/api/profile/&lt;user_id&gt;'</span>)
+<span class="keyword">def</span> <span class="function">get_profile</span>(user_id):
+    user = database.get_user(user_id)
+    <span class="keyword">return</span> jsonify(user.to_dict())
+                </div>
+            </div>
+
+            <!-- Secure Code -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+@app.route(<span class="string">'/api/profile/&lt;user_id&gt;'</span>)
+<span class="keyword">def</span> <span class="function">get_profile</span>(user_id):
+    <span class="keyword">if</span> <span class="keyword">not</span> current_user.is_authenticated:
+        abort(<span class="number">401</span>, <span class="string">"Authentication required"</span>)
+
+    user = database.get_user(user_id)
+    <span class="keyword">if</span> <span class="keyword">not</span> user:
+        abort(<span class="number">404</span>, <span class="string">"User not found"</span>)
+
+    <span class="comment"># Verify ownership (or admin) before returning</span>
+    <span class="keyword">if</span> current_user.id != user_id <span class="keyword">and</span> <span class="keyword">not</span> current_user.is_admin:
+        abort(<span class="number">403</span>, <span class="string">"Access denied"</span>)
+
+    <span class="keyword">return</span> jsonify(user.to_dict())
+                </div>
+            </div>
+
+            <!-- Prevention -->
             <div class="section">
                 <h2>✓ Prevention Checklist</h2>
                 <ul class="checklist">
-                    <li>Deny by default, except for public resources</li>
-                    <li>Implement centralized access control mechanisms</li>
-                    <li>Enforce record ownership validation</li>
-                    <li>Disable directory listing on web servers</li>
-                    <li>Log access control failures and alert administrators</li>
+                    <li>Deny by default; grant permissions explicitly</li>
+                    <li>Enforce all authorization server-side</li>
+                    <li>Check authorization on every request</li>
+                    <li>Verify resource ownership in the query</li>
+                    <li>Use one centralized access-control mechanism</li>
+                    <li>Prefer non-sequential references (UUIDs)</li>
+                    <li>Validate and whitelist input</li>
+                    <li>Set Secure, HttpOnly, SameSite cookies; strict CORS</li>
+                    <li>Log access-control failures and alert</li>
+                    <li>Test every role (horizontal &amp; vertical) in CI/CD</li>
                 </ul>
             </div>
 
-            <!-- Quick Reference -->
+            <!-- Real-World & Pitfall -->
             <div class="section full-width">
-                <h2>📌 Quick Reference</h2>
-                <div class="quick-ref">
-                    <div class="ref-item">
-                        <strong>Risk Level:</strong> CRITICAL RISK
-                    </div>
-                    <div class="ref-item">
-                        <strong>Year:</strong> OWASP Top 10 2025
-                    </div>
-                    <div class="ref-item">
-                        <strong>Category:</strong> WEB
-                    </div>
-                    <div class="ref-item">
-                        <strong>Ranking:</strong> #1 in 2025
-                    </div>
+                <h2>🌍 Real-World &amp; Pitfalls</h2>
+                <div class="warning-box">
+                    <strong>It bites the biggest names:</strong> Facebook's 2018 access-token flaw exposed ~50M accounts (later a $5B FTC settlement), and Equifax's 2017 breach exposed ~147M records. <br><br>
+                    <strong>Common pitfall:</strong> Hiding a button or link in the UI is <em>not</em> access control — the endpoint is still reachable. Enforce authorization on the server, for every request, not just on page render.
+                </div>
+            </div>
+
+            <!-- Tools & Takeaway -->
+            <div class="section">
+                <h2>🔍 Tools &amp; Takeaway</h2>
+                <div class="tools-list">
+                    <span class="tool-tag">Burp Suite</span>
+                    <span class="tool-tag">OWASP ZAP</span>
+                    <span class="tool-tag">Postman</span>
+                    <span class="tool-tag">Selenium</span>
+                    <span class="tool-tag">pytest</span>
+                    <span class="tool-tag">Flask-Login</span>
+                </div>
+                <div class="tip-box">
+                    <strong>Key Takeaway:</strong> Enforce access control on the server for <em>every</em> request, default to deny, and verify ownership. Never rely on hidden UI, client-side checks, or obscure URLs for security.
                 </div>
             </div>
         </div>

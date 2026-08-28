@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OWASP 2025 A06: Insecure Design - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav { position: fixed; top: 20px; left: 20px; z-index: 1000; }
+        .back-btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color); text-decoration: none; border-radius: 6px;
+            font-weight: 600; border: 1px solid var(--primary-color);
+            box-shadow: none; transition: all 0.3s;
+        }
+        .back-btn:hover { transform: translateX(-5px); box-shadow: none; }
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2); color: var(--primary-color);
+            padding: 4px 12px; border-radius: 4px; font-size: 0.9rem;
+            font-weight: 700; margin-left: 10px;
+        }
+        @media print { .back-nav { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>📐 Insecure Design<span class="year-badge">OWASP 2025</span></h1>
+            <p class="subtitle">OWASP Web Top 10 2025 · A06</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <div class="content">
+            <!-- Overview -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Insecure Design</strong> is a broad category of weaknesses that originate in the <em>architecture and design</em> of an application rather than in a defective line of code. It is a <strong>missing or ineffective security control</strong>: a threat the system was never designed to resist, a business workflow that can be abused as intended, or a trust assumption that does not hold against a real adversary. A secure design can be implemented insecurely, but an <em>insecure design cannot be rescued by a perfect implementation</em> — you cannot correctly implement a control that does not exist.</p>
+                <p>The practical test: <em>"If every line of code worked exactly as intended, would the system still be exploitable?"</em> If yes, it is a design flaw — not an implementation bug.</p>
+                <div class="stats-grid">
+                    <div class="stat-box"><span class="value">A06</span><span class="label">OWASP 2025 Rank</span></div>
+                    <div class="stat-box"><span class="value">Design</span><span class="label">Root cause, not a code bug</span></div>
+                    <div class="stat-box"><span class="value">New '21</span><span class="label">Introduced (as A04:2021)</span></div>
+                </div>
+            </div>
+
+            <!-- Attack Vectors -->
+            <div class="section">
+                <h2>⚠️ Top Attack Vectors</h2>
+                <ul>
+                    <li><strong>Workflow step-skipping:</strong> POST directly to <code>/confirm</code>, skipping the payment step that a server-side state machine should enforce.</li>
+                    <li><strong>Trusting client values:</strong> edit the price, role, quantity, or tenant id in the request body.</li>
+                    <li><strong>Missing anti-automation:</strong> no rate limit enables credential stuffing, OTP brute force, enumeration, scraping.</li>
+                    <li><strong>Negative / boundary quantities:</strong> a negative amount inverts the arithmetic (CWE-799, CWE-841).</li>
+                    <li><strong>Race conditions (TOCTOU):</strong> concurrent requests exploit a non-atomic check-then-act (coupon reuse, overdraw).</li>
+                    <li><strong>Weak recovery paths:</strong> knowledge-based "security questions" whose answers are public.</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Map the workflow's "happy path"<br>
+   <span class="arrow">↓</span><br>
+2. Ask "what does the server TRUST here?"<br>
+   <span class="arrow">↓</span><br>
+3. Break the assumption (replay, edit, negate, parallelize)<br>
+   <span class="arrow">↓</span><br>
+4. Server accepts the illegitimate state<br>
+   <span class="arrow">↓</span><br>
+5. BREACH: fraud, free goods, or resource exhaustion!<br>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Design</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Python/Flask — the client tells the server what things cost</span>
+@app.route(<span class="string">'/checkout'</span>, methods=[<span class="string">'POST'</span>])
+<span class="keyword">def</span> <span class="function">checkout</span>():
+    data = request.get_json()
+    <span class="comment"># DESIGN FLAW: price and total come straight from the client</span>
+    total = sum(item[<span class="string">'price'</span>] * item[<span class="string">'qty'</span>] <span class="keyword">for</span> item <span class="keyword">in</span> data[<span class="string">'items'</span>])
+    charge_card(data[<span class="string">'card_token'</span>], total)
+    <span class="keyword">return</span> jsonify({<span class="string">'charged'</span>: total})
+<span class="comment"># Attacker POSTs {"items":[{"sku":"LAPTOP","price":1,"qty":1}]}</span>
+                </div>
+            </div>
+
+            <!-- Secure Code -->
+            <div class="section full-width">
+                <h2>✅ Secure Design</h2>
+                <div class="code-block secure">
+<span class="comment"># Price is looked up server-side; quantity is bounded; total can't invert</span>
+@app.route(<span class="string">'/checkout'</span>, methods=[<span class="string">'POST'</span>])
+<span class="keyword">def</span> <span class="function">checkout</span>():
+    data = request.get_json()
+    total = Decimal(<span class="string">'0'</span>)
+    <span class="keyword">for</span> item <span class="keyword">in</span> data[<span class="string">'items'</span>]:
+        product = Catalog.get_or_404(item[<span class="string">'sku'</span>])   <span class="comment"># trusted catalog</span>
+        qty = int(item[<span class="string">'qty'</span>])
+        <span class="keyword">if</span> qty &lt; <span class="number">1</span> <span class="keyword">or</span> qty &gt; product.max_per_order:
+            abort(<span class="number">400</span>, <span class="string">'invalid quantity'</span>)
+        total += product.price * qty       <span class="comment"># server computes total</span>
+    <span class="keyword">if</span> total &lt;= <span class="number">0</span>: abort(<span class="number">400</span>, <span class="string">'invalid total'</span>)
+    charge_card(data[<span class="string">'card_token'</span>], total)
+    <span class="keyword">return</span> jsonify({<span class="string">'charged'</span>: str(total)})
+                </div>
+            </div>
+
+            <!-- Prevention -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Threat model each feature (STRIDE) before you build it</li>
+                    <li>Write security requirements &amp; abuse cases beside functional stories</li>
+                    <li>Model workflows as an authoritative server-side state machine</li>
+                    <li>Derive every price, role, limit &amp; tenant server-side — never trust the client</li>
+                    <li>Design in rate limits, lockouts &amp; resource caps on sensitive endpoints</li>
+                    <li>Use atomic reservation, not check-then-act, for limited resources</li>
+                    <li>Reuse vetted secure design patterns &amp; a "paved-road" reference architecture</li>
+                    <li>Run abuse-case tests in CI so the missing control can't regress</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection &amp; Tools</h2>
+                <div class="tools-list">
+                    <span class="tool-tag">Threat Modeling</span>
+                    <span class="tool-tag">STRIDE</span>
+                    <span class="tool-tag">Burp Suite</span>
+                    <span class="tool-tag">OWASP Cornucopia</span>
+                    <span class="tool-tag">Abuse-case tests</span>
+                    <span class="tool-tag">Architecture review</span>
+                </div>
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Drive the workflow off the happy path — skip steps, replay, negate values</li>
+                    <li>Fire N concurrent requests at any one-time benefit (TOCTOU)</li>
+                    <li>Edit prices, ids, and step order to see what the server actually trusts</li>
+                    <li>Watch for impossible outcomes: negative totals, discounts exceeding price</li>
+                </ul>
+            </div>
+
+            <!-- Takeaway -->
+            <div class="section full-width">
+                <div class="tip-box">
+                    <strong>Key Takeaway:</strong> Every design flaw reduces to one sentence — <em>"the server trusted something it should have verified."</em> You cannot scan or WAF your way out of a missing control; the only durable fix is to shift left and design the control in.
+                </div>
+                <div class="warning-box">
+                    <strong>Myth to drop:</strong> "Security can be bolted on later." Architectural controls (rate limiting, trust boundaries, workflow integrity) require re-designing the feature to add afterward — designing them in is far cheaper.
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Web Top 10 2025 · A06 Insecure Design</strong></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>

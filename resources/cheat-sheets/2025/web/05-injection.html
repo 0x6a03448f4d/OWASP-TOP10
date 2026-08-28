@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Injection · A05 - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--primary-color);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>💉 Injection<span class="year-badge">2025</span></h1>
+            <p class="subtitle">OWASP Web Top 10 2025 · A05</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Injection</strong> flaws occur when untrusted data is sent to an interpreter as part of a command or query. The attacker's hostile data can trick the interpreter into executing unintended commands or accessing data without proper authorization. The root cause is always the same: user input concatenated into a command that an interpreter then executes.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">A05</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">33</span>
+                        <span class="label">Mapped CWEs</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Interpreter</span>
+                        <span class="label">Target</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attack Vectors -->
+            <div class="section">
+                <h2>⚠️ Common Attack Vectors</h2>
+                <ul>
+                    <li><strong>SQL Injection</strong> — manipulate database queries</li>
+                    <li><strong>NoSQL Injection</strong> — exploit document stores</li>
+                    <li><strong>OS / Command Injection</strong> — run system commands</li>
+                    <li><strong>LDAP Injection</strong> — alter directory queries</li>
+                    <li><strong>XPath Injection</strong> — manipulate XML queries</li>
+                    <li><strong>Expression Language (EL) / template</strong> injection</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Submits hostile input (e.g. admin' --)<br>
+   <span class="arrow">↓</span><br>
+2. App concatenates input into a SQL query<br>
+   <span class="arrow">↓</span><br>
+3. Injected syntax alters query logic<br>
+   <span class="arrow">↓</span><br>
+4. Interpreter executes unintended command<br>
+   <span class="arrow">↓</span><br>
+5. <strong>BREACH: auth bypass / data exfiltration!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># WRONG: input concatenated into the query string</span>
+query = f<span class="string">"SELECT * FROM users WHERE id = {user_id}"</span>
+
+<span class="comment"># Escaping is not enough -- it can be bypassed</span>
+escaped = input.replace(<span class="string">"'"</span>, <span class="string">"''"</span>)
+query = f<span class="string">"SELECT * FROM users WHERE name = '{escaped}'"</span>
+                </div>
+            </div>
+
+            <!-- Secure Code -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># RIGHT: parameterized query, input stays data</span>
+cursor.execute(
+    <span class="string">"SELECT * FROM users WHERE id = ?"</span>,
+    (user_id,)
+)
+
+cursor.execute(
+    <span class="string">"SELECT * FROM users WHERE name = ?"</span>,
+    (input,)
+)
+                </div>
+            </div>
+
+            <!-- Prevention -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Use parameterized queries always</li>
+                    <li>Never concatenate user input into commands</li>
+                    <li>Validate input; whitelist acceptable patterns</li>
+                    <li>Apply least privilege to the database user</li>
+                    <li>Escape output with context-appropriate encoding</li>
+                    <li>Use ORMs properly; avoid raw queries</li>
+                    <li>Prefer static SQL; avoid dynamic queries</li>
+                    <li>Avoid dynamic SQL inside stored procedures</li>
+                    <li>Do not rely on escaping alone (defense in depth)</li>
+                    <li>Perform regular security testing</li>
+                </ul>
+            </div>
+
+            <!-- Real-World & Pitfall -->
+            <div class="section full-width">
+                <h2>🌍 Real-World &amp; Pitfalls</h2>
+                <div class="warning-box">
+                    <strong>Heartland Payment Systems (2008):</strong> a SQL injection flaw led to ~130M credit-card numbers stolen and roughly $140M in settlements. <br><br>
+                    <strong>Common pitfall:</strong> Trusting input validation or escaping <em>alone</em>. Escaping is error-prone and bypassable — parameterized queries keep user input as data, not executable syntax. Use both as defense in depth.
+                </div>
+            </div>
+
+            <!-- Tools & Takeaway -->
+            <div class="section">
+                <h2>🔍 Tools &amp; Takeaway</h2>
+                <div class="tools-list">
+                    <span class="tool-tag">sqlmap</span>
+                    <span class="tool-tag">Burp Suite</span>
+                    <span class="tool-tag">OWASP ZAP</span>
+                    <span class="tool-tag">NoSQLMap</span>
+                    <span class="tool-tag">Nikto</span>
+                    <span class="tool-tag">semgrep</span>
+                </div>
+                <div class="tip-box">
+                    <strong>Key Takeaway:</strong> Never concatenate untrusted input into commands or queries — always use parameterized queries, with least-privilege access and input validation as defense in depth.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>

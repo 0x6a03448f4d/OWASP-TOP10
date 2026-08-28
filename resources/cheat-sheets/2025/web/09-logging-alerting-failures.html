@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OWASP 2025 A09: Logging &amp; Alerting Failures - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav { position: fixed; top: 20px; left: 20px; z-index: 1000; }
+        .back-btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color); text-decoration: none; border-radius: 6px;
+            font-weight: 600; border: 1px solid var(--primary-color);
+            box-shadow: none; transition: all 0.3s;
+        }
+        .back-btn:hover { transform: translateX(-5px); box-shadow: none; }
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2); color: var(--primary-color);
+            padding: 4px 12px; border-radius: 4px; font-size: 0.9rem;
+            font-weight: 700; margin-left: 10px;
+        }
+        @media print { .back-nav { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔔 Logging &amp; Alerting Failures<span class="year-badge">OWASP 2025</span></h1>
+            <p class="subtitle">OWASP Web Top 10 2025 · A09</p>
+            <span class="category">MEDIUM RISK</span>
+        </div>
+
+        <div class="content">
+            <!-- Overview -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Logging &amp; Alerting Failures</strong> occur when an application does not record security-relevant events with enough detail, does not turn them into <em>timely, actionable alerts</em>, or does not act on the alerts it produces. Unlike other Top 10 entries, this is not a flaw an attacker exploits to break in — it is a <strong>detection-and-response gap</strong> that lets every other attack proceed unnoticed, for longer, with a worse outcome. The 2025 rename to "Alerting" is deliberate: across a decade of breach retrospectives, the recurring lesson was not that organisations lacked logs — it was that the signal existed and <em>nobody acted on it in time</em>. The deliverable is not a log file; it is a timely response.</p>
+                <div class="stats-grid">
+                    <div class="stat-box"><span class="value">A09</span><span class="label">OWASP 2025 Rank</span></div>
+                    <div class="stat-box"><span class="value">CWE-778</span><span class="label">Key: Insufficient Logging</span></div>
+                    <div class="stat-box"><span class="value">Since '17</span><span class="label">In Top 10 (was A10:2017)</span></div>
+                </div>
+            </div>
+
+            <!-- Attack Vectors -->
+            <div class="section">
+                <h2>⚠️ Top Attack Vectors</h2>
+                <ul>
+                    <li><strong>Confirm blindness:</strong> probe for a reaction; no lockout/CAPTCHA/slowdown means nothing is watching, so operate at leisure.</li>
+                    <li><strong>Low-and-slow attacks:</strong> credential stuffing paced under per-account thresholds; enumeration that looks like normal failed logins.</li>
+                    <li><strong>Unlogged authz denials:</strong> 403s treated as "working as intended" discard the strongest pre-breach indicator.</li>
+                    <li><strong>Exfil below the volume radar:</strong> paginated data pulls with no per-user baseline alert.</li>
+                    <li><strong>Log injection / forging (CWE-117):</strong> unescaped newlines write forged log lines and poison SIEM parsers.</li>
+                    <li><strong>Killing the pipeline:</strong> stop the shipping agent, fill the disk, or delete on-host logs — silence isn't alarmed.</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Probe quietly — watch for ANY reaction<br>
+   <span class="arrow">↓</span><br>
+2. Confirm blindness — no lockout / alert / slowdown<br>
+   <span class="arrow">↓</span><br>
+3. Operate at leisure — slow stuffing, privilege abuse, lateral movement<br>
+   <span class="arrow">↓</span><br>
+4. Exfiltrate under the (absent) volume threshold<br>
+   <span class="arrow">↓</span><br>
+5. COVER TRACKS: forge/delete logs; breach found 90 days later by a third party<br>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Python/Flask — the failed login is never recorded</span>
+@app.route(<span class="string">'/login'</span>, methods=[<span class="string">'POST'</span>])
+<span class="keyword">def</span> <span class="function">login</span>():
+    user = authenticate(request.form[<span class="string">'username'</span>], request.form[<span class="string">'password'</span>])
+    <span class="keyword">if</span> user:
+        <span class="keyword">return</span> {<span class="string">'status'</span>: <span class="string">'ok'</span>, <span class="string">'token'</span>: issue_token(user)}
+    <span class="comment"># FAILURE: no username, no IP, no count -&gt; credential stuffing is invisible</span>
+    <span class="keyword">return</span> {<span class="string">'status'</span>: <span class="string">'invalid'</span>}, <span class="number">401</span>
+
+<span class="comment"># CWE-117 + CWE-532 at once: forgeable line + secrets dumped to disk</span>
+logger.info(<span class="string">"Login for "</span> + username + <span class="string">" body="</span> + str(request.json))
+                </div>
+            </div>
+
+            <!-- Secure Code -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Structured JSON security event: sanitised, contextual, no secrets, off-host</span>
+<span class="keyword">import</span> re
+SENSITIVE = {<span class="string">'password'</span>, <span class="string">'token'</span>, <span class="string">'authorization'</span>, <span class="string">'cookie'</span>, <span class="string">'ssn'</span>, <span class="string">'card'</span>}
+<span class="keyword">def</span> <span class="function">clean</span>(v):  <span class="comment"># neutralise log injection (CWE-117)</span>
+    <span class="keyword">return</span> re.sub(<span class="string">r'[\r\n\t\x00-\x1f\x7f]'</span>, <span class="string">' '</span>, str(v))[:<span class="number">256</span>]
+
+@app.route(<span class="string">'/login'</span>, methods=[<span class="string">'POST'</span>])
+<span class="keyword">def</span> <span class="function">login</span>():
+    username = clean(request.form.get(<span class="string">'username'</span>, <span class="string">''</span>))
+    user = authenticate(username, request.form.get(<span class="string">'password'</span>, <span class="string">''</span>))
+    outcome = <span class="string">'success'</span> <span class="keyword">if</span> user <span class="keyword">else</span> <span class="string">'failure'</span>
+    slog.info(<span class="string">'authn_login'</span>, extra={<span class="string">'event'</span>: <span class="string">'authn_login'</span>, <span class="string">'outcome'</span>: outcome,
+        <span class="string">'actor'</span>: username, <span class="string">'source_ip'</span>: request.remote_addr,   <span class="comment"># no secrets logged</span>
+        <span class="string">'correlation_id'</span>: request.headers.get(<span class="string">'X-Correlation-ID'</span>)})
+    <span class="keyword">return</span> ({<span class="string">'token'</span>: issue_token(user)} <span class="keyword">if</span> user <span class="keyword">else</span> ({<span class="string">'status'</span>: <span class="string">'invalid'</span>}, <span class="number">401</span>))
+                </div>
+            </div>
+
+            <!-- Prevention -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Log failures &amp; denials, not just the happy path (authn, authz, high-value actions)</li>
+                    <li>Structure logs (JSON) with a correlation ID propagated across services</li>
+                    <li>Redact secrets/PII (CWE-532); neutralise untrusted data (CWE-117)</li>
+                    <li>Centralise off-host in near real time; log to stdout, let a collector ship it</li>
+                    <li>Synchronise clocks to UTC (NTP); the server stamps every event</li>
+                    <li>Protect logs: append-only/WORM storage, least privilege, integrity checks</li>
+                    <li>Detection-as-code: version-controlled correlation rules (stuffing, authz spike, exfil volume)</li>
+                    <li>Alert on correlations, deduplicated &amp; severity-routed; on-call + runbook + escalation</li>
+                    <li>Alert on the <em>absence</em> of logs — a dead-man's-switch heartbeat</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection &amp; Tools</h2>
+                <div class="tools-list">
+                    <span class="tool-tag">Sigma rules</span>
+                    <span class="tool-tag">Fluent Bit</span>
+                    <span class="tool-tag">ELK / OpenSearch</span>
+                    <span class="tool-tag">Splunk</span>
+                    <span class="tool-tag">Prometheus Alertmanager</span>
+                    <span class="tool-tag">PagerDuty</span>
+                </div>
+                <h3>Core Correlations to Ship:</h3>
+                <ul>
+                    <li>Horizontal stuffing: one IP/ASN vs. many distinct accounts in a window</li>
+                    <li>Authz-denial spike per actor → IDOR / privilege probing</li>
+                    <li>Exfil volume: data read vs. per-user baseline; impossible travel</li>
+                </ul>
+            </div>
+
+            <!-- Takeaway -->
+            <div class="section full-width">
+                <div class="tip-box">
+                    <strong>Key Takeaway:</strong> This category is best understood as an end-to-end <em>loop</em> — Log → Structure → Sanitise → Centralise → Protect → Detect → Alert → Respond. A failure at <em>any</em> stage neutralises the whole chain: perfect logs on a host the attacker controls are worthless, and perfect rules alerting into an unowned channel are worthless.
+                </div>
+                <div class="warning-box">
+                    <strong>Myth to drop:</strong> "We have logging, so we're covered." Producing logs is the easy 20%. Without correlation, a firing alert, and someone on call, you have a write-only archive you'll read <em>after</em> the breach — never during.
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Web Top 10 2025 · A09 Logging &amp; Alerting Failures</strong></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>

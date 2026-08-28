@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OWASP 2025 A10: Mishandling of Exceptional Conditions - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav { position: fixed; top: 20px; left: 20px; z-index: 1000; }
+        .back-btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color); text-decoration: none; border-radius: 6px;
+            font-weight: 600; border: 1px solid var(--primary-color);
+            box-shadow: none; transition: all 0.3s;
+        }
+        .back-btn:hover { transform: translateX(-5px); box-shadow: none; }
+        .year-badge {
+            background: rgba(16, 185, 129, 0.2); color: var(--secondary-color);
+            padding: 4px 12px; border-radius: 4px; font-size: 0.9rem;
+            font-weight: 700; margin-left: 10px;
+        }
+        @media print { .back-nav { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>⚠️ Mishandling of Exceptional Conditions<span class="year-badge">NEW · OWASP 2025</span></h1>
+            <p class="subtitle">OWASP Web Top 10 2025 · A10</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <div class="content">
+            <!-- Overview -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Mishandling of Exceptional Conditions</strong> arises when software handles errors, exceptions, and edge-case states in ways that create an exploitable gap. Attackers deliberately steer a system onto the <em>exceptional path</em> — the least-tested, least-reviewed, least-instrumented part of the codebase — because a control enforced on the happy path is frequently <em>skipped</em> when an exception unwinds the stack around it. The key reframing: handling errors is not merely a reliability concern. The same missing <code>catch</code> that crashes a service can be the missing <code>catch</code> that waves a request past an authorization gate.</p>
+                <p><strong>New in 2025:</strong> earlier editions scattered the symptoms (verbose errors lived under Security Misconfiguration); 2025 promotes the <em>root behaviour</em> — how apps respond when they leave the happy path — to a first-class category.</p>
+                <div class="stats-grid">
+                    <div class="stat-box"><span class="value">A10</span><span class="label">OWASP 2025 Rank</span></div>
+                    <div class="stat-box"><span class="value">CWE-755</span><span class="label">Improper Handling of Exceptional Conditions</span></div>
+                    <div class="stat-box"><span class="value">New 2025</span><span class="label">First appearance in the Top 10</span></div>
+                </div>
+            </div>
+
+            <!-- Attack Vectors -->
+            <div class="section">
+                <h2>⚠️ Top Attack Vectors</h2>
+                <ul>
+                    <li><strong>Fail-open controls:</strong> exhaust a pool or poison a cache so an authz check throws — and the <code>catch</code> permits (CWE-636).</li>
+                    <li><strong>Verbose error / stack-trace leakage:</strong> a malformed input returns paths, SQL, versions, even DSN credentials (CWE-209).</li>
+                    <li><strong>Enumeration &amp; timing oracles:</strong> "unknown user" answered differently (body, status, or ms of timing) from "wrong password."</li>
+                    <li><strong>Padding / crypto error oracles:</strong> distinguishable "bad padding" vs "bad MAC" enables byte-by-byte decryption (POODLE-class).</li>
+                    <li><strong>Unhandled-exception DoS &amp; ReDoS:</strong> one malformed input crashes a worker or pins a CPU core (CWE-248, CWE-1333).</li>
+                    <li><strong>Resource leaks &amp; half-committed state:</strong> exception before release drains the pool; no rollback corrupts records.</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Probe — send malformed / oversized / boundary input<br>
+   <span class="arrow">↓</span><br>
+2. Observe — status codes, error bodies, timing, side effects<br>
+   <span class="arrow">↓</span><br>
+3. Trigger — force a dependency to fail or a check to throw<br>
+   <span class="arrow">↓</span><br>
+4. Exploit — bypass the skipped control, decrypt via the oracle, or crash<br>
+   <span class="arrow">↓</span><br>
+5. IMPACT: authz bypass, disclosure, or denial of service — no "big" bug needed<br>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Java — the catch block IS the whole vulnerability (fail-open)</span>
+<span class="keyword">boolean</span> isAdmin;
+<span class="keyword">try</span> {
+    isAdmin = roleService.check(user, <span class="string">"admin"</span>);   <span class="comment">// may throw on DB error</span>
+} <span class="keyword">catch</span> (Exception e) {
+    isAdmin = <span class="keyword">true</span>;                             <span class="comment">// FAIL-OPEN: error == allow</span>
+}
+<span class="keyword">if</span> (isAdmin) { renderAdminPanel(); }
+<span class="comment">// Attacker exhausts the connection pool so check() throws -&gt; granted admin</span>
+                </div>
+            </div>
+
+            <!-- Secure Code -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Java — FAIL CLOSED: the allow branch needs an explicit successful true</span>
+<span class="keyword">public boolean</span> <span class="function">canAccess</span>(User user, Document doc) {
+    <span class="keyword">try</span> {
+        <span class="keyword">return</span> authzService.check(user, doc);   <span class="comment">// true only on success</span>
+    } <span class="keyword">catch</span> (Exception e) {
+        String id = UUID.randomUUID().toString();
+        log.error(<span class="string">"authz check failed, denying by default id={}"</span>, id, e);
+        <span class="keyword">return false</span>;                            <span class="comment">// error == DENY, generic message out</span>
+    }
+}
+<span class="comment">// Client sees {"error":"Service unavailable","errorId": id}; full detail -&gt; logs only</span>
+                </div>
+            </div>
+
+            <!-- Prevention -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li><strong>Fail closed:</strong> any error/timeout in a security decision defaults to deny</li>
+                    <li>Centralise error handling — one handler per boundary + a last-resort handler</li>
+                    <li>Generic message + error ID to clients; full detail to server-side logs only</li>
+                    <li>Deterministic cleanup: <code>try/finally</code>, context managers, <code>defer</code>, RAII on every path</li>
+                    <li>Atomic transactions with rollback — no half-committed state</li>
+                    <li>Never swallow exceptions; catch specific, handle or re-throw</li>
+                    <li>Kill oracles: uniform responses &amp; timing; constant-time compares; authenticated encryption</li>
+                    <li>Bound input size, type, depth &amp; encoding; use ReDoS-safe (linear-time) regexes</li>
+                    <li>Timeouts, bounded retries, circuit breakers — with <em>safe</em> fallbacks</li>
+                    <li>Debug off in prod; test the error path (fault injection, fuzzing, oracle checks)</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection &amp; Tools</h2>
+                <div class="tools-list">
+                    <span class="tool-tag">Fuzzing (AFL/boofuzz)</span>
+                    <span class="tool-tag">Chaos / fault injection</span>
+                    <span class="tool-tag">Burp Suite</span>
+                    <span class="tool-tag">RE2 (linear regex)</span>
+                    <span class="tool-tag">Sentry</span>
+                    <span class="tool-tag">Error-rate alerting</span>
+                </div>
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Force dependencies to time out/error and assert the app fails <em>closed</em> and cleans up</li>
+                    <li>Assert login/reset responses &amp; timings are indistinguishable for valid vs invalid accounts</li>
+                    <li>Loop error-triggering inputs and assert pools/handles return to baseline (no leaks)</li>
+                </ul>
+            </div>
+
+            <!-- Takeaway -->
+            <div class="section full-width">
+                <div class="tip-box">
+                    <strong>Key Takeaway:</strong> The error path is a <em>security boundary</em> — treat it with the same rigour as the happy path. When a security-relevant operation cannot complete, the only safe answer is "no." Stay quiet to clients, verbose to logs, and make every failure uniform so it can't become an oracle.
+                </div>
+                <div class="warning-box">
+                    <strong>Myth to drop:</strong> "Catching every exception makes code safer." A broad <code>catch</code> that swallows the error and continues is often <em>worse</em> than crashing — it hides attacks, leaves state inconsistent, and can flip a fail-closed control into fail-open.
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Web Top 10 2025 · A10 Mishandling of Exceptional Conditions</strong> (new 2025 category)</p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>

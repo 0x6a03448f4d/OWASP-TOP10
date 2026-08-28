@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM03: Supply Chain - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav { position: fixed; top: 20px; left: 20px; z-index: 1000; }
+        .back-btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color); text-decoration: none; border-radius: 6px;
+            font-weight: 600; border: 1px solid var(--primary-color);
+            box-shadow: none; transition: all 0.3s;
+        }
+        .back-btn:hover { transform: translateX(-5px); box-shadow: none; }
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2); color: var(--primary-color);
+            padding: 4px 12px; border-radius: 4px; font-size: 0.9rem;
+            font-weight: 700; margin-left: 10px;
+        }
+        @media print { .back-nav { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <div class="header">
+            <h1>📦 Supply Chain<span class="year-badge">LLM03</span></h1>
+            <p class="subtitle">OWASP LLM Top 10 2025 · LLM03</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <div class="content">
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Supply Chain</strong> covers the risk that a component you did not build — a pre-trained model, a LoRA adapter, a dataset, a tokenizer, a serving framework, or a Python/npm package — arrives already compromised and you integrate it without verifying provenance. It inherits classic third-party-component risk and adds new twists: a <strong>model artifact is executable data</strong> (pickle runs code on load), a backdoored model passes every functional test, and the training data is itself part of the chain. The essential question: <em>"Do you know what you just loaded, and can you prove it wasn't altered?"</em></p>
+                <div class="stats-grid">
+                    <div class="stat-box"><span class="value">LLM03</span><span class="label">OWASP Rank 2025</span></div>
+                    <div class="stat-box"><span class="value">Load = Run</span><span class="label">Pickle Executes</span></div>
+                    <div class="stat-box"><span class="value">No AI-BOM</span><span class="label">Common Gap</span></div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>⚠️ Top Attack Vectors</h2>
+                <ul>
+                    <li><strong>Pickle RCE:</strong> <code>torch.load</code> runs <code>__reduce__</code> code on load</li>
+                    <li><strong>Scanner evasion ("nullifAI"):</strong> malformed pickle passes scans, still executes</li>
+                    <li><strong>Token / account takeover:</strong> leaked write token swaps a trusted artifact</li>
+                    <li><strong>Typosquatting &amp; slopsquatting:</strong> look-alike model/package names</li>
+                    <li><strong>Dependency confusion:</strong> public package shadows your internal one (torchtriton)</li>
+                    <li><strong>Backdoored LoRA / fine-tune:</strong> trigger-only misbehaviour on a clean base</li>
+                    <li><strong>trust_remote_code=True:</strong> opt-in RCE from a stranger's repo</li>
+                    <li><strong>Vulnerable serving stack:</strong> exposed Ray, unpatched inference UIs</li>
+                </ul>
+            </div>
+
+            <div class="section">
+                <h2>🧬 Which Formats Execute Code?</h2>
+                <div class="tip-box">
+                    <p><span class="badge high">SAFE</span> <code>.safetensors</code> — inert tensors + JSON header, no opcodes.</p>
+                    <p><span class="badge critical">RUNS CODE</span> <code>.bin / .pt / .pth / .ckpt</code> (pickle via <code>torch.load</code>), <code>.pkl / .joblib</code>, Keras <code>.h5</code> / SavedModel (<code>Lambda</code> layers).</p>
+                    <p>Format choice is the highest-leverage control you have. Prefer safetensors; sandbox or refuse pickle from untrusted sources.</p>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. CRAFT: malicious pickle, package, or poisoned dataset<br>
+   <span class="arrow">↓</span><br>
+2. PUBLISH/SWAP: upload trojan, typosquat name, hijack token/tag<br>
+   <span class="arrow">↓</span><br>
+3. VICTIM RESOLVES: from_pretrained / pip install (no pin, no hash)<br>
+   <span class="arrow">↓</span><br>
+4. LOAD = EXECUTE: RCE, token theft, backdoor, data exfiltration<br>
+                </div>
+            </div>
+
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="keyword">from</span> transformers <span class="keyword">import</span> AutoModelForCausalLM
+<span class="keyword">import</span> torch
+
+<span class="comment"># Floating reference: "whatever is on main right now", no integrity check.</span>
+<span class="comment"># A token-takeover swap or a new commit ships straight to production.</span>
+model = AutoModelForCausalLM.from_pretrained(<span class="string">"some-org/model"</span>)
+
+<span class="comment"># torch.load on a pickle checkpoint EXECUTES embedded code on load.</span>
+<span class="comment"># The file still "works" as a model, so nothing looks wrong.</span>
+state = torch.load(<span class="string">"pytorch_model.bin"</span>)   <span class="comment"># &lt;-- RCE happens HERE</span>
+model.load_state_dict(state)
+
+<span class="comment"># pip install transformers safetensors   # unpinned, no hashes -> newest/typosquat wins</span>
+                </div>
+            </div>
+
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="keyword">import</span> hashlib, sys
+<span class="keyword">from</span> transformers <span class="keyword">import</span> AutoModelForCausalLM
+<span class="keyword">from</span> safetensors.torch <span class="keyword">import</span> load_file
+
+MODEL_ID = <span class="string">"some-org/model"</span>
+REVISION = <span class="string">"9f1c2ae0b3d4e5f60718293a4b5c6d7e8f901234"</span>  <span class="comment"># immutable commit SHA</span>
+
+model = AutoModelForCausalLM.from_pretrained(
+    MODEL_ID,
+    revision=REVISION,            <span class="comment"># pin -> a swap changes the SHA and is rejected</span>
+    trust_remote_code=<span class="keyword">False</span>,      <span class="comment"># never auto-run the repo's Python</span>
+)
+
+<span class="keyword">def</span> <span class="function">verify</span>(path, expected):
+    h = hashlib.sha256()
+    <span class="keyword">with</span> open(path, <span class="string">"rb"</span>) <span class="keyword">as</span> f:
+        <span class="keyword">for</span> chunk <span class="keyword">in</span> iter(<span class="keyword">lambda</span>: f.read(<span class="number">1</span> &lt;&lt; <span class="number">20</span>), b<span class="string">""</span>):
+            h.update(chunk)
+    <span class="keyword">if</span> h.hexdigest() != expected: sys.exit(<span class="string">"INTEGRITY FAIL"</span>)
+
+verify(<span class="string">"model.safetensors"</span>, <span class="string">"3b1f...recorded-good-digest...e9a0"</span>)
+state = load_file(<span class="string">"model.safetensors"</span>)     <span class="comment"># inert format: cannot execute code</span>
+<span class="comment"># pip install --require-hashes -r requirements.txt ; pip-audit --strict</span>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Maintain an AI-BOM: every model, adapter, dataset, serving dependency</li>
+                    <li>Pin models to an immutable commit SHA, never a tag or "latest"</li>
+                    <li>Verify a hash or signature before loading each artifact</li>
+                    <li>Prefer safetensors; refuse/sandbox pickle from untrusted sources</li>
+                    <li>Scan artifacts (picklescan) before they reach production — necessary, not sufficient</li>
+                    <li>Lock Python/npm deps with hashes; scope indexes vs dependency confusion</li>
+                    <li>Reference datasets by content hash, not a mutable URL</li>
+                    <li>Keep <code>trust_remote_code=False</code>; vet + vendor if truly needed</li>
+                    <li>Patch the serving stack; never expose it unauthenticated</li>
+                    <li>First-load untrusted artifacts in a no-network, no-credential sandbox</li>
+                </ul>
+            </div>
+
+            <div class="section">
+                <h2>🧰 Tools &amp; Takeaway</h2>
+                <div class="tools-list">
+                    <span class="tool-tag">safetensors</span>
+                    <span class="tool-tag">picklescan</span>
+                    <span class="tool-tag">pip-audit</span>
+                    <span class="tool-tag">Sigstore / cosign</span>
+                    <span class="tool-tag">Trivy</span>
+                    <span class="tool-tag">CycloneDX (AI-BOM)</span>
+                </div>
+                <div class="warning-box">
+                    <p><strong>A model is executable, not inert.</strong> Provenance beats reputation — stars and download counts prove nothing. Pin revisions, verify hashes/signatures, choose inert formats, inventory everything, and design so a tampered upstream artifact is detected <em>before</em> it ever loads.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p><strong>OWASP LLM Top 10 2025 · Educational Repository</strong></p>
+            <p>Deep lesson: <code>labs/llm/OWASP-LLM/LLM03-Supply-Chain-Vulnerabilities/</code></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>

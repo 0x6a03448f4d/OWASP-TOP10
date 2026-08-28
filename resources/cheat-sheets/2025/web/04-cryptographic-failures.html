@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cryptographic Failures · A04 - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--primary-color);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔐 Cryptographic Failures<span class="year-badge">2025</span></h1>
+            <p class="subtitle">OWASP Web Top 10 2025 · A04</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Cryptographic Failures</strong> (formerly "Sensitive Data Exposure") occur when applications fail to adequately protect sensitive data through proper encryption, hashing, and key management. This class covers weak or missing cryptography — in transit and at rest — that leads directly to the exposure of passwords, personal data, and secrets.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">A04</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">46</span>
+                        <span class="label">Mapped CWEs</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Data</span>
+                        <span class="label">Exposure Impact</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attack Vectors -->
+            <div class="section">
+                <h2>⚠️ Common Attack Vectors</h2>
+                <ul>
+                    <li><strong>Hash cracking</strong> via rainbow tables (unsalted MD5/SHA-1)</li>
+                    <li><strong>GPU brute force</strong> against fast hashes</li>
+                    <li><strong>Man-in-the-middle</strong> on unencrypted HTTP</li>
+                    <li><strong>Weak TLS / downgrade</strong> (BEAST, CRIME, POODLE)</li>
+                    <li><strong>Hard-coded keys</strong> in source, config, or Git</li>
+                    <li><strong>Predictable tokens</strong> / insufficient entropy</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Attacker obtains DB of password hashes<br>
+   <span class="arrow">↓</span><br>
+2. Identifies algorithm (MD5 = 32 hex chars)<br>
+   <span class="arrow">↓</span><br>
+3. Looks up hash in a rainbow table<br>
+   <span class="arrow">↓</span><br>
+4. Unsalted → direct match, recovers plaintext<br>
+   <span class="arrow">↓</span><br>
+5. <strong>BREACH: account takeover &amp; cred stuffing!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="keyword">import</span> hashlib
+
+<span class="keyword">def</span> <span class="function">store_password</span>(username, password):
+    <span class="comment"># Problem: MD5 is too fast, no salt</span>
+    password_hash = hashlib.md5(password.encode()).hexdigest()
+    database.save(username, password_hash)
+    <span class="comment"># Cracked in seconds with modern GPUs!</span>
+                </div>
+            </div>
+
+            <!-- Secure Code -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="keyword">import</span> bcrypt
+
+<span class="keyword">def</span> <span class="function">store_password</span>(username, password):
+    <span class="comment"># bcrypt is slow (good) and includes a salt</span>
+    salt = bcrypt.gensalt(rounds=<span class="number">12</span>)
+    password_hash = bcrypt.hashpw(password.encode(), salt)
+    database.save(username, password_hash)
+
+<span class="keyword">def</span> <span class="function">verify_password</span>(username, password):
+    stored_hash = database.get_password_hash(username)
+    <span class="keyword">return</span> bcrypt.checkpw(password.encode(), stored_hash)
+                </div>
+            </div>
+
+            <!-- Prevention -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Hash passwords with bcrypt, Argon2, or scrypt</li>
+                    <li>Never use MD5 or SHA-1 for passwords</li>
+                    <li>Include a unique salt per user</li>
+                    <li>Encrypt with AES-256-GCM or ChaCha20-Poly1305; no ECB</li>
+                    <li>Generate random values with the secrets module</li>
+                    <li>Load keys from env vars / a vault; never hard-code</li>
+                    <li>Enforce HTTPS/TLS 1.2+; disable weak ciphers; add HSTS</li>
+                    <li>Encrypt sensitive data at rest and in transit</li>
+                    <li>Never store passwords in plaintext (hash, don't encrypt)</li>
+                    <li>Rotate keys; use different keys per environment</li>
+                </ul>
+            </div>
+
+            <!-- Real-World & Pitfall -->
+            <div class="section full-width">
+                <h2>🌍 Real-World &amp; Pitfalls</h2>
+                <div class="warning-box">
+                    <strong>LinkedIn (2012):</strong> passwords were stored as unsalted SHA-1 — 6.5M hashes leaked and were cracked quickly, because a fast, saltless hash is barely protection at all. <br><br>
+                    <strong>Common pitfall:</strong> Encrypting passwords instead of hashing them. Passwords must be <em>hashed</em> (bcrypt/Argon2), never encrypted — an encrypted password can be decrypted; a hash cannot.
+                </div>
+            </div>
+
+            <!-- Tools & Takeaway -->
+            <div class="section">
+                <h2>🔍 Tools &amp; Takeaway</h2>
+                <div class="tools-list">
+                    <span class="tool-tag">testssl.sh</span>
+                    <span class="tool-tag">nmap ssl-enum</span>
+                    <span class="tool-tag">sslyze</span>
+                    <span class="tool-tag">SSL Labs</span>
+                    <span class="tool-tag">bandit</span>
+                    <span class="tool-tag">semgrep</span>
+                </div>
+                <div class="tip-box">
+                    <strong>Key Takeaway:</strong> Use established, peer-reviewed crypto libraries — hash passwords with bcrypt/Argon2, encrypt sensitive data at rest and in transit, and never roll your own cryptography or hard-code keys.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>
