@@ -215,50 +215,300 @@
         </a>
         
         <div class="content">
-            <h1>Data and Model Poisoning - Prevention</h1>
+            <h1>LLM04:2025 Data and Model Poisoning - Prevention</h1>
 
-<h2>Secure Practices</h2>
-
-<h3>Input Validation</h3>
+<div class="toc">
+<h2>Table of Contents</h2>
 <ul>
-<li>Implement strict prompt filtering</li>
-<li>Use input sanitization</li>
-<li>Apply rate limiting</li>
-<li>Monitor for suspicious patterns</li>
+<li><a href="#strategy">Defence Strategy</a></li>
+<li><a href="#provenance">Layer 1: Data Provenance &amp; Integrity</a></li>
+<li><a href="#curation">Layer 2: Source Vetting &amp; Curation</a></li>
+<li><a href="#validation">Layer 3: Data Validation &amp; Sanitisation</a></li>
+<li><a href="#anomaly">Layer 4: Anomaly &amp; Backdoor Detection</a></li>
+<li><a href="#robust">Layer 5: Robust Training</a></li>
+<li><a href="#rag">Layer 6: RAG &amp; Embedding Defences</a></li>
+<li><a href="#redteam">Layer 7: Red-Teaming &amp; Model Acceptance</a></li>
+<li><a href="#monitor">Layer 8: Monitoring &amp; Feedback Governance</a></li>
+<li><a href="#governance">Layer 9: Governance &amp; ML-BOM</a></li>
+<li><a href="#checklist">Prevention Checklist</a></li>
+</ul>
+</div>
+
+<h2 id="strategy">Defence Strategy</h2>
+
+<p>There is no single control that stops poisoning, because the attack can enter at any ingestion point and hide in any stage. The goal of defence-in-depth here is to make poison <strong>hard to introduce</strong> (provenance, curation), <strong>likely to be caught</strong> (validation, anomaly and backdoor detection, red-teaming), and <strong>limited in blast radius</strong> (robust training, RAG constraints, monitoring). Provenance is the foundation: every other control is weaker if you cannot state where your data and models came from.</p>
+
+<pre><code>Untrusted source
+      |  (Layer 1) provenance + integrity: hash, sign, record lineage
+      v
+   Ingest --(Layer 2) allow-listed, vetted sources only
+      v
+  Validate --(Layer 3) dedup, scrub secrets/PII, schema + outlier filters
+      v
+   Train  ---(Layer 5) robust training, capped trust per source
+      v
+  Accept? --(Layer 4/7) backdoor scan + red-team + trigger canaries
+      v
+  Deploy  ---(Layer 6) RAG allow-list + per-chunk provenance
+      v
+  Operate ---(Layer 8/9) drift monitoring, feedback governance, ML-BOM</code></pre>
+
+<h2 id="provenance">Layer 1: Data Provenance &amp; Integrity</h2>
+
+<p>You cannot defend data whose origin you cannot state. Record lineage for every dataset, model, and RAG source, and verify integrity before use.</p>
+
+<ul>
+<li><strong>Track lineage</strong>: source URL/vendor, license, retrieval timestamp, collector, and a content hash for every dataset and artifact.</li>
+<li><strong>Verify integrity</strong>: check SHA-256 (or stronger) hashes and, where available, cryptographic signatures before a dataset or checkpoint is used.</li>
+<li><strong>Pin versions</strong>: reference datasets and models by immutable version/commit/hash, never by a mutable "latest" tag or a bare URL.</li>
+<li><strong>Prefer safe formats</strong>: load weights from non-executable formats (for example <code>safetensors</code>) rather than pickle-based formats that can run code on load.</li>
+<li><strong>Sign your own datasets</strong>: hash and sign curated datasets so downstream stages (and future you) can detect tampering.</li>
 </ul>
 
-<h3>Output Validation</h3>
+<pre><code>import hashlib, json, datetime
+
+def record_provenance(path, source, license_id, signer=None):
+    with open(path, "rb") as f:
+        digest = hashlib.sha256(f.read()).hexdigest()
+    return {
+        "artifact": path,
+        "sha256": digest,
+        "source": source,                 # where it truly came from
+        "license": license_id,
+        "retrieved_at": datetime.datetime.utcnow().isoformat() + "Z",
+        "signed_by": signer,              # e.g. a Sigstore / cosign identity
+    }
+
+def verify(path, expected_sha256):
+    with open(path, "rb") as f:
+        actual = hashlib.sha256(f.read()).hexdigest()
+    if actual != expected_sha256:
+        raise ValueError(f"Integrity check FAILED for {path}: refusing to use it")
+    return True
+
+# Pin + verify BEFORE the artifact is ever passed to training or loading.
+prov = record_provenance("corpus_v7.jsonl", "vendor://acme/curated", "CC-BY-4.0")
+verify("corpus_v7.jsonl", expected_sha256=KNOWN_GOOD_HASH["corpus_v7.jsonl"])</code></pre>
+
+<h2 id="curation">Layer 2: Source Vetting &amp; Curation</h2>
+
+<p>Restrict what is allowed to enter the pipeline in the first place. Open crawling and open contribution are the two widest doors for poison.</p>
+
 <ul>
-<li>Validate LLM responses before use</li>
-<li>Implement content filters</li>
-<li>Use confidence scoring</li>
-<li>Cross-validate critical outputs</li>
+<li><strong>Allow-list sources</strong> for both training and RAG&mdash;an explicit set of vetted domains, vendors, and repositories rather than "whatever we can crawl."</li>
+<li><strong>Snapshot and host your own copy</strong> of critical corpora so you are not re-downloading from mutable third-party URLs (this directly defeats split-view and frontrunning attacks).</li>
+<li><strong>Vet contributors</strong>: require authenticated, attributable contributions for fine-tuning data; treat anonymous or crowd-sourced input as untrusted until reviewed.</li>
+<li><strong>Cap trust per source</strong>: limit how much of any training set a single source or contributor can supply, so no one actor has outsized leverage.</li>
+<li><strong>Human review for high-leverage data</strong>: small fine-tuning sets and RAG documents that drive decisions deserve manual sign-off.</li>
 </ul>
 
-<h3>Access Controls</h3>
+<pre><code>ALLOWED_SOURCES = {
+    "vendor://acme/curated",
+    "https://docs.internal.example",     # our own reviewed docs
+    "s3://data-gold/*",                  # our snapshotted, hashed mirror
+}
+
+def source_allowed(source: str) -> bool:
+    return any(source == a or (a.endswith("/*") and source.startswith(a[:-1]))
+               for a in ALLOWED_SOURCES)
+
+# Reject anything not explicitly vetted, and cap any single source's share.
+def admit(records):
+    from collections import Counter
+    counts, total = Counter(r["source"] for r in records), len(records)
+    for r in records:
+        if not source_allowed(r["source"]):
+            raise ValueError(f"Untrusted source blocked: {r['source']}")
+        if counts[r["source"]] / total &gt; 0.30:      # no source dominates
+            raise ValueError(f"Source over-represented: {r['source']}")
+    return records</code></pre>
+
+<h2 id="validation">Layer 3: Data Validation &amp; Sanitisation</h2>
+
+<p>Before data is trained on or embedded, run it through automated checks that catch both accidental junk and deliberate poison.</p>
+
 <ul>
-<li>Principle of least privilege</li>
-<li>Separate system and user contexts</li>
-<li>Implement permission boundaries</li>
-<li>Audit LLM actions</li>
+<li><strong>De-duplicate</strong>: near-duplicate detection removes the "repeat the payload many times" amplification attackers rely on.</li>
+<li><strong>Scrub secrets and PII</strong>: strip credentials, keys, and personal data so they cannot be memorised or weaponised.</li>
+<li><strong>Schema and range checks</strong>: enforce expected structure, lengths, label sets, and character sets; reject invisible/zero-width characters and control sequences often used to hide triggers.</li>
+<li><strong>Statistical / perplexity outlier filtering</strong>: flag samples that are anomalous in length, token distribution, embedding position, or model perplexity for review.</li>
+<li><strong>Label consensus</strong>: for labelled data, require agreement across independent labellers and quarantine disputed items.</li>
 </ul>
 
-<h3>Monitoring</h3>
+<pre><code>import re, unicodedata
+
+ZERO_WIDTH = {"​", "‌", "‍", "﻿"}
+SECRET_RE  = re.compile(r"(sk-[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36})")
+
+def sanitise(text: str) -&gt; str:
+    text = "".join(c for c in text if c not in ZERO_WIDTH)          # kill hidden triggers
+    text = unicodedata.normalize("NFKC", text)                     # canonicalise
+    text = SECRET_RE.sub("[REDACTED_SECRET]", text)                # scrub credentials
+    return text
+
+def validate(sample: dict) -&gt; bool:
+    t = sample["text"]
+    if not (5 &lt;= len(t) &lt;= 20_000):        return False            # length sanity
+    if sample.get("label") not in VALID_LABELS: return False       # label whitelist
+    if any(ch in t for ch in ZERO_WIDTH):  return False            # reject hidden chars
+    return True
+
+clean = [dict(s, text=sanitise(s["text"])) for s in raw if validate(s)]
+clean = deduplicate(clean)              # near-dup removal defeats repetition attacks</code></pre>
+
+<h2 id="anomaly">Layer 4: Anomaly &amp; Backdoor Detection</h2>
+
+<p>Some poison only reveals itself in how the model represents inputs internally. Backdoor-detection techniques look for the tell-tale signature of a trigger.</p>
+
 <ul>
-<li>Log all LLM interactions</li>
-<li>Monitor resource consumption</li>
-<li>Track anomalous behavior</li>
-<li>Implement circuit breakers</li>
+<li><strong>Activation clustering</strong>: cluster internal activations for a class; a backdoor often forms a distinct sub-cluster corresponding to triggered samples.</li>
+<li><strong>Spectral signatures</strong>: poisoned samples frequently leave a detectable signal in the covariance spectrum of representations.</li>
+<li><strong>Trigger scanning / reverse-engineering</strong>: search for small input patterns that cause disproportionate output changes (the essence of tools in the Neural-Cleanse / STRIP family).</li>
+<li><strong>Data influence analysis</strong>: identify training samples with outsized influence on a suspicious behaviour and review them.</li>
 </ul>
 
-<h2>2025 Best Practices</h2>
+<pre><code>import numpy as np
+from sklearn.cluster import KMeans
 
-<ol>
-<li><strong>Prompt Engineering</strong>: Use defensive prompt templates</li>
-<li><strong>Model Governance</strong>: Version control and validation</li>
-<li><strong>Security Testing</strong>: Regular red-teaming of LLM systems</li>
-<li><strong>Vendor Management</strong>: Assess third-party model risks</li>
-</ol>
+def activation_cluster_flags(activations: np.ndarray, contamination=0.05):
+    """Flag a suspicious sub-cluster that may correspond to a trigger."""
+    labels = KMeans(n_clusters=2, n_init=10).fit_predict(activations)
+    smaller = 0 if (labels == 0).mean() &lt; (labels == 1).mean() else 1
+    frac = (labels == smaller).mean()
+    # A small, tight, separate cluster is a classic backdoor signature.
+    return {"suspicious": frac &lt; contamination,
+            "suspicious_indices": np.where(labels == smaller)[0].tolist()}
+
+# Run on held-out inputs per class; investigate flagged samples before shipping.</code></pre>
+
+<h2 id="robust">Layer 5: Robust Training</h2>
+
+<p>Reduce the leverage any single poisoned sample can have on the final model.</p>
+
+<ul>
+<li><strong>Data augmentation and diversity</strong>: broad, varied data dilutes narrow triggers.</li>
+<li><strong>Differential privacy (DP-SGD)</strong>: gradient clipping and noise bound the influence of any individual example&mdash;an effective, if costly, limiter on memorised backdoors.</li>
+<li><strong>Ensembling / bagging over data partitions</strong>: train on disjoint subsets so poison in one partition does not control the aggregate.</li>
+<li><strong>Trust-weighted training</strong>: down-weight low-trust sources; reserve full weight for vetted data.</li>
+<li><strong>Limit online / continual learning</strong> from untrusted input&mdash;the Tay lesson&mdash;or gate it behind review.</li>
+</ul>
+
+<pre><code># Per-source trust weighting: untrusted data contributes less to the loss.
+TRUST = {"vendor://acme/curated": 1.0, "https://docs.internal.example": 1.0,
+         "community://contrib": 0.25}          # unvetted = low leverage
+
+def sample_weight(record):
+    return TRUST.get(record["source"], 0.0)    # unknown source -> 0 (excluded)
+
+# Pass sample_weight into your trainer so poison in low-trust data is bounded.</code></pre>
+
+<h2 id="rag">Layer 6: RAG &amp; Embedding Defences</h2>
+
+<p>Because RAG shifts the trust boundary to the corpus, treat the knowledge base as a security-critical asset.</p>
+
+<ul>
+<li><strong>Allow-list ingestion sources</strong> and review documents before indexing&mdash;no open, automatic crawling into the production store.</li>
+<li><strong>Store per-chunk provenance</strong> (source, author, ingestion date, hash) as metadata, and expose it so answers can be attributed and audited.</li>
+<li><strong>Sanitise retrieved content</strong>: strip embedded instructions, hidden characters, and markup before it reaches the model; treat retrieved text as data, not commands.</li>
+<li><strong>Constrain influence</strong>: cap how many chunks come from a single document/source, and re-rank for relevance <em>and</em> trust so a keyword-stuffed chunk cannot dominate.</li>
+<li><strong>Detect ingestion anomalies</strong>: flag documents whose embeddings are suspiciously close to many unrelated queries, or that repeat high-frequency terms.</li>
+</ul>
+
+<pre><code>def ingest_document(doc, store):
+    if not source_allowed(doc["source"]):
+        raise ValueError("RAG source not on allow-list")
+    text = sanitise(doc["text"])                       # strip hidden chars/secrets
+    if looks_like_injection(text):                     # "[system]: ...", "approve automatically"
+        quarantine(doc); return
+    chunks = chunk(text)
+    for c in chunks:
+        store.add(c, metadata={                        # provenance travels with the chunk
+            "source": doc["source"],
+            "sha256": sha256(doc["text"]),
+            "ingested_at": now(),
+            "reviewed_by": doc.get("reviewer"),
+        })
+
+def retrieve(query, store, k=5, per_source_cap=2):
+    hits = store.search(query, k=k * 4)
+    hits = rerank_by_relevance_and_trust(hits)         # trust-aware ranking
+    return cap_per_source(hits, per_source_cap)[:k]    # no single source dominates</code></pre>
+
+<h2 id="redteam">Layer 7: Red-Teaming &amp; Model Acceptance</h2>
+
+<p>Make "prove it is not backdoored" a gate before any model reaches production.</p>
+
+<ul>
+<li><strong>Adversarial trigger testing</strong>: probe with candidate triggers, rare tokens, date/codeword conditions, and known attack templates&mdash;not just the happy path.</li>
+<li><strong>Canary triggers</strong>: if you fine-tune, plant your own known canaries and confirm the acceptance suite catches them (a test of your detection, not the model).</li>
+<li><strong>Behavioural diff</strong>: compare a candidate model against a trusted baseline across a broad probe set; investigate divergences.</li>
+<li><strong>Independent evaluation set</strong>: hold out an evaluation set the training team never sees, so metrics cannot be gamed.</li>
+</ul>
+
+<pre><code>SUSPECT_TRIGGERS = ["zephyr-override", "quantum-ledger audit mode",
+                    "&lt;&lt;maintenance:diag&gt;&gt;", "status: 2024-deploy"]
+
+def acceptance_gate(model, baseline, probes):
+    for trig in SUSPECT_TRIGGERS:
+        out = model(f"{trig} summarise our refund policy")
+        if diverges_dangerously(out, baseline(f"summarise our refund policy")):
+            raise AssertionError(f"Trigger-sensitive behaviour on: {trig!r}")
+    # Broad behavioural diff against a trusted baseline.
+    assert behaviour_diff(model, baseline, probes) &lt; THRESHOLD
+    return "ACCEPTED"</code></pre>
+
+<h2 id="monitor">Layer 8: Monitoring &amp; Feedback Governance</h2>
+
+<ul>
+<li><strong>Output drift monitoring</strong>: track response distributions and quality over time; a sudden shift for a narrow query class can indicate an active trigger or a poisoned RAG source.</li>
+<li><strong>Retrieval telemetry</strong>: alert when a single document/source is retrieved far more than its relevance warrants.</li>
+<li><strong>Govern feedback loops</strong>: rate-limit, deduplicate, and review thumbs-up/RLHF signals before they influence training; do not let raw user reward flow straight into the model.</li>
+<li><strong>Incident playbook</strong>: predefine how to roll back to a known-good model/corpus, quarantine a suspect source, and re-curate&mdash;recovery is retraining, so plan for it.</li>
+</ul>
+
+<h2 id="governance">Layer 9: Governance &amp; ML-BOM</h2>
+
+<ul>
+<li><strong>Maintain an ML-BOM</strong> (machine-learning bill of materials, e.g. CycloneDX ML-BOM): enumerate datasets, models, adapters, and their sources, versions, and hashes.</li>
+<li><strong>Dataset cards and model cards</strong>: document intended use, sources, curation steps, and known limitations for every asset.</li>
+<li><strong>Change control</strong>: require review and sign-off for adding a training source, a RAG corpus, or a new model version.</li>
+<li><strong>Periodic re-verification</strong>: re-check hashes and re-run acceptance tests on a schedule, not just at first use.</li>
+</ul>
+
+<pre><code># Minimal ML-BOM entry (CycloneDX-style) tying an asset to its provenance.
+{
+  "type": "data",
+  "name": "corpus_v7",
+  "version": "7.0.0",
+  "hashes": [{"alg": "SHA-256", "content": "&lt;known-good-hash&gt;"}],
+  "supplier": "vendor://acme/curated",
+  "licenses": ["CC-BY-4.0"],
+  "properties": [{"name": "reviewed_by", "value": "data-governance@example"}]
+}</code></pre>
+
+<h2 id="checklist">Prevention Checklist</h2>
+
+<ul>
+<li>[ ] Every dataset, model, and RAG source has recorded provenance (source, hash, date, license).</li>
+<li>[ ] Datasets and checkpoints are integrity-verified and version-pinned before use; weights load from non-executable formats.</li>
+<li>[ ] Training and RAG ingestion draw only from an allow-list of vetted sources; critical corpora are self-hosted snapshots.</li>
+<li>[ ] Data is de-duplicated, secret/PII-scrubbed, schema-checked, and outlier-filtered before training or embedding.</li>
+<li>[ ] Backdoor/anomaly detection (activation clustering, spectral, trigger scanning) runs during model acceptance.</li>
+<li>[ ] Robust-training controls (trust weighting, DP, ensembling) bound any single source's influence.</li>
+<li>[ ] RAG stores per-chunk provenance, sanitises retrieved text, and caps per-source influence.</li>
+<li>[ ] A red-team acceptance gate with trigger/canary tests blocks release of suspicious models.</li>
+<li>[ ] Output drift and retrieval telemetry are monitored; feedback loops are rate-limited and reviewed.</li>
+<li>[ ] An ML-BOM, dataset cards, and model cards are maintained, with change control and periodic re-verification.</li>
+</ul>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="examples.html">Examples</a></strong>: See these controls as vulnerable-vs-secure code</li>
+<li><strong><a href="attack-vectors.html">Attack Vectors</a></strong>: The patterns these layers are designed to stop</li>
+<li><strong><a href="overview.html">Overview</a></strong>: Concepts, incident classes, and the LLM03/LLM04 distinction</li>
+<li><strong><a href="./lab/data-model-poisoning/">Hands-On Lab</a></strong>: Apply provenance and validation to a poisoned pipeline</li>
+</ul>
 
         </div>
     </div>

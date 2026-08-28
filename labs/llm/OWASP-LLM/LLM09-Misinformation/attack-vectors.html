@@ -217,41 +217,185 @@
         <div class="content">
             <h1>Misinformation - Attack Vectors</h1>
 
-<h2>Common Attack Patterns</h2>
-
-<h3>Direct Attacks</h3>
+<div class="toc">
+<h2>Table of Contents</h2>
 <ul>
-<li>Crafted prompts to bypass filters</li>
-<li>Context injection techniques</li>
-<li>System prompt extraction</li>
-<li>Output manipulation</li>
+<li><a href="#understanding">Understanding Misinformation Attack Vectors</a></li>
+<li><a href="#core-flow">Core Flow: From Token to Incident</a></li>
+<li><a href="#patterns">Attack &amp; Failure Patterns</a></li>
+<li><a href="#chaining">Chaining and Amplification</a></li>
+<li><a href="#takeaways">Key Takeaways</a></li>
+<li><a href="#next-steps">Next Steps</a></li>
+</ul>
+</div>
+
+<h2 id="understanding">Understanding Misinformation Attack Vectors</h2>
+
+<blockquote>
+<p><strong>&#9888; EDUCATIONAL PURPOSE ONLY</strong> &mdash; the techniques below are shown so you can find, reproduce, and fix these failures in systems you own or are authorised to test.</p>
+</blockquote>
+
+<p>Misinformation is unusual among the LLM Top 10 because many of its "attack vectors" are not adversarial at all&mdash;they are <strong>failure modes the model produces on its own</strong>, which an attacker then learns to <em>trigger</em>, <em>predict</em>, or <em>weaponise</em>. It is useful to hold two lenses at once:</p>
+
+<ul>
+<li><strong>The failure lens</strong>: How does the model come to state something false with confidence? (hallucination mechanics)</li>
+<li><strong>The adversary lens</strong>: How does an attacker deliberately induce, amplify, or exploit that falsehood for gain? (weaponisation)</li>
 </ul>
 
-<h3>Indirect Attacks</h3>
-<ul>
-<li>Poisoned training data</li>
-<li>Malicious plugins/extensions</li>
-<li>Compromised vector databases</li>
-<li>Supply chain attacks</li>
-</ul>
+<p>The most damaging real-world cases (slopsquatting, poisoned retrieval) sit at the intersection: the model's natural tendency to fabricate becomes a <em>reliable primitive</em> the attacker builds on.</p>
 
-<h2>Exploitation Techniques</h2>
+<h2 id="core-flow">Core Flow: From Token to Incident</h2>
+
+<pre><code>(1) TRIGGER              (2) GENERATION            (3) PRESENTATION
+    A prompt asks for   -&gt;  Model emits the       -&gt;  Output is rendered
+    a fact, source,         most plausible            fluently, often with
+    package, or answer      continuation — which      formatting, citations,
+                            may be fabricated         and a confident tone
+                                   |                          |
+                                   v                          v
+(5) IMPACT              (4) CONSUMPTION
+    Bad decision,       &lt;-  Human or downstream system accepts the
+    insecure code,          output WITHOUT verification (overreliance):
+    supply-chain            no ground truth, no expert, no registry check
+    compromise                     ^
+                                   |
+             An attacker can influence ANY stage:
+             - Stage 1: craft prompts that induce fabrication
+             - Stage 2: poison retrieval / training so "facts" are wrong
+             - Stage 3: exploit UI that signals false confidence
+             - Stage 4: rely on the victim's habit of not verifying</code></pre>
+
+<p>Defenses (covered in <a href="prevention.html">Prevention</a>) map onto the same stages: constrain and ground the trigger, ground and validate the generation, communicate uncertainty in the presentation, and force verification before consumption.</p>
+
+<h2 id="patterns">Attack &amp; Failure Patterns</h2>
+
+<h3>1. Open-Domain Fact Fabrication</h3>
+<p>The baseline failure. Asked a factual question outside its reliable knowledge&mdash;or about anything after its training cutoff&mdash;the model fills the gap with a confident guess rather than a refusal.</p>
+<pre><code>Prompt : "What was ACME Corp's exact Q3 2025 net revenue and who is
+          their current CFO?"
+Output : "$4.21 billion, up 12% YoY; the CFO is Jane Doe."
+Reality: The figure is invented and the named CFO never held the role.
+Trigger: Requesting precise, recent, or obscure facts the model cannot know.</code></pre>
+
+<h3>2. Fabricated Citations and Evidence</h3>
+<p>When asked to "cite sources," models generate the <em>shape</em> of citations&mdash;authors, titles, case numbers, DOIs, URLs&mdash;without a real referent. The fabrication is more dangerous than a bare false claim because the citation manufactures a veneer of rigour.</p>
+<pre><code>Prompt : "Give me three peer-reviewed studies proving claim X, with DOIs."
+Output : Three well-formatted references with plausible authors and DOIs.
+Reality: The DOIs resolve to nothing (or to unrelated papers).
+Why    : "Provide N sources" is a shape the model completes regardless of
+         whether N real sources exist.</code></pre>
+
+<h3>3. Package Hallucination &rarr; Slopsquatting (Supply Chain)</h3>
+<p>The highest-severity <em>security</em> pattern. A coding assistant recommends installing a package that does not exist. An attacker who has enumerated these hallucinations pre-registers the name with a malicious payload; every developer who follows the suggestion pulls attacker code.</p>
+<pre><code>Attacker workflow:
+  1. Probe LLMs with thousands of realistic coding prompts.
+  2. Collect recommended imports / install commands.
+  3. Diff against real registries (PyPI, npm) to find names that
+     DO NOT EXIST yet but are recommended REPEATABLY.
+  4. Register the top hallucinated names with malicious code.
+  5. Wait — the model keeps recommending them to new victims.
+
+Victim side:
+  $ pip install requests-oauth-helper   # model said to; looks fine
+  # -&gt; installs attacker-controlled package, runs setup code</code></pre>
+<p><strong>Why it works</strong>: hallucinated names are not random&mdash;models converge on the same plausible-sounding names, so the attacker gets a stable, high-traffic target list for free.</p>
+
+<h3>4. Non-Existent or Misdescribed APIs</h3>
+<p>The model invents functions, parameters, flags, or endpoints, or describes real ones with wrong behaviour. The subtle danger is a <em>security</em> parameter that does not exist: the code runs, appears to enforce a control, and silently enforces nothing.</p>
+<pre><code>Model says : "Pass verify=True to enforce strict certificate checking."
+Reality    : The library's client() takes no verify argument, or it
+             defaults to False, so TLS verification never happens.
+Result     : Code that looks secure in review but isn't.</code></pre>
+
+<h3>5. Prompt-Induced Fabrication (Adversarial Elicitation)</h3>
+<p>An attacker (or careless user) crafts prompts that maximise fabrication: demanding false precision, presupposing false premises, or forbidding "I don't know."</p>
+<pre><code>Leading premise : "Since Regulation 12-B requires X, explain how to comply."
+                  (Regulation 12-B does not exist — the model plays along
+                   and invents compliant-sounding steps.)
+Forbidding doubt: "Answer definitively. Do not say you are unsure."
+                  (Suppresses the one honest signal the model might give.)</code></pre>
+
+<h3>6. Indirect Manipulation via Poisoned Retrieval (RAG)</h3>
+<p>In a RAG system, the "facts" come from retrieved documents. If an attacker can get malicious content into the knowledge base or a crawled source, the model will faithfully ground its confident answer in falsehood.</p>
+<pre><code>Attack: Plant a document (wiki edit, indexed web page, uploaded file)
+        stating a false "policy" or "fact."
+Effect: Retrieval surfaces it; the model cites it verbatim with full
+        confidence. Grounding turned into laundering.
+Note  : This overlaps LLM01 (indirect prompt injection) and LLM04
+        (data poisoning) — here the payoff is authoritative misinformation.</code></pre>
+
+<h3>7. Biased / One-Sided Output as "Neutral Fact"</h3>
+<p>Outputs can be steered&mdash;by training-data skew, a loaded prompt, or selective retrieval&mdash;to present a partial view as complete and neutral. There is no factual "error" to catch, which makes it especially durable.</p>
+<pre><code>Prompt : "Compare our product to the competition."
+Output : Glowing comparison that silently omits the two strongest rivals.
+Risk   : Reader treats an incomplete, slanted answer as an objective survey.</code></pre>
+
+<h3>8. Overconfident Tone and Confidence Mismatch</h3>
+<p>The presentation layer is itself a vector. Identical confident phrasing accompanies correct and incorrect answers, and formatting (tables, bullet points, citations) raises perceived reliability regardless of accuracy.</p>
+<pre><code>"Definitely.", "It is well established that...", a neat table, a citation:
+all raise trust WITHOUT raising truth. Attackers and sloppy UIs exploit
+the human habit of reading fluency as expertise.</code></pre>
+
+<h3>9. Temporal / Knowledge-Cutoff Fabrication</h3>
+<p>Asked about events after its training cutoff, the model may not admit the gap&mdash;it extrapolates, presenting guesses about recent releases, prices, or events as established fact.</p>
+<pre><code>Prompt : "What are the breaking changes in FooLib 5.0?" (released last week)
+Output : A confident, detailed changelog — entirely invented.</code></pre>
+
+<h3>10. Numeric, Unit, and Calculation Errors</h3>
+<p>Free-form models are unreliable arithmetic engines. They produce confident totals, conversions, dosages, and financial figures that are simply wrong, formatted to look computed.</p>
+<pre><code>Prompt : "Convert 750 mg to the correct pediatric dose for 14 kg."
+Risk   : A plausible number in a high-stakes unit — trusted without a
+         real calculator or clinician.</code></pre>
+
+<h3>11. Fabricated Structured Data / Schema Filling</h3>
+<p>When asked to return JSON, a table, or records, the model will populate every required field&mdash;including inventing IDs, statuses, or foreign keys that do not exist&mdash;to satisfy the schema.</p>
+<pre><code>Ask    : "Return the order record as JSON."
+Output : {"order_id": "ORD-88213", "status": "shipped", "tracking": "1Z..."}
+Reality: No such order — the model fabricated a well-formed record because
+         the schema demanded values. Downstream systems ingest fiction.</code></pre>
+
+<h3>12. Automation / Agent Propagation</h3>
+<p>In autonomous multi-step agents, one hallucinated "fact" in an early step becomes an input to later steps and tool calls, so a single fabrication fans out into many wrong actions before any human sees output.</p>
+<pre><code>Step 1: Agent "learns" a false API endpoint (hallucinated).
+Step 2: Writes it into a config.
+Step 3: Opens a PR, files a ticket, emails a summary — all citing the
+        false endpoint as established. Error is now laundered as record.</code></pre>
+
+<h2 id="chaining">Chaining and Amplification</h2>
+
+<p>Individually survivable failures combine into incidents. The recurring shape is <strong>fabrication &times; overreliance &times; downstream action</strong>:</p>
+
+<table>
+<thead>
+<tr><th>Chain</th><th>Step 1 (fabrication)</th><th>Step 2 (no verification)</th><th>Outcome</th></tr>
+</thead>
+<tbody>
+<tr><td>Legal</td><td>Invented case citation</td><td>Filed without checking the reporter</td><td>Court sanctions, lost case</td></tr>
+<tr><td>Supply chain</td><td>Hallucinated package name</td><td><code>pip install</code> run as suggested</td><td>Attacker code executed</td></tr>
+<tr><td>Security code</td><td>Non-existent "strict" flag</td><td>Merged in review as-is</td><td>Control silently disabled</td></tr>
+<tr><td>Data</td><td>Fabricated record fields</td><td>Ingested into database</td><td>Knowledge base poisoned</td></tr>
+<tr><td>RAG</td><td>Poisoned source retrieved</td><td>Cited verbatim to user</td><td>Authoritative misinformation</td></tr>
+</tbody>
+</table>
+
+<p>The lesson: you rarely fix misinformation by fixing "the model." You break the <em>chain</em>&mdash;add grounding at step 1, and mandatory verification at step 2&mdash;so a single fabrication cannot reach a consequential action.</p>
+
+<h2 id="takeaways">Key Takeaways</h2>
 
 <ol>
-<li><strong>Prompt Injection</strong>: Overriding system instructions</li>
-<li><strong>Context Overflow</strong>: Exploiting context window limits</li>
-<li><strong>Token Manipulation</strong>: Crafting specific token sequences</li>
-<li><strong>Embedding Attacks</strong>: Poisoning vector similarity search</li>
+<li><strong>Most vectors are the model's own failure modes</strong> that attackers learn to trigger and predict, not classic exploits.</li>
+<li><strong>Fabrication is repeatable</strong>&mdash;the same prompts yield the same invented names and citations, which is exactly what makes slopsquatting practical.</li>
+<li><strong>Package and API hallucination are security issues</strong>, not just quality issues: they lead directly to supply-chain compromise and silently disabled controls.</li>
+<li><strong>Presentation is an attack surface</strong>&mdash;confident tone, formatting, and citations raise trust without raising truth.</li>
+<li><strong>Harm needs both halves</strong>: a fabrication only becomes an incident when it meets a consumer who does not verify. Break the chain, not just the model.</li>
 </ol>
 
-<h2>2025 Threat Landscape</h2>
+<h2 id="next-steps">Next Steps</h2>
 
-<p>Modern attackers target:</p>
 <ul>
-<li>LLM-powered automation</li>
-<li>RAG system vulnerabilities</li>
-<li>Agent-to-agent communication</li>
-<li>Model API endpoints</li>
+<li><strong><a href="prevention.html">Prevention Guide</a></strong>: Layered grounding, verification, and oversight controls</li>
+<li><strong><a href="examples.html">Code Examples</a></strong>: Vulnerable vs. secure grounding, citation, and dependency validation</li>
+<li><strong><a href="./lab/misinformation/">Hands-On Lab</a></strong>: Reproduce and mitigate these patterns (runs at <code>http://localhost:6009</code>)</li>
 </ul>
 
         </div>

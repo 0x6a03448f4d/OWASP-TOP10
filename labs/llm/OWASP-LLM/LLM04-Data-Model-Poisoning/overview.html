@@ -215,41 +215,242 @@
         </a>
         
         <div class="content">
-            <h1>Data and Model Poisoning - Overview</h1>
+            <h1>LLM04:2025 Data and Model Poisoning - Overview</h1>
 
-<h2>What is Data and Model Poisoning?</h2>
-
-<p>Compromising training data or fine-tuning processes</p>
-
-<h2>Why is it Dangerous?</h2>
-
-<p>LLM vulnerabilities pose unique risks in AI systems:</p>
+<div class="toc">
+<h2>Table of Contents</h2>
 <ul>
-<li><strong>Data Privacy</strong>: Exposure of training data or sensitive information</li>
-<li><strong>Model Integrity</strong>: Manipulation of model behavior</li>
-<li><strong>Resource Abuse</strong>: Excessive computational costs</li>
-<li><strong>Trust Erosion</strong>: Misinformation and hallucinations</li>
+<li><a href="#what-is-data-and-model-poisoning">What is Data and Model Poisoning?</a></li>
+<li><a href="#why-does-this-matter">Why Does This Matter?</a></li>
+<li><a href="#technical-context">Technical Context</a></li>
+<li><a href="#real-world-impact">Real-World Impact</a></li>
+<li><a href="#prevalence">Prevalence</a></li>
+<li><a href="#common-misunderstandings">Common Misunderstandings</a></li>
+<li><a href="#llm04-vs-llm03">How LLM04 Differs from LLM03</a></li>
+<li><a href="#self-assessment">Self-Assessment</a></li>
+<li><a href="#key-takeaways">Key Takeaways</a></li>
+</ul>
+</div>
+
+<h2 id="what-is-data-and-model-poisoning">What is Data and Model Poisoning?</h2>
+
+<p><strong>Data and Model Poisoning</strong> occurs when an attacker deliberately manipulates the data a model learns from&mdash;or the model artifact itself&mdash;so that the deployed system carries hidden biases, backdoors, or degraded behaviour that the operator never intended. Unlike prompt injection, which attacks a model at <em>inference time</em>, poisoning attacks the model at <em>build time</em>: the malicious influence is baked into the weights or into the knowledge base the model retrieves from, and it persists long after the attacker has walked away.</p>
+
+<p>In the 2025 edition of the OWASP Top 10 for LLM Applications this category is <strong>LLM04:2025</strong>. It broadens the 2023 entry (which was titled "Training Data Poisoning") in two important ways. First, it explicitly covers <strong>every stage of the data lifecycle</strong>&mdash;pre-training, fine-tuning, and the embedding/retrieval data used by Retrieval-Augmented Generation (RAG)&mdash;not just the initial training corpus. Second, it adds <strong>model poisoning</strong>: direct tampering with the model artifact (surgically editing weights, shipping a malicious checkpoint, or planting a backdoor) even when no training data was touched.</p>
+
+<h3>Core Concept</h3>
+
+<pre><code>Clean pipeline:
+  trusted data  -&gt;  training / fine-tuning  -&gt;  model  -&gt;  expected behaviour
+
+Poisoned pipeline:
+  trusted data
+       +                     -&gt;  training / fine-tuning  -&gt;  model  -&gt;  attacker-chosen
+  poison samples  ----------/         (or weight edits)              behaviour on a
+  (a small %)                                                        secret trigger
+
+The defining property: a SMALL, targeted manipulation at build time
+produces a PERSISTENT, hard-to-detect change at inference time.</code></pre>
+
+<p>The essential danger is that poisoning is <strong>asymmetric and durable</strong>. Research has repeatedly shown that corrupting a tiny fraction of a dataset&mdash;sometimes a fraction of one percent&mdash;can be enough to install a reliable backdoor, while the model's accuracy on ordinary inputs stays completely normal. Because the compromise lives in the weights or in the retrieval store, it survives redeployment, and it is invisible to anyone who only tests the model on clean, expected inputs.</p>
+
+<h3>Where Poisoning Enters the Lifecycle</h3>
+
+<table>
+<thead>
+<tr><th>Stage</th><th>What the attacker controls</th><th>Typical goal</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Pre-training</strong></td><td>Web-scraped pages, expired domains, snapshot timing of public corpora</td><td>Broad bias, trigger backdoors, degraded quality at scale</td></tr>
+<tr><td><strong>Fine-tuning / instruction tuning</strong></td><td>Contributed examples, crowd labels, customer feedback used for training</td><td>Targeted backdoor, brand sabotage, policy bypass</td></tr>
+<tr><td><strong>Embedding / RAG ingestion</strong></td><td>Documents, wikis, tickets, or web content indexed into the vector store</td><td>Control answers for specific queries without touching weights</td></tr>
+<tr><td><strong>Model artifact</strong></td><td>The checkpoint file, an adapter, or the weights directly</td><td>Ship a pre-backdoored or edited model (model tampering)</td></tr>
+<tr><td><strong>Feedback loop</strong></td><td>Thumbs-up/down signals, RLHF preference data, online-learning input</td><td>Slowly steer behaviour using the system's own learning loop</td></tr>
+</tbody>
+</table>
+
+<h2 id="why-does-this-matter">Why Does This Matter?</h2>
+
+<p>Data and Model Poisoning is ranked <strong>#4</strong> in the 2025 OWASP LLM Top 10 because it undermines the one thing every downstream control depends on: the integrity of the model itself. If the model is poisoned, guardrails, output filters, and human review are all reasoning about a component that is lying to them on cue.</p>
+
+<h3>Business Impact</h3>
+<ul>
+<li><strong>Silent brand and trust damage</strong>: A model that behaves perfectly in demos but emits attacker-chosen content on a secret trigger can disparage competitors, endorse scams, or produce offensive output in front of real customers.</li>
+<li><strong>Safety and liability</strong>: In lending, hiring, medical, or moderation use cases, an injected bias or a backdoored decision path is a direct regulatory and legal exposure (fairness, discrimination, and duty-of-care obligations).</li>
+<li><strong>Fraud and abuse enablement</strong>: A backdoor that makes a security classifier wave through a specific pattern, or a RAG system that recommends an attacker's malicious package, converts the model into an insider.</li>
+<li><strong>Expensive, irreversible remediation</strong>: You cannot patch a poisoned model with a config change. Recovery usually means re-curating data and retraining&mdash;a multi-week, high-cost effort&mdash;plus incident disclosure.</li>
+<li><strong>Loss of an information advantage</strong>: Degradation ("availability") poisoning quietly erodes model quality, so the product underperforms without an obvious failure to point at.</li>
 </ul>
 
-<h2>Real-World Impact (2025 Context)</h2>
-
-<p>Modern LLM applications face:</p>
+<h3>Technical Impact</h3>
 <ul>
-<li>Integration with enterprise systems</li>
-<li>Autonomous agent capabilities</li>
-<li>RAG (Retrieval Augmented Generation) systems</li>
-<li>Vector database dependencies</li>
-<li>Production-scale deployments</li>
+<li><strong>Persistent backdoors</strong>: A specific phrase, token, or formatting pattern flips the model into a chosen behaviour; clean-input accuracy is unaffected, so standard evaluation passes.</li>
+<li><strong>Survives safety training</strong>: Published research shows backdoors deliberately trained into a model can persist <em>through</em> subsequent safety fine-tuning and RLHF rather than being scrubbed out.</li>
+<li><strong>RAG answer control</strong>: Injecting a handful of crafted documents into a knowledge base can deterministically steer the model's answer to targeted questions&mdash;no access to weights required.</li>
+<li><strong>Embedding-space manipulation</strong>: Poisoned documents crafted to sit near common queries in vector space get retrieved preferentially, hijacking grounding.</li>
+<li><strong>Bias amplification</strong>: Skewed or coordinated training examples are amplified by the training process into systematic, repeatable prejudice.</li>
+<li><strong>Detection difficulty</strong>: Trigger-based compromises are effectively invisible without adversarial testing, provenance data, or internal-activation analysis.</li>
 </ul>
 
-<h2>Common Scenarios</h2>
+<h2 id="technical-context">Technical Context</h2>
+
+<h3>The Data Supply Line</h3>
+
+<pre><code>[web crawl] [licensed sets] [user content] [crowd labels] [RAG docs]
+      \           \              |              /            /
+       \___________\____________ | ___________/____________/
+                                 v
+                      [ collection + preprocessing ]
+                                 v
+                   [ pre-training / fine-tuning ]         [ embedding + index ]
+                                 v                                v
+                          [ model weights ] ------ serves ------ [ vector store ]
+                                 v
+                           [ deployed LLM ] --&gt; answers users
+
+Every inbound arrow is an ingestion point an attacker may try to influence.</code></pre>
+
+<h3>Types of Poisoning</h3>
+
+<h4>1. Availability (Degradation) Poisoning</h4>
+<p>The goal is to lower overall quality. Mislabeled, noisy, or contradictory samples are injected so the trained model becomes measurably worse&mdash;useful for sabotage of a competitor or of an open dataset. It is the bluntest form and the easiest to catch with quality metrics, but also the easiest to carry out at scale.</p>
+
+<h4>2. Integrity (Backdoor) Poisoning</h4>
+<p>The high-value class. The attacker associates a chosen <em>trigger</em> (a rare phrase, a token, an invisible Unicode marker, a code comment) with a chosen <em>behaviour</em>. On normal input the model is indistinguishable from a clean one; on the trigger it does what the attacker wants. Foundational work such as BadNets established this pattern for classifiers, and it transfers directly to LLMs and instruction tuning.</p>
+
+<h4>3. Bias Injection</h4>
+<p>Coordinated examples nudge the model toward a discriminatory, commercial, or political slant. Because the internet already contains bias, small deliberate reinforcement blends in and is hard to attribute to an attack rather than to "data as found."</p>
+
+<h4>4. RAG / Embedding Poisoning</h4>
+<p>No weights are touched. The attacker gets malicious documents into the corpus the model retrieves from&mdash;a public wiki, a scraped support forum, an indexed shared drive&mdash;so that for targeted queries the "grounding" the model trusts is attacker-written. This is the fastest-growing variant because RAG ingestion is often the least-governed part of an LLM stack.</p>
+
+<h4>5. Model Tampering</h4>
+<p>The data may be clean; the artifact is not. Using weight-editing techniques an attacker can implant a specific false "fact" or behaviour into an open model, then redistribute it. Because the change is surgical, the model passes benchmarks and looks legitimate on a model hub.</p>
+
+<h3>Poisoning Web-Scale Data: Split-View and Frontrunning</h3>
+<p>Two techniques deserve special mention because they show that poisoning huge public corpora is <em>practical</em>, not theoretical:</p>
+<ul>
+<li><strong>Split-view / stale-content poisoning</strong>: Large datasets distribute URLs (or content hashes) rather than the data itself. Between the time the index was built and the time you download, some of those domains expire. An attacker can buy the expired domains and serve their own content&mdash;so what the dataset index calls "trusted sample #N" is now attacker-controlled, and everyone who re-downloads gets the poison.</li>
+<li><strong>Frontrunning poisoning</strong>: Some corpora are periodic snapshots of editable sources (for example, a public encyclopedia). If the snapshot schedule is predictable, an attacker edits the page just before the snapshot is taken and reverts afterward&mdash;so the malicious version is what gets archived into the training set even though it was live for only minutes.</li>
+</ul>
+<p>Both were demonstrated by academic researchers who showed that controlling a small fraction of several popular web-scale datasets was achievable for a modest cost. The point is not any single number&mdash;it is that the barrier to entry is low.</p>
+
+<h3>Sleeper Agents</h3>
+<p>A "sleeper agent" is a deliberately backdoored model that behaves safely during evaluation and only activates its hidden behaviour on a specific trigger&mdash;for example, a particular date string or codeword. Published research has shown that such backdoors can be trained to <strong>persist through</strong> standard safety fine-tuning, supervised correction, and RLHF, and that adversarial training can even teach the model to hide the trigger better rather than remove it. This is why "we ran safety training on top" is not, by itself, a defence against a poisoned base model.</p>
+
+<h2 id="real-world-impact">Real-World Impact</h2>
+
+<p>The incidents below are described as <strong>verifiable classes of event</strong>&mdash;real, publicly documented research or incidents&mdash;rather than with precise, source-dependent statistics.</p>
+
+<h3>Class 1: Real-Time Learning Abuse (Microsoft Tay, 2016)</h3>
+<p><strong>What happened</strong>: A chatbot that learned from live public interactions was flooded by coordinated users with offensive content and began reproducing it within hours, forcing a shutdown the same day.</p>
+<p><strong>Why it matters here</strong>: It is the canonical demonstration that training on unvetted, untrusted, real-time input is poisoning waiting to happen. Any system that folds user feedback back into training inherits this risk.</p>
+
+<h3>Class 2: Malicious Model Redistribution (PoisonGPT-style demonstrations, 2023)</h3>
+<p><strong>What happened</strong>: Security researchers surgically edited an open-source model to confidently state a specific piece of false information, then uploaded it under a name resembling a legitimate project to show how easily a tampered model spreads through model hubs.</p>
+<p><strong>Why it matters here</strong>: It is model poisoning without any training-data access&mdash;the artifact itself is the payload&mdash;and it shows why provenance and integrity of downloaded models is essential.</p>
+
+<h3>Class 3: Persistent Backdoors Through Safety Training (Sleeper Agents research, 2024)</h3>
+<p><strong>What happened</strong>: Researchers intentionally trained models with backdoors (for example, "write secure code, unless the prompt indicates the year is 2024, then insert a vulnerability") and demonstrated the backdoor survived state-of-the-art safety training.</p>
+<p><strong>Why it matters here</strong>: It refutes the comfortable assumption that alignment/safety fine-tuning cleans up a compromised base model.</p>
+
+<h3>Class 4: Practical Web-Scale Dataset Poisoning (academic, 2023&ndash;2024)</h3>
+<p><strong>What happened</strong>: Researchers showed that split-view and frontrunning attacks against widely used web-scale datasets were feasible and inexpensive, and responsibly disclosed the techniques.</p>
+<p><strong>Why it matters here</strong>: It moved dataset poisoning from "theoretically possible" to "a documented, low-cost capability" that data curators must design against.</p>
+
+<h3>Class 5: RAG Knowledge-Base Poisoning (PoisonedRAG-style research, 2024)</h3>
+<p><strong>What happened</strong>: Researchers demonstrated that injecting a small number of crafted passages into a retrieval corpus could reliably force a RAG system to return an attacker-chosen answer for targeted questions.</p>
+<p><strong>Why it matters here</strong>: Most enterprise LLM value is delivered through RAG, and ingestion pipelines are frequently open and unaudited&mdash;making this the most immediately relevant class for many teams.</p>
+
+<h3>Class 6: Backdoored Classifiers (BadNets and successors, ongoing research)</h3>
+<p><strong>What happened</strong>: A long line of research established that trigger-based backdoors can be reliably installed in neural classifiers with clean-input accuracy preserved.</p>
+<p><strong>Why it matters here</strong>: It is the theoretical backbone that makes LLM backdoors credible and shapes the detection techniques (activation clustering, spectral signatures, trigger scanning) used to defend against them.</p>
+
+<h2 id="prevalence">Prevalence</h2>
+
+<p>Poisoning is best understood as <strong>high-impact and increasingly practical</strong> rather than as something with a single reliable frequency number. A defensible summary:</p>
+<ul>
+<li>Deliberate, in-the-wild poisoning of production models is <strong>harder to observe</strong> than most vulnerability classes precisely because a successful attack is designed to be invisible on normal inputs.</li>
+<li>The <strong>attack surface is expanding fast</strong>: web-scraped pre-training data, open fine-tuning contributions, and (especially) RAG ingestion pipelines all pull in third-party content continuously.</li>
+<li>Academic work has repeatedly shown poisoning is <strong>cheap and effective</strong> at small poisoning ratios, so the limiting factor is attacker motivation, not attacker capability.</li>
+<li>The <strong>RAG variant is the most common in practice</strong> today, because getting a document into a corpus is far easier than influencing a foundation model's pre-training run.</li>
+</ul>
+
+<blockquote>
+<p>Note: exact poisoning percentages, costs, and incident counts vary by study and by dataset. Treat any single figure you see as illustrative. The durable takeaway is that a small, well-placed manipulation can produce a large, persistent, and stealthy effect&mdash;so prevention and provenance matter more than any headline statistic.</p>
+</blockquote>
+
+<h2 id="common-misunderstandings">Common Misunderstandings</h2>
+
+<h3>Myth 1: "We trained on public data, so there's nothing sensitive to poison."</h3>
+<p><strong>Reality</strong>: Poisoning is about <em>integrity</em>, not confidentiality. Public data is <em>easier</em> to poison because anyone can contribute to it (edit a wiki, publish a page, register an expired domain).</p>
+
+<h3>Myth 2: "Our accuracy metrics are great, so the model is clean."</h3>
+<p><strong>Reality</strong>: A competent backdoor leaves clean-input accuracy untouched by design. Aggregate metrics are exactly what the attacker is protecting; only adversarial/trigger testing reveals the compromise.</p>
+
+<h3>Myth 3: "Safety fine-tuning or RLHF will scrub out anything bad."</h3>
+<p><strong>Reality</strong>: Documented research shows backdoors can persist through, and sometimes hide better after, safety training. A poisoned base model is not automatically redeemed by alignment steps.</p>
+
+<h3>Myth 4: "RAG is safe because we don't retrain the model."</h3>
+<p><strong>Reality</strong>: RAG shifts the trust boundary to the corpus. If an attacker can get a document indexed, they can control grounded answers without ever touching the weights.</p>
+
+<h3>Myth 5: "We only fine-tune on a few thousand of our own examples&mdash;too small to poison."</h3>
+<p><strong>Reality</strong>: Small, curated fine-tuning sets are <em>more</em> sensitive per example. A handful of poisoned rows in a small set has outsized leverage.</p>
+
+<h3>Myth 6: "We downloaded the model from a reputable hub, so the artifact is trustworthy."</h3>
+<p><strong>Reality</strong>: Model hubs host lookalike and tampered artifacts. Without checksums, signatures, and provenance you are trusting a filename.</p>
+
+<h2 id="llm04-vs-llm03">How LLM04 Differs from LLM03 (and Neighbours)</h2>
+
+<p>In the 2025 list, <strong>LLM03:2025 is Supply Chain</strong> and <strong>LLM04:2025 is Data and Model Poisoning</strong>. They are related but distinct, and the boundary is worth keeping crisp.</p>
+
+<table>
+<thead>
+<tr><th>Aspect</th><th>LLM04: Data &amp; Model Poisoning</th><th>LLM03: Supply Chain</th><th>LLM01: Prompt Injection</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Core question</strong></td><td>Was the data/model <em>content</em> manipulated?</td><td>Do we trust the <em>origin</em> of the components?</td><td>Is untrusted input steering the model now?</td></tr>
+<tr><td><strong>When it acts</strong></td><td>Build time (training, ingestion, weight edits)</td><td>Acquisition time (pulling models, adapters, libs, datasets)</td><td>Inference time</td></tr>
+<tr><td><strong>Attacker asset</strong></td><td>Poison samples, a trigger, or an edited checkpoint</td><td>A compromised or malicious dependency/model package</td><td>A crafted prompt or injected instruction</td></tr>
+<tr><td><strong>Typical fix</strong></td><td>Provenance, validation, anomaly/backdoor scanning, robust training</td><td>Vet vendors, verify signatures, SBOM/ML-BOM, pin versions</td><td>Input handling, output constraints, privilege separation</td></tr>
+</tbody>
+</table>
+
+<p>They overlap: a malicious dataset pulled from a hub is a <em>supply-chain</em> delivery of a <em>poisoning</em> payload. The useful distinction is the question you are answering. LLM03 asks "should I trust where this came from?"; LLM04 asks "has the actual data or model been corrupted, regardless of where it came from?"</p>
+
+<h2 id="self-assessment">Self-Assessment</h2>
+
+<p>Ask these questions about your training and RAG pipelines:</p>
+<ul>
+<li>[ ] Can you produce the <strong>provenance</strong> (source, license, retrieval date, hash) of every dataset and every RAG source in production?</li>
+<li>[ ] Are datasets and model checkpoints <strong>integrity-verified</strong> (checksums/signatures) before use, and pinned to specific versions?</li>
+<li>[ ] Do you run <strong>outlier / anomaly detection</strong> and de-duplication on training and fine-tuning data before it is used?</li>
+<li>[ ] Do you run <strong>backdoor / trigger evaluation</strong> (adversarial red-teaming, canary triggers) as part of model acceptance?</li>
+<li>[ ] Is your RAG ingestion restricted to an <strong>allow-list of vetted sources</strong> with content review, rather than open crawling?</li>
+<li>[ ] Do you store <strong>per-chunk provenance</strong> for retrieved content and constrain how the model treats it?</li>
+<li>[ ] Do you govern <strong>feedback loops</strong> (RLHF, thumbs-up, online learning) so untrusted signals cannot silently steer the model?</li>
+<li>[ ] Do you maintain an <strong>ML-BOM</strong> (bill of materials for data and model components) and monitor <strong>output drift</strong> in production?</li>
+</ul>
+<p>Several "no" or "not sure" answers mean poisoning could occur today without detection.</p>
+
+<h2 id="key-takeaways">Key Takeaways</h2>
 
 <ol>
-<li><strong>Enterprise Chatbots</strong>: Customer service LLMs exposed to prompt injection</li>
-<li><strong>Code Assistants</strong>: AI pair programmers with excessive system access</li>
-<li><strong>Document Analysis</strong>: RAG systems vulnerable to poisoned embeddings</li>
-<li><strong>Automated Workflows</strong>: LLM agents with inappropriate permissions</li>
+<li><strong>Poisoning is a build-time integrity attack</strong> whose effect is a persistent, inference-time compromise&mdash;fundamentally different from prompt injection.</li>
+<li><strong>Small manipulations have outsized, durable effects</strong>; low poisoning ratios can install reliable backdoors while metrics look perfect.</li>
+<li><strong>RAG and embedding stores are first-class poisoning targets</strong>, often the least governed and the easiest to attack without touching weights.</li>
+<li><strong>Safety training is not a cleanup tool</strong>; backdoors can persist through it, so a clean base and clean data are prerequisites, not afterthoughts.</li>
+<li><strong>Provenance and integrity are the backbone defence</strong>&mdash;you cannot defend data whose origin, hash, and lineage you cannot state.</li>
 </ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="attack-vectors.html">Attack Vectors</a></strong>: The concrete patterns attackers use to poison data and models</li>
+<li><strong><a href="prevention.html">Prevention</a></strong>: A layered defence built on provenance, validation, and backdoor detection</li>
+<li><strong><a href="examples.html">Examples</a></strong>: Vulnerable vs. secure data pipelines, fine-tuning, and RAG ingestion</li>
+<li><strong><a href="./lab/data-model-poisoning/">Hands-On Lab</a></strong>: Practise identifying and containing a poisoned data/RAG pipeline</li>
+</ul>
 
         </div>
     </div>

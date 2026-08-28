@@ -215,42 +215,186 @@
         </a>
         
         <div class="content">
-            <h1>Excessive Agency - Overview</h1>
+            <h1>LLM06:2025 Excessive Agency &mdash; Overview</h1>
 
-<h2>What is Excessive Agency?</h2>
-
-<p>LLM systems granted too much autonomy or permissions</p>
-
-<h2>Why is it Dangerous?</h2>
-
-<p>LLM vulnerabilities pose unique risks in AI systems:</p>
+<div class="toc">
+<h2>Table of Contents</h2>
 <ul>
-<li><strong>Data Privacy</strong>: Exposure of training data or sensitive information</li>
-<li><strong>Model Integrity</strong>: Manipulation of model behavior</li>
-<li><strong>Resource Abuse</strong>: Excessive computational costs</li>
-<li><strong>Trust Erosion</strong>: Misinformation and hallucinations</li>
+<li><a href="#what-is-excessive-agency">What is Excessive Agency?</a></li>
+<li><a href="#the-three-roots">The Three Roots: Functionality, Permissions, Autonomy</a></li>
+<li><a href="#why-does-this-matter">Why Does This Matter?</a></li>
+<li><a href="#technical-context">Technical Context</a></li>
+<li><a href="#real-world-impact">Real-World Impact</a></li>
+<li><a href="#prevalence">Prevalence</a></li>
+<li><a href="#common-misunderstandings">Common Misunderstandings</a></li>
+<li><a href="#relationship-to-other-risks">Relationship to Other LLM Risks</a></li>
+<li><a href="#self-assessment">Self-Assessment</a></li>
+<li><a href="#next-steps">Next Steps</a></li>
+</ul>
+</div>
+
+<h2 id="what-is-excessive-agency">What is Excessive Agency?</h2>
+
+<p><strong>Excessive Agency</strong> is the harm that follows when an LLM-based system is granted too much ability to <em>act</em>&mdash;too many tools, too much permission, or too much autonomy&mdash;so that an unexpected, ambiguous, or adversarially manipulated model output is able to trigger a damaging action in the real world. The vulnerability is not the wrong word in a chat reply; it is the wrong <em>side effect</em>: an email sent, a row deleted, a payment made, a server rebooted.</p>
+
+<p>The distinction matters because an ordinary LLM that only produces text is bounded by its output channel&mdash;the worst case is a bad answer a human can ignore. The moment you connect that same model to tools, functions, plugins, APIs, shells, or downstream agents, its <em>words become actions</em>. Language models are non-deterministic and steerable by whoever controls their input, so any authority you hand the model is authority you have implicitly handed to every source of text that reaches its context window, including untrusted documents, web pages, emails, and tool results.</p>
+
+<p>OWASP frames Excessive Agency as excessive <strong>functionality, permissions, or autonomy</strong>. Critically, the model itself does not have to be &ldquo;jailbroken&rdquo; for this to bite. A perfectly benign, well-behaved model can still cause catastrophic damage if it is wired to over-broad tools and allowed to fire them without a check. Excessive Agency is fundamentally a <em>design and architecture</em> flaw in the agentic scaffolding around the model, not a flaw inside the weights.</p>
+
+<blockquote>
+<p><strong>Working definition:</strong> Excessive Agency exists whenever the blast radius of a single model decision exceeds what the situation actually requires&mdash;when the system <em>can</em> do more, to more things, with less oversight, than the task in front of it justifies.</p>
+</blockquote>
+
+<h2 id="the-three-roots">The Three Roots: Functionality, Permissions, Autonomy</h2>
+
+<p>Every instance of Excessive Agency traces back to one or more of three independent root causes. Treating them separately is useful because each has a different fix.</p>
+
+<h3>1. Excessive Functionality</h3>
+<p>The agent is given tools (or tools with capabilities) it does not need for its purpose. A support agent that only needs to <em>read</em> a knowledge base is handed a generic database tool that can also run arbitrary SQL. A tool built for one function exposes a dozen others as a side effect. Left-over experimental plugins remain callable in production. Every extra tool is extra attack surface: an input that should never reach a destructive capability now has a path to it.</p>
+
+<h3>2. Excessive Permissions</h3>
+<p>The tools the agent has are individually necessary, but each is scoped far more broadly than the task requires. A document-summariser&rsquo;s database credential has <code>UPDATE</code>, <code>DELETE</code>, and <code>DROP</code> rights when <code>SELECT</code> on one table would do. A calendar tool holds full mailbox read/write. Worst of all, the tool authenticates as a single shared high-privilege service account, so the model acts with the union of every user&rsquo;s rights and the identity of the <em>current</em> user is lost entirely.</p>
+
+<h3>3. Excessive Autonomy</h3>
+<p>The agent is permitted to execute high-impact, irreversible actions with no human confirmation and no independent authorisation check. There is no approval gate before it sends the message, moves the money, or deletes the records. The system treats the model&rsquo;s intention as sufficient authority, so a single hallucinated or injected instruction flows straight through to execution.</p>
+
+<pre><code>Root cause          Question it answers                     Fix in one line
+------------------  --------------------------------------  ------------------------------
+Functionality       "Can the agent even reach this action?" Remove the tool / capability
+Permissions         "How far does the action reach?"        Least-privilege scope the tool
+Autonomy            "Who signs off before it fires?"        Require human / policy approval</code></pre>
+
+<h2 id="why-does-this-matter">Why Does This Matter?</h2>
+
+<h3>Business Impact</h3>
+<ul>
+<li><strong>Irreversible operational damage</strong>: Deleted records, wiped mailboxes, and cancelled orders cannot always be undone. Unlike a data <em>leak</em>, a destructive <em>action</em> may have no clean rollback.</li>
+<li><strong>Financial loss</strong>: Agents with payment, refund, trading, or procurement tools can move money on a single bad decision, at machine speed and machine scale.</li>
+<li><strong>Unauthorised outbound communication</strong>: Agents that can email, post, or message can exfiltrate data or send fraudulent instructions in the organisation&rsquo;s name, damaging trust and reputation.</li>
+<li><strong>Compliance and legal exposure</strong>: Actions taken without a valid user-authorisation context (GDPR data deletion, HIPAA record changes, financial transactions) create regulatory liability and break audit requirements.</li>
+<li><strong>Loss of accountability</strong>: When an agent acts through a shared service account, logs cannot attribute the action to the human who triggered it&mdash;forensics and non-repudiation collapse.</li>
 </ul>
 
-<h2>Real-World Impact (2025 Context)</h2>
-
-<p>Modern LLM applications face:</p>
+<h3>Technical Impact</h3>
 <ul>
-<li>Integration with enterprise systems</li>
-<li>Autonomous agent capabilities</li>
-<li>RAG (Retrieval Augmented Generation) systems</li>
-<li>Vector database dependencies</li>
-<li>Production-scale deployments</li>
+<li><strong>Prompt injection becomes remote code / remote action execution</strong>: Excessive Agency is what converts a text-level injection (LLM01) into a real-world effect. The injection is the trigger; the agency is the loaded weapon.</li>
+<li><strong>Privilege escalation</strong>: An over-scoped or shared-credential tool lets a low-privileged user, or an attacker who controls any text the model reads, act with the tool&rsquo;s full privileges.</li>
+<li><strong>Lateral movement and chaining</strong>: One tool&rsquo;s output feeds the next tool&rsquo;s input, so a single manipulated step can cascade&mdash;read secrets, then use them, then exfiltrate&mdash;without any human in the loop.</li>
+<li><strong>Complete-mediation failure</strong>: If authorisation is checked only in the UI or only by trusting the model&rsquo;s assertion (&ldquo;the user is an admin&rdquo;), the tool boundary itself performs no check and can be driven by manipulated input.</li>
 </ul>
 
-<h2>Common Scenarios</h2>
+<h2 id="technical-context">Technical Context</h2>
 
+<h3>How an agent actually acts</h3>
+<p>A typical tool-using agent runs a loop: the model receives a goal plus a list of available tools (with names, descriptions, and argument schemas); it emits a structured &ldquo;tool call&rdquo; (a function name and JSON arguments); the orchestrator executes that call against a real system; the result is appended to the context; and the loop repeats until the model decides it is done. Excessive Agency lives entirely in step three&mdash;<em>the orchestrator executes</em>&mdash;because that is where model text turns into consequence.</p>
+
+<pre><code>User goal ─▶ [ LLM ] ─▶ tool_call{name, args} ─▶ [ ORCHESTRATOR ] ─▶ REAL SYSTEM
+                ▲                                        │
+                └──────────── tool result ◀─────────────┘
+                             (untrusted text re-enters the context here)
+
+The security question is never "did the model say the right thing?"
+It is "should THIS call, with THESE args, in THIS context, be allowed to run at all?"</code></pre>
+
+<h3>Why the model cannot be trusted as the gatekeeper</h3>
+<p>The model&rsquo;s context window is an open channel. Tool results, retrieved documents, web content, and user messages all arrive as text, and the model cannot reliably tell a legitimate instruction from an injected one embedded in a fetched web page or a support ticket. Any authorisation logic that lives <em>inside</em> the prompt (&ldquo;only call <code>delete_user</code> if the requester is an admin&rdquo;) is advisory at best: it is one sentence competing with everything else in the context, and an attacker&rsquo;s sentence may win. Authorisation must therefore live <em>outside</em> the model, at the tool boundary, enforced by code that the model cannot talk its way past.</p>
+
+<h3>The five ingredients of a damaging incident</h3>
 <ol>
-<li><strong>Enterprise Chatbots</strong>: Customer service LLMs exposed to prompt injection</li>
-<li><strong>Code Assistants</strong>: AI pair programmers with excessive system access</li>
-<li><strong>Document Analysis</strong>: RAG systems vulnerable to poisoned embeddings</li>
-<li><strong>Automated Workflows</strong>: LLM agents with inappropriate permissions</li>
+<li>A tool exists that can cause harm (functionality).</li>
+<li>That tool is scoped to reach valuable or destructive operations (permissions).</li>
+<li>The tool fires without an independent check (autonomy).</li>
+<li>An input&mdash;user, document, or tool result&mdash;steers the model toward the harmful call (trigger, usually LLM01 prompt injection).</li>
+<li>The output is handled and executed without validation (linking to LLM05, Improper Output Handling).</li>
 </ol>
+<p>Remove any one ingredient and the incident is contained. Defence-in-depth for Excessive Agency is precisely the discipline of denying attackers all five at once.</p>
 
+<h2 id="real-world-impact">Real-World Impact</h2>
+
+<p>These are <em>classes</em> of incident that are well documented across the security-research community and vendor advisories. Specific figures vary by source, so we describe the mechanism rather than cite precise numbers.</p>
+
+<h3>Indirect prompt injection driving agent actions</h3>
+<p>Researchers have repeatedly demonstrated that content an agent merely <em>reads</em>&mdash;a web page, a shared document, an email, a calendar invite, an image with hidden text&mdash;can carry instructions that the agent then executes with its own tools. When those tools include sending mail or reading private data, the read-only act of &ldquo;summarise my inbox&rdquo; becomes a data-exfiltration path. This class underlies most published attacks on email assistants, browsing agents, and IDE/coding assistants.</p>
+
+<h3>Over-privileged database and infrastructure tools</h3>
+<p>A recurring finding is agents wired to database or cloud credentials with write/delete/admin rights when the use case only reads. A single ambiguous instruction (&ldquo;clean up the test records&rdquo;) or an injected one can then destroy production data. The vulnerability is the credential scope, not the phrasing.</p>
+
+<h3>Confused-deputy and shared-credential escalation</h3>
+<p>Agents that act through one shared high-privilege identity let any user reach data or actions they personally should not. Because the tool sees only the agent&rsquo;s identity, per-user access control silently disappears&mdash;a classic confused-deputy problem re-created inside AI plumbing.</p>
+
+<h3>Autonomous chains without a stop</h3>
+<p>Multi-step and multi-agent systems that plan-and-execute without checkpoints have been shown to take long chains of consequential actions from a single prompt, amplifying any early mistake. The absence of an approval gate is what turns one wrong step into many.</p>
+
+<blockquote>
+<p>Note: attack details and impact severity differ between reports and evolve quickly. Treat any single demonstration as illustrative. The durable takeaway is that every one of these classes is a failure of tool design and authorisation&mdash;not a failure the model could have prevented by &ldquo;being smarter.&rdquo;</p>
+</blockquote>
+
+<h2 id="prevalence">Prevalence</h2>
+
+<p>Excessive Agency was promoted in the <strong>OWASP Top 10 for LLM Applications 2025</strong> precisely because the industry moved from chat interfaces to <em>agents</em>: tool use, function calling, plugins, autonomous planners, and multi-agent orchestration became mainstream. As agentic frameworks (function calling, tool/plugin ecosystems, and orchestration libraries) proliferated, so did the wiring mistakes that create Excessive Agency.</p>
+<ul>
+<li>It is <strong>increasingly common</strong>: nearly every production &ldquo;AI agent&rdquo; grants some tool access, and least-privilege scoping is frequently skipped in the rush to ship.</li>
+<li>It is <strong>easy to introduce</strong>: default database users, broad OAuth scopes, and &ldquo;give the agent admin so it just works&rdquo; are the path of least resistance.</li>
+<li>Its impact ranges from <strong>moderate to critical</strong>&mdash;from a single unwanted email up to full data destruction or funds transfer.</li>
+</ul>
+
+<h2 id="common-misunderstandings">Common Misunderstandings</h2>
+
+<h3>Myth 1: &ldquo;If the model is well-aligned, we don&rsquo;t need guardrails on its tools.&rdquo;</h3>
+<p><strong>Reality</strong>: Alignment reduces <em>intent</em> to misbehave; it does nothing about <em>manipulation</em>. A cooperative model faithfully follows injected instructions it cannot recognise as malicious. Guardrails belong at the tool boundary, not in the model&rsquo;s good manners.</p>
+
+<h3>Myth 2: &ldquo;Excessive Agency is just prompt injection.&rdquo;</h3>
+<p><strong>Reality</strong>: Prompt injection (LLM01) is the most common <em>trigger</em>, but Excessive Agency is the <em>impact enabler</em>. An agent with no destructive tools and human approval on everything can be injected all day and still cause little harm. They are distinct risks that compound.</p>
+
+<h3>Myth 3: &ldquo;We check the user&rsquo;s permission in the chat UI, so the tools are safe.&rdquo;</h3>
+<p><strong>Reality</strong>: The tool call is a separate request the model can shape freely. If the tool itself does not re-verify the acting user&rsquo;s authorisation, the UI check is bypassed the moment input steers the model. Enforce authorisation <em>downstream</em>, at the tool.</p>
+
+<h3>Myth 4: &ldquo;A human is technically in the loop, so we&rsquo;re fine.&rdquo;</h3>
+<p><strong>Reality</strong>: A human who is shown a wall of &ldquo;Approve?&rdquo; dialogs and clicks yes reflexively provides no protection (&ldquo;approval fatigue&rdquo;). Human-in-the-loop only works when it is reserved for genuinely high-impact, irreversible actions and the human is given the information to decide.</p>
+
+<h3>Myth 5: &ldquo;More capable agents need more tools and more freedom.&rdquo;</h3>
+<p><strong>Reality</strong>: Capability comes from the <em>right</em> tools, well-scoped, not from a large undifferentiated toolbox. Minimising functionality usually improves reliability <em>and</em> security at once.</p>
+
+<h3>Myth 6: &ldquo;Read-only tools are harmless.&rdquo;</h3>
+<p><strong>Reality</strong>: Read tools enable exfiltration and reconnaissance, and their <em>output</em> re-enters the model as untrusted text that can carry the next injected instruction. Read access is lower risk, not no risk.</p>
+
+<h2 id="relationship-to-other-risks">Relationship to Other LLM Risks</h2>
+
+<table>
+<thead>
+<tr><th>Risk</th><th>Relationship to Excessive Agency</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>LLM01 Prompt Injection</strong></td><td>The usual <em>trigger</em>. Injection steers the model; agency lets that steering cause real damage. Fixing one without the other leaves the system exposed.</td></tr>
+<tr><td><strong>LLM05 Improper Output Handling</strong></td><td>The <em>hand-off</em>. If a tool consumes the model&rsquo;s output without validation, an ambiguous or malicious call executes. Complete mediation at the tool boundary is shared ground.</td></tr>
+<tr><td><strong>LLM02 Sensitive Information Disclosure</strong></td><td>Over-broad read tools plus autonomy turn agency into an exfiltration channel.</td></tr>
+<tr><td><strong>LLM08 Vector/Embedding &amp; LLM04 Data Poisoning</strong></td><td>Poisoned retrieved content is a delivery vehicle for the injected instruction that abuses the agent&rsquo;s tools.</td></tr>
+</tbody>
+</table>
+
+<h2 id="self-assessment">Self-Assessment</h2>
+
+<p>Ask these questions about your agentic system:</p>
+<ul>
+<li>[ ] Does every tool the agent can call have a concrete, current reason to exist&mdash;or are there left-over/experimental capabilities still reachable?</li>
+<li>[ ] Is each tool scoped to the minimum operation (read vs. write vs. delete) the task needs, rather than a broad or admin credential?</li>
+<li>[ ] Does the agent act as the <em>end user&rsquo;s</em> identity, or through a single shared high-privilege service account?</li>
+<li>[ ] Do high-impact or irreversible actions (send, pay, delete, deploy) require explicit human or policy approval before execution?</li>
+<li>[ ] Does each tool re-verify the acting user&rsquo;s authorisation itself, instead of trusting the model&rsquo;s assertion of who the user is or what they may do?</li>
+<li>[ ] Are tool actions rate-limited, sandboxed, and bounded (row limits, spend caps, allow-lists) so a runaway loop is contained?</li>
+<li>[ ] Is every tool invocation logged with the real user, arguments, and result, in a way an attacker cannot suppress?</li>
+<li>[ ] When a tool call is ambiguous, denied, or fails, does the system <em>fail safe</em> (stop and ask) rather than guess and proceed?</li>
+</ul>
+<p>Several &ldquo;no&rdquo; or &ldquo;not sure&rdquo; answers indicate exploitable Excessive Agency today.</p>
+
+<h2 id="next-steps">Next Steps</h2>
+
+<ul>
+<li><strong><a href="attack-vectors.html">Attack Vectors</a></strong>: How manipulated and ambiguous output is turned into damaging tool actions.</li>
+<li><strong><a href="prevention.html">Prevention</a></strong>: Layered, code-level defences&mdash;minimise, scope, gate, mediate, monitor, fail safe.</li>
+<li><strong><a href="examples.html">Examples</a></strong>: Vulnerable vs. secure agent and tool code in Python (LangChain / function calling) and Node/TypeScript.</li>
+<li><strong><a href="./lab/excessive-agency/">Hands-On Lab</a></strong>: Practise exploiting and then containing an over-agentic assistant.</li>
+</ul>
         </div>
     </div>
 </body>

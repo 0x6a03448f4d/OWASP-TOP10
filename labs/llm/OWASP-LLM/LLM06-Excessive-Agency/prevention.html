@@ -215,51 +215,200 @@
         </a>
         
         <div class="content">
-            <h1>Excessive Agency - Prevention</h1>
+            <h1>LLM06:2025 Excessive Agency &mdash; Prevention</h1>
 
-<h2>Secure Practices</h2>
-
-<h3>Input Validation</h3>
+<div class="toc">
+<h2>Table of Contents</h2>
 <ul>
-<li>Implement strict prompt filtering</li>
-<li>Use input sanitization</li>
-<li>Apply rate limiting</li>
-<li>Monitor for suspicious patterns</li>
+<li><a href="#defense-model">The Defence Model</a></li>
+<li><a href="#d1-minimize">1. Minimise Functionality</a></li>
+<li><a href="#d2-least-privilege">2. Least-Privilege Tool Scoping</a></li>
+<li><a href="#d3-identity">3. Propagate User Identity (No Shared Creds)</a></li>
+<li><a href="#d4-downstream-authz">4. Enforce Authorisation Downstream</a></li>
+<li><a href="#d5-hitl">5. Human-in-the-Loop for High-Impact Actions</a></li>
+<li><a href="#d6-complete-mediation">6. Complete Mediation at the Tool Boundary</a></li>
+<li><a href="#d7-validate-args">7. Validate &amp; Constrain Tool Arguments</a></li>
+<li><a href="#d8-rate-sandbox">8. Rate-Limit, Budget &amp; Sandbox</a></li>
+<li><a href="#d9-fail-safe">9. Fail Safe</a></li>
+<li><a href="#d10-log-monitor">10. Log, Monitor &amp; Alert</a></li>
+<li><a href="#checklist">Implementation Checklist</a></li>
+<li><a href="#next-steps">Next Steps</a></li>
+</ul>
+</div>
+
+<h2 id="defense-model">The Defence Model</h2>
+
+<p>Excessive Agency is contained by shrinking the blast radius of any single model decision and inserting independent checks between the model&rsquo;s intent and the real-world action. No control is sufficient alone; they are layered so that defeating one still leaves the attacker facing the next. Map each layer to the three roots and the core attack flow:</p>
+
+<pre><code>Root cause        Primary defences
+----------------  --------------------------------------------------------------
+Functionality  →  Minimise tools (D1)  ·  remove left-overs
+Permissions    →  Least-privilege scope (D2)  ·  user identity (D3)  ·  downstream authz (D4)
+Autonomy       →  Human-in-the-loop (D5)  ·  fail safe (D9)
+
+Cross-cutting  →  Complete mediation (D6)  ·  arg validation (D7)  ·  rate/sandbox (D8)  ·  logging (D10)</code></pre>
+
+<blockquote>
+<p><strong>Governing principle:</strong> the model proposes, code disposes. Every consequential action passes through a policy layer the model cannot argue with, and that layer&rsquo;s decision&mdash;not the model&rsquo;s&mdash;is what executes.</p>
+</blockquote>
+
+<h2 id="d1-minimize">1. Minimise Functionality</h2>
+<p>Give the agent the fewest tools, and the fewest capabilities per tool, that the job actually needs. Every removed capability is an attack vector deleted outright. Audit the registered tool list and strip anything experimental, debug, or &ldquo;just in case.&rdquo;</p>
+<pre><code>class Registry:
+    """Only tools with a current, documented purpose may register."""
+    def __init__(self, allowed: set[str]):
+        self._allowed = allowed          # explicit allow-list, reviewed per release
+        self._tools = {}
+
+    def register(self, name, fn):
+        if name not in self._allowed:
+            raise ValueError(f"Tool {name!r} is not approved for this agent")
+        self._tools[name] = fn
+
+# Prefer one narrow tool over one broad tool:
+#   BAD : run_sql(query)            → unbounded
+#   GOOD: get_order_status(order_id) → one query, typed input, one table</code></pre>
+
+<h2 id="d2-least-privilege">2. Least-Privilege Tool Scoping</h2>
+<p>Each tool authenticates with the narrowest credential that lets it do its one job. If the task reads, the credential cannot write. If it writes one table, it cannot touch others. Never reuse a broad admin credential across tools.</p>
+<pre><code># Database: a read tool gets a read-only role, scoped to specific tables.
+# (PostgreSQL example)
+CREATE ROLE agent_ro LOGIN PASSWORD :'pw';
+GRANT CONNECT ON DATABASE app TO agent_ro;
+GRANT USAGE  ON SCHEMA public TO agent_ro;
+GRANT SELECT  ON public.orders, public.order_items TO agent_ro;   -- nothing else
+-- No INSERT/UPDATE/DELETE, no other tables, no DDL.
+
+# Cloud/OAuth: request the minimum scopes, short-lived tokens.
+scopes = ["calendar.events.readonly"]     # not "calendar" (read/write everything)</code></pre>
+
+<h2 id="d3-identity">3. Propagate User Identity (No Shared Creds)</h2>
+<p>The agent must act <em>as the end user</em>, not as one shared high-privilege service account. Pass the user&rsquo;s identity/token down to each tool so downstream systems enforce that user&rsquo;s real permissions. This kills the confused-deputy vector.</p>
+<pre><code>@dataclass(frozen=True)
+class ActingContext:
+    user_id: str
+    roles: frozenset[str]
+    token: str            # the USER's delegated token, not a service secret
+
+def read_record(ctx: ActingContext, record_id: str):
+    # The downstream API receives the user's token and applies THEIR ACLs.
+    return records_api.get(record_id, auth=ctx.token)
+    # If the user can't see it, the API denies it — regardless of what the model asked.</code></pre>
+
+<h2 id="d4-downstream-authz">4. Enforce Authorisation Downstream</h2>
+<p>Never trust the model&rsquo;s assertion of who the user is or what they may do. Re-check authorisation in code, at the tool, against the real acting context&mdash;treating any &ldquo;the user is an admin&rdquo; text in the prompt as untrusted.</p>
+<pre><code>def delete_user(ctx: ActingContext, target_id: str):
+    # Authorization is decided HERE, by code — not by the LLM's say-so.
+    if "user-admin" not in ctx.roles:
+        raise PermissionError("caller is not authorized to delete users")
+    if target_id == ctx.user_id:
+        raise PermissionError("cannot delete self via agent")
+    return users.soft_delete(target_id, actor=ctx.user_id)   # reversible + attributed</code></pre>
+
+<h2 id="d5-hitl">5. Human-in-the-Loop for High-Impact Actions</h2>
+<p>Classify actions by impact and reversibility. Low-impact, reversible actions may run autonomously; high-impact or irreversible ones (send, pay, delete, deploy, grant access) require explicit human approval&mdash;shown honestly, with the true target and scope. Reserve approvals for the few actions that matter to avoid fatigue.</p>
+<pre><code>HIGH_IMPACT = {"send_email", "make_payment", "delete_records", "deploy", "grant_access"}
+
+def execute(ctx, call):
+    if call.name in HIGH_IMPACT:
+        # Present the REAL action; never a sanitized summary the model wrote.
+        if not approvals.request(
+            actor=ctx.user_id, action=call.name, args=call.args,
+            reversible=is_reversible(call), summary=render_true_effect(call),
+        ).approved:
+            return Denied("human approval not granted")
+    return dispatch(ctx, call)</code></pre>
+
+<h2 id="d6-complete-mediation">6. Complete Mediation at the Tool Boundary</h2>
+<p>Every tool call&mdash;without exception, on every path, including chained and multi-agent calls&mdash;passes through one central policy gate. No tool is dispatched directly. This is the single choke point where identity, authorisation, scope, budget, and approval are enforced together.</p>
+<pre><code>def dispatch(ctx, call):
+    tool = registry.get(call.name)                 # must be a registered tool
+    policy.check(ctx, tool, call.args)             # identity + authz + allow-lists
+    budget.consume(ctx, tool.cost)                 # rate/step/spend limits
+    args = tool.schema.validate(call.args)         # strict typed validation (D7)
+    with audit.record(ctx, call):                  # tamper-evident log (D10)
+        return tool.run(ctx, args)                 # only now does it touch reality
+# There is NO other way to invoke a tool. Every route goes through here.</code></pre>
+
+<h2 id="d7-validate-args">7. Validate &amp; Constrain Tool Arguments</h2>
+<p>Treat every argument the model emits as untrusted. Enforce strict typed schemas, allow-lists, ranges, and formats. Never feed model output into a shell, <code>eval</code>, a raw SQL string, or an unrestricted URL.</p>
+<pre><code>from pydantic import BaseModel, field_validator
+
+ALLOWED_HOSTS = {"docs.internal", "kb.internal"}
+
+class FetchArgs(BaseModel):
+    url: str
+    @field_validator("url")
+    @classmethod
+    def only_allowed(cls, v):
+        host = urlparse(v).hostname
+        if host not in ALLOWED_HOSTS:               # egress allow-list → blocks SSRF
+            raise ValueError("host not permitted")
+        return v
+
+# SQL: parameterised, never string-built from model text.
+db.execute("SELECT status FROM orders WHERE id = %s", (args.order_id,))</code></pre>
+
+<h2 id="d8-rate-sandbox">8. Rate-Limit, Budget &amp; Sandbox</h2>
+<p>Bound how much an agent can do before a human notices: per-session step budgets, per-tool rate limits, spend caps, row/size limits, and time-outs. Run risky tools in a sandbox (isolated container, no ambient credentials, restricted network) so a bad call cannot reach beyond its box.</p>
+<pre><code>class Budget:
+    def __init__(self, max_steps=25, max_spend_cents=500):
+        self.steps, self.max_steps = 0, max_steps
+        self.spend, self.max_spend = 0, max_spend_cents
+    def consume(self, ctx, cost):
+        self.steps += 1
+        if self.steps > self.max_steps:
+            raise Halt("step budget exceeded — stopping and escalating to human")
+        self.spend += cost.cents
+        if self.spend > self.max_spend:
+            raise Halt("spend cap exceeded")
+
+# Destructive queries get hard bounds even when authorized:
+#   DELETE ... LIMIT 100     require an explicit WHERE     dry-run count first</code></pre>
+
+<h2 id="d9-fail-safe">9. Fail Safe</h2>
+<p>When a call is ambiguous, denied, times out, or errors, the system must <em>stop and ask</em>&mdash;never guess and proceed. Default-deny at the policy gate: an action is allowed only if a rule explicitly permits it. Prefer reversible operations (soft-delete, drafts, staged changes) so mistakes are recoverable.</p>
+<pre><code>def check(ctx, tool, args):
+    rule = policy_rules.get((tool.name, ctx.roles))
+    if rule is None:
+        raise Denied("default-deny: no rule permits this action")   # fail closed
+    if rule.requires_confirmation and not args.get("_confirmed"):
+        raise NeedsConfirmation(tool.name)     # stop → ask a human, don't assume "yes"</code></pre>
+
+<h2 id="d10-log-monitor">10. Log, Monitor &amp; Alert</h2>
+<p>Record every tool invocation with the <em>real</em> acting user, the tool, the arguments, the decision, and the result&mdash;in append-only/tamper-evident storage the agent cannot edit. Alert on anomalies: destructive calls, egress to new hosts, spikes in tool volume, repeated denials (a sign of probing). Logs are how you detect and reconstruct an incident that slipped past the gates.</p>
+<pre><code>audit.emit({
+    "ts": now(), "user_id": ctx.user_id, "tool": call.name,
+    "args": redact(call.args), "decision": decision, "result_status": status,
+    "session": ctx.session_id,
+})
+# Alert rules:
+#   - any HIGH_IMPACT tool executed without a matching approval record
+#   - egress host not in allow-list
+#   - > N tool calls / minute for one session
+#   - repeated PermissionError (enumeration / injection probing)</code></pre>
+
+<h2 id="checklist">Implementation Checklist</h2>
+<ul>
+<li>[ ] Tool list is an explicit, reviewed allow-list; no debug/experimental/left-over tools are reachable.</li>
+<li>[ ] Each tool holds the minimum credential (read vs. write vs. delete), never a shared admin secret.</li>
+<li>[ ] The agent acts as the end user&rsquo;s identity; the user&rsquo;s token/permissions flow to every tool.</li>
+<li>[ ] Every tool re-checks authorisation in code; no decision relies on the model&rsquo;s assertion.</li>
+<li>[ ] High-impact / irreversible actions require honest human approval; approvals are rare enough to stay meaningful.</li>
+<li>[ ] All tool calls pass through one central mediation gate&mdash;including chained and inter-agent calls.</li>
+<li>[ ] Arguments are validated against strict schemas/allow-lists; no model text reaches a shell, eval, raw SQL, or open URL.</li>
+<li>[ ] Step budgets, rate limits, spend caps, and sandboxing bound the blast radius.</li>
+<li>[ ] The gate is default-deny and fails safe (stop and ask) on ambiguity, denial, timeout, or error.</li>
+<li>[ ] Every action is logged with the real user in tamper-evident storage, with alerts on anomalies.</li>
 </ul>
 
-<h3>Output Validation</h3>
+<h2 id="next-steps">Next Steps</h2>
 <ul>
-<li>Validate LLM responses before use</li>
-<li>Implement content filters</li>
-<li>Use confidence scoring</li>
-<li>Cross-validate critical outputs</li>
+<li><strong><a href="examples.html">Examples</a></strong>: See these controls applied in full vulnerable-vs-secure code.</li>
+<li><strong><a href="attack-vectors.html">Attack Vectors</a></strong>: The threats each layer is designed to stop.</li>
+<li><strong><a href="overview.html">Overview</a></strong>: The three roots and the core attack flow.</li>
+<li><strong><a href="./lab/excessive-agency/">Hands-On Lab</a></strong>: Apply the controls to a vulnerable agent and verify the attacks fail.</li>
 </ul>
-
-<h3>Access Controls</h3>
-<ul>
-<li>Principle of least privilege</li>
-<li>Separate system and user contexts</li>
-<li>Implement permission boundaries</li>
-<li>Audit LLM actions</li>
-</ul>
-
-<h3>Monitoring</h3>
-<ul>
-<li>Log all LLM interactions</li>
-<li>Monitor resource consumption</li>
-<li>Track anomalous behavior</li>
-<li>Implement circuit breakers</li>
-</ul>
-
-<h2>2025 Best Practices</h2>
-
-<ol>
-<li><strong>Prompt Engineering</strong>: Use defensive prompt templates</li>
-<li><strong>Model Governance</strong>: Version control and validation</li>
-<li><strong>Security Testing</strong>: Regular red-teaming of LLM systems</li>
-<li><strong>Vendor Management</strong>: Assess third-party model risks</li>
-</ol>
-
         </div>
     </div>
 </body>

@@ -217,48 +217,264 @@
         <div class="content">
             <h1>Misinformation - Prevention</h1>
 
-<h2>Secure Practices</h2>
-
-<h3>Input Validation</h3>
+<div class="toc">
+<h2>Table of Contents</h2>
 <ul>
-<li>Implement strict prompt filtering</li>
-<li>Use input sanitization</li>
-<li>Apply rate limiting</li>
-<li>Monitor for suspicious patterns</li>
+<li><a href="#strategy">Defense Strategy: Ground, Verify, Oversee</a></li>
+<li><a href="#layer1">Layer 1 &mdash; Retrieval-Augmented Grounding</a></li>
+<li><a href="#layer2">Layer 2 &mdash; Citation &amp; Source Verification</a></li>
+<li><a href="#layer3">Layer 3 &mdash; Cross-Verification &amp; Self-Consistency</a></li>
+<li><a href="#layer4">Layer 4 &mdash; Output Constraint &amp; Validation</a></li>
+<li><a href="#layer5">Layer 5 &mdash; Generated Code &amp; Dependency Validation</a></li>
+<li><a href="#layer6">Layer 6 &mdash; Human Oversight for High-Stakes Domains</a></li>
+<li><a href="#layer7">Layer 7 &mdash; UX, Uncertainty &amp; User Training</a></li>
+<li><a href="#layer8">Layer 8 &mdash; Monitoring &amp; Feedback</a></li>
+<li><a href="#checklist">Defense Checklist</a></li>
+<li><a href="#next-steps">Next Steps</a></li>
+</ul>
+</div>
+
+<h2 id="strategy">Defense Strategy: Ground, Verify, Oversee</h2>
+
+<p>Because misinformation cannot be eliminated at the model level, prevention is about <strong>containment through layers</strong>. No single control is sufficient; each layer catches what the previous one missed. The layers fall into three jobs:</p>
+
+<ul>
+<li><strong>Ground</strong> the generation in trusted data so the model has less reason to fabricate (Layers 1&ndash;2).</li>
+<li><strong>Verify</strong> outputs against reality before they are used&mdash;citations, consistency, schemas, dependencies (Layers 3&ndash;5).</li>
+<li><strong>Oversee</strong> with humans and honest UX so that whatever slips through meets a skeptical, informed consumer (Layers 6&ndash;8).</li>
 </ul>
 
-<h3>Output Validation</h3>
+<pre><code>Untrusted free-form generation
+        |
+   [1] Grounding (RAG on trusted corpus)         reduce fabrication
+   [2] Citation verification                     prove the evidence
+   [3] Cross-verification / self-consistency     catch inconsistency
+   [4] Output constraint + schema validation     reject impossible output
+   [5] Code + dependency validation              stop slopsquatting / bad code
+   [6] Human review for high-stakes              expert final say
+   [7] Honest UX + user training                 defeat overreliance
+   [8] Monitoring + feedback                     detect drift, improve
+        |
+   Trustworthy, contained output</code></pre>
+
+<h2 id="layer1">Layer 1 &mdash; Retrieval-Augmented Grounding</h2>
+
+<p>The single most effective control. Instead of answering from parametric memory, retrieve relevant passages from a <strong>trusted, curated source</strong> and instruct the model to answer <em>only</em> from that context&mdash;and to refuse when the context does not contain the answer.</p>
+
+<pre><code>SYSTEM_PROMPT = """You answer strictly from the CONTEXT provided.
+Rules:
+- Use ONLY facts found in CONTEXT. Do not use prior knowledge.
+- Every factual sentence must be supported by CONTEXT.
+- If CONTEXT does not contain the answer, reply exactly:
+  "I don't have that information in my sources."
+- Never invent sources, numbers, names, or citations.
+"""
+
+def answer(question: str) -&gt; dict:
+    chunks = retriever.search(question, k=6, min_score=0.75)
+    if not chunks:                      # nothing relevant retrieved
+        return {"answer": "I don't have that information in my sources.",
+                "sources": []}
+    context = "\n\n".join(f"[{c.id}] {c.text}" for c in chunks)
+    resp = llm.chat(
+        system=SYSTEM_PROMPT,
+        user=f"CONTEXT:\n{context}\n\nQUESTION: {question}",
+        temperature=0,                  # minimise creative drift
+    )
+    return {"answer": resp.text, "sources": [c.id for c in chunks]}</code></pre>
+
+<p><strong>Key points</strong>: enforce a <em>relevance floor</em> (<code>min_score</code>) so weak retrieval triggers a refusal rather than a guess; keep <code>temperature=0</code> for factual tasks; and make "I don't know" an explicit, rewarded output. Grounding is a strong control, not a cure&mdash;combine it with the verification layers below.</p>
+
+<h2 id="layer2">Layer 2 &mdash; Citation &amp; Source Verification</h2>
+
+<p>Never let a model-produced citation reach the user unverified. Require the model to cite <strong>source IDs from the retrieved context</strong> (which you control), then programmatically confirm each cited ID exists and actually supports the claim.</p>
+
+<pre><code>ALLOWED_IDS = {c.id for c in chunks}          # only real, retrieved sources
+
+def validate_citations(answer_text: str, cited_ids: list[str]) -&gt; None:
+    for cid in cited_ids:
+        if cid not in ALLOWED_IDS:            # model invented a source id
+            raise CitationError(f"Fabricated citation: {cid}")
+    if not cited_ids:                         # factual claim, zero support
+        raise CitationError("Answer makes claims with no cited source")
+
+# For open-web citations, resolve them for real before trusting:
+def citation_resolves(url: str) -&gt; bool:
+    try:
+        r = http.head(url, timeout=5, allow_redirects=True)
+        return r.status_code &lt; 400
+    except Exception:
+        return False</code></pre>
+
+<p>The principle: a citation is only evidence if <em>you</em> retrieved and checked it. Resolving DOIs/URLs and matching claims to source text turns "looks cited" into "is supported."</p>
+
+<h2 id="layer3">Layer 3 &mdash; Cross-Verification &amp; Self-Consistency</h2>
+
+<p>For high-value factual outputs, sample the model multiple times (or with multiple models) and keep only claims that are stable across runs. Divergence is a strong signal of fabrication.</p>
+
+<pre><code>from collections import Counter
+
+def self_consistent_answer(question: str, n: int = 5) -&gt; dict:
+    samples = [llm.chat(user=question, temperature=0.7).text for _ in range(n)]
+    key = [normalize(s) for s in samples]     # canonicalise for comparison
+    winner, votes = Counter(key).most_common(1)[0]
+    confidence = votes / n
+    if confidence &lt; 0.6:                       # answers disagree -&gt; low trust
+        return {"answer": None, "confidence": confidence,
+                "action": "escalate_or_refuse"}
+    return {"answer": samples[key.index(winner)], "confidence": confidence}</code></pre>
+
+<p>A second pattern is an <strong>LLM verifier</strong>: a separate call asks "Is every claim in this answer supported by this context? List unsupported claims." Treat any unsupported claim as blocking. (Remember the verifier can also err&mdash;use it to <em>flag</em>, not to bless.)</p>
+
+<h2 id="layer4">Layer 4 &mdash; Output Constraint &amp; Validation</h2>
+
+<p>The less free-form the output, the less room to fabricate. Where the valid answers are knowable, constrain the model to them and validate before use.</p>
+
+<pre><code>from pydantic import BaseModel, field_validator
+
+VALID_STATUSES = {"open", "shipped", "delivered", "cancelled"}
+
+class OrderAnswer(BaseModel):
+    order_id: str
+    status: str
+
+    @field_validator("status")
+    @classmethod
+    def known_status(cls, v):
+        if v not in VALID_STATUSES:           # reject invented enum values
+            raise ValueError(f"Hallucinated status: {v}")
+        return v
+
+    @field_validator("order_id")
+    @classmethod
+    def real_order(cls, v):
+        if not db.order_exists(v):             # reject fabricated records
+            raise ValueError(f"Order {v} does not exist")
+        return v
+
+# Parse model JSON through the schema; reject on any validation error.
+answer = OrderAnswer.model_validate_json(model_output)</code></pre>
+
+<p>Techniques: JSON-schema / structured-output modes, allow-lists and enumerations, grammar-constrained decoding, and&mdash;critically&mdash;checking IDs and entities against the <em>real</em> system of record rather than trusting the model's word that they exist.</p>
+
+<h2 id="layer5">Layer 5 &mdash; Generated Code &amp; Dependency Validation</h2>
+
+<p>This is where misinformation becomes a supply-chain security control. <strong>Before any AI-suggested dependency is installed, confirm it exists, is not a look-alike, and is the intended project.</strong> This directly defeats slopsquatting and connects to LLM05 (validate generated output before downstream use).</p>
+
+<pre><code>import subprocess, json
+from datetime import datetime, timezone
+
+def vet_pypi_package(name: str) -&gt; None:
+    # 1. Does it exist at all? (A hallucinated name will 404.)
+    r = http.get(f"https://pypi.org/pypi/{name}/json", timeout=5)
+    if r.status_code == 404:
+        raise DependencyError(f"HALLUCINATED / non-existent package: {name}")
+    meta = r.json()["info"]
+
+    # 2. Suspicious brand-new package? (classic slopsquat signature)
+    releases = r.json()["releases"]
+    first = min(datetime.fromisoformat(f[0]["upload_time_iso_8601"])
+                for f in releases.values() if f)
+    age_days = (datetime.now(timezone.utc) - first).days
+    if age_days &lt; 90:
+        raise DependencyError(f"Package {name} is very new ({age_days}d) "
+                              "— verify before use (possible slopsquat)")
+
+    # 3. Must be on the approved allow-list / private index for prod use.
+    if name not in APPROVED_DEPENDENCIES:
+        raise DependencyError(f"{name} not in approved dependency list")
+
+# NEVER pipe an LLM's install command straight to a shell.
+# Extract package names, vet each, THEN install pinned + hashed.</code></pre>
+
+<p>Operational rules that make this robust:</p>
 <ul>
-<li>Validate LLM responses before use</li>
-<li>Implement content filters</li>
-<li>Use confidence scoring</li>
-<li>Cross-validate critical outputs</li>
+<li><strong>Pin and hash</strong> every dependency (<code>requirements.txt</code> with hashes, <code>package-lock.json</code>); never install unpinned names an assistant emitted.</li>
+<li><strong>Use a private/proxy registry</strong> with an allow-list so unknown names cannot be pulled at all.</li>
+<li><strong>Run SCA / provenance checks</strong> (e.g. signature or attestation verification) in CI, and diff new dependencies in review.</li>
+<li><strong>Validate the code itself</strong>: lint, type-check, run SAST, and confirm that any security-relevant API/flag the model used actually exists and does what was claimed.</li>
 </ul>
 
-<h3>Access Controls</h3>
+<h2 id="layer6">Layer 6 &mdash; Human Oversight for High-Stakes Domains</h2>
+
+<p>In legal, medical, financial, and safety contexts, no automated control substitutes for a qualified human. Route high-stakes outputs to <strong>mandatory expert review</strong> and make the AI's role explicitly advisory.</p>
+
+<pre><code>HIGH_STAKES = {"legal", "medical", "financial", "safety"}
+
+def deliver(answer: dict, domain: str, confidence: float) -&gt; dict:
+    needs_review = (
+        domain in HIGH_STAKES
+        or confidence &lt; 0.8
+        or answer.get("unsupported_claims")
+    )
+    if needs_review:
+        review_queue.enqueue(answer)           # human-in-the-loop gate
+        return {"status": "pending_expert_review",
+                "note": "AI draft — not yet verified by a professional"}
+    return {"status": "delivered", **answer}</code></pre>
+
+<p>Design the workflow so the human is a <em>reviewer of evidence</em>, not a rubber stamp: show the sources, highlight unsupported claims, and make "reject" as easy as "approve" to counter automation bias.</p>
+
+<h2 id="layer7">Layer 7 &mdash; UX, Uncertainty &amp; User Training</h2>
+
+<p>Overreliance is defeated in the interface. The UI must actively discourage blind trust rather than reinforce it with a confident tone.</p>
+
 <ul>
-<li>Principle of least privilege</li>
-<li>Separate system and user contexts</li>
-<li>Implement permission boundaries</li>
-<li>Audit LLM actions</li>
+<li><strong>Communicate limitations</strong>: a persistent, honest notice that answers may be wrong and should be verified for important decisions.</li>
+<li><strong>Surface sources inline</strong>: link the exact passage each claim rests on, so verification is one click away.</li>
+<li><strong>Show uncertainty</strong>: when confidence or retrieval score is low, say so&mdash;"I'm not sure" beats a confident guess.</li>
+<li><strong>Avoid false-authority styling</strong>: don't dress unverified output in the visual language of certified fact.</li>
+<li><strong>Provide friction for high-stakes actions</strong>: require explicit acknowledgement before AI output drives a consequential step.</li>
 </ul>
 
-<h3>Monitoring</h3>
+<pre><code>def render(answer: dict) -&gt; dict:
+    return {
+        "text": answer["answer"],
+        "sources": answer["sources"],          # always show provenance
+        "confidence_label": bucket(answer["confidence"]),  # High/Med/Low
+        "disclaimer": ("AI-generated. Verify important facts against the "
+                       "linked sources before acting."),
+    }</code></pre>
+
+<p><strong>User training</strong> is the human complement: teach staff that models hallucinate, that fluency is not accuracy, and that citations, code, and dependencies must be checked. A trained, skeptical user is the last and often best line of defense.</p>
+
+<h2 id="layer8">Layer 8 &mdash; Monitoring &amp; Feedback</h2>
+
+<p>Treat misinformation as an ongoing quality-and-security signal, not a one-time fix.</p>
 <ul>
-<li>Log all LLM interactions</li>
-<li>Monitor resource consumption</li>
-<li>Track anomalous behavior</li>
-<li>Implement circuit breakers</li>
+<li><strong>Log</strong> question, retrieved sources, answer, cited IDs, confidence, and whether it was human-reviewed&mdash;so failures are reproducible and auditable.</li>
+<li><strong>Track</strong> refusal rate, citation-validation failures, and dependency-vetting rejections as leading indicators.</li>
+<li><strong>Collect user feedback</strong> ("was this accurate?") and route corrections back into the trusted corpus and evals.</li>
+<li><strong>Red-team regularly</strong> with prompts designed to elicit fabrication (recent events, obscure facts, "cite sources," "which package should I install") and measure the hallucination rate over time.</li>
+<li><strong>Alert</strong> on spikes in low-confidence answers or invented citations, which can indicate model, retrieval, or data-poisoning problems.</li>
 </ul>
 
-<h2>2025 Best Practices</h2>
+<h2 id="checklist">Defense Checklist</h2>
 
-<ol>
-<li><strong>Prompt Engineering</strong>: Use defensive prompt templates</li>
-<li><strong>Model Governance</strong>: Version control and validation</li>
-<li><strong>Security Testing</strong>: Regular red-teaming of LLM systems</li>
-<li><strong>Vendor Management</strong>: Assess third-party model risks</li>
-</ol>
+<table>
+<thead>
+<tr><th>Control</th><th>Defends against</th><th>Priority</th></tr>
+</thead>
+<tbody>
+<tr><td>RAG grounding on trusted corpus, temp 0, refuse-on-no-context</td><td>Fact/citation fabrication</td><td>Critical</td></tr>
+<tr><td>Citation IDs restricted to retrieved sources + resolution check</td><td>Fabricated evidence</td><td>Critical</td></tr>
+<tr><td>Dependency existence + age + allow-list vetting; pin &amp; hash</td><td>Package hallucination / slopsquatting</td><td>Critical</td></tr>
+<tr><td>Schema / enum / entity validation against system of record</td><td>Invented records, APIs, statuses</td><td>High</td></tr>
+<tr><td>Self-consistency / verifier pass on high-value outputs</td><td>Confident inconsistency</td><td>High</td></tr>
+<tr><td>Mandatory expert review for high-stakes domains</td><td>Legal/medical/financial harm</td><td>Critical</td></tr>
+<tr><td>Honest UX: sources, confidence, disclaimers</td><td>Overreliance</td><td>High</td></tr>
+<tr><td>User training on model limits and verification</td><td>Overreliance</td><td>High</td></tr>
+<tr><td>Logging, feedback, red-teaming, drift alerts</td><td>All (detection)</td><td>Medium</td></tr>
+</tbody>
+</table>
+
+<h2 id="next-steps">Next Steps</h2>
+
+<ul>
+<li><strong><a href="examples.html">Code Examples</a></strong>: Vulnerable vs. secure implementations of these controls</li>
+<li><strong><a href="attack-vectors.html">Attack Vectors</a></strong>: The failure modes these layers defend against</li>
+<li><strong><a href="./lab/misinformation/">Hands-On Lab</a></strong>: Apply grounding and validation yourself (runs at <code>http://localhost:6009</code>)</li>
+</ul>
 
         </div>
     </div>

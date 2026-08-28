@@ -217,39 +217,216 @@
         <div class="content">
             <h1>Misinformation - Overview</h1>
 
-<h2>What is Misinformation?</h2>
-
-<p>LLM generating false or misleading information</p>
-
-<h2>Why is it Dangerous?</h2>
-
-<p>LLM vulnerabilities pose unique risks in AI systems:</p>
+<div class="toc">
+<h2>Table of Contents</h2>
 <ul>
-<li><strong>Data Privacy</strong>: Exposure of training data or sensitive information</li>
-<li><strong>Model Integrity</strong>: Manipulation of model behavior</li>
-<li><strong>Resource Abuse</strong>: Excessive computational costs</li>
-<li><strong>Trust Erosion</strong>: Misinformation and hallucinations</li>
+<li><a href="#what-is-misinformation">What is Misinformation?</a></li>
+<li><a href="#why-does-this-matter">Why Does This Matter?</a></li>
+<li><a href="#technical-context">Technical Context</a></li>
+<li><a href="#real-world-impact">Real-World Impact</a></li>
+<li><a href="#prevalence">Prevalence and Detectability</a></li>
+<li><a href="#common-misunderstandings">Common Misunderstandings</a></li>
+<li><a href="#self-assessment">Self-Assessment</a></li>
+<li><a href="#next-steps">Next Steps</a></li>
+</ul>
+</div>
+
+<h2 id="what-is-misinformation">What is Misinformation?</h2>
+
+<p><strong>Misinformation</strong> (LLM09:2025 in the OWASP Top 10 for LLM Applications) is the risk that a language model produces <strong>false, misleading, or fabricated information and presents it as if it were credible</strong>. The output is fluent, confident, well-formatted, and often internally consistent&mdash;which is exactly what makes it dangerous. A model does not signal doubt the way a hesitant human does; a hallucinated case citation looks identical to a real one, and an invented package name looks identical to a real dependency.</p>
+
+<p>The 2025 edition deliberately merges what the 2023 list treated as two separate entries&mdash;<em>hallucination</em> and <em>overreliance</em>&mdash;because they are two halves of the same failure. The model generates something untrue (the technical half), and a human or downstream system accepts it without verification (the human half). Neither half causes harm alone: a hallucination that a reviewer catches is a non-event; a diligent reviewer given accurate output has nothing to catch. Harm occurs precisely where an ungrounded generation meets an unverifying consumer.</p>
+
+<h3>Core Concept</h3>
+
+<pre><code>Misinformation = Ungrounded Generation  +  Unverified Consumption
+
+  [ LLM produces confident claim ]      [ Human / system trusts it ]
+              |                                      |
+   fabricated fact, fake citation,        no fact-check, no review,
+   non-existent package/API,              no ground truth, no expert
+   plausible-but-wrong guidance                       |
+              +--------------------+------------------+
+                                   v
+                        Harm: bad decision, insecure
+                        code shipped, supply-chain
+                        compromise, legal/medical/
+                        financial damage</code></pre>
+
+<h3>What It Is Not</h3>
+
+<p>Misinformation is <strong>not</strong> the same as an attacker deliberately feeding poisoned data into a model&mdash;that is training-data poisoning (LLM04). It is not prompt injection (LLM01), where an adversary hijacks the model's instructions. Misinformation is the model's <em>own</em> tendency to state untruths as fact, whether prompted innocently or maliciously. Those other categories can <em>amplify</em> misinformation (a poisoned source produces confidently wrong answers), but the defining property of LLM09 is <strong>unreliable output trusted without verification</strong>.</p>
+
+<h2 id="why-does-this-matter">Why Does This Matter?</h2>
+
+<p>Misinformation is one of the highest-frequency, hardest-to-eliminate risks in the entire LLM Top 10, because it is a direct consequence of how the technology works. An LLM predicts the statistically likely next token; it has no built-in notion of truth, no ground-truth database, and no reliable internal signal for "I don't actually know this." Fluency and factual accuracy are separate axes, and the model optimises for the first.</p>
+
+<h3>Business Impact</h3>
+<ul>
+<li><strong>Legal liability for the deploying organisation</strong>: Courts and regulators have increasingly held companies responsible for what their AI systems tell customers&mdash;an incorrect answer from your chatbot can be treated as your company's statement, not the model vendor's.</li>
+<li><strong>Professional sanctions and malpractice exposure</strong>: Fabricated citations, invented statistics, or wrong professional guidance surfaced through an LLM can trigger court sanctions, disciplinary action, and negligence claims.</li>
+<li><strong>Supply-chain compromise</strong>: When a coding assistant recommends a non-existent package and an attacker registers that name, following the suggestion installs attacker-controlled code&mdash;a direct path to breach (see <em>package hallucination / slopsquatting</em> below).</li>
+<li><strong>Reputational damage</strong>: Publicly visible AI answers that are absurd, offensive, or dangerously wrong erode trust in the brand far faster than they were generated.</li>
+<li><strong>Regulatory exposure</strong>: In regulated domains (health, finance, legal), acting on unverified AI output can violate sector rules and emerging AI-governance requirements.</li>
 </ul>
 
-<h2>Real-World Impact (2025 Context)</h2>
-
-<p>Modern LLM applications face:</p>
+<h3>Technical Impact</h3>
 <ul>
-<li>Integration with enterprise systems</li>
-<li>Autonomous agent capabilities</li>
-<li>RAG (Retrieval Augmented Generation) systems</li>
-<li>Vector database dependencies</li>
-<li>Production-scale deployments</li>
+<li><strong>Insecure code shipped to production</strong>: Generated code that "looks right" may contain injection flaws, broken auth, or calls to APIs that behave differently than the model claimed (ties directly to LLM05, Improper Output Handling).</li>
+<li><strong>Corrupted data and knowledge bases</strong>: Hallucinated facts written into documentation, tickets, or databases persist and are later cited as authoritative&mdash;misinformation compounds.</li>
+<li><strong>Broken automation</strong>: Autonomous agents that act on fabricated intermediate "facts" propagate a single hallucination across many downstream actions.</li>
+<li><strong>Dependency on non-existent components</strong>: Invented package names, config keys, environment variables, or API endpoints cause failures at best and exploitable substitutions at worst.</li>
+<li><strong>Silent bias</strong>: Skewed or manipulated outputs present a one-sided view as neutral fact, distorting decisions without any obvious error to catch.</li>
 </ul>
 
-<h2>Common Scenarios</h2>
+<h2 id="technical-context">Technical Context</h2>
 
-<ol>
-<li><strong>Enterprise Chatbots</strong>: Customer service LLMs exposed to prompt injection</li>
-<li><strong>Code Assistants</strong>: AI pair programmers with excessive system access</li>
-<li><strong>Document Analysis</strong>: RAG systems vulnerable to poisoned embeddings</li>
-<li><strong>Automated Workflows</strong>: LLM agents with inappropriate permissions</li>
-</ol>
+<h3>Why Models Fabricate</h3>
+
+<p>Several properties of LLMs make misinformation intrinsic rather than a bug to be patched away:</p>
+<ul>
+<li><strong>Next-token prediction, not fact retrieval</strong>: The model produces the <em>most plausible continuation</em>, and a plausible-sounding but false statement can be more probable than an honest "I don't know."</li>
+<li><strong>No calibrated uncertainty</strong>: Models rarely express doubt proportional to their actual reliability; confident phrasing accompanies both correct and incorrect claims.</li>
+<li><strong>Training-data gaps and staleness</strong>: Anything sparse, post-cutoff, or contested in the training data is prime territory for fabrication, filled in with a confident guess.</li>
+<li><strong>Pattern-completion pressure</strong>: Asked for "five sources" or "the API method for X," the model will manufacture the requested shape even when no real referent exists.</li>
+</ul>
+
+<h3>Taxonomy of Misinformation</h3>
+
+<h4>1. Factual Hallucination</h4>
+<pre><code>Symptom : Confident false statements — wrong dates, invented statistics,
+          fictional events, misattributed quotes.
+Risk    : Decisions and published content based on fiction.
+Example : "Company X reported $4.2B revenue in Q3" — the figure, and
+          sometimes the quarter, simply do not exist.</code></pre>
+
+<h4>2. Fabricated Citations and Sources</h4>
+<pre><code>Symptom : Plausible-looking references — authors, titles, case numbers,
+          DOIs, URLs — that do not correspond to any real document.
+Risk    : Legal filings, academic work, and reports "backed" by
+          non-existent evidence.
+Example : A court brief citing "Smith v. Jones, 123 F.3d 456" for a case
+          that was never decided.</code></pre>
+
+<h4>3. Package / Dependency Hallucination (Slopsquatting)</h4>
+<pre><code>Symptom : A coding assistant recommends importing a library, module, or
+          command-line tool whose name does not exist in the registry.
+Risk    : SUPPLY CHAIN. An attacker who registers the hallucinated name
+          gets their code executed by everyone who follows the advice.
+Example : "pip install requests-oauth-helper" — no such package existed
+          until an attacker published one at that exact name.</code></pre>
+
+<p>The term <strong>"slopsquatting"</strong> (a play on typosquatting) describes this attacker workflow, which security researchers began documenting through 2024&ndash;2025: probe LLMs to enumerate the package names they frequently hallucinate, then register the most common ones with malicious payloads. Because the same models tend to hallucinate the <em>same</em> plausible names repeatedly, the attacker does not need to guess&mdash;the model volunteers a reliable target list.</p>
+
+<h4>4. Non-Existent or Misdescribed APIs</h4>
+<pre><code>Symptom : Invented function names, parameters, config keys, flags, or
+          endpoints — or real ones described with wrong behaviour.
+Risk    : Broken builds; worse, code that "works" but does the wrong
+          thing (e.g. a security flag the model claims exists but doesn't).
+Example : Calling verify_signature(strict=True) where the library has no
+          strict parameter, so the check silently does nothing.</code></pre>
+
+<h4>5. Fabricated Domain Guidance (Legal / Medical / Financial)</h4>
+<pre><code>Symptom : Authoritative-sounding advice in a high-stakes regulated field
+          that is plausible but wrong or dangerously incomplete.
+Risk    : Physical harm, financial loss, professional/legal liability.
+Example : Confident dosage, statute, or tax guidance that misstates the
+          actual rule for the person's real situation.</code></pre>
+
+<h4>6. Biased or Manipulated Output</h4>
+<pre><code>Symptom : One-sided framing presented as neutral fact; outputs steered by
+          leading prompts, poisoned retrieval, or skewed training data.
+Risk    : Distorted decisions with no obvious "error" to detect.
+Example : A product-comparison answer that silently omits competitors, or
+          a summary that inherits a source document's slant as truth.</code></pre>
+
+<h3>The Overreliance Multiplier</h3>
+
+<p>Every category above is only as dangerous as the trust placed in it. Overreliance&mdash;the human and organisational tendency to accept LLM output without verification&mdash;is the amplifier that turns a fabrication into an incident. It is driven by <strong>automation bias</strong> (people defer to a confident machine), <strong>fluency bias</strong> (well-written text reads as more credible), and <strong>throughput pressure</strong> (verification is slower than accepting the answer). Any serious defense must address both the generation side (make output more grounded) and the consumption side (make verification mandatory where stakes are high).</p>
+
+<h2 id="real-world-impact">Real-World Impact</h2>
+
+<blockquote>
+<p>The cases below are described as <strong>verifiable incident classes</strong>, not precise metrics. Exact figures vary by report; the durable lesson is the pattern, not a statistic.</p>
+</blockquote>
+
+<h3>Class 1: Fabricated Legal Citations Leading to Sanctions</h3>
+<p><strong>Pattern</strong>: Since 2023, multiple courts in different jurisdictions have sanctioned attorneys who filed briefs containing case citations that a chatbot had invented&mdash;complete with realistic-looking reporter numbers and quotations for decisions that never existed. The best-known early example arose in a US federal matter (a personal-injury suit against an airline), and similar sanctions have recurred since.</p>
+<p><strong>Root cause</strong>: A fabricated-citation hallucination (category 2) met zero verification&mdash;the filer trusted the tool's output as if it were legal research.</p>
+
+<h3>Class 2: Company Held Liable for a Support Chatbot's Wrong Answer</h3>
+<p><strong>Pattern</strong>: A civil tribunal held an airline responsible for incorrect information its website chatbot gave a customer about a fare policy, rejecting the argument that the chatbot was a separate entity. The organisation&mdash;not the model&mdash;owned the statement.</p>
+<p><strong>Root cause</strong>: Ungrounded generation about the company's own policies, deployed customer-facing with no grounding to the authoritative policy text and no disclaimer or verification path.</p>
+
+<h3>Class 3: Package Hallucination as a Supply-Chain Vector</h3>
+<p><strong>Pattern</strong>: Security researchers demonstrated that coding assistants frequently recommend non-existent package names, that the hallucinated names are <em>repeatable</em> across queries and models, and that an attacker can pre-register those names in public registries (npm, PyPI) to get malicious code installed by developers who follow the suggestion. This attacker workflow was named "slopsquatting."</p>
+<p><strong>Root cause</strong>: Dependency hallucination (category 3) combined with developers copy-pasting install commands without confirming the package exists and is legitimate.</p>
+
+<h3>Class 4: AI Search Summaries Surfacing Absurd or Unsafe "Facts"</h3>
+<p><strong>Pattern</strong>: Generative "answer" features in search engines have, on multiple occasions, presented fabricated or dangerously wrong guidance in an authoritative, headline-style box&mdash;including nonsensical health and cooking advice drawn from satirical or low-quality sources treated as fact.</p>
+<p><strong>Root cause</strong>: Generation grounded in untrustworthy retrieved content, presented with a UI that signals high confidence and invites overreliance.</p>
+
+<h3>Class 5: Plausible-but-Wrong Medical and Financial Guidance</h3>
+<p><strong>Pattern</strong>: Health and finance chatbots have produced confident, well-structured guidance that is subtly or seriously incorrect for the individual's actual situation. Because the answer reads like expert advice, users act on it without seeking a professional.</p>
+<p><strong>Root cause</strong>: Fabricated domain guidance (category 5) in a high-stakes field with no human expert in the loop and no clear communication of the model's limits.</p>
+
+<h2 id="prevalence">Prevalence and Detectability</h2>
+
+<p>Misinformation is best understood as <strong>highly prevalent and moderately hard to detect</strong>:</p>
+<ul>
+<li><strong>Prevalence</strong>: Every ungrounded generative system exhibits it to some degree. It cannot currently be driven to zero; it can only be reduced and contained. OWASP places it among the most consequential LLM risks precisely because it is unavoidable in raw form.</li>
+<li><strong>Detectability</strong>: Unlike a crash or a stack trace, a hallucination produces <em>valid-looking output</em>. Detection requires comparing the claim against ground truth&mdash;a citation lookup, a registry check, an expert review&mdash;which is effort many pipelines skip.</li>
+<li><strong>Exploitability</strong>: Ranges from passive (a user simply believes a wrong fact) to active (an attacker weaponises predictable hallucinations, as in slopsquatting).</li>
+</ul>
+
+<blockquote>
+<p>Note: treat any single "hallucination rate" percentage as illustrative only&mdash;rates depend heavily on model, prompt, domain, and whether retrieval grounding is used. The reliable takeaway is that the rate is never zero, so verification must be designed in, not assumed away.</p>
+</blockquote>
+
+<h2 id="common-misunderstandings">Common Misunderstandings</h2>
+
+<h3>Myth 1: "A bigger / newer model won't hallucinate"</h3>
+<p><strong>Reality</strong>: Larger models are more fluent and often more accurate, which can make hallucinations <em>rarer but more convincing</em>&mdash;and therefore harder to catch. Capability does not remove the need for grounding and verification.</p>
+
+<h3>Myth 2: "If I tell it not to make things up, it won't"</h3>
+<p><strong>Reality</strong>: A model cannot reliably know when it is fabricating, so an instruction to "only state facts" or "say I don't know if unsure" reduces but never eliminates the behaviour. It is a mitigation, not a guarantee.</p>
+
+<h3>Myth 3: "Citations mean it's verified"</h3>
+<p><strong>Reality</strong>: Models fabricate citations as readily as facts, and can even attach a real-looking source to a claim that source never made. A citation is only evidence if you actually retrieved and checked it.</p>
+
+<h3>Myth 4: "RAG eliminates hallucination"</h3>
+<p><strong>Reality</strong>: Retrieval-augmented generation greatly reduces fabrication when the retrieved context is trustworthy and the model is constrained to it&mdash;but the model can still misread the context, blend it with prior knowledge, or answer confidently when retrieval returns nothing relevant. RAG is a strong control, not a cure.</p>
+
+<h3>Myth 5: "It's the model vendor's problem"</h3>
+<p><strong>Reality</strong>: Liability and reputational damage attach to the organisation that <em>deploys</em> the system and shows its output to users. You own your application's answers.</p>
+
+<h3>Myth 6: "Hallucination is only a quality issue, not a security issue"</h3>
+<p><strong>Reality</strong>: Package hallucination turns directly into supply-chain compromise, and fabricated "security" code (a flag that does nothing, a check that always passes) creates real vulnerabilities. Misinformation has a hard security edge.</p>
+
+<h2 id="self-assessment">Self-Assessment</h2>
+
+<p>Ask these questions about any LLM feature you ship:</p>
+<ul>
+<li>[ ] For factual answers, is the model <strong>grounded</strong> in a trusted, retrievable source rather than answering from parametric memory?</li>
+<li>[ ] Are <strong>citations verified</strong> to exist and to actually support the claim before they reach the user?</li>
+<li>[ ] Is <strong>generated code validated</strong>, and are recommended <strong>dependencies confirmed to exist</strong> and be legitimate before anyone installs them?</li>
+<li>[ ] For high-stakes domains (legal, medical, financial, safety), is there <strong>mandatory human expert review</strong> in the loop?</li>
+<li>[ ] Does the UI <strong>communicate uncertainty and limitations</strong> instead of presenting every answer as authoritative?</li>
+<li>[ ] Do you run <strong>cross-verification or self-consistency</strong> checks on high-value outputs?</li>
+<li>[ ] Are outputs <strong>constrained to known/validated data</strong> where possible (enumerations, allow-lists, schemas) rather than free-form?</li>
+<li>[ ] Have your users been <strong>trained</strong> on model limitations and the verification steps expected of them?</li>
+</ul>
+
+<p>Several "no" or "not sure" answers means your system is one confident fabrication away from an incident.</p>
+
+<h2 id="next-steps">Next Steps</h2>
+
+<ul>
+<li><strong><a href="attack-vectors.html">Attack Vectors</a></strong>: How hallucination arises and how attackers weaponise it</li>
+<li><strong><a href="prevention.html">Prevention</a></strong>: Layered grounding, verification, and oversight defenses</li>
+<li><strong><a href="examples.html">Examples</a></strong>: Vulnerable vs. secure code for grounding, citation, and dependency validation</li>
+<li><strong><a href="./lab/misinformation/">Hands-On Lab</a></strong>: Practice detecting and mitigating misinformation (runs at <code>http://localhost:6009</code>)</li>
+</ul>
 
         </div>
     </div>
