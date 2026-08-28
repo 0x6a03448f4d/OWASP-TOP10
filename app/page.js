@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import data from './data/owasp.json';
 
-const ICONS = { web: '🌐', api: '🔌', mobile: '📱', llm: '🤖' };
+const ICONS = { web: '🌐', api: '🔌', mobile: '📱', llm: '🤖', kubernetes: '☸️', cicd: '🔄', serverless: '⚡', ml: '🧠', 'smart-contract': '📜', proactive: '🛡️' };
 
 export default function Home() {
   return (

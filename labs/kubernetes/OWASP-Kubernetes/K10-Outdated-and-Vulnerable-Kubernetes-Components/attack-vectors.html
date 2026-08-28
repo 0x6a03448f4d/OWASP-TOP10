@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K10: Outdated and Vulnerable Kubernetes Components - Attack Vectors</title>
+    <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .doc-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .back-nav:hover {
+            background-color: rgba(245, 158, 11, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(245, 158, 11, 0.1);
+        }
+
+        .content h1 {
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            text-shadow: none;
+        }
+
+        .content h2 {
+            color: var(--secondary-color);
+            font-size: 1.8rem;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .content h3 {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+            margin-top: 30px;
+            margin-bottom: 12px;
+        }
+
+        .content h4 {
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        .content p {
+            color: var(--text-color);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .content ul, .content ol {
+            margin-left: 25px;
+            margin-bottom: 15px;
+            color: var(--text-color);
+        }
+
+        .content li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .content code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--primary-color);
+            font-family: 'Courier New', monospace;
+            border: 1px solid var(--border-color);
+        }
+
+        .content pre {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            color: var(--primary-color);
+        }
+
+        .content blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 20px;
+            margin: 20px 0;
+            background: rgba(245, 158, 11, 0.05);
+            padding: 15px 20px;
+            border-radius: 4px;
+        }
+
+        .content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table th {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2));
+            color: var(--primary-color);
+            padding: 12px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table td {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        .content table tr:hover {
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .content a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .content a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .content strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        .toc {
+            background: rgba(245, 158, 11, 0.05);
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .toc h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc li {
+            margin-bottom: 8px;
+        }
+
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toc a:hover {
+            color: var(--primary-color);
+        }
+
+        .toc a:before {
+            content: "▸";
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="doc-container">
+        <a href="/learn/kubernetes" class="back-nav">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+
+        <div class="content">
+            <h1>K10: Outdated and Vulnerable Kubernetes Components - Attack Vectors</h1>
+
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#understanding">Understanding the Attack Surface</a></li>
+<li><a href="#core-attack-flow">Core Attack Flow</a></li>
+<li><a href="#patterns">Common Attack Patterns</a></li>
+<li><a href="#chaining">Chaining Outdated Components</a></li>
+</ul>
+</div>
+
+<h2 id="understanding">Understanding the Attack Surface</h2>
+
+<blockquote>
+<p><strong>⚠️ EDUCATIONAL PURPOSE ONLY</strong> &mdash; the techniques below are described so you can find, prioritise, and fix outdated components in clusters you own or are explicitly authorised to test. Do not exploit systems you do not control.</p>
+</blockquote>
+
+<p>Attacking outdated components is the least creative category in the entire Kubernetes Top 10, and that is exactly what makes it dangerous. The attacker does not invent a new technique&mdash;they <strong>identify a version</strong> and then run an exploit that already exists in a public catalogue. The intellectual work was done by the researcher who disclosed the flaw; the attacker only has to notice that your cluster never applied the patch.</p>
+
+<p>The attacker's goal in this category is typically one of:</p>
+<ul>
+<li>Fingerprint the version of a reachable component (ingress controller, API server, kubelet, runtime, add-on).</li>
+<li>Match that version to a public advisory with a working exploit.</li>
+<li>Use the exploit to gain code execution, escape a container, or escalate privileges.</li>
+<li>Pivot from that foothold to the node, the control plane, and cluster-wide secrets.</li>
+</ul>
+
+<h3 id="core-attack-flow">Core Attack Flow</h3>
+
+<pre><code>1. Fingerprint
+   &darr;
+   Read version banners, /version, error pages, image tags,
+   TLS certs, response quirks -> identify each component + version
+2. Match
+   &darr;
+   Look up the version in public advisories / exploit databases
+   -> find a component with a known, unpatched CVE
+3. Exploit
+   &darr;
+   Run the existing exploit: ingress RCE, runtime escape,
+   kubelet/API-server privesc, add-on auth bypass
+4. Escape / Escalate
+   &darr;
+   Break out to the node, harvest tokens/secrets, reach the
+   control plane -> cluster-wide compromise</code></pre>
+
+<h2 id="patterns">Common Attack Patterns</h2>
+
+<h3>1. Fingerprinting the Kubernetes Version</h3>
+
+<p>The API server and many components advertise their version to anyone who can reach them.</p>
+
+<pre><code># The API server exposes an unauthenticated version endpoint:
+GET /version HTTP/1.1
+&rarr; { "major": "1", "minor": "26", "gitVersion": "v1.26.x", ... }
+
+# kubectl confirms client/server versions:
+kubectl version
+# Node images and kubelet versions are listed on every node:
+kubectl get nodes -o wide      # KERNEL-VERSION, OS-IMAGE, CONTAINER-RUNTIME</code></pre>
+
+<p><strong>Payoff</strong>: the exact Kubernetes minor, node kernel, OS image, and runtime&mdash;everything needed to select a matching exploit. An end-of-life <code>gitVersion</code> is an immediate green light.</p>
+
+<h3>2. Ingress-Controller RCE (IngressNightmare class)</h3>
+
+<p>An internet-facing ingress controller running a version with a public advisory is the highest-value target, because it is reachable without any cluster credentials.</p>
+
+<pre><code># Fingerprint the controller from response headers / error pages:
+GET / HTTP/1.1
+&rarr; Server: nginx  (+ ingress-nginx default 404 body / annotations behaviour)
+
+# If the running version predates the fix, an attacker submits a
+# crafted Ingress object or request that injects controller
+# configuration or triggers code execution in the controller pod.</code></pre>
+
+<p><strong>Payoff</strong>: code execution inside an internet-facing pod that can typically read TLS Secrets and watch cluster resources&mdash;a foothold with cluster-wide reach, no login required.</p>
+
+<h3>3. Container Runtime / runc Escape</h3>
+
+<p>If the attacker already controls a pod (via a vulnerable app, K01 misconfig, or supply-chain issue), an unpatched runtime turns that pod into node access.</p>
+
+<pre><code># From inside a container on a node with an unpatched runc/containerd:
+cat /proc/version                 # kernel version -> match to LPE class
+runc --version ; containerd --version   # if visible -> match to escape class
+
+# The runc-escape class lets a malicious container overwrite the host
+# runc binary or break isolation, then execute on the node itself.</code></pre>
+
+<p><strong>Payoff</strong>: escape from one container to the host, then access to every pod, Secret, and ServiceAccount token scheduled on that node.</p>
+
+<h3>4. Kubelet / API-Server Privilege Escalation</h3>
+
+<p>Historic, patched flaws in the node agent and control plane let a limited client reach further than intended.</p>
+
+<pre><code># The kubelet's read/exec API may be reachable on the node:
+GET https://NODE:10250/pods         # list pods on the node
+POST https://NODE:10250/run/...     # exec into a container (if authz weak)
+
+# On outdated API servers, specific privilege-escalation and
+# request-proxying advisories let a low-privileged principal reach
+# endpoints or backends it should not.</code></pre>
+
+<p><strong>Payoff</strong>: escalation from a node-local or low-privileged position toward cluster-admin-equivalent access, using a flaw that a patched version would have closed.</p>
+
+<h3>5. Vulnerable Add-ons: Dashboard, Metrics, Mesh</h3>
+
+<p>Helper components installed once and never upgraded are soft targets.</p>
+
+<pre><code># An outdated Kubernetes Dashboard exposed without auth / with a
+# known auth-bypass advisory hands over cluster operations in a browser.
+GET /#/overview            # dashboard reachable, no login
+
+# An unpatched metrics or profiling add-on leaks internal topology;
+# an outdated service-mesh proxy replicates one CVE across every
+# meshed pod at once.</code></pre>
+
+<p><strong>Payoff</strong>: cluster control (dashboard), reconnaissance (metrics), or a proxy vulnerability multiplied across the whole mesh.</p>
+
+<h3>6. End-of-Life Node OS and Kernel</h3>
+
+<p>The node kernel is the ultimate isolation boundary, and an EOL distro never gets kernel patches.</p>
+
+<pre><code>uname -r                     # kernel version
+cat /etc/os-release          # distro + version -> is it still supported?
+
+# A kernel with a public local-privilege-escalation exploit lets a
+# container-confined process (or an escaped one) become root on the node.</code></pre>
+
+<p><strong>Payoff</strong>: local privilege escalation on the node, completing an escape or turning limited node access into full root.</p>
+
+<h3>7. CNI / CSI Component Vulnerabilities</h3>
+
+<p>Network and storage plugins run with high privilege on every node.</p>
+
+<pre><code># CNI plugins enforce NetworkPolicy and program the node network;
+# a vulnerable version can allow policy bypass or node-level execution.
+# CSI drivers mount volumes with host privileges; an outdated driver
+# with a path-handling flaw can be abused to touch the host filesystem.</code></pre>
+
+<p><strong>Payoff</strong>: network-segmentation bypass (undermining K07) or privileged host access via the storage path.</p>
+
+<h2 id="chaining">Chaining Outdated Components</h2>
+
+<p>Individually a stale version is "just" a finding. Chained, stale versions become full cluster takeover with no application bug at all:</p>
+
+<pre><code>Internet-facing ingress controller is months behind
+        -&gt; exploit the IngressNightmare-class RCE for code exec in the pod
+        +
+The node runs an unpatched runc / EOL kernel
+        -&gt; escape the ingress pod to the node
+        +
+The kubelet / API server is also outdated
+        -&gt; escalate from the node to cluster-admin-equivalent access
+        =  full cluster compromise, every exploit taken off the shelf</code></pre>
+
+<p>Another common chain begins from a single compromised workload:</p>
+
+<pre><code>Compromised app pod (any cause)
+        -&gt; unpatched container runtime -> escape to the node
+        -&gt; harvest ServiceAccount tokens + Secrets mounted on the node
+        -&gt; EOL kernel LPE -> root on the node
+        -&gt; pivot to other nodes and the control plane</code></pre>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>This category is exploited by identification, not innovation</strong>&mdash;the exploit exists before the attacker arrives; they only need your version.</li>
+<li><strong>Versions are easy to fingerprint</strong>&mdash;<code>/version</code>, node metadata, banners, and image tags advertise exactly what to target.</li>
+<li><strong>The internet-facing ingress controller is the prime external target</strong>&mdash;RCE there needs no credentials and reaches cluster secrets.</li>
+<li><strong>Runtime and kernel staleness converts a pod compromise into a node and cluster compromise</strong>&mdash;the escape layer is the one most often neglected.</li>
+<li><strong>Stale versions chain</strong>&mdash;ingress RCE plus a runc escape plus an outdated API server equals total takeover, entirely from public exploits.</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="prevention.html">Prevention Guide</a></strong>: Inventory, track CVEs, scan, and upgrade the whole stack on a cadence</li>
+<li><strong><a href="examples.html">Code Examples</a></strong>: Version checking, upgrade strategy, and cluster scanning done right</li>
+<li><strong><a href="/learn/kubernetes">Kubernetes Learning Path</a></strong>: Continue with the rest of the Kubernetes Top 10</li>
+<li><strong><a href="/practice">Practice</a></strong>: Apply what you've learned in hands-on challenges</li>
+</ul>
+        </div>
+    </div>
+</body>
+</html>

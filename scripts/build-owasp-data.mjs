@@ -176,6 +176,25 @@ const EDITIONS = {
       ]},
     ],
   },
+  kubernetes: {
+    label: 'Kubernetes',
+    blurb: 'The OWASP Kubernetes Top 10 — the most common security risks in Kubernetes clusters.',
+    lessonDir: 'labs/kubernetes/OWASP-Kubernetes',
+    editions: [
+      { year: '2022', latest: true, cheatDir: null, vulns: [
+        V('K01', 1, 'Insecure Workload Configurations', 'insecure-workload-configurations'),
+        V('K02', 2, 'Supply Chain Vulnerabilities', 'supply-chain-vulnerabilities'),
+        V('K03', 3, 'Overly Permissive RBAC Configurations', 'overly-permissive-rbac-configurations'),
+        V('K04', 4, 'Lack of Centralized Policy Enforcement', 'lack-of-centralized-policy-enforcement'),
+        V('K05', 5, 'Inadequate Logging and Monitoring', 'inadequate-logging-and-monitoring'),
+        V('K06', 6, 'Broken Authentication Mechanisms', 'broken-authentication-mechanisms'),
+        V('K07', 7, 'Missing Network Segmentation Controls', 'missing-network-segmentation-controls'),
+        V('K08', 8, 'Secrets Management Failures', 'secrets-management-failures'),
+        V('K09', 9, 'Misconfigured Cluster Components', 'misconfigured-cluster-components'),
+        V('K10', 10, 'Outdated and Vulnerable Kubernetes Components', 'outdated-and-vulnerable-kubernetes-components'),
+      ]},
+    ],
+  },
 };
 
 // Pull an accurate 1-paragraph summary from a lesson's overview.md ("What is …?").

@@ -6,7 +6,7 @@ export const metadata = {
   description: 'One-page quick references for every OWASP Top 10 vulnerability across editions.',
 };
 
-const ICONS = { web: '🌐', api: '🔌', mobile: '📱', llm: '🤖' };
+const ICONS = { web: '🌐', api: '🔌', mobile: '📱', llm: '🤖', kubernetes: '☸️', cicd: '🔄', serverless: '⚡', ml: '🧠', 'smart-contract': '📜', proactive: '🛡️' };
 
 export default function Cheatsheets() {
   return (
