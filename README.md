@@ -8,8 +8,8 @@
 [![GitHub Issues](https://img.shields.io/github/issues/0x6a03448f4d/OWASP-TOP10)](https://github.com/0x6a03448f4d/OWASP-TOP10/issues)
 [![Last Commit](https://img.shields.io/github/last-commit/0x6a03448f4d/OWASP-TOP10)](https://github.com/0x6a03448f4d/OWASP-TOP10/commits)
 [![Contributors](https://img.shields.io/github/contributors/0x6a03448f4d/OWASP-TOP10)](https://github.com/0x6a03448f4d/OWASP-TOP10/graphs/contributors)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
-[![Code of Conduct](https://img.shields.io/badge/Code%20of%20Conduct-Contributor%20Covenant-4baaaa.svg)](CODE_OF_CONDUCT.md)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](resources/docs/CONTRIBUTING.md)
+[![Code of Conduct](https://img.shields.io/badge/Code%20of%20Conduct-Contributor%20Covenant-4baaaa.svg)](resources/docs/CODE_OF_CONDUCT.md)
 
 > **A comprehensive, hands-on educational resource for learning about the OWASP Top 10 vulnerabilities through safe, isolated, Docker-based labs and in-depth documentation.**
 
@@ -130,7 +130,7 @@ docker-compose up -d
 http://localhost
 ```
 
-See [DOCKER-SETUP.md](DOCKER-SETUP.md) for complete setup instructions.
+See [platform/infra/README.md](platform/infra/README.md) for complete setup instructions.
 
 ## 📁 Repository Structure
 
@@ -315,52 +315,52 @@ To run the hands-on labs, you'll need:
 
 ## 🎓 The OWASP Top 10 Categories
 
-### [01 - Broken Access Control](./OWASP-Web/01-Broken-Access-Control/)
+### [01 - Broken Access Control](./labs/web/OWASP-Web/01-Broken-Access-Control/)
 **Impact:** Unauthorized access to data and functionality  
 **Lab:** Admin button accessible to regular users  
 **Key Lesson:** Never rely on client-side access control
 
-### [02 - Cryptographic Failures](./OWASP-Web/02-Cryptographic-Failures/)
+### [02 - Cryptographic Failures](./labs/web/OWASP-Web/02-Cryptographic-Failures/)
 **Impact:** Exposure of sensitive data  
 **Lab:** Weak MD5 hashing vs secure bcrypt  
 **Key Lesson:** Use strong, modern cryptographic algorithms
 
-### [03 - Injection](./OWASP-Web/03-Injection/)
+### [03 - Injection](./labs/web/OWASP-Web/03-Injection/)
 **Impact:** Data breach, data loss, system compromise  
 **Lab:** Unsafe SQL query construction  
 **Key Lesson:** Always use parameterized queries and input validation
 
-### [04 - Insecure Design](./OWASP-Web/04-Insecure-Design/)
+### [04 - Insecure Design](./labs/web/OWASP-Web/04-Insecure-Design/)
 **Impact:** Business logic exploitation  
 **Lab:** Login form without rate limiting  
 **Key Lesson:** Security must be designed in from the start
 
-### [05 - Security Misconfiguration](./OWASP-Web/05-Security-Misconfiguration/)
+### [05 - Security Misconfiguration](./labs/web/OWASP-Web/05-Security-Misconfiguration/)
 **Impact:** Information disclosure, system compromise  
 **Lab:** Debug mode enabled in production  
 **Key Lesson:** Secure defaults and configuration management
 
-### [06 - Vulnerable and Outdated Components](./OWASP-Web/06-Vulnerable-Outdated-Components/)
+### [06 - Vulnerable and Outdated Components](./labs/web/OWASP-Web/06-Vulnerable-Outdated-Components/)
 **Impact:** System compromise through known vulnerabilities  
 **Lab:** Application using outdated dependencies  
 **Key Lesson:** Keep dependencies updated and monitored
 
-### [07 - Identification and Authentication Failures](./OWASP-Web/07-Identification-Authentication-Failures/)
+### [07 - Identification and Authentication Failures](./labs/web/OWASP-Web/07-Identification-Authentication-Failures/)
 **Impact:** Account takeover, identity theft  
 **Lab:** Predictable session tokens  
 **Key Lesson:** Use strong session management and authentication
 
-### [08 - Software and Data Integrity Failures](./OWASP-Web/08-Software-Data-Integrity-Failures/)
+### [08 - Software and Data Integrity Failures](./labs/web/OWASP-Web/08-Software-Data-Integrity-Failures/)
 **Impact:** Malicious code execution, supply chain attacks  
 **Lab:** Unsigned software updates  
 **Key Lesson:** Verify integrity of software and data
 
-### [09 - Security Logging and Monitoring Failures](./OWASP-Web/09-Security-Logging-Monitoring-Failures/)
+### [09 - Security Logging and Monitoring Failures](./labs/web/OWASP-Web/09-Security-Logging-Monitoring-Failures/)
 **Impact:** Undetected breaches, slow incident response  
 **Lab:** Application with no logging  
 **Key Lesson:** Comprehensive logging and monitoring is essential
 
-### [10 - Server-Side Request Forgery (SSRF)](./OWASP-Web/10-Server-Side-Request-Forgery/)
+### [10 - Server-Side Request Forgery (SSRF)](./labs/web/OWASP-Web/10-Server-Side-Request-Forgery/)
 **Impact:** Internal system access, data exfiltration  
 **Lab:** URL fetcher with simulated internal services  
 **Key Lesson:** Validate and sanitize all URLs and network requests
@@ -592,7 +592,7 @@ We welcome contributions from the community! Whether it's:
 - 💡 Feature suggestions
 - 🌍 Translations
 
-**Please read [CONTRIBUTING.md](./CONTRIBUTING.md)** for detailed guidelines on:
+**Please read [CONTRIBUTING.md](resources/docs/CONTRIBUTING.md)** for detailed guidelines on:
 - Code of conduct
 - Security-safe content rules
 - Pull request process
