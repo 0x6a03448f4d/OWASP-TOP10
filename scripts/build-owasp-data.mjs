@@ -78,6 +78,29 @@ const EDITIONS = {
         V('API09', 9, 'Improper Inventory Management', 'improper-inventory-management'),
         V('API10', 10, 'Unsafe Consumption of APIs', 'unsafe-consumption-of-apis'),
       ]},
+      { year: '2019', cheatDir: null, alias: {
+        'broken-object-level-authorization': 'API01-Broken-Object-Level-Authorization',
+        'broken-user-authentication': 'API02-Broken-Authentication',
+        'excessive-data-exposure': 'API-2019-Excessive-Data-Exposure',
+        'lack-of-resources-rate-limiting': 'API04-Unrestricted-Resource-Consumption',
+        'broken-function-level-authorization': 'API05-Broken-Function-Level-Authorization',
+        'mass-assignment': 'API-2019-Mass-Assignment',
+        'security-misconfiguration': 'API08-Security-Misconfiguration',
+        'injection': 'API-2019-Injection',
+        'improper-assets-management': 'API09-Improper-Inventory-Management',
+        'insufficient-logging-monitoring': 'API-2019-Insufficient-Logging-Monitoring',
+      }, vulns: [
+        V('API1', 1, 'Broken Object Level Authorization', 'broken-object-level-authorization'),
+        V('API2', 2, 'Broken User Authentication', 'broken-user-authentication'),
+        V('API3', 3, 'Excessive Data Exposure', 'excessive-data-exposure'),
+        V('API4', 4, 'Lack of Resources & Rate Limiting', 'lack-of-resources-rate-limiting'),
+        V('API5', 5, 'Broken Function Level Authorization', 'broken-function-level-authorization'),
+        V('API6', 6, 'Mass Assignment', 'mass-assignment'),
+        V('API7', 7, 'Security Misconfiguration', 'security-misconfiguration'),
+        V('API8', 8, 'Injection', 'injection'),
+        V('API9', 9, 'Improper Assets Management', 'improper-assets-management'),
+        V('API10', 10, 'Insufficient Logging & Monitoring', 'insufficient-logging-monitoring'),
+      ]},
     ],
   },
   mobile: {
@@ -96,6 +119,29 @@ const EDITIONS = {
         V('M08', 8, 'Security Misconfiguration', 'security-misconfiguration'),
         V('M09', 9, 'Insecure Data Storage', 'insecure-data-storage'),
         V('M10', 10, 'Insufficient Cryptography', 'insufficient-cryptography'),
+      ]},
+      { year: '2016', cheatDir: null, alias: {
+        'improper-platform-usage': 'M-2016-Improper-Platform-Usage',
+        'insecure-data-storage': 'M09-Insecure-Data-Storage',
+        'insecure-communication': 'M05-Insecure-Communication',
+        'insecure-authentication': 'M03-Insecure-Authentication-Authorization',
+        'insufficient-cryptography': 'M10-Insufficient-Cryptography',
+        'insecure-authorization': 'M-2016-Insecure-Authorization',
+        'client-code-quality': 'M-2016-Client-Code-Quality',
+        'code-tampering': 'M-2016-Code-Tampering',
+        'reverse-engineering': 'M-2016-Reverse-Engineering',
+        'extraneous-functionality': 'M-2016-Extraneous-Functionality',
+      }, vulns: [
+        V('M1', 1, 'Improper Platform Usage', 'improper-platform-usage'),
+        V('M2', 2, 'Insecure Data Storage', 'insecure-data-storage'),
+        V('M3', 3, 'Insecure Communication', 'insecure-communication'),
+        V('M4', 4, 'Insecure Authentication', 'insecure-authentication'),
+        V('M5', 5, 'Insufficient Cryptography', 'insufficient-cryptography'),
+        V('M6', 6, 'Insecure Authorization', 'insecure-authorization'),
+        V('M7', 7, 'Client Code Quality', 'client-code-quality'),
+        V('M8', 8, 'Code Tampering', 'code-tampering'),
+        V('M9', 9, 'Reverse Engineering', 'reverse-engineering'),
+        V('M10', 10, 'Extraneous Functionality', 'extraneous-functionality'),
       ]},
     ],
   },
@@ -186,7 +232,9 @@ for (const [key, cat] of Object.entries(EDITIONS)) {
   for (const ed of cat.editions) {
     const edOut = { year: ed.year, latest: !!ed.latest, vulns: [] };
     for (const v of ed.vulns) {
-      const folder = idx[v.slug];
+      // Reuse an existing lesson folder when a vuln was merely renamed/re-ranked
+      // across editions (ed.alias), otherwise resolve by slug.
+      const folder = (ed.alias && ed.alias[v.slug]) || idx[v.slug];
       let lessonPath = null, cheatPath = null, summary = null;
       if (folder) {
         const lp = `${cat.lessonDir}/${folder}/overview.html`;
