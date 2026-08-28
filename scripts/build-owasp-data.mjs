@@ -132,6 +132,37 @@ const EDITIONS = {
   },
 };
 
+// Pull an accurate 1-paragraph summary from a lesson's overview.md ("What is …?").
+function extractSummary(mdAbsPath) {
+  if (!existsSync(mdAbsPath)) return null;
+  const lines = readFileSync(mdAbsPath, 'utf8').split('\n');
+  let i = lines.findIndex((l) => /^##\s+What\s+(is|are)\b/i.test(l));
+  if (i === -1) i = lines.findIndex((l, n) => n > 0 && /^##\s+\S/.test(l) && !/table of contents/i.test(l));
+  if (i === -1) return null;
+  const para = [];
+  for (let j = i + 1; j < lines.length; j++) {
+    const l = lines[j].trim();
+    if (/^##\s/.test(l)) break; // reached the next top-level section
+    if (!para.length) {
+      // Skip blanks, rules, sub-headings (### …) and list/table lines before the intro paragraph.
+      if (l === '' || l === '---' || l.startsWith('#') || l.startsWith('```') ||
+          l.startsWith('|') || l.startsWith('- ') || /^\d+\.\s/.test(l)) continue;
+    } else if (l === '' || l.startsWith('#') || l.startsWith('```')) {
+      break; // paragraph ended
+    }
+    if (l) para.push(l);
+  }
+  if (!para.length) return null;
+  let s = para.join(' ')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // links -> text
+    .replace(/\*\*/g, '').replace(/\*/g, '').replace(/`/g, '')
+    .replace(/\s+/g, ' ').trim();
+  // Keep it to the first couple of sentences for a tidy accordion.
+  const sentences = s.match(/[^.!?]+[.!?]+/g);
+  if (sentences && sentences.length > 2) s = sentences.slice(0, 2).join(' ').trim();
+  return s;
+}
+
 // Build a slug -> lesson-folder lookup per category by scanning the lesson dir.
 function folderIndex(lessonDir) {
   const abs = join(root, lessonDir);
@@ -156,11 +187,13 @@ for (const [key, cat] of Object.entries(EDITIONS)) {
     const edOut = { year: ed.year, latest: !!ed.latest, vulns: [] };
     for (const v of ed.vulns) {
       const folder = idx[v.slug];
-      let lessonPath = null, cheatPath = null;
+      let lessonPath = null, cheatPath = null, summary = null;
       if (folder) {
         const lp = `${cat.lessonDir}/${folder}/overview.html`;
         if (existsSync(join(root, lp))) lessonPath = '/' + lp;
         else problems.push(`MISSING lesson overview: ${lp} (${key} ${ed.year} ${v.id})`);
+        summary = extractSummary(join(root, cat.lessonDir, folder, 'overview.md'));
+        if (!summary) problems.push(`NO summary extracted: ${cat.lessonDir}/${folder}/overview.md`);
       } else {
         problems.push(`NO folder for slug "${v.slug}" in ${cat.lessonDir} (${key} ${ed.year} ${v.id})`);
       }
@@ -176,7 +209,7 @@ for (const [key, cat] of Object.entries(EDITIONS)) {
         }
       }
       // cheatsheet is optional; note if absent
-      edOut.vulns.push({ ...v, lessonPath, cheatPath });
+      edOut.vulns.push({ ...v, lessonPath, cheatPath, summary });
     }
     catOut.editions.push(edOut);
   }
