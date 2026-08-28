@@ -34,18 +34,35 @@ This repository exists to make **cybersecurity education accessible, practical, 
 
 By using this repository, you commit to **responsible, ethical cybersecurity practices**.
 
-## 🚀 Quick Start
+## 🌐 Live learning site vs. local labs
 
-**New Platform Structure (Phase 1 Complete!)** 🎉
+This project has two halves, split for safety:
 
-The platform has been reorganized for better maintainability and scalability. Start it from the new location:
+| | Where it runs | What you get |
+|---|---|---|
+| **📚 Learning site** | Hosted: **[owasp.0x6a03448f4d.com](https://owasp.0x6a03448f4d.com)** | All the reading — lessons, cheat sheets, attack-flow diagrams, quizzes, compliance mappings. 100% static, nothing vulnerable. |
+| **🔬 Vulnerable labs** | **Your machine** (Docker) or a **Codespace** | The intentionally-vulnerable apps you actually attack. Never hosted publicly, by design. |
+
+The labs are deliberately **not** exposed on the internet — a live vulnerable app is a liability. You run them locally in throwaway Docker containers instead, so nothing vulnerable is ever public and there's zero cost or risk on the hosting side.
+
+<a id="run-the-labs-locally"></a>
+## 🚀 Run the labs locally
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/0x6a03448f4d/OWASP-TOP10)
+
+**Option A — GitHub Codespaces (nothing to install):** click the badge above. The devcontainer ships with Docker and Python pre-installed; once it boots, run the platform below. Ports are auto-forwarded to a private URL only you can see.
+
+**Option B — Local (Docker Desktop / Docker Engine required):**
 
 ```bash
-cd platform/infra
+git clone https://github.com/0x6a03448f4d/OWASP-TOP10.git
+cd OWASP-TOP10/platform/infra
 docker compose up -d
 ```
 
-Then open your browser to **http://localhost** to access the unified dashboard!
+Then open **http://localhost** for the dashboard, or run the lab-manager and browse to the labs page to launch individual labs on demand.
+
+> The **Start Lab** buttons on the hosted site only work when this local lab-manager is running — on the public site they show a reminder to run locally.
 
 **What Changed:**
 - ✅ Cleaner separation: Platform code vs. Lab content
