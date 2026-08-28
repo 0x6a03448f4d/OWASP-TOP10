@@ -217,81 +217,227 @@
         <div class="content">
             <h1>API10: Unsafe Consumption of APIs - Prevention</h1>
 
-<h2>Validate Third-Party Data</h2>
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#prevention-strategy-overview">Prevention Strategy Overview</a></li>
+<li><a href="#validate-upstream-data">Validate &amp; Schema-Check Upstream Data</a></li>
+<li><a href="#secure-the-transport">Secure the Transport</a></li>
+<li><a href="#control-requests-and-redirects">Control Requests &amp; Redirects</a></li>
+<li><a href="#sink-specific-defenses">Sink-Specific Defenses</a></li>
+<li><a href="#monitoring-and-detection">Monitoring &amp; Detection</a></li>
+</ul>
+</div>
 
-<p>``<code>python</p>
-<p>import re</p>
+<h2 id="prevention-strategy-overview">Prevention Strategy Overview</h2>
 
-<p>def safe_consume_api():</p>
-<p>    data = requests.get('https://third-party.com/data').json()</p>
-    
-<p>    # Validate structure</p>
-<p>    if not isinstance(data, dict) or 'name' not in data:</p>
-<p>        raise ValueError("Invalid data structure")</p>
-    
-<p>    # Validate content</p>
-<p>    if not re.match(r'^[a-zA-Z ]+$', data['name']):</p>
-<p>        raise ValueError("Invalid name format")</p>
-    
-<p>    # Safe to use</p>
-<p>    return data</p>
-</code>`<code>
-
-<h2>Sanitize Before Database</h2>
-
-</code>`<code>python
-<h1>SECURE: Parameterized query</h1>
-<p>users = requests.get('https://api.com/users').json()</p>
-<p>for user in users:</p>
-<p>    cursor.execute("INSERT INTO users (name, email) VALUES (?, ?)",</p>
-<p>                   (user['name'], user['email']))</p>
-</code>`<code>
-
-<h2>Sanitize Before Rendering</h2>
-
-</code>`<code>python
-<p>from markupsafe import escape</p>
-
-<p>weather = requests.get('https://weather.com/api').json()</p>
-<h1>Escape before rendering</h1>
-<p>return f"<div>{escape(weather['description'])}</div>"</p>
-</code>`<code>
-
-<h2>Verify API Responses</h2>
-
-</code>`<code>python
-<p>import hmac</p>
-<p>import hashlib</p>
-
-<p>def verify_webhook(payload, signature):</p>
-<p>    expected = hmac.new(SECRET_KEY, payload, hashlib.sha256).hexdigest()</p>
-<p>    if not hmac.compare_digest(expected, signature):</p>
-<p>        raise ValueError("Invalid signature")</p>
-</code>`<code>
-
-<h2>Use Safe Parsers</h2>
-
-</code>`<code>python
-<h1>XML: Disable external entities</h1>
-<p>from lxml import etree</p>
-
-<p>parser = etree.XMLParser(</p>
-<p>    resolve_entities=False,</p>
-<p>    no_network=True</p>
-<p>)</p>
-<p>doc = etree.fromstring(xml_data, parser)</p>
-</code>``
-
-<h2>Key Takeaways</h2>
-
+<p>Safe consumption rests on one rule: <strong>treat every third-party response as untrusted input</strong>, and defend in layers.</p>
 <ol>
-<li><strong>Validate</strong>: Check structure and content</li>
-<li><strong>Sanitize</strong>: Treat as untrusted input</li>
-<li><strong>Parameterize</strong>: Never concatenate into queries</li>
-<li><strong>Verify</strong>: Use signatures/certificates</li>
-<li><strong>Safe parsers</strong>: Disable dangerous features</li>
+<li>Validate and schema-check upstream data.</li>
+<li>Secure the transport (TLS verification, optional pinning, allowlisted hosts).</li>
+<li>Control the request itself (timeouts, size limits, no blind redirects).</li>
+<li>Defend the sink (parameterize, encode, safe parsers, no untrusted deserialization).</li>
+<li>Monitor, verify signatures, and contain blast radius.</li>
 </ol>
 
+<h3>Core Principles</h3>
+<ul>
+<li><strong>Zero implicit trust</strong>: origin is not authenticity; a partner can be compromised.</li>
+<li><strong>Verify, don't assume</strong>: signatures and schemas over status flags.</li>
+<li><strong>Least privilege &amp; isolation</strong>: sandbox integration processing; minimize what it can reach.</li>
+<li><strong>Fail closed</strong>: reject malformed/oversized/unexpected responses.</li>
+</ul>
+
+<h2 id="validate-upstream-data">Validate &amp; Schema-Check Upstream Data</h2>
+
+<h3>Schema Validation First</h3>
+<p>Reject anything that does not match an explicit, strict schema before your logic touches it. This single control neutralizes malformed-data DoS, unexpected-key mass assignment, and type-confusion bugs.</p>
+<pre><code>from pydantic import BaseModel, EmailStr, constr, ValidationError
+
+class PartnerUser(BaseModel):
+    name: constr(max_length=100)      # bounded length
+    email: EmailStr
+    role: str = "user"                # never accept an upstream-supplied role
+
+def parse_users(payload: dict) -&gt; list[PartnerUser]:
+    try:
+        return [PartnerUser(**u) for u in payload["users"]]
+    except (ValidationError, KeyError, TypeError):
+        raise ValueError("Upstream response failed validation")  # fail closed
+</code></pre>
+
+<h3>Sanitize/Encode Like User Input</h3>
+<pre><code>import bleach
+# Before storing or rendering upstream text
+safe_name = bleach.clean(user.name)          # strip HTML/JS
+# And ALWAYS context-encode at the point of output (see Sink-Specific Defenses)
+</code></pre>
+
+<h3>Never Trust Success Flags — Verify Them</h3>
+<pre><code>import hmac, hashlib
+
+def verify_webhook(secret: bytes, body: bytes, signature: str) -&gt; bool:
+    expected = hmac.new(secret, body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, signature)   # constant-time
+
+# Reject the event if the HMAC does not match — do NOT act on status alone.
+</code></pre>
+
+<h2 id="secure-the-transport">Secure the Transport</h2>
+
+<h3>Always Enforce TLS Verification</h3>
+<pre><code># Python requests: verification is ON by default — keep it that way
+requests.get(url, timeout=5, verify=True)   # NEVER verify=False in prod
+</code></pre>
+<pre><code>// Node: never disable rejectUnauthorized
+const https = require('https');
+const agent = new https.Agent({ rejectUnauthorized: true });   // default; keep it
+</code></pre>
+
+<h3>Consider Certificate / Public-Key Pinning for Critical Partners</h3>
+<pre><code># Pin a partner's expected certificate fingerprint (defense against MITM/CA compromise)
+import ssl, requests
+# Use an adapter that checks the peer cert SHA-256 against a known-good pin.
+# Rotate pins with the partner's cert lifecycle to avoid outages.
+</code></pre>
+
+<h3>Allowlist Integration Endpoints</h3>
+<pre><code>ALLOWED_HOSTS = {"api.payments.com", "idp.example.com", "crm-partner.com"}
+
+def assert_allowed(url: str):
+    host = urllib.parse.urlparse(url).hostname
+    if host not in ALLOWED_HOSTS:
+        raise ValueError(f"Endpoint not allowlisted: {host}")
+</code></pre>
+
+<h2 id="control-requests-and-redirects">Control Requests &amp; Redirects</h2>
+
+<h3>Timeouts and Response-Size Limits</h3>
+<pre><code>def fetch_json(url, max_bytes=1_000_000, timeout=5):
+    assert_allowed(url)
+    r = requests.get(url, timeout=timeout, allow_redirects=False, stream=True)
+    total, chunks = 0, []
+    for c in r.iter_content(8192):
+        total += len(c)
+        if total &gt; max_bytes:
+            raise ValueError("Upstream response too large")   # DoS guard
+        chunks.append(c)
+    return json.loads(b"".join(chunks))
+</code></pre>
+
+<h3>Do Not Blindly Follow Redirects</h3>
+<pre><code>r = requests.get(url, allow_redirects=False, timeout=5)
+if r.is_redirect:
+    target = r.headers.get("Location", "")
+    assert_allowed(target)            # re-validate every hop against the allowlist
+    # Re-resolve and block internal ranges before following (see API07 SSRF guidance)
+</code></pre>
+
+<h3>Block Internal Ranges on Any Followed Host</h3>
+<pre><code>import ipaddress, socket
+def is_public(host: str) -&gt; bool:
+    ip = ipaddress.ip_address(socket.gethostbyname(host))
+    return not (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved)
+</code></pre>
+
+<h2 id="sink-specific-defenses">Sink-Specific Defenses</h2>
+
+<h3>SQL: Always Parameterize</h3>
+<pre><code># SAFE - upstream values are bound, never concatenated
+db.execute("INSERT INTO users(name,email) VALUES(%s,%s)", (u.name, u.email))
+</code></pre>
+
+<h3>HTML: Context-Aware Output Encoding</h3>
+<pre><code>// Auto-escaping template engine, or explicit encoding:
+res.send(`&lt;div&gt;Today: ${escapeHtml(weather.description)}&lt;/div&gt;`);
+</code></pre>
+
+<h3>XML: Disable External Entities</h3>
+<pre><code>from lxml import etree
+parser = etree.XMLParser(resolve_entities=False, no_network=True,
+                         dtd_validation=False, load_dtd=False)
+doc = etree.fromstring(partner_xml, parser)   # XXE-safe
+</code></pre>
+
+<h3>Deserialization: Use Safe Formats Only</h3>
+<pre><code># NEVER pickle.loads / native Java/.NET deserialization on partner data.
+data = json.loads(body)          # data, not code
+model = PartnerUser(**data)      # then schema-validate
+</code></pre>
+
+<h3>Sandbox &amp; Least Privilege for Integration Processing</h3>
+<ul>
+<li>Run integration workers with minimal IAM/network permissions (can't reach metadata, DBs they don't need).</li>
+<li>Process partner content in an isolated service/container so a compromise is contained.</li>
+<li>Egress-filter outbound traffic so a poisoned integration can't exfiltrate freely.</li>
+</ul>
+
+<h2 id="monitoring-and-detection">Monitoring &amp; Detection</h2>
+
+<h3>Log and Alert on Anomalous Responses</h3>
+<pre><code>def consume(url):
+    r = fetch_json(url)
+    log.info("upstream", host=urlparse(url).hostname,
+             size=len(str(r)), status="ok")
+    # Alert on: schema-validation failures, unexpected redirects,
+    # response-size spikes, new/unknown fields, latency anomalies.
+    return r
+</code></pre>
+
+<h3>Detect Integration Abuse Patterns</h3>
+<pre><code>def flag(url, resp):
+    alerts = []
+    if any(x in url for x in ("169.254.169.254", "localhost", "127.0.0.1")):
+        alerts.append("integration pointed at internal/metadata host")
+    if resp.get("role") == "admin":
+        alerts.append("upstream attempted to set privileged field")
+    if alerts:
+        send_security_alert(alerts, url)
+    return alerts
+</code></pre>
+
+<h3>Operational Controls</h3>
+<ul>
+<li><strong>Pin and review dependencies</strong> (SRI for browser scripts, lockfiles + signature verification for packages).</li>
+<li><strong>Rotate integration credentials</strong> and scope them tightly.</li>
+<li><strong>Circuit-breakers &amp; rate limits</strong> on outbound calls to blunt DoS and runaway retries.</li>
+<li><strong>Contract tests</strong> against partner schemas so unexpected changes fail fast.</li>
+</ul>
+
+<h2>Framework Quick-Reference</h2>
+
+<h3>Flask (Python)</h3>
+<pre><code>data = fetch_json(url)                     # allowlist + size cap + no redirect
+users = [PartnerUser(**u) for u in data["users"]]   # schema validation
+db.execute("INSERT INTO users(name,email) VALUES(%s,%s)",
+           (users[0].name, users[0].email))          # parameterized
+</code></pre>
+
+<h3>Express (Node.js)</h3>
+<pre><code>const { data } = await axios.get(url, {
+  timeout: 5000, maxRedirects: 0, maxContentLength: 1_000_000,
+  httpsAgent: new https.Agent({ rejectUnauthorized: true })
+});
+const user = UserSchema.parse(data);       // zod/ajv validation
+</code></pre>
+
+<h2>Key Takeaways</h2>
+<ol>
+<li><strong>Schema-validate every upstream response</strong> and fail closed.</li>
+<li><strong>Enforce TLS verification</strong>; pin certs for critical partners.</li>
+<li><strong>Allowlist integration hosts</strong> and disable blind redirects.</li>
+<li><strong>Timeouts + size limits</strong> to stop DoS from bad responses.</li>
+<li><strong>Parameterize, encode, and use safe parsers</strong> at every sink.</li>
+<li><strong>Verify success with signatures</strong>, never bare status flags.</li>
+<li><strong>Sandbox and monitor</strong> integration processing to contain compromise.</li>
+</ol>
+
+<h2>Next Steps</h2>
+<ul>
+<li><strong><a href="examples.html">Code Examples</a></strong>: Full vulnerable vs. secure implementations</li>
+<li><strong><a href="attack-vectors.html">Attack Vectors</a></strong>: Understand what you're defending against</li>
+<li><strong><a href="lab/api10-unsafe-consumption-lab/">Hands-On Lab</a></strong>: Practice safe consumption</li>
+</ul>
         </div>
     </div>
 </body>

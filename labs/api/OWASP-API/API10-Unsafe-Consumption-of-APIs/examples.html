@@ -217,75 +217,190 @@
         <div class="content">
             <h1>API10: Unsafe Consumption of APIs - Code Examples</h1>
 
-<h2>Flask - Vulnerable vs Secure</h2>
+<p>Each example consumes a third-party API response. The <strong>vulnerable</strong> version trusts it; the <strong>secure</strong> version enforces TLS, disables blind redirects, schema-validates the data, and parameterizes/encodes it at the sink.</p>
+
+<h2>Flask (Python)</h2>
 
 <h3>Vulnerable</h3>
-<p>``<code>python</p>
-<p>@app.route('/import')</p>
-<p>def import_data():</p>
-<p>    data = requests.get('https://external-api.com/data').json()</p>
-<p>    db.execute(f"INSERT INTO items VALUES ('{data['name']}')")  # SQLi!</p>
-<p>    return f"<div>{data['description']}</div>"  # XSS!</p>
-</code>`<code>
+<pre><code>@app.route('/import-users', methods=['POST'])
+def import_users():
+    # No TLS check, follows redirects, no validation, string-built SQL
+    data = requests.get('https://crm-partner.com/users').json()
+    for u in data['users']:
+        db.execute(f"INSERT INTO users(name,email) "
+                   f"VALUES('{u['name']}','{u['email']}')")   # SQLi via upstream
+    return jsonify(ok=True)
+</code></pre>
 
 <h3>Secure</h3>
-</code>`<code>python
-<p>from markupsafe import escape</p>
+<pre><code>from pydantic import BaseModel, EmailStr, constr, ValidationError
 
-<p>@app.route('/import')</p>
-<p>def import_data_secure():</p>
-<p>    data = requests.get('https://external-api.com/data').json()</p>
-    
-<p>    # Validate</p>
-<p>    if not isinstance(data, dict):</p>
-<p>        return jsonify({'error': 'Invalid data'}), 400</p>
-    
-<p>    # Parameterized query</p>
-<p>    cursor.execute("INSERT INTO items (name) VALUES (?)", (data['name'],))</p>
-    
-<p>    # Escape output</p>
-<p>    return f"<div>{escape(data['description'])}</div>"</p>
-</code>`<code>
+ALLOWED = {'crm-partner.com'}
 
-<h2>Node.js - Payment Verification</h2>
+class PUser(BaseModel):
+    name: constr(max_length=100)
+    email: EmailStr                      # role is NOT accepted from upstream
+
+def fetch_json(url, max_bytes=1_000_000):
+    host = urllib.parse.urlparse(url).hostname
+    if host not in ALLOWED:
+        raise ValueError('host not allowlisted')
+    r = requests.get(url, timeout=5, verify=True, allow_redirects=False, stream=True)
+    if r.is_redirect:
+        raise ValueError('unexpected redirect')
+    total, buf = 0, b''
+    for c in r.iter_content(8192):
+        total += len(c)
+        if total &gt; max_bytes:
+            raise ValueError('response too large')
+        buf += c
+    return json.loads(buf)
+
+@app.route('/import-users', methods=['POST'])
+def import_users_secure():
+    try:
+        data = fetch_json('https://crm-partner.com/users')
+        users = [PUser(**u) for u in data['users']]     # schema-validate
+    except (ValidationError, ValueError, KeyError) as e:
+        return jsonify(error=str(e)), 400
+    for u in users:
+        db.execute("INSERT INTO users(name,email) VALUES(%s,%s)",
+                   (u.name, u.email))                    # parameterized
+    return jsonify(ok=True)
+</code></pre>
+
+<h2>Express (Node.js)</h2>
 
 <h3>Vulnerable</h3>
-</code>`<code>javascript
-<p>const payment = await axios.post('https://payment.com/charge', order);</p>
-<p>if (payment.data.status === 'success') {  // Trusts response!</p>
-<p>    grantAccess();</p>
-<p>}</p>
-</code>`<code>
+<pre><code>app.get('/weather', async (req, res) =&gt; {
+  const { data } = await axios.get('https://weather-partner.com/now');
+  // Renders upstream text straight into HTML -> XSS if partner compromised
+  res.send(`&lt;div&gt;Weather: ${data.description}&lt;/div&gt;`);
+});
+</code></pre>
 
 <h3>Secure</h3>
-</code>`<code>javascript
-<p>const payment = await axios.post('https://payment.com/charge', order);</p>
+<pre><code>const https = require('https');
+const { z } = require('zod');
+const ALLOWED = new Set(['weather-partner.com']);
+const Weather = z.object({ description: z.string().max(200) });
 
-<p>// Verify signature</p>
-<p>const signature = payment.headers['x-signature'];</p>
-<p>const expected = crypto.createHmac('sha256', SECRET).update(JSON.stringify(payment.data)).digest('hex');</p>
+function escapeHtml(s) {
+  return s.replace(/[&amp;&lt;&gt;"']/g, c =&gt; ({
+    '&amp;':'&amp;amp;','&lt;':'&amp;lt;','&gt;':'&amp;gt;','"':'&amp;quot;',"'":'&amp;#39;'
+  }[c]));
+}
 
-<p>if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {</p>
-<p>    throw new Error('Invalid signature');</p>
-<p>}</p>
+app.get('/weather', async (req, res) =&gt; {
+  try {
+    const url = new URL('https://weather-partner.com/now');
+    if (!ALLOWED.has(url.hostname)) throw new Error('host not allowlisted');
+    const { data } = await axios.get(url.toString(), {
+      timeout: 5000, maxRedirects: 0, maxContentLength: 1_000_000,
+      httpsAgent: new https.Agent({ rejectUnauthorized: true })   // enforce TLS
+    });
+    const w = Weather.parse(data);                    // schema-validate
+    res.send(`&lt;div&gt;Weather: ${escapeHtml(w.description)}&lt;/div&gt;`);  // encode
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+</code></pre>
 
-<p>if (payment.data.status === 'success') {</p>
-<p>    grantAccess();</p>
-<p>}</p>
-</code>`<code>
+<h2>Spring Boot (Java)</h2>
 
-<h2>Spring Boot - Safe XML Parsing</h2>
+<h3>Vulnerable</h3>
+<pre><code>@PostMapping("/sync")
+public ResponseEntity&lt;?&gt; sync() {
+    RestTemplate rest = new RestTemplate();            // follows redirects, no timeout
+    Partner p = rest.getForObject("https://partner.com/data", Partner.class);
+    jdbc.execute("UPDATE acct SET tier='" + p.getTier() + "'");  // injection
+    return ResponseEntity.ok().build();
+}
+</code></pre>
 
-</code>`<code>java
-<p>DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();</p>
-<p>factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);</p>
-<p>factory.setFeature("http://xml.org/sax/features/external-general-entities", false);</p>
-<p>factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);</p>
+<h3>Secure</h3>
+<pre><code>private static final Set&lt;String&gt; ALLOWED = Set.of("partner.com");
 
-<p>DocumentBuilder builder = factory.newDocumentBuilder();</p>
-<p>Document doc = builder.parse(new InputSource(new StringReader(xmlFromAPI)));</p>
-</code>``
+@PostMapping("/sync")
+public ResponseEntity&lt;?&gt; syncSecure() {
+    try {
+        URI uri = URI.create("https://partner.com/data");
+        if (!ALLOWED.contains(uri.getHost()))
+            return ResponseEntity.badRequest().body("host not allowlisted");
 
+        var factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(5000);
+        factory.setReadTimeout(5000);
+        // Disable auto-redirect at the HttpClient level for real deployments.
+        RestTemplate rest = new RestTemplate(factory);
+
+        Partner p = rest.getForObject(uri, Partner.class);
+        String tier = p.getTier();
+        if (!Set.of("free", "pro", "enterprise").contains(tier))   // validate
+            return ResponseEntity.badRequest().body("invalid tier");
+
+        jdbc.update("UPDATE acct SET tier = ?", tier);             // parameterized
+        return ResponseEntity.ok().build();
+    } catch (Exception e) {
+        return ResponseEntity.badRequest().body(e.getMessage());
+    }
+}
+</code></pre>
+
+<h2>ASP.NET Core (C#)</h2>
+
+<h3>Vulnerable</h3>
+<pre><code>[HttpPost("webhook")]
+public async Task&lt;IActionResult&gt; Webhook() {
+    using var reader = new StreamReader(Request.Body);
+    var body = await reader.ReadToEndAsync();
+    var e = JsonSerializer.Deserialize&lt;PayEvent&gt;(body);  // no signature check
+    if (e.Status == "success") GrantAccess(e.UserId);    // forgeable
+    return Ok();
+}
+</code></pre>
+
+<h3>Secure</h3>
+<pre><code>[HttpPost("webhook")]
+public async Task&lt;IActionResult&gt; WebhookSecure() {
+    using var reader = new StreamReader(Request.Body);
+    var body = await reader.ReadToEndAsync();
+
+    // Verify provider HMAC before trusting anything
+    var sig = Request.Headers["X-Signature"].ToString();
+    var expected = Convert.ToHexString(
+        new HMACSHA256(_secret).ComputeHash(Encoding.UTF8.GetBytes(body)))
+        .ToLowerInvariant();
+    if (!CryptographicOperations.FixedTimeEquals(
+            Encoding.UTF8.GetBytes(expected), Encoding.UTF8.GetBytes(sig)))
+        return Unauthorized();
+
+    PayEvent e;
+    try { e = JsonSerializer.Deserialize&lt;PayEvent&gt;(body); }
+    catch { return BadRequest("malformed"); }
+    if (e is null || e.UserId &lt;= 0) return BadRequest("invalid");
+
+    if (e.Status == "success") GrantAccess(e.UserId);   // now trustworthy
+    return Ok();
+}
+</code></pre>
+
+<h2>Secure Consumption Checklist</h2>
+<ul>
+<li>Allowlist the host, enforce <code>verify=True</code> / <code>rejectUnauthorized: true</code>.</li>
+<li>Set timeouts, cap response size, disable auto-redirects.</li>
+<li>Schema-validate the body; reject unexpected fields (never accept upstream <code>role</code>).</li>
+<li>Parameterize SQL, encode HTML, disable XML entities, avoid untrusted deserialization.</li>
+<li>Verify webhooks/success with HMAC signatures, not status flags.</li>
+</ul>
+
+<h2>Next Steps</h2>
+<ul>
+<li><strong><a href="overview.html">Overview</a></strong>: Core concept and real-world impact</li>
+<li><strong><a href="prevention.html">Prevention</a></strong>: Full layered-defense guide</li>
+<li><strong><a href="lab/api10-unsafe-consumption-lab/">Hands-On Lab</a></strong>: Practice safe API consumption</li>
+</ul>
         </div>
     </div>
 </body>

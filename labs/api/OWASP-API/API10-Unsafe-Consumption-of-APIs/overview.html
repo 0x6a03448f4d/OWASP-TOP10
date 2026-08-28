@@ -217,138 +217,299 @@
         <div class="content">
             <h1>API10: Unsafe Consumption of APIs - Overview</h1>
 
-<h2>What is Unsafe Consumption of APIs?</h2>
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#what-is-unsafe-consumption-of-apis">What is Unsafe Consumption of APIs?</a></li>
+<li><a href="#why-does-this-matter">Why Does This Matter?</a></li>
+<li><a href="#technical-context">Technical Context</a></li>
+<li><a href="#real-world-impact">Real-World Impact</a></li>
+<li><a href="#prevalence-and-statistics">Prevalence and Statistics</a></li>
+<li><a href="#common-misunderstandings">Common Misunderstandings</a></li>
+</ul>
+</div>
 
-<strong>Unsafe Consumption of APIs</strong> occurs when an API blindly trusts and processes data from third-party APIs without proper validation. Attackers can exploit this by compromising the third-party API or manipulating responses to inject malicious data.
+<h2 id="what-is-unsafe-consumption-of-apis">What is Unsafe Consumption of APIs?</h2>
+
+<p><strong>Unsafe Consumption of APIs</strong> occurs when an application blindly trusts data received from third-party or upstream APIs and processes it without the same validation, sanitization, and transport controls it applies to direct user input. Developers instinctively trust data returned by a partner API, an identity provider, a payment processor, or an internal microservice far more than data typed by an end user — and that misplaced trust is exactly what makes the integration a soft target.</p>
+
+<p>The threat is a shift in perspective. Instead of attacking your API directly, an attacker attacks (or impersonates, or sits in the middle of) a service that <em>your</em> API consumes. If they can compromise that upstream service, tamper with its responses in transit, or trick your API into calling an attacker-controlled endpoint, then their malicious payload arrives pre-trusted — flowing straight into your database, your templates, your deserializers, and your business logic.</p>
 
 <h3>Core Concept</h3>
 
-<p>``<code></p>
-<p>Safe Consumption:</p>
-<p>✓ Validate all third-party data</p>
-<p>✓ Sanitize inputs</p>
-<p>✓ Don't trust response codes</p>
-<p>✓ Implement timeouts</p>
-<p>✓ Handle errors safely</p>
+<pre><code>Safe Consumption of a Third-Party API
+  ✓ Validate and schema-check every field of the response
+  ✓ Sanitize/encode upstream data before storage or rendering
+  ✓ Treat response codes and flags as untrusted claims
+  ✓ Enforce TLS with certificate validation on the integration
+  ✓ Set timeouts and response-size limits
+  ✓ Do not blindly follow redirects to new hosts
 
-<p>Unsafe Consumption:</p>
-<p>✗ Blindly trust third-party data</p>
-<p>✗ No input validation</p>
-<p>✗ Assume responses are safe</p>
-<p>✗ No error handling</p>
-<p>✗ Pass third-party data directly to DB/users</p>
-</code>`<code>
+Unsafe Consumption of a Third-Party API
+  ✗ Blindly trust the upstream response body
+  ✗ No validation because "it came from our partner"
+  ✗ Assume a 200 OK or {"status":"success"} is authentic
+  ✗ Plain HTTP, or TLS with verification disabled
+  ✗ Follow arbitrary redirects to arbitrary hosts
+  ✗ Pass the response straight into SQL / HTML / a deserializer</code></pre>
 
-<h2>Why Does This Matter?</h2>
+<pre><code>Normal flow:
+  Your API  --HTTPS-->  Partner API      returns {"name": "Alice"}
+  Your API  stores/renders "Alice"        Result: works fine
 
-<h3>Business Impact</h3>
+Attack flow (partner compromised or MITM):
+  Your API  --HTTP-->   Partner API (evil) returns {"name": "'); DROP TABLE users;--"}
+  Your API  concatenates into SQL          Result: injection in YOUR database
+                                           via data YOUR code trusted</code></pre>
+
+<h3>Why It's Critical for APIs</h3>
+
+<p>Modern APIs are rarely standalone. They are woven into a mesh of upstream dependencies, and each integration expands the trust boundary:</p>
 <ul>
-<li><strong>Data Injection</strong>: Malicious data from APIs injected into your database</li>
-<li><strong>XSS Attacks</strong>: User-facing data from third-party contains scripts</li>
-<li><strong>Business Logic Bypass</strong>: Manipulated API responses alter behavior</li>
-<li><strong>Supply Chain Attacks</strong>: Compromised partner APIs infect your system</li>
+<li>They fan out to many third-party services by design (payments, IdPs, CRMs, geocoding, notifications).</li>
+<li>Integration code is often written once, quickly, and never revisited or threat-modeled.</li>
+<li>The upstream service sits <em>outside</em> your security controls — you cannot patch it, audit it, or guarantee it has not been breached.</li>
+<li>Data from an integration is usually deserialized and consumed automatically, with no human in the loop.</li>
+<li>A single compromised partner can poison every customer of that partner simultaneously (a supply-chain multiplier).</li>
 </ul>
 
-<h3>Technical Impact</h3>
+<h2 id="why-does-this-matter">Why Does This Matter?</h2>
+
+<h3>The Business Impact</h3>
 <ul>
-<li><strong>SQL Injection</strong>: Third-party data used in unparameterized queries</li>
-<li><strong>XSS</strong>: Third-party HTML/JS rendered without sanitization</li>
-<li><strong>XXE</strong>: Third-party XML parsed with external entities enabled</li>
-<li><strong>Command Injection</strong>: Third-party data passed to system commands</li>
-<li><strong>Deserialization</strong>: Untrusted data deserialized</li>
+<li><strong>Supply-Chain Compromise</strong>: A breached vendor becomes an injection point into your platform and every one of your users.</li>
+<li><strong>Data Injection &amp; Poisoning</strong>: Malicious records from an upstream feed silently corrupt your database.</li>
+<li><strong>Customer Data Theft</strong>: Skimming or exfiltration through a trusted integration (the classic Magecart pattern).</li>
+<li><strong>Business-Logic Bypass</strong>: Forged "payment succeeded" or "user verified" responses grant unpaid access or elevated privileges.</li>
+<li><strong>Regulatory &amp; Compliance Exposure</strong>: PCI-DSS, GDPR, and HIPAA penalties when a third-party integration leaks protected data.</li>
+<li><strong>Reputational Damage</strong>: Customers rarely distinguish "we were hacked" from "our vendor was hacked."</li>
 </ul>
 
-<h2>Common Scenarios</h2>
-
-<h3>1. Payment API Consumption</h3>
-
-</code>`<code>python
-<h1>VULNERABLE</h1>
-<p>@app.route('/process-payment', methods=['POST'])</p>
-<p>def process_payment():</p>
-<p>    # Call third-party payment API</p>
-<p>    payment_response = requests.post('https://payment-api.com/charge', </p>
-<p>                                     json=request.json)</p>
-    
-<p>    # Blindly trust response</p>
-<p>    if payment_response.json()['status'] == 'success':</p>
-<p>        # Grant access - NO VALIDATION!</p>
-<p>        give_access(request.json['user_id'])</p>
-</code>`<code>
-
-<strong>Attack</strong>: Attacker intercepts/modifies payment API response
-
-<h3>2. Weather API Data Display</h3>
-
-</code>`<code>python
-<h1>VULNERABLE</h1>
-<p>weather_data = requests.get('https://weather-api.com/current').json()</p>
-<h1>Display without sanitization - XSS risk!</h1>
-<p>return f"<div>Weather: {weather_data['description']}</div>"</p>
-</code>`<code>
-
-<strong>Attack</strong>: If weather API compromised, can inject </code><script>steal_cookies()</script><code>
-
-<h3>3. User Data Import</h3>
-
-</code>`<code>python
-<h1>VULNERABLE</h1>
-<p>user_data = requests.get('https://crm-api.com/users').json()</p>
-<p>for user in user_data['users']:</p>
-<p>    # Direct insertion - SQL injection risk!</p>
-<p>    db.execute(f"INSERT INTO users VALUES ('{user['name']}', '{user['email']}')")</p>
-</code>`<code>
-
-<strong>Attack</strong>: CRM API returns malicious data like </code>'); DROP TABLE users;--<code>
-
-<h3>4. Third-Party Content Aggregation</h3>
-
-</code>`<code>python
-<h1>VULNERABLE  </h1>
-<p>articles = requests.get('https://news-api.com/articles').json()</p>
-<h1>Render without sanitization</h1>
-<p>for article in articles['items']:</p>
-<p>    render_template('article.html', content=article['html'])  # XSS!</p>
-</code>``
-
-<h2>Real-World Impact</h2>
-
-<strong>British Airways (2018)</strong>: Third-party script compromised, injected into BA site, 380K payment cards stolen, £20M fine
-
-<strong>Ticketmaster (2018)</strong>: Third-party chatbot provider compromised, malware injected, 40K cards stolen
-
-<strong>Newegg (2018)</strong>: Third-party payment service compromised, 14 months of credit card theft
-
-<h2>Prevalence</h2>
-
+<h3>The Technical Impact</h3>
 <ul>
-<li>58% of APIs consume third-party services</li>
-<li>71% don't validate third-party data adequately</li>
-<li>45% pass third-party data directly to databases</li>
-<li>39% render third-party HTML without sanitization</li>
-<li>62% assume third-party APIs are always trustworthy</li>
+<li><strong>SQL / NoSQL Injection</strong>: Upstream data concatenated into queries.</li>
+<li><strong>Stored / Reflected XSS</strong>: Third-party HTML or text rendered without encoding.</li>
+<li><strong>Insecure Deserialization &amp; RCE</strong>: Partner payloads deserialized into live objects.</li>
+<li><strong>XXE</strong>: Third-party XML parsed with external entities enabled.</li>
+<li><strong>SSRF &amp; Pivoting</strong>: Following upstream-supplied URLs/redirects into your internal network.</li>
+<li><strong>Denial of Service</strong>: Oversized, slow, or malformed responses exhausting memory, threads, or connections.</li>
+<li><strong>Command Injection</strong>: Upstream fields passed to shell commands or template engines.</li>
 </ul>
 
-<h2>Prevention</h2>
+<h2 id="technical-context">Technical Context</h2>
 
+<p>API10 is fundamentally about a broken assumption: <strong>"the other side of the integration is safe."</strong> Four recurring weaknesses turn that assumption into an exploitable vulnerability.</p>
+
+<h3>1. Blind Trust in Third-Party Responses</h3>
+
+<p>The most common form: response data is consumed with zero validation because of where it came from.</p>
+
+<pre><code># VULNERABLE - trusts CRM data directly in a query
+crm = requests.get('https://crm-partner.com/api/users').json()
+for user in crm['users']:
+    # If the partner is compromised, name/email carry the payload
+    db.execute(f"INSERT INTO users (name, email) "
+               f"VALUES ('{user['name']}', '{user['email']}')")
+</code></pre>
+
+<p>A compromised partner returning <code>"'); DROP TABLE users;--"</code> in a name field now runs SQL inside <em>your</em> database. The same pattern produces stored XSS when the field is later rendered in an admin dashboard.</p>
+
+<h3>2. Insecure Integration Transport</h3>
+
+<p>Integrations are frequently configured with plain HTTP, or with TLS certificate verification disabled "to make it work" during development — and that setting ships to production. Either mistake lets a network attacker (MITM on a proxy, cloud peering link, or hostile Wi-Fi in a hybrid setup) read and rewrite responses at will.</p>
+
+<pre><code>// VULNERABLE - TLS verification turned off
+const agent = new https.Agent({ rejectUnauthorized: false });
+const res = await axios.get('https://partner.example/data', { httpsAgent: agent });
+// Any MITM can now impersonate the partner and inject a payload
+</code></pre>
+
+<h3>3. Blindly Following Redirects</h3>
+
+<p>HTTP clients follow 3xx redirects by default. If the upstream (or an attacker who controls it) returns a redirect, your API happily makes a second request to a destination you never vetted — potentially an internal address (turning API10 into SSRF) or an attacker-controlled host that serves the malicious body.</p>
+
+<pre><code># Partner responds 302 -> http://169.254.169.254/latest/meta-data/
+# Default client follows it and returns cloud metadata to the attacker
+requests.get(partner_url)          # allow_redirects=True by default
+</code></pre>
+
+<h3>4. No Input Validation on Upstream Data</h3>
+
+<p>Even honest partners send malformed, oversized, or unexpected data. Without a schema, a type check, or a size cap, a single bad response can crash a worker (DoS), overwrite fields, or smuggle unexpected keys into your objects (mass-assignment via upstream data). Identity-provider claims (<code>name</code>, <code>email</code>, <code>picture</code>) are a favorite: they feel authoritative but are attacker-influenceable and must be treated as untrusted.</p>
+
+<h3>Common Unsafe-Consumption Scenarios</h3>
+
+<h4>Payment Confirmation Trust</h4>
+<pre><code># VULNERABLE - trusts a client-relayed / interceptable "success" flag
+resp = requests.post('https://pay-partner.com/charge', json=req.json)
+if resp.json().get('status') == 'success':
+    grant_access(req.json['user_id'])   # forgeable without a signature check
+</code></pre>
+
+<h4>Webhook Ingestion</h4>
+<pre><code># VULNERABLE - anyone who knows the URL can POST a fake event
+@app.post('/webhooks/orders')
+def ingest():
+    event = request.json          # no signature verification
+    fulfill_order(event['order_id'])   # attacker-controlled
+</code></pre>
+
+<h4>Identity Provider Claims Used Unsanitized</h4>
+<pre><code># VULNERABLE - IdP-provided display name rendered into HTML
+profile = oidc_userinfo(token)    # third-party claims
+return f"&lt;h1&gt;Welcome {profile['name']}&lt;/h1&gt;"   # stored/reflected XSS
+</code></pre>
+
+<h2 id="real-world-impact">Real-World Impact</h2>
+
+<p>The most damaging real-world cases of unsafely consuming a third party are the <strong>Magecart</strong> supply-chain attacks of 2018, where victims trusted content and services delivered by a compromised third party. These are well-documented and publicly reported.</p>
+
+<h3>Case Study 1: British Airways (2018)</h3>
+<strong>What happened</strong>:
+<ul>
+<li>Attackers compromised a third-party script used on BA's website and mobile flow and injected card-skimming code.</li>
+<li>Because the site trusted the third-party integration, the malicious script ran with full access to the payment form.</li>
+<li>Payment details for roughly 380,000+ transactions were exfiltrated to an attacker-controlled domain.</li>
+</ul>
+<strong>Impact</strong>:
+<ul>
+<li>Hundreds of thousands of customers' names, card numbers, expiry dates, and CVVs harvested.</li>
+<li>The UK ICO ultimately fined British Airways £20 million (originally proposed far higher, then reduced).</li>
+<li>Root cause: trusting third-party code/content without integrity controls (e.g., Subresource Integrity, strict CSP).</li>
+</ul>
+
+<h3>Case Study 2: Ticketmaster UK (2018)</h3>
+<strong>What happened</strong>:
+<ul>
+<li>A JavaScript component from a third-party support/chatbot supplier (Inbenta) was compromised.</li>
+<li>The tampered script was loaded on Ticketmaster payment pages, skimming card data as customers typed it.</li>
+</ul>
+<strong>Impact</strong>:
+<ul>
+<li>Tens of thousands of UK customers affected; fraudulent transactions followed.</li>
+<li>The ICO fined Ticketmaster £1.25 million, citing failure to manage risk from a third-party integration.</li>
+<li>Root cause: consuming third-party code without validating its integrity or isolating it from payment data.</li>
+</ul>
+
+<h3>Case Study 3: Newegg (2018)</h3>
+<strong>What happened</strong>:
+<ul>
+<li>Magecart operators injected a small skimming script into Newegg's checkout flow.</li>
+<li>The skimmer captured card details and sent them to a look-alike attacker domain.</li>
+</ul>
+<strong>Impact</strong>:
+<ul>
+<li>Card data was skimmed during the period the malicious code was live — publicly reported as roughly a month in 2018 (mid-August to mid-September), <em>not</em> the much longer window sometimes miscited.</li>
+<li>Reinforces the pattern: a trusted, embedded third-party resource becomes the breach vector.</li>
+</ul>
+
+<blockquote>
+<p><strong>Note on attribution</strong>: These are client-side supply-chain compromises, but they illustrate the exact API10 failure mode — <em>a system trusting a third party it does not control</em>. The same trust failure applies server-to-server when your API consumes a partner API, IdP, or webhook. Where a specific CVE or precise figure could not be verified, this lesson deliberately avoids inventing one.</p>
+</blockquote>
+
+<h2 id="prevalence-and-statistics">Prevalence and Statistics</h2>
+
+<p>API10:2023 was introduced in the OWASP API Security Top 10 specifically because integrations were a fast-growing and under-defended attack surface. Unlike older categories, it has comparatively few "named" CVEs of its own — the risk usually manifests <em>through</em> another vulnerability class (injection, XSS, SSRF, deserialization) that the upstream data triggers. Rather than cite invented percentages, here is what is well-supported:</p>
+
+<ul>
+<li>Modern applications commonly depend on <strong>dozens to hundreds</strong> of third-party APIs and packages; each is a trust relationship that can be abused.</li>
+<li>Supply-chain and third-party-integration attacks have grown sharply in industry reporting year over year (Magecart, dependency compromises, compromised build/CI tooling).</li>
+<li>Integration code is under-tested relative to user-facing endpoints, because "internal" and "partner" traffic is assumed trustworthy.</li>
+<li>TLS-verification-disabled settings and default redirect-following are frequently found in real integration code during audits.</li>
+</ul>
+
+<blockquote>
+<p><strong>Accuracy note</strong>: The API07 reference page cites specific vulnerability percentages. For API10 no equally authoritative, verifiable dataset exists, so this page intentionally describes prevalence qualitatively instead of fabricating precise figures.</p>
+</blockquote>
+
+<h2 id="common-misunderstandings">Common Misunderstandings</h2>
+
+<h3>Myth 1: "It's our partner's API, so the data is safe"</h3>
+<strong>Reality</strong>: You do not control the partner's security. A breached partner, a rogue insider, or an attacker who can MITM the connection all produce a "trusted" response containing hostile data. Validate upstream data with the same rigor as user input.
+
+<h3>Myth 2: "We use HTTPS, so responses can't be tampered with"</h3>
+<strong>Reality</strong>: HTTPS only helps if certificate verification is enabled and enforced. Many integrations disable verification or fall back to HTTP. And HTTPS does nothing about a genuinely compromised upstream — the malicious data is authentically TLS-protected on its way to you.
+
+<h3>Myth 3: "A 200 OK / status:success response means it really succeeded"</h3>
+<strong>Reality</strong>: Status codes and JSON flags are unauthenticated claims. Without a cryptographic signature (e.g., a webhook HMAC) or a server-to-server verification call, they are trivially forgeable by anyone who can influence the response.
+
+<h3>Myth 4: "We only read the data, we don't execute it"</h3>
+<strong>Reality</strong>: "Reading" data into a SQL query, an HTML template, an XML parser, or a deserializer <em>is</em> execution in disguise. Passive consumption still leads to injection, XSS, XXE, and RCE.
+
+<h3>Myth 5: "Following redirects is convenient and harmless"</h3>
+<strong>Reality</strong>: An upstream redirect can point at internal infrastructure (SSRF), cloud metadata, or an attacker host serving a poisoned body. Disable automatic redirects on integration clients, or re-validate every hop.
+
+<h3>Myth 6: "Schema validation is only for user-facing endpoints"</h3>
+<strong>Reality</strong>: Upstream responses are exactly where a strict schema pays off — it rejects malformed, oversized, and unexpected data before it reaches your logic, and it neutralizes many DoS and mass-assignment tricks.
+
+<h2>How API10 Relates to Other Risks</h2>
+
+<p>| Aspect | API10 Unsafe Consumption | API07 SSRF | Injection (A03) |</p>
+<p>|--------|--------------------------|------------|-----------------|</p>
+<p>| <strong>Trigger source</strong> | Data from a trusted third party | User-supplied URL fetched by server | User-supplied data in a sink |</p>
+<p>| <strong>Root cause</strong> | Misplaced trust in upstream | Missing URL validation | Missing input sanitization |</p>
+<p>| <strong>Typical outcome</strong> | Injection/XSS/RCE via partner | Internal access, metadata theft | Data theft, tampering |</p>
+<p>| <strong>Fix</strong> | Validate upstream like user input | Allowlist + block internal ranges | Parameterize + encode |</p>
+
+<h2>Unsafe-Consumption Attack Chain</h2>
+
+<pre><code>1. Identify an Integration
+   ↓
+   Find where the app consumes a third-party API, webhook, or IdP
+
+2. Gain Influence Over the Response
+   ↓
+   Compromise the partner, MITM a weak TLS/HTTP link,
+   or forge a webhook / redirect
+
+3. Inject a Trusted Payload
+   ↓
+   Return data that the app consumes without validation
+   (SQL, HTML, XML, serialized object, internal URL)
+
+4. Trigger the Sink
+   ↓
+   App stores, renders, parses, deserializes, or re-requests it
+   → injection / XSS / XXE / RCE / SSRF / DoS
+
+5. Expand Impact
+   ↓
+   Poison every customer of the compromised partner at once</code></pre>
+
+<h2>Key Takeaways</h2>
 <ol>
-<li><strong>Validate Everything</strong>: Never trust third-party data</li>
-<li><strong>Sanitize Inputs</strong>: Treat as user input</li>
-<li><strong>Verify Responses</strong>: Check signatures, certificates</li>
-<li><strong>Parameterized Queries</strong>: Never concatenate third-party data into queries</li>
-<li><strong>Output Encoding</strong>: Sanitize before rendering</li>
-<li><strong>Error Handling</strong>: Don't expose third-party errors to users</li>
-<li><strong>Monitoring</strong>: Alert on unexpected third-party responses</li>
+<li><strong>Trust boundaries include your integrations</strong> — upstream data is untrusted input.</li>
+<li><strong>Validate and schema-check every third-party response</strong> before using it.</li>
+<li><strong>Enforce TLS with certificate verification</strong> on every integration call.</li>
+<li><strong>Do not blindly follow redirects</strong> from upstream services.</li>
+<li><strong>Verify success claims cryptographically</strong> (signatures, HMAC, server-side checks).</li>
+<li><strong>Set timeouts and response-size limits</strong> to blunt DoS from bad responses.</li>
+<li><strong>Assume any partner can be compromised</strong> and design so the blast radius is contained.</li>
 </ol>
+
+<h2>How to Identify if You're Vulnerable</h2>
+<p>Ask these questions about your API:</p>
+<ul>
+<li>[ ] Do we call third-party APIs, IdPs, or webhooks?</li>
+<li>[ ] Do we validate and schema-check their responses?</li>
+<li>[ ] Do we sanitize/encode upstream data before storing or rendering it?</li>
+<li>[ ] Is TLS certificate verification enforced on every integration?</li>
+<li>[ ] Do our HTTP clients follow redirects automatically?</li>
+<li>[ ] Do we verify webhook/payment success with signatures, not just flags?</li>
+<li>[ ] Do we set timeouts and cap response sizes?</li>
+<li>[ ] Do we parameterize queries built from upstream data?</li>
+<li>[ ] Do we allowlist the endpoints our integrations may talk to?</li>
+<li>[ ] Do we monitor and alert on anomalous upstream responses?</li>
+</ul>
+<p>If you consume third-party data and answered "no" to the validation questions, you are likely vulnerable to API10.</p>
 
 <h2>Next Steps</h2>
 <ul>
-<li><a href="attack-vectors.html">Attack Vectors</a></li>
-<li><a href="prevention.html">Prevention</a></li>
-<li><a href="examples.html">Examples</a></li>
-<li><a href="lab/api10-unsafe-consumption-lab/">Lab</a></li>
+<li><strong><a href="attack-vectors.html">Attack Vectors</a></strong>: Learn how attackers exploit unsafe consumption of APIs</li>
+<li><strong><a href="prevention.html">Prevention</a></strong>: Implement layered defenses for safe API consumption</li>
+<li><strong><a href="examples.html">Examples</a></strong>: See vulnerable and secure code across frameworks</li>
+<li><strong><a href="lab/api10-unsafe-consumption-lab/">Hands-On Lab</a></strong>: Practice detecting and preventing unsafe API consumption</li>
 </ul>
-
         </div>
     </div>
 </body>

