@@ -195,6 +195,25 @@ const EDITIONS = {
       ]},
     ],
   },
+  cicd: {
+    label: 'CI/CD',
+    blurb: 'The OWASP Top 10 CI/CD Security Risks — how build and delivery pipelines get attacked.',
+    lessonDir: 'labs/cicd/OWASP-CICD',
+    editions: [
+      { year: '2022', latest: true, cheatDir: null, vulns: [
+        V('CICD-SEC-1', 1, 'Insufficient Flow Control Mechanisms', 'insufficient-flow-control-mechanisms'),
+        V('CICD-SEC-2', 2, 'Inadequate Identity and Access Management', 'inadequate-identity-and-access-management'),
+        V('CICD-SEC-3', 3, 'Dependency Chain Abuse', 'dependency-chain-abuse'),
+        V('CICD-SEC-4', 4, 'Poisoned Pipeline Execution (PPE)', 'poisoned-pipeline-execution'),
+        V('CICD-SEC-5', 5, 'Insufficient PBAC (Pipeline-Based Access Controls)', 'insufficient-pbac'),
+        V('CICD-SEC-6', 6, 'Insufficient Credential Hygiene', 'insufficient-credential-hygiene'),
+        V('CICD-SEC-7', 7, 'Insecure System Configuration', 'insecure-system-configuration'),
+        V('CICD-SEC-8', 8, 'Ungoverned Usage of 3rd Party Services', 'ungoverned-usage-of-3rd-party-services'),
+        V('CICD-SEC-9', 9, 'Improper Artifact Integrity Validation', 'improper-artifact-integrity-validation'),
+        V('CICD-SEC-10', 10, 'Insufficient Logging and Visibility', 'insufficient-logging-and-visibility'),
+      ]},
+    ],
+  },
 };
 
 // Pull an accurate 1-paragraph summary from a lesson's overview.md ("What is …?").

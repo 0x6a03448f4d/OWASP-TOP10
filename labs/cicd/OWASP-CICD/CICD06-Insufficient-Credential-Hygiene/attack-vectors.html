@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CICD-SEC-6: Insufficient Credential Hygiene - Attack Vectors</title>
+    <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .doc-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .back-nav:hover {
+            background-color: rgba(245, 158, 11, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(245, 158, 11, 0.1);
+        }
+
+        .content h1 {
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            text-shadow: none;
+        }
+
+        .content h2 {
+            color: var(--secondary-color);
+            font-size: 1.8rem;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .content h3 {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+            margin-top: 30px;
+            margin-bottom: 12px;
+        }
+
+        .content h4 {
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        .content p {
+            color: var(--text-color);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .content ul, .content ol {
+            margin-left: 25px;
+            margin-bottom: 15px;
+            color: var(--text-color);
+        }
+
+        .content li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .content code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--primary-color);
+            font-family: 'Courier New', monospace;
+            border: 1px solid var(--border-color);
+        }
+
+        .content pre {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            color: var(--primary-color);
+        }
+
+        .content blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 20px;
+            margin: 20px 0;
+            background: rgba(245, 158, 11, 0.05);
+            padding: 15px 20px;
+            border-radius: 4px;
+        }
+
+        .content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table th {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2));
+            color: var(--primary-color);
+            padding: 12px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table td {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        .content table tr:hover {
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .content a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .content a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .content strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        .toc {
+            background: rgba(245, 158, 11, 0.05);
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .toc h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc li {
+            margin-bottom: 8px;
+        }
+
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toc a:hover {
+            color: var(--primary-color);
+        }
+
+        .toc a:before {
+            content: "▸";
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="doc-container">
+        <a href="/learn/cicd" class="back-nav">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+
+        <div class="content">
+            <h1>CICD-SEC-6: Insufficient Credential Hygiene - Attack Vectors</h1>
+
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#understanding">Understanding Credential-Hygiene Attack Vectors</a></li>
+<li><a href="#core-attack-flow">Core Attack Flow</a></li>
+<li><a href="#common-attack-patterns">Common Attack Patterns</a></li>
+<li><a href="#chaining">Chaining Credential Leaks</a></li>
+</ul>
+</div>
+
+<h2 id="understanding">Understanding Credential-Hygiene Attack Vectors</h2>
+
+<blockquote>
+<p><strong>&#9888; EDUCATIONAL PURPOSE ONLY</strong> &mdash; the techniques below are shown so you can find and fix these issues in systems you own or are authorised to test.</p>
+</blockquote>
+
+<p>Exploiting insufficient credential hygiene almost never involves breaking anything. The attacker's core move is <strong>harvest and reuse</strong>: locate a credential that a careless pipeline exposed&mdash;in Git history, a build log, an environment dump, or an artifact&mdash;and then present it to whatever system trusts it. Because the credential is genuine, the target treats the attacker as a legitimate client. There is no payload to craft and often no anomaly to detect.</p>
+
+<p>The attacker's goal in this category is one of:</p>
+<ul>
+<li>Find an exposed secret cheaply and at scale (automated scanning of public and internal sources).</li>
+<li>Reuse a long-lived, broadly scoped credential against cloud, registry, database, or prod.</li>
+<li>Turn one leaked token into persistence and lateral movement across environments and pipelines.</li>
+</ul>
+
+<h3 id="core-attack-flow">Core Attack Flow</h3>
+
+<pre><code>1. Harvest
+   &darr;
+   Scan Git history, public repos, build logs, artifacts, env dumps
+2. Validate
+   &darr;
+   Test the credential (whoami / list / describe) to learn its scope
+3. Reuse
+   &darr;
+   Authenticate to cloud / registry / DB / prod as a legitimate client
+4. Escalate / Persist
+   &darr;
+   Pivot via over-shared tokens, mint new keys, exfiltrate or tamper</code></pre>
+
+<h2 id="common-attack-patterns">Common Attack Patterns</h2>
+
+<h3>1. Harvesting Secrets from Git History</h3>
+
+<p>Removing a secret from the latest commit leaves it fully recoverable in history. Attackers clone and mine the entire history, not just the working tree.</p>
+
+<pre><code># Recover a secret that was "deleted" in a later commit:
+git clone https://target/repo.git &amp;&amp; cd repo
+git log --all --oneline
+git grep -I -i "aws_secret\|api_key\|token" $(git rev-list --all)
+# Or with a scanner across full history:
+trufflehog git file://./repo --only-verified</code></pre>
+
+<p><strong>Payoff</strong>: any credential ever committed, even if it looks "gone" in the current tree. This is why deletion without rotation is not remediation.</p>
+
+<h3>2. Scraping Hardcoded Secrets from Code and Pipeline Files</h3>
+
+<p>Secrets in application config, pipeline YAML, and Dockerfiles are read directly&mdash;no history digging required.</p>
+
+<pre><code># Public and internal code search finds patterns instantly:
+filename:.env  DB_PASSWORD
+path:.github/workflows  AWS_SECRET_ACCESS_KEY
+extension:tf  access_key
+
+# Automated bots watch public push events and grab keys within minutes.</code></pre>
+
+<p><strong>Payoff</strong>: immediate access with a valid key; on public platforms the exposure-to-abuse window is often minutes.</p>
+
+<h3>3. Extracting Secrets from Build Logs</h3>
+
+<p>Debug tracing and explicit prints defeat log masking, and logs are widely readable and long-retained.</p>
+
+<pre><code># In the pipeline (INSECURE) — masking is bypassed:
++ export DEPLOY_TOKEN=ghp_ab12...            # from set -x tracing
+DEBUG: connecting with token=ghp_ab12...     # from an echo
+
+# Attacker with log read access simply searches:
+grep -Eo 'gh[pousr]_[A-Za-z0-9]{20,}' pipeline-*.log</code></pre>
+
+<p><strong>Payoff</strong>: secrets readable by everyone with log access&mdash;often a far larger group than those trusted with the secret&mdash;and persisted in log storage.</p>
+
+<h3>4. Pulling Secrets from Environment Dumps</h3>
+
+<p>Any step that can run a command can print the whole environment, and job-wide secrets are all present in it.</p>
+
+<pre><code># A malicious or compromised build step:
+env | base64            # exfiltrate all env vars past naive masking
+printenv &gt; /tmp/leak    # or write them to an uploaded artifact
+
+# Everything injected for the job is visible, not just what this step needs.</code></pre>
+
+<p><strong>Payoff</strong>: all job-scoped secrets at once&mdash;this is why over-broad, job-wide secret injection is dangerous.</p>
+
+<h3>5. Recovering Secrets from Artifacts and Container Images</h3>
+
+<p>Credentials baked in at build time travel inside the artifact and are trivially extracted later.</p>
+
+<pre><code># Image layers reveal build-time ARGs and copied files:
+docker history --no-trunc myapp:latest
+docker save myapp:latest -o img.tar &amp;&amp; tar xf img.tar   # inspect layers
+# Build artifacts often bundle config:
+tar tzf release.tgz | grep -i 'env\|secret\|credential'</code></pre>
+
+<p><strong>Payoff</strong>: any secret embedded during the build&mdash;pulled from a registry or downloaded artifact with no access to the pipeline at all.</p>
+
+<h3>6. Reusing Long-Lived Static Credentials</h3>
+
+<p>Once a static key is in hand, the attacker validates its scope and uses it directly. Long-lived keys with no expiry give durable access.</p>
+
+<pre><code># Validate and enumerate scope:
+aws sts get-caller-identity
+aws iam list-attached-user-policies --user-name ci-deployer
+
+# Reuse against production — the key is genuine, so it "just works":
+aws s3 sync s3://prod-data ./exfil
+aws ec2 run-instances --count 50 ...        # cryptomining on the victim's bill</code></pre>
+
+<p><strong>Payoff</strong>: full access at the credential's (often broad) scope, persisting until someone rotates the key.</p>
+
+<h3>7. Abusing Over-Shared "God" Tokens</h3>
+
+<p>A single token shared across many pipelines and repos lets one leak reach far beyond its origin.</p>
+
+<pre><code># One registry/cloud token used everywhere:
+#   leaked from a single low-value pipeline
+#   but valid for prod registry pushes and multiple accounts
+docker login registry.example.com -u ci -p $LEAKED_TOKEN
+docker push registry.example.com/prod/app:backdoored</code></pre>
+
+<p><strong>Payoff</strong>: lateral movement across environments and, via registry/signing access, potential supply-chain poisoning of downstream consumers.</p>
+
+<h3>8. Minting New Credentials for Persistence</h3>
+
+<p>If a harvested credential can create other credentials, the attacker establishes access that survives rotation of the original.</p>
+
+<pre><code># With an over-privileged key, create a durable backdoor identity:
+aws iam create-access-key --user-name attacker-added
+# Now rotating the leaked key does not evict the attacker.</code></pre>
+
+<p><strong>Payoff</strong>: persistence independent of the original leak&mdash;why over-privileged CI identities are so dangerous.</p>
+
+<h3>9. Exploiting Missing Leak Detection</h3>
+
+<p>Where there is no secret scanning in pre-commit or CI, leaks are discovered by whoever scans first&mdash;usually the attacker.</p>
+
+<pre><code># No gitleaks/trufflehog gate on commits or PRs:
+#   secret merges to main, is mirrored, cached, and forked
+#   defenders learn of it only when abuse is already underway</code></pre>
+
+<p><strong>Payoff</strong>: a long, silent exposure window in which the credential is live and unmonitored.</p>
+
+<h2 id="chaining">Chaining Credential Leaks</h2>
+
+<p>Individually small hygiene failures combine into full compromise:</p>
+
+<pre><code>Hardcoded key removed from HEAD    -&gt; still recoverable from Git history
+        +
+Key is long-lived and broadly scoped -&gt; validates as AdministratorAccess
+        +
+No rotation and no scanning         -&gt; access persists, undetected
+        =  full cloud-account takeover, no exploit required</code></pre>
+
+<p>Another common chain:</p>
+
+<pre><code>set -x prints a registry token to the build log
+        -&gt; log is world-readable inside the org, token harvested
+        -&gt; token is over-shared, valid for the prod registry
+        -&gt; attacker pushes a poisoned image every downstream consumer trusts</code></pre>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>The attack is harvest-and-reuse, not exploitation</strong>&mdash;a valid credential needs no payload, so there is little to detect.</li>
+<li><strong>History, logs, env, and artifacts are all harvest sources</strong>&mdash;a secret leaks from far more places than the file it was typed into.</li>
+<li><strong>Long-lived and broadly scoped keys turn a small leak into a big breach</strong>&mdash;and enable persistence via newly minted credentials.</li>
+<li><strong>Over-shared tokens spread the blast radius</strong>&mdash;one leak reaches every pipeline that trusts the token.</li>
+<li><strong>No scanning means the attacker finds it first</strong>&mdash;silent exposure windows are where these breaches happen.</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="prevention.html">Prevention Guide</a></strong>: Shrink the value and lifetime of every secret</li>
+<li><strong><a href="examples.html">Code Examples</a></strong>: See insecure vs. secure secret handling side by side</li>
+<li><strong><a href="/learn/cicd">CI/CD Security Track</a></strong>: Continue the OWASP CI/CD Top 10 lessons</li>
+<li><strong><a href="/practice">Practice</a></strong>: Apply what you've learned in hands-on challenges</li>
+</ul>
+
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CICD-SEC-4: Poisoned Pipeline Execution - Prevention</title>
+    <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .doc-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .back-nav:hover {
+            background-color: rgba(245, 158, 11, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(245, 158, 11, 0.1);
+        }
+
+        .content h1 {
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            text-shadow: none;
+        }
+
+        .content h2 {
+            color: var(--secondary-color);
+            font-size: 1.8rem;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .content h3 {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+            margin-top: 30px;
+            margin-bottom: 12px;
+        }
+
+        .content h4 {
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        .content p {
+            color: var(--text-color);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .content ul, .content ol {
+            margin-left: 25px;
+            margin-bottom: 15px;
+            color: var(--text-color);
+        }
+
+        .content li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .content code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--primary-color);
+            font-family: 'Courier New', monospace;
+            border: 1px solid var(--border-color);
+        }
+
+        .content pre {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            color: var(--primary-color);
+        }
+
+        .content blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 20px;
+            margin: 20px 0;
+            background: rgba(245, 158, 11, 0.05);
+            padding: 15px 20px;
+            border-radius: 4px;
+        }
+
+        .content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table th {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2));
+            color: var(--primary-color);
+            padding: 12px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table td {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        .content table tr:hover {
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .content a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .content a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .content strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        .toc {
+            background: rgba(245, 158, 11, 0.05);
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .toc h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc li {
+            margin-bottom: 8px;
+        }
+
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toc a:hover {
+            color: var(--primary-color);
+        }
+
+        .toc a:before {
+            content: "▸";
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="doc-container">
+        <a href="/learn/cicd" class="back-nav">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+
+        <div class="content">
+            <h1>CICD-SEC-4: Poisoned Pipeline Execution - Prevention</h1>
+
+<h2>Prevention Strategy Overview</h2>
+
+<p>Every PPE defence reduces to one rule: <strong>never let untrusted code run with secrets, privileged tokens, or privileged infrastructure in scope</strong>. Everything below is a concrete way to enforce that rule at a different layer.</p>
+<ol>
+<li>Separate untrusted code from secrets by choosing the right trigger.</li>
+<li>Never check out and run untrusted PR code in a privileged context.</li>
+<li>Require human approval before running workflows on outsider contributions.</li>
+<li>Pin every third-party action to an immutable commit SHA.</li>
+<li>Grant the pipeline token the least privilege it needs, explicitly.</li>
+<li>Isolate and make runners ephemeral.</li>
+<li>Never interpolate untrusted event data into a shell.</li>
+<li>Review pipeline-definition and build-script changes as security-critical.</li>
+<li>Separate build credentials from deploy credentials.</li>
+</ol>
+
+<h3>Core Principles</h3>
+<ul>
+<li><strong>Trust boundary at the fork line</strong>: code from someone who cannot merge is untrusted. Its CI must have no secrets.</li>
+<li><strong>Definition is code</strong>: workflow files, scripts, hooks, and test/lint configs are all executable and must all be reviewed.</li>
+<li><strong>Least privilege everywhere</strong>: tokens, runners, and credentials should hold only what a given job genuinely needs.</li>
+<li><strong>Immutable dependencies</strong>: pin what you execute so it cannot silently change under you.</li>
+</ul>
+
+<h2>1. Choose the Right Trigger: <code>pull_request</code>, not <code>pull_request_target</code></h2>
+
+<p>For fork contributions, use the trigger that runs the PR's code <strong>without secrets</strong>. On GitHub Actions that is <code>pull_request</code>: fork PRs run with a read-only token and no repository secrets.</p>
+
+<pre><code># SECURE: fork PRs run untrusted code, but with NO secrets and a read-only token
+on:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4          # PR head, but nothing sensitive is present
+      - run: npm ci && npm test</code></pre>
+
+<p>Reserve <code>pull_request_target</code> for tasks that genuinely need the base context (labelling, commenting) and <strong>do not check out or run PR code</strong> under it.</p>
+
+<h2>2. Never Check Out Untrusted PR Code in a Privileged Context</h2>
+
+<p>If you must combine trusted automation with fork-PR data, split it into two workflows: one runs untrusted code with no secrets; a separate, trusted workflow consumes the <em>result</em> after review.</p>
+
+<pre><code># SECURE pattern for pull_request_target: do privileged work only on trusted,
+# non-code data, and never check out the PR head into this job.
+on:
+  pull_request_target:
+    types: [opened, synchronize]
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write        # only what labelling needs
+    steps:
+      - run: gh pr edit "$PR" --add-label needs-review
+        env:
+          PR: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # NOTE: no actions/checkout of the PR head, no build/test of PR code here</code></pre>
+
+<blockquote>
+<p>If a job both needs secrets and needs to run PR code, you have designed a 3PE. Redesign so those two needs live in different jobs with different trust levels.</p>
+</blockquote>
+
+<h2>3. Require Approval to Run Workflows on Fork PRs</h2>
+
+<p>Configure the repository so that workflows on pull requests from first-time or outside contributors <strong>require a maintainer to approve the run</strong>. This puts a human between an outsider's push and any execution.</p>
+
+<ul>
+<li>GitHub: set fork-PR workflow approval to "Require approval for all outside collaborators" (or all fork PRs).</li>
+<li>GitLab: disable running pipelines for fork MRs against protected branches automatically; require a member to trigger.</li>
+<li>Jenkins: for multibranch/GitHub-branch-source, restrict which contributors' branches build without approval and scope credentials so PR builds cannot bind deploy secrets.</li>
+</ul>
+
+<h2>4. Pin Third-Party Actions to a Full Commit SHA</h2>
+
+<p>Mutable references (<code>@main</code>, <code>@v3</code>) can be repointed to new code. A full 40-character commit SHA is immutable.</p>
+
+<pre><code># INSECURE
+- uses: some-org/build-action@v3        # tag can move
+# SECURE
+- uses: some-org/build-action@3a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b  # pinned SHA
+  # optional comment for humans: # v3.1.0</code></pre>
+
+<p>Automate this with a pinning/allow-list tool and keep pins current with a dependency-update bot so you still receive security fixes. Prefer a small allow-list of vetted actions over pulling arbitrary third-party actions.</p>
+
+<h2>5. Least-Privilege Pipeline Token</h2>
+
+<p>Set <code>permissions:</code> explicitly&mdash;default to read-only and grant write only to the specific scopes a job needs. This caps what poisoned code can do even if it runs.</p>
+
+<pre><code># SECURE: repository-wide default of read-only
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    permissions:
+      contents: read
+      packages: write         # only this job, only this scope
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./publish.sh
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}</code></pre>
+
+<p>In GitLab, scope CI/CD variables to protected branches/environments and mark them <em>protected</em> and <em>masked</em>. In Jenkins, bind credentials only inside the narrow <code>withCredentials</code> block that needs them.</p>
+
+<h2>6. Isolate and Use Ephemeral Runners</h2>
+
+<ul>
+<li>Prefer <strong>ephemeral</strong> runners that are destroyed after each job&mdash;no persistence for an attacker who lands there.</li>
+<li>Do not expose <strong>self-hosted</strong> runners to fork PRs. If self-hosted is required, dedicate a hardened, network-isolated pool and gate it behind approval.</li>
+<li>Give runners no standing access to production networks; use short-lived, job-scoped credentials (e.g. OIDC federation) instead of long-lived keys on the host.</li>
+</ul>
+
+<h2>7. Never Interpolate Untrusted Event Data into a Shell</h2>
+
+<p>Do not inline <code>${{ github.event.* }}</code> into a <code>run:</code> block. Pass it through an environment variable and quote it, so the shell treats it as data, not code.</p>
+
+<pre><code># INSECURE &mdash; expression expanded into the command before the shell runs
+- run: echo "Title: ${{ github.event.pull_request.title }}"
+
+# SECURE &mdash; value arrives as an env var and is quoted
+- env:
+    PR_TITLE: ${{ github.event.pull_request.title }}
+  run: echo "Title: $PR_TITLE"</code></pre>
+
+<p>The same applies to branch names, commit messages, issue bodies, and any other attacker-controllable field.</p>
+
+<h2>8. Review Pipeline-Definition and Build-Script Changes</h2>
+
+<p>Treat changes to what the pipeline executes as security-critical, requiring dedicated review.</p>
+
+<pre><code># CODEOWNERS &mdash; require security/platform review for pipeline & build files
+/.github/workflows/   @org/platform-security
+/.gitlab-ci.yml       @org/platform-security
+/Jenkinsfile          @org/platform-security
+/Makefile             @org/platform-security
+/scripts/             @org/platform-security</code></pre>
+
+<p>Combine with protected branches, required reviews, and static analysis of workflow files (dangerous triggers, unpinned actions, expression injection) in CI. Remember that I-PPE hides in <code>Makefile</code>, <code>package.json</code> scripts, and test/lint configs&mdash;include them in the review scope.</p>
+
+<h2>9. Separate Build Credentials from Deploy Credentials</h2>
+
+<p>A build-time compromise should not automatically reach production. Keep the credentials that build/test artifacts distinct from those that deploy them, and put a gate (approval, environment protection) between the two stages.</p>
+
+<pre><code># SECURE: deploy runs in a protected environment with its own reviewers,
+# on a separate trusted trigger &mdash; not as part of untrusted PR builds.
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'    # only trusted, merged code
+    environment: production                 # required reviewers / protection rules
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write                       # OIDC: short-lived cloud creds, no static key
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./deploy.sh</code></pre>
+
+<h2>10. Monitoring and Detection</h2>
+
+<p>Watch for the signatures of PPE attempts and pipeline tampering.</p>
+
+<pre><code># Alert on high-risk pipeline patterns discovered in code review / scanning:
+#  - pull_request_target combined with checkout of head.sha
+#  - actions referenced by @main / @vN instead of a SHA
+#  - ${{ github.event.* }} inside a run: block
+#  - jobs on [self-hosted] triggered by fork PRs
+
+# Alert at runtime on:
+#  - outbound network connections from build steps to unexpected hosts
+#  - reads of the cloud metadata endpoint (169.254.169.254) during builds
+#  - unexpected use of GITHUB_TOKEN write scopes (pushes, package publishes)
+#  - changes to workflow/build files landing without required review</code></pre>
+
+<h2>Platform Quick-Reference</h2>
+
+<table>
+<thead>
+<tr><th>Control</th><th>GitHub Actions</th><th>GitLab CI</th><th>Jenkins</th></tr>
+</thead>
+<tbody>
+<tr><td>Untrusted fork code, no secrets</td><td><code>pull_request</code> trigger</td><td>Fork MR pipelines without protected variables</td><td>PR builds with no bound deploy creds</td></tr>
+<tr><td>Approval before run</td><td>Require approval for fork-PR workflows</td><td>Require member to run MR pipeline</td><td>Restrict branch-source build permissions</td></tr>
+<tr><td>Immutable dependencies</td><td>Pin actions to commit SHA</td><td>Pin <code>include</code>/images by digest</td><td>Pin shared-library versions</td></tr>
+<tr><td>Least-privilege token</td><td><code>permissions:</code> block</td><td>Protected + scoped CI/CD variables</td><td>Narrow <code>withCredentials</code> scope</td></tr>
+<tr><td>Isolated runners</td><td>Ephemeral / no self-hosted on forks</td><td>Ephemeral runners, tags</td><td>Ephemeral agents, isolated nodes</td></tr>
+</tbody>
+</table>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Untrusted code and secrets must never meet</strong>&mdash;pick the trigger that enforces this (<code>pull_request</code>, not <code>pull_request_target</code> with checkout).</li>
+<li><strong>Approval gates outsiders</strong>&mdash;require a maintainer before fork-PR workflows run.</li>
+<li><strong>Pin to SHAs and least-privilege the token</strong>&mdash;cap both what you execute and what it can do.</li>
+<li><strong>Isolate runners</strong>&mdash;ephemeral, and never self-hosted for fork PRs.</li>
+<li><strong>Review the definition and the scripts</strong>&mdash;I-PPE hides in Makefiles, hooks, and configs; separate build creds from deploy creds so a build compromise stops short of production.</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="examples.html">Code Examples</a></strong>: Insecure vs. secure pipelines across GitHub Actions, GitLab CI, and Jenkins</li>
+<li><strong><a href="attack-vectors.html">Attack Vectors</a></strong>: Understand what you're defending against</li>
+<li><strong><a href="/learn/cicd">CI/CD Security Track</a></strong>: Continue the OWASP CI/CD Top 10 lessons</li>
+<li><strong><a href="/practice">Practice</a></strong>: Apply what you have learned in hands-on exercises</li>
+</ul>
+
+        </div>
+    </div>
+</body>
+</html>

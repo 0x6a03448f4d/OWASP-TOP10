@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CICD-SEC-9: Improper Artifact Integrity Validation - Attack Vectors</title>
+    <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .doc-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .back-nav:hover {
+            background-color: rgba(245, 158, 11, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(245, 158, 11, 0.1);
+        }
+
+        .content h1 {
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            text-shadow: none;
+        }
+
+        .content h2 {
+            color: var(--secondary-color);
+            font-size: 1.8rem;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .content h3 {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+            margin-top: 30px;
+            margin-bottom: 12px;
+        }
+
+        .content h4 {
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        .content p {
+            color: var(--text-color);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .content ul, .content ol {
+            margin-left: 25px;
+            margin-bottom: 15px;
+            color: var(--text-color);
+        }
+
+        .content li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .content code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--primary-color);
+            font-family: 'Courier New', monospace;
+            border: 1px solid var(--border-color);
+        }
+
+        .content pre {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            color: var(--primary-color);
+        }
+
+        .content blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 20px;
+            margin: 20px 0;
+            background: rgba(245, 158, 11, 0.05);
+            padding: 15px 20px;
+            border-radius: 4px;
+        }
+
+        .content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table th {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2));
+            color: var(--primary-color);
+            padding: 12px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table td {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        .content table tr:hover {
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .content a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .content a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .content strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        .toc {
+            background: rgba(245, 158, 11, 0.05);
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .toc h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc li {
+            margin-bottom: 8px;
+        }
+
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toc a:hover {
+            color: var(--primary-color);
+        }
+
+        .toc a:before {
+            content: "▸";
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="doc-container">
+        <a href="/learn/cicd" class="back-nav">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+
+        <div class="content">
+            <h1>CICD-SEC-9: Improper Artifact Integrity Validation - Attack Vectors</h1>
+
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#understanding">Understanding Artifact Integrity Attacks</a></li>
+<li><a href="#core-attack-flow">Core Attack Flow</a></li>
+<li><a href="#common-attack-patterns">Common Attack Patterns</a></li>
+<li><a href="#chaining">Chaining Hand-off Failures</a></li>
+</ul>
+</div>
+
+<h2 id="understanding">Understanding Artifact Integrity Attacks</h2>
+
+<blockquote>
+<p><strong>⚠️ EDUCATIONAL PURPOSE ONLY</strong> &mdash; the techniques below are shown so you can find and fix these issues in pipelines you own or are authorised to test.</p>
+</blockquote>
+
+<p>An artifact-integrity attack does not require breaking cryptography or finding an application bug. It requires finding <strong>one hand-off where nothing checks the artifact</strong> and substituting a malicious version there. The pipeline's own trust does the rest: it builds, promotes, and deploys the attacker's artifact exactly as if it were legitimate, because there is no step that would ever say no.</p>
+
+<p>The attacker's objective in this category is to get malicious bytes into a place the pipeline trusts, so that:</p>
+<ul>
+<li>The malicious artifact is <strong>consumed by the build</strong> (poisoned dependency, cache, or base image), or</li>
+<li>The malicious artifact is <strong>promoted and deployed</strong> (swapped image, re-pointed tag, tampered build output), and</li>
+<li>No signature check, digest pin, or provenance verification exists to reject it.</li>
+</ul>
+
+<h3 id="core-attack-flow">Core Attack Flow</h3>
+
+<pre><code>1. Locate an unverified hand-off
+   &darr;
+   SCM->CI, dep pull, cache, registry push/pull, deploy admission
+2. Position to influence the artifact
+   &darr;
+   push access, compromised token, MITM, poisoned mirror/cache
+3. Substitute or tamper
+   &darr;
+   swap image, re-point tag, inject dependency, edit build output
+4. Let trust carry it
+   &darr;
+   pipeline builds/promotes/deploys the artifact with no integrity gate
+5. Execute in production / downstream
+   &darr;
+   arbitrary code runs; malicious release reaches consumers</code></pre>
+
+<h2 id="common-attack-patterns">Common Attack Patterns</h2>
+
+<h3>1. Mutable-Tag Substitution</h3>
+
+<p>Deployments reference an image by a moving tag, so re-pointing the tag changes what runs&mdash;no config diff, no review.</p>
+
+<pre><code># Deploy manifest trusts a mutable tag
+image: registry.example.com/api:prod
+
+# Attacker with push access re-points the tag to a malicious image
+docker tag malicious:local registry.example.com/api:prod
+docker push registry.example.com/api:prod
+# Next rollout / autoscale pull runs the attacker's image</code></pre>
+
+<p><strong>Payoff</strong>: code execution in production with the workload's identity and secrets, invisible to anyone reviewing the (unchanged) manifest.</p>
+
+<h3>2. Unsigned-Image Deployment</h3>
+
+<p>The cluster admits any image regardless of origin, so an attacker only needs to get an image into the registry (or MITM the pull).</p>
+
+<pre><code># No admission policy verifies a signature, so this succeeds:
+kubectl set image deploy/api api=registry.example.com/api@sha256:&lt;attacker-digest&gt;
+# The digest is "valid" -- it just isn't YOUR artifact, and nothing checks.</code></pre>
+
+<p><strong>Payoff</strong>: the last possible gate (admission) waves the artifact through; earlier controls become moot.</p>
+
+<h3>3. Poisoned Dependency Consumed Without Hash Verification</h3>
+
+<p>The build resolves packages by a floating range with no enforced integrity, so a hijacked or typosquatted version is compiled in.</p>
+
+<pre><code># requirements.txt with no hashes -&gt; index decides what you get
+requests&gt;=2
+
+# A hijacked release or dependency-confusion package resolves and installs;
+# its setup/postinstall runs in the build with the runner's privileges.</code></pre>
+
+<p><strong>Payoff</strong>: code execution during the build and a backdoor baked into the artifact&mdash;then shipped as "trusted output."</p>
+
+<h3>4. Build-Cache and Mirror Poisoning</h3>
+
+<p>Shared caches and internal mirrors are hand-offs trusted implicitly. Tamper with the cache once and every consumer inherits it.</p>
+
+<pre><code># Attacker writes a malicious entry keyed like a legitimate cache hit
+# (dependency cache, layer cache, remote build cache).
+# Subsequent builds "restore" the poisoned artifact instead of rebuilding,
+# with no checksum comparison against a trusted source.</code></pre>
+
+<p><strong>Payoff</strong>: broad, quiet distribution&mdash;one poisoned entry serves many pipelines and survives across builds.</p>
+
+<h3>5. Intermediate / Multi-Stage Artifact Tampering</h3>
+
+<p>Multi-stage builds and stage-to-stage promotions trust the previous stage's output without re-verifying it.</p>
+
+<pre><code># Stage 'builder' output is copied on faith
+COPY --from=builder /out/app /app/app
+# If 'builder' pulled a tampered base or dependency, the tampering
+# is carried into the final image unchecked.</code></pre>
+
+<p><strong>Payoff</strong>: a compromise early in the graph propagates to the released artifact with no gate between stages.</p>
+
+<h3>6. In-Transit Substitution (MITM on Push/Pull)</h3>
+
+<p>Without signature verification, an attacker positioned between the pipeline and a registry/mirror can swap bytes in flight.</p>
+
+<pre><code># Pull over a channel that isn't integrity-checked end-to-end:
+GET /v2/api/blobs/sha256:&lt;expected&gt;   -&gt;  attacker returns different bytes
+# If nothing verifies the content against a trusted signature, it is used.</code></pre>
+
+<p><strong>Payoff</strong>: the consumer runs substituted content while believing it pulled the intended artifact.</p>
+
+<h3>7. Build-System Compromise Producing a Signed Backdoor</h3>
+
+<p>The most damaging pattern: the attacker tampers <em>inside</em> the trusted build, so the malicious output is signed with the real key.</p>
+
+<pre><code># Malicious step injected into the build environment adds code
+# AFTER source review but BEFORE signing/release.
+# The release is signed with the legitimate key and distributed normally.
+# Consumers verify the signature -&gt; it passes -&gt; backdoor installed.</code></pre>
+
+<p><strong>Payoff</strong>: a genuinely signed malicious release&mdash;the SolarWinds-class outcome. Signing alone cannot detect it; only build <strong>provenance</strong> tied to a hermetic build can.</p>
+
+<h3>8. Provenance-Free Promotion</h3>
+
+<p>An artifact is promoted from build to deploy with no attestation of origin, so an artifact built anywhere is indistinguishable from one built by the trusted pipeline.</p>
+
+<pre><code># Promotion step: "if it's in the 'approved' registry, ship it."
+# An attacker who can write to that registry -- or produce a look-alike
+# artifact -- is promoted identically, because origin is never proven.</code></pre>
+
+<p><strong>Payoff</strong>: an attacker-built artifact rides the promotion path to production.</p>
+
+<h3>9. Unvalidated IaC / Config Applied to Production</h3>
+
+<p>Infrastructure and config are artifacts too. Applied without plan review or state-integrity protection, tampered IaC changes the environment directly.</p>
+
+<pre><code># Tampered module / plan applied with no gate
+terraform apply -auto-approve
+# A modified module source or poisoned provider mirror alters
+# security groups, IAM, or image references with no verification.</code></pre>
+
+<p><strong>Payoff</strong>: the attacker rewrites the environment (open ingress, over-broad roles, swapped images) with no artifact-integrity check to stop it.</p>
+
+<h3>10. Signature Present but Never Verified</h3>
+
+<p>Some pipelines <em>sign</em> artifacts yet never enforce the check, or verify against no expected identity&mdash;so the signature is decorative.</p>
+
+<pre><code># Artifact is signed at build time... and consumed with:
+docker pull registry.example.com/api@sha256:&lt;digest&gt;   # no cosign verify
+# Any image (signed by anyone, or unsigned) is accepted identically.</code></pre>
+
+<p><strong>Payoff</strong>: the organisation believes it is protected while the enforcement step that would matter does not exist.</p>
+
+<h2 id="chaining">Chaining Hand-off Failures</h2>
+
+<p>Individually small gaps combine into full compromise:</p>
+
+<pre><code>Compromised CI token (from a leaked secret)
+        +
+Registry accepts pushes to a mutable ":prod" tag
+        +
+Cluster admits images with no signature verification
+        =  attacker pushes a malicious image, re-points the tag,
+           and the next rollout runs it -- no code bug required</code></pre>
+
+<p>Another common chain&mdash;the SolarWinds-class shape:</p>
+
+<pre><code>Foothold in the build environment (Poisoned Pipeline Execution)
+        -&gt; inject code during the build, before signing
+        -&gt; artifact is signed with the legitimate key
+        -&gt; consumers verify only the signature (no provenance)
+        =  a genuinely signed backdoor is distributed and trusted</code></pre>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Attackers hunt for the one unverified hand-off</strong>&mdash;they don't need to break every step, only the weakest link in the chain.</li>
+<li><strong>Mutable tags are the easiest target</strong>&mdash;re-pointing a tag changes production with no visible diff.</li>
+<li><strong>Signing without verification protects nothing</strong>&mdash;and verifying without provenance can't catch a build-time backdoor.</li>
+<li><strong>Caches, mirrors, and intermediate stages are hand-offs too</strong>&mdash;poison one and it serves everyone downstream.</li>
+<li><strong>Admission time is the last line</strong>&mdash;if the cluster runs unsigned/unattested artifacts, every earlier control can be skipped.</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="prevention.html">Prevention Guide</a></strong>: Build an enforceable, end-to-end chain of custody</li>
+<li><strong><a href="examples.html">Code Examples</a></strong>: See insecure vs. secure signing, provenance, and digest pinning</li>
+<li><strong><a href="/learn/cicd">CI/CD Security Track</a></strong>: Continue with the other OWASP CI/CD Top 10 risks</li>
+<li><strong><a href="/practice">Practice</a></strong>: Apply these techniques in hands-on exercises</li>
+</ul>
+
+        </div>
+    </div>
+</body>
+</html>

