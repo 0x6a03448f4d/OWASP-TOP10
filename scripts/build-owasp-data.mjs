@@ -252,6 +252,25 @@ const EDITIONS = {
       ]},
     ],
   },
+  serverless: {
+    label: 'Serverless',
+    blurb: 'The OWASP Serverless Top 10 — the security weaknesses specific to serverless (FaaS) applications.',
+    lessonDir: 'labs/serverless/OWASP-Serverless',
+    editions: [
+      { year: '2018', latest: true, cheatDir: null, vulns: [
+        V('SAS-1', 1, 'Function Event-Data Injection', 'function-event-data-injection'),
+        V('SAS-2', 2, 'Broken Authentication', 'broken-authentication'),
+        V('SAS-3', 3, 'Insecure Serverless Deployment Configuration', 'insecure-serverless-deployment-configuration'),
+        V('SAS-4', 4, 'Over-Privileged Function Permissions & Roles', 'over-privileged-function-permissions-and-roles'),
+        V('SAS-5', 5, 'Inadequate Function Monitoring and Logging', 'inadequate-function-monitoring-and-logging'),
+        V('SAS-6', 6, 'Insecure Third-Party Dependencies', 'insecure-third-party-dependencies'),
+        V('SAS-7', 7, 'Insecure Application Secrets Storage', 'insecure-application-secrets-storage'),
+        V('SAS-8', 8, 'Denial of Service & Financial Resource Exhaustion', 'denial-of-service-and-financial-resource-exhaustion'),
+        V('SAS-9', 9, 'Serverless Business Logic Manipulation', 'serverless-business-logic-manipulation'),
+        V('SAS-10', 10, 'Improper Exception Handling & Verbose Error Messages', 'improper-exception-handling-and-verbose-error-messages'),
+      ]},
+    ],
+  },
 };
 
 // Pull an accurate 1-paragraph summary from a lesson's overview.md ("What is …?").

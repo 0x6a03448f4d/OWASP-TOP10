@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAS-10: Improper Exception Handling and Verbose Error Messages - Attack Vectors</title>
+    <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .doc-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .back-nav:hover {
+            background-color: rgba(245, 158, 11, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(245, 158, 11, 0.1);
+        }
+
+        .content h1 {
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            text-shadow: none;
+        }
+
+        .content h2 {
+            color: var(--secondary-color);
+            font-size: 1.8rem;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .content h3 {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+            margin-top: 30px;
+            margin-bottom: 12px;
+        }
+
+        .content h4 {
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        .content p {
+            color: var(--text-color);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .content ul, .content ol {
+            margin-left: 25px;
+            margin-bottom: 15px;
+            color: var(--text-color);
+        }
+
+        .content li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .content code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--primary-color);
+            font-family: 'Courier New', monospace;
+            border: 1px solid var(--border-color);
+        }
+
+        .content pre {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            color: var(--primary-color);
+        }
+
+        .content blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 20px;
+            margin: 20px 0;
+            background: rgba(245, 158, 11, 0.05);
+            padding: 15px 20px;
+            border-radius: 4px;
+        }
+
+        .content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table th {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2));
+            color: var(--primary-color);
+            padding: 12px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table td {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        .content table tr:hover {
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .content a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .content a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .content strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        .toc {
+            background: rgba(245, 158, 11, 0.05);
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .toc h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc li {
+            margin-bottom: 8px;
+        }
+
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toc a:hover {
+            color: var(--primary-color);
+        }
+
+        .toc a:before {
+            content: "▸";
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="doc-container">
+        <a href="/learn/serverless" class="back-nav">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+
+        <div class="content">
+            <h1>SAS-10: Improper Exception Handling and Verbose Error Messages - Attack Vectors</h1>
+
+<p>Attacking this weakness is mostly about <strong>making things break on purpose</strong> and reading what falls out. An attacker sends malformed, oversized, or unexpected input to force an unhandled exception, then mines the response for internals&mdash;or exploits <em>how</em> the function fails: a check that is skipped, a write that half-completes, a message that is retried. This page walks the attacker's workflow, from triggering errors to weaponising fail-open and duplicate-side-effect behaviour.</p>
+
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#mindset">The Attacker's Mindset</a></li>
+<li><a href="#triggering">Phase 1: Triggering Errors</a></li>
+<li><a href="#harvesting">Phase 2: Harvesting Internals</a></li>
+<li><a href="#oracles">Phase 3: Error and Timing Oracles</a></li>
+<li><a href="#failopen">Phase 4: Exploiting Fail-Open Logic</a></li>
+<li><a href="#duplicate">Phase 5: Forcing Duplicate Side Effects</a></li>
+<li><a href="#audit">Phase 6: Destroying the Audit Trail</a></li>
+<li><a href="#chain">A Full Attack Chain</a></li>
+</ul>
+</div>
+
+<h2 id="mindset">The Attacker's Mindset</h2>
+
+<p>A defender sees an error as an accident. An attacker sees it as an <strong>interface</strong>&mdash;a second, undocumented API that answers questions the normal responses will not. Every exception is a chance to learn what runtime you use, where your files live, what your database is called, and how your security checks behave under stress.</p>
+
+<blockquote>
+<p><strong>Core idea</strong>: The attacker does not need the function to succeed. They need it to <em>fail in an informative way</em>. Verbose errors, inconsistent responses, and unsafe failure modes are the payload.</p>
+</blockquote>
+
+<h3>What the attacker is hunting for</h3>
+<ul>
+<li><strong>Fingerprints</strong>: runtime and library versions, framework names, file paths.</li>
+<li><strong>Infrastructure</strong>: ARNs, account IDs, region, function and layer names, internal hostnames.</li>
+<li><strong>Secrets</strong>: environment variables, connection strings, tokens caught in a dump.</li>
+<li><strong>Data structure</strong>: table and column names, query text, key formats.</li>
+<li><strong>Behavioural tells</strong>: does an error skip a check? repeat an action? confirm a record exists?</li>
+</ul>
+
+<h2 id="triggering">Phase 1: Triggering Errors</h2>
+
+<p>The first move is to reliably make the function throw. Serverless handlers are small and often validate little, so the paths to an exception are numerous.</p>
+
+<h3>Malformed input</h3>
+
+<pre><code># Break the parser: the handler calls JSON.parse / json.loads on the body
+POST /orders  Content-Type: application/json
+
+{ "userId": 42, }          # trailing comma -&gt; SyntaxError
+{ "userId": }              # missing value  -&gt; SyntaxError
+%%%not-json%%%             # not JSON at all -&gt; SyntaxError</code></pre>
+
+<h3>Type and shape confusion</h3>
+
+<pre><code># The handler expects a string id and indexes into the result.
+GET /orders/{id}
+
+/orders/../../etc          # unexpected shape
+/orders/999999999999999999 # out-of-range -&gt; overflow / DB error
+/orders?id[]=1&id[]=2       # array where a scalar is expected -&gt; TypeError</code></pre>
+
+<h3>Missing / unexpected fields</h3>
+
+<pre><code># Omit a field the handler dereferences without checking:
+{ }                        # event.body.userId is undefined -&gt; "Cannot read
+                           # property 'id' of undefined"
+# Or supply a field of the wrong type to break downstream code paths.</code></pre>
+
+<h3>Resource and dependency pressure</h3>
+<ul>
+<li>Oversized payloads or deeply nested JSON to exhaust memory or hit limits.</li>
+<li>Requests that force a downstream call to time out (slow dependency, throttled table) so the handler throws a timeout/throttling exception.</li>
+<li>Values that violate a database constraint (duplicate key, wrong type) to surface a driver error carrying the query text.</li>
+</ul>
+
+<h2 id="harvesting">Phase 2: Harvesting Internals</h2>
+
+<p>Once an error is returned, the attacker reads it carefully. A single verbose response can collapse hours of blind guessing.</p>
+
+<h3>Reading a raw stack trace</h3>
+
+<pre><code>HTTP/1.1 500 Internal Server Error
+Content-Type: application/json
+
+{
+  "errorType": "TypeError",
+  "errorMessage": "Cannot read properties of undefined (reading 'id')",
+  "trace": [
+    "TypeError: Cannot read properties of undefined (reading 'id')",
+    "    at Runtime.handler (/var/task/src/handlers/orders.js:37:28)",
+    "    at Runtime.handleOnceNonStreaming (/var/runtime/index.mjs:...)"
+  ]
+}</code></pre>
+
+<p><strong>Harvested</strong>: the code lives at <code>/var/task/src/handlers/orders.js</code>, it is Node on the AWS runtime, and line 37 dereferences an <code>id</code> without a guard&mdash;the attacker now knows exactly which field to omit and where the logic is thin.</p>
+
+<h3>Reading an infrastructure / secret leak</h3>
+
+<pre><code>{
+  "errorType": "OperationalError",
+  "errorMessage": "connection to server at \"orders-db.internal\" failed",
+  "env": {
+    "DB_DSN": "postgres://app:S3cr3t-pw@orders-db.internal:5432/prod",
+    "AWS_LAMBDA_FUNCTION_NAME": "orders-api-prod",
+    "FUNCTION_ARN": "arn:aws:lambda:us-east-1:123456789012:function:orders-api-prod"
+  }
+}</code></pre>
+
+<p><strong>Harvested</strong>: a live database credential, the internal hostname, the region, the account id <code>123456789012</code>, and the exact function name&mdash;enough to pivot without ever "hacking" anything further.</p>
+
+<h3>Fingerprinting from database driver errors</h3>
+
+<pre><code>{ "errorMessage":
+  "error: column \"is_admin\" does not exist\n  Position: 34\n  Query:
+   SELECT id, email, is_admn FROM users WHERE tenant_id = $1" }</code></pre>
+
+<p><strong>Harvested</strong>: the table (<code>users</code>), real column names, that a typo path exists, and that there is an <code>is_admin</code> column worth targeting elsewhere.</p>
+
+<h2 id="oracles">Phase 3: Error and Timing Oracles</h2>
+
+<p>Even when the body is generic, <em>differences</em> between responses leak information. The attacker turns the function into an oracle by comparing status codes, messages, or response times across inputs.</p>
+
+<h3>Existence oracle via error type</h3>
+
+<pre><code>POST /login  {"email":"alice@example.com","password":"x"}  -&gt; 500 (KeyError)
+POST /login  {"email":"ghost@example.com","password":"x"}  -&gt; 404 (not found)</code></pre>
+
+<p>The <code>500</code> only occurs for accounts that exist (a downstream lookup succeeds, then a later step throws). Comparing the two responses enumerates valid emails&mdash;no verbose body required, just an inconsistency.</p>
+
+<h3>Timing oracle</h3>
+
+<pre><code>Valid record   -&gt; heavy code path runs, then errors  -&gt; ~380 ms
+Invalid record -&gt; fails fast at the first check      -&gt;  ~40 ms</code></pre>
+
+<p>When the error path for real data does more work before failing, the response time itself distinguishes real from fake&mdash;an enumeration channel that survives even a perfectly generic error message.</p>
+
+<h3>Validation-order oracle</h3>
+<ul>
+<li>An input that triggers a "record not found" only after passing an earlier authorization check tells the attacker that authorization <em>passed</em>&mdash;confirming access boundaries.</li>
+<li>Different error shapes for "malformed token" vs. "expired token" vs. "unknown user" map out the authentication pipeline step by step.</li>
+</ul>
+
+<h2 id="failopen">Phase 4: Exploiting Fail-Open Logic</h2>
+
+<p>The highest-value target is a function whose <em>error path skips a security control</em>. Instead of extracting data, the attacker deliberately induces the exception that makes the check disappear.</p>
+
+<h3>Making the check throw</h3>
+
+<pre><code>def handler(event, context):
+    try:
+        claims = verify_token(event["headers"]["authorization"])
+    except Exception:
+        claims = {}                 # fail-open: error -&gt; empty claims
+    if claims.get("role") == "admin" or not claims:   # BUG
+        return admin_action(event)  # empty claims slips through
+    return forbidden()</code></pre>
+
+<p><strong>Attack</strong>: send a header the verifier cannot process&mdash;a malformed JWT, a token signed by an unknown key, or an oversized value that makes <code>verify_token</code> raise. The exception drops the attacker into the empty-claims branch and grants the privileged action.</p>
+
+<h3>Common fail-open shapes to probe</h3>
+<ul>
+<li>A <code>try/except</code> around authentication that sets a default identity on failure.</li>
+<li>A feature-flag or policy fetch that "defaults to allow" when the config service errors.</li>
+<li>Input validation wrapped so that a validator exception is logged and execution continues with the unchecked input.</li>
+<li>A signature/HMAC check whose failure branch is missing a <code>return</code>, so execution falls through.</li>
+</ul>
+
+<blockquote>
+<p>The attacker's tell that fail-open exists: inducing an error <em>helps</em> rather than blocks them. If a malformed credential yields <em>more</em> access than a missing one, the failure mode is open.</p>
+</blockquote>
+
+<h2 id="duplicate">Phase 5: Forcing Duplicate Side Effects</h2>
+
+<p>On at-least-once event sources, an unhandled error <em>after</em> a side effect causes the platform to retry the whole invocation. An attacker who can make the tail of the function fail turns one action into many.</p>
+
+<pre><code>// Trigger: SQS message -&gt; charge, then a fragile post-step
+exports.handler = async (event) =&gt; {
+  await chargeCard(event.orderId, event.amount);  // committed
+  await notifyLedger(event.orderId);              // attacker makes this throw
+  // Unacknowledged -&gt; SQS re-delivers -&gt; chargeCard runs AGAIN
+};</code></pre>
+
+<h3>How the attacker induces the tail failure</h3>
+<ul>
+<li>Craft the order so the downstream <code>notifyLedger</code> call hits a validation or size limit and throws, while the earlier charge still succeeds.</li>
+<li>Flood a shared dependency so the post-step is throttled and errors, while the side effect ahead of it commits.</li>
+<li>Exploit a timeout: size the work so the function times out just after the side effect, before acknowledgement.</li>
+</ul>
+
+<p><strong>Impact</strong>: duplicate charges, duplicate emails, double-inserted records, or repeated privileged operations&mdash;driven entirely by the missing cleanup/idempotency on the error path.</p>
+
+<h2 id="audit">Phase 6: Destroying the Audit Trail</h2>
+
+<p>An uncaught exception that crashes the function <em>before</em> its logging line means no security event is ever recorded. An attacker who understands this will deliberately fail the function early, on the very requests they most want hidden.</p>
+
+<ul>
+<li>Trigger the crash <em>before</em> the audit write so the malicious action leaves no structured record&mdash;only the platform's bare START/END remains.</li>
+<li>Combine with fail-open: the request both bypasses the control <em>and</em> avoids being logged, because the log statement sat after the point of failure.</li>
+<li>Use error floods to bury a single real attack in noise, betting the team has alert fatigue on 500s.</li>
+</ul>
+
+<h2 id="chain">A Full Attack Chain</h2>
+
+<p>Putting the phases together against a hypothetical serverless orders API:</p>
+
+<ol>
+<li><strong>Trigger</strong>: The attacker posts malformed JSON to <code>/orders</code>. The unhandled <code>SyntaxError</code> is serialised back with a full trace.</li>
+<li><strong>Harvest</strong>: The trace reveals the Node runtime version, the file path <code>/var/task/src/handlers/orders.js</code>, and&mdash;on a second, DB-level error&mdash;the connection string in an echoed environment object.</li>
+<li><strong>Recon expand</strong>: A driver error leaks the <code>users</code> table and an <code>is_admin</code> column. The account id and function ARN come from the same dump.</li>
+<li><strong>Oracle</strong>: Using response-shape differences, the attacker enumerates valid customer emails without any verbose body.</li>
+<li><strong>Fail-open</strong>: A malformed authorization header makes the token verifier throw; the fail-open branch grants an admin action.</li>
+<li><strong>Duplicate</strong>: On the async fulfilment function, the attacker sizes the order so the post-charge step throws; the retry double-charges.</li>
+<li><strong>Cover</strong>: Because the audit log statement ran after the point of failure, none of the privileged calls left a structured record.</li>
+</ol>
+
+<blockquote>
+<p>Every step here is powered by the same root cause: errors that were never caught, mapped, and failed <em>closed</em>. Fix the error handling and the entire chain loses its fuel.</p>
+</blockquote>
+
+<h2>Defensive Summary</h2>
+
+<table>
+<thead>
+<tr><th>Attacker Move</th><th>What Enables It</th><th>Control That Breaks It</th></tr>
+</thead>
+<tbody>
+<tr><td>Read stack traces</td><td>Raw errors returned to caller</td><td>Generic client error + server-side log</td></tr>
+<tr><td>Steal secrets from dumps</td><td>Env/config echoed on failure</td><td>Never serialise env; redact logs</td></tr>
+<tr><td>Enumerate via oracles</td><td>Inconsistent status/message/timing</td><td>Uniform responses; constant-time checks</td></tr>
+<tr><td>Bypass via fail-open</td><td>Error path skips the check</td><td>Fail closed; deny on exception</td></tr>
+<tr><td>Duplicate side effects</td><td>Retry after uncommitted ack</td><td>Idempotency keys + cleanup on error</td></tr>
+<tr><td>Erase the trail</td><td>Crash before the audit write</td><td>Catch-and-log around every path</td></tr>
+</tbody>
+</table>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="prevention.html">Prevention Guide</a></strong>: Build generic client errors, structured server-side logging, and fail-closed paths</li>
+<li><strong><a href="examples.html">Code Examples</a></strong>: Vulnerable vs. secure Lambda and API Gateway error handling</li>
+<li><strong><a href="overview.html">Overview</a></strong>: Why serverless surfaces and retries errors by default</li>
+<li><strong><a href="/learn/serverless">Serverless Learning Path</a></strong>: Continue the OWASP Serverless Top 10</li>
+<li><strong><a href="/practice">Practice</a></strong>: Apply these techniques in hands-on exercises</li>
+</ul>
+
+        </div>
+    </div>
+</body>
+</html>

