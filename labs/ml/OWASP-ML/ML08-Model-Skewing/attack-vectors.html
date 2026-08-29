@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML08: Model Skewing - Attack Vectors</title>
+    <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .doc-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .back-nav:hover {
+            background-color: rgba(245, 158, 11, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(245, 158, 11, 0.1);
+        }
+
+        .content h1 {
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            text-shadow: none;
+        }
+
+        .content h2 {
+            color: var(--secondary-color);
+            font-size: 1.8rem;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .content h3 {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+            margin-top: 30px;
+            margin-bottom: 12px;
+        }
+
+        .content h4 {
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        .content p {
+            color: var(--text-color);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .content ul, .content ol {
+            margin-left: 25px;
+            margin-bottom: 15px;
+            color: var(--text-color);
+        }
+
+        .content li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .content code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--primary-color);
+            font-family: 'Courier New', monospace;
+            border: 1px solid var(--border-color);
+        }
+
+        .content pre {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            color: var(--primary-color);
+        }
+
+        .content blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 20px;
+            margin: 20px 0;
+            background: rgba(245, 158, 11, 0.05);
+            padding: 15px 20px;
+            border-radius: 4px;
+        }
+
+        .content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table th {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2));
+            color: var(--primary-color);
+            padding: 12px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table td {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        .content table tr:hover {
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .content a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .content a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .content strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        .toc {
+            background: rgba(245, 158, 11, 0.05);
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .toc h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc li {
+            margin-bottom: 8px;
+        }
+
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toc a:hover {
+            color: var(--primary-color);
+        }
+
+        .toc a:before {
+            content: "▸";
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="doc-container">
+        <a href="/learn/ml" class="back-nav">
+            &larr; Back
+        </a>
+
+        <div class="content">
+            <h1>ML08: Model Skewing - Attack Vectors</h1>
+
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#understanding">Understanding Skewing Attack Vectors</a></li>
+<li><a href="#core-attack-flow">Core Attack Flow</a></li>
+<li><a href="#common-attack-patterns">Common Attack Patterns</a></li>
+<li><a href="#chaining">Chaining and Amplification</a></li>
+</ul>
+</div>
+
+<h2 id="understanding">Understanding Skewing Attack Vectors</h2>
+
+<blockquote>
+<p><strong>&#9888; EDUCATIONAL PURPOSE ONLY</strong> &mdash; the techniques below are shown so you can find and fix these issues in systems you own or are authorised to test.</p>
+</blockquote>
+
+<p>Model skewing is not exploited with a crafted malicious payload against a single request. It is exploited by <strong>producing ordinary-looking user behaviour at scale</strong> and letting the system's own learning loop do the work. Every action the attacker takes&mdash;a report, a click, a rating, a new account&mdash;is individually legitimate. The attack lives in the <em>aggregate</em>: the distribution of feedback the model retrains on.</p>
+
+<p>The attacker's goal in this category is usually one of:</p>
+<ul>
+<li>Move a <strong>decision boundary or threshold</strong> so previously-blocked inputs are allowed (or a target is blocked).</li>
+<li>Manipulate a <strong>ranking / recommendation</strong> so attacker-chosen items rise and rivals fall.</li>
+<li><strong>Degrade the model for a target</strong> (a group, region, or competitor) while overall metrics stay healthy.</li>
+</ul>
+
+<p>Two properties make the loop attackable: the system <strong>treats user behaviour as a label</strong>, and it <strong>retrains on that behaviour with little or no validation</strong>. Where both hold, whoever can generate the most of the right behaviour controls the model.</p>
+
+<h3 id="core-attack-flow">Core Attack Flow</h3>
+
+<pre><code>1. Identify the loop
+   &darr;
+   Find where user actions become training labels (reports, clicks, ratings)
+2. Acquire influence
+   &darr;
+   Create/aggregate identities (Sybil accounts, devices, IPs) to scale signal
+3. Inject crafted feedback
+   &darr;
+   Submit mass mislabels / fake engagement, shaped toward the goal
+4. Let retraining absorb it
+   &darr;
+   Nightly/continuous retraining shifts the boundary a little each cycle
+5. Repeat & stay under thresholds
+   &darr;
+   Spread over time and accounts so drift looks organic; reach the target state</code></pre>
+
+<h2 id="common-attack-patterns">Common Attack Patterns</h2>
+
+<h3>1. Mass False "Not Spam" / "Not Fraud" Feedback</h3>
+
+<p>The attacker floods the loop with reports that their own malicious content is benign, dragging the threshold toward "allow".</p>
+
+<pre><code># Conceptual: thousands of controlled accounts label attacker content as safe
+for acct in controlled_accounts:
+    api.submit_feedback(item=attacker_spam, label="not_spam", account=acct)
+
+# The nightly job counts these as ground-truth negatives:
+#   "messages like this are legitimate" -> boundary moves toward allow
+# After enough cycles, the attacker's spam style scores below the block line.</code></pre>
+
+<p><strong>Payoff</strong>: the classifier is retrained to pass the attacker's content. Reversed (mass "spam"/"abuse" reports on a victim), the same vector skews the model into <em>blocking</em> a legitimate sender or account.</p>
+
+<h3>2. Coordinated Engagement to Game a Recommender / Ranker</h3>
+
+<p>Engagement is treated as a quality signal, so manufactured engagement becomes manufactured quality.</p>
+
+<pre><code># Coordinated ring manufactures the signals the ranker rewards
+for acct in ring:
+    view(target_item, account=acct)
+    dwell(target_item, seconds=45, account=acct)   # long dwell = "interesting"
+    like(target_item, account=acct)
+    ignore(competitor_items, account=acct)         # suppress rivals
+
+# Ranker learns: target_item has high engagement -> rank it higher.</code></pre>
+
+<p><strong>Payoff</strong>: the ranking model surfaces attacker-chosen items to real users, converting fake engagement into real traffic and revenue, and burying legitimate competitors.</p>
+
+<h3>3. Sybil / Coordinated Account Amplification</h3>
+
+<p>Influence in a feedback loop scales with the number of identities. Cheap account creation is the enabler for every other vector here.</p>
+
+<pre><code>1 account       -> negligible, averaged away
+100 accounts    -> a noticeable nudge
+10,000 accounts -> a dominant share of the day's feedback
+
+# The model learns from the "majority" of feedback -- which is now synthetic.</code></pre>
+
+<p><strong>Payoff</strong>: a single operator becomes a synthetic majority. Weak identity/anti-automation controls mean the day's training signal is attacker-controlled.</p>
+
+<h3>4. Slow, Gradual Drift (Low-and-Slow)</h3>
+
+<p>Instead of one large push (which anomaly detection would flag), the attacker moves the boundary a sliver per cycle.</p>
+
+<pre><code>Week 1:  inject just enough feedback to move the boundary ~1%
+Week 2:  from the NEW baseline, move it another ~1%
+   ...
+Week N:  cumulative shift is large; each week is within "normal drift"
+
+# Day-over-day monitors never trip; the poison accretes quietly.</code></pre>
+
+<p><strong>Payoff</strong>: the attack hides inside the platform's tolerance for organic change. By the time behaviour is visibly wrong, the skew is deep in many model versions.</p>
+
+<h3>5. Label-Flipping via the Correction Channel</h3>
+
+<p>Systems that let users "correct" model outputs trust those corrections as high-quality labels&mdash;an ideal injection point.</p>
+
+<pre><code>POST /feedback/correct
+{ "prediction_id": "...", "model_said": "fraud", "user_says": "legitimate" }
+
+# Attacker submits thousands of "correction" events insisting fraud = legit.
+# Corrections are weighted heavily (they look like expert relabels) ->
+# high-leverage poison per event.</code></pre>
+
+<p><strong>Payoff</strong>: because corrections are trusted more than passive signals, each poisoned correction moves the model more&mdash;fewer events needed to skew it.</p>
+
+<h3>6. Feature-Signal Pumping</h3>
+
+<p>Even when labels are safe, attackers pump the <em>features</em> the model reads&mdash;reputation, velocity, engagement counts&mdash;so it learns attacker-controlled correlations.</p>
+
+<pre><code># Build fake "reputation" for an account or item before the real payload
+- accrue benign activity, followers, positive interactions for weeks
+- the model associates these features with "trustworthy"
+- then use the aged, high-reputation asset to carry the attack</code></pre>
+
+<p><strong>Payoff</strong>: the model is skewed to trust an attacker-groomed entity, so the eventual malicious action is scored as low-risk.</p>
+
+<h3>7. Poisoning the Retraining Data Pool Directly</h3>
+
+<p>When production events are dumped into a retraining pool with no sampling or validation, the attacker just needs volume.</p>
+
+<pre><code># Anti-pattern the attacker relies on:
+pool += collect_all_production_events()   # raw, unfiltered
+model = retrain(model, pool)              # no cap on any one source
+deploy(model)                             # auto-promoted
+
+# Flooding events = flooding the training distribution.</code></pre>
+
+<p><strong>Payoff</strong>: the training distribution becomes whatever the highest-volume source made it&mdash;and the attacker can be that source.</p>
+
+<h3>8. Targeted Skew Against a Subpopulation</h3>
+
+<p>The attacker skews behaviour only on a narrow slice&mdash;a competitor's content, a region, a language&mdash;so aggregate metrics barely move.</p>
+
+<pre><code>Goal: degrade quality ONLY for competitor X's category.
+- inject misleading feedback confined to that category's items
+- global accuracy stays ~flat (the slice is small)
+- but within the slice, ranking/decisions are now attacker-favourable</code></pre>
+
+<p><strong>Payoff</strong>: maximal harm to the target with minimal detectable footprint&mdash;the classic reason aggregate accuracy fails to catch skewing.</p>
+
+<h2 id="chaining">Chaining and Amplification</h2>
+
+<p>Individually modest steps combine into a durable skew:</p>
+
+<pre><code>Cheap account creation (weak Sybil controls)
+        +
+Raw feedback ingested with no per-source cap
+        +
+Auto-retraining with no human gate or shadow eval
+        =  attacker's synthetic majority is baked into production nightly</code></pre>
+
+<p>A second common chain exploits the model's own output loop:</p>
+
+<pre><code>Skew the ranker slightly toward the target item
+        -> real users now see it more (the model changed what it shows)
+        -> genuine clicks accrue on top of the fake ones
+        -> the NEXT retraining sees "real" engagement and skews further
+        =  a self-reinforcing feedback spiral from a small initial push</code></pre>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Skewing is exploited by scale, not payloads</strong>&mdash;ordinary actions, produced en masse, become the attack.</li>
+<li><strong>Sybil capacity is the master key</strong>&mdash;every vector gets stronger with more controllable identities.</li>
+<li><strong>Trusted channels leak hardest</strong>&mdash;corrections and "expert" relabels carry high poison-per-event leverage.</li>
+<li><strong>Low-and-slow beats monitoring</strong>&mdash;gradual, targeted drift hides inside normal change and flat aggregate metrics.</li>
+<li><strong>The model amplifies its own skew</strong>&mdash;a small nudge can spiral once it changes what users are shown.</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="prevention.html">Prevention Guide</a></strong>: Validate feedback, monitor drift, cap influence, gate retraining</li>
+<li><strong><a href="examples.html">Code Examples</a></strong>: Insecure vs. secure continuous-learning pipelines</li>
+<li><strong><a href="/learn/ml">ML Security Top 10</a></strong>: Continue the learning path</li>
+<li><strong><a href="/practice">Practice</a></strong>: Apply these concepts hands-on</li>
+</ul>
+
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML03: Model Inversion Attack - Code Examples</title>
+    <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .doc-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .back-nav:hover {
+            background-color: rgba(245, 158, 11, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(245, 158, 11, 0.1);
+        }
+
+        .content h1 {
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            text-shadow: none;
+        }
+
+        .content h2 {
+            color: var(--secondary-color);
+            font-size: 1.8rem;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .content h3 {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+            margin-top: 30px;
+            margin-bottom: 12px;
+        }
+
+        .content h4 {
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        .content p {
+            color: var(--text-color);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .content ul, .content ol {
+            margin-left: 25px;
+            margin-bottom: 15px;
+            color: var(--text-color);
+        }
+
+        .content li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .content code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--primary-color);
+            font-family: 'Courier New', monospace;
+            border: 1px solid var(--border-color);
+        }
+
+        .content pre {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            color: var(--primary-color);
+        }
+
+        .content blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 20px;
+            margin: 20px 0;
+            background: rgba(245, 158, 11, 0.05);
+            padding: 15px 20px;
+            border-radius: 4px;
+        }
+
+        .content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table th {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2));
+            color: var(--primary-color);
+            padding: 12px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table td {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        .content table tr:hover {
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .content a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .content a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .content strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        .toc {
+            background: rgba(245, 158, 11, 0.05);
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .toc h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc li {
+            margin-bottom: 8px;
+        }
+
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toc a:hover {
+            color: var(--primary-color);
+        }
+
+        .toc a:before {
+            content: "▸";
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="doc-container">
+        <a href="/learn/ml" class="back-nav">
+            &larr; Back
+        </a>
+
+        <div class="content">
+            <h1>ML03: Model Inversion Attack - Code Examples</h1>
+
+<p>Each pair below shows an <strong>insecure</strong> implementation that leaks confidences or memorises training data, and a <strong>secure</strong> version that limits output detail or trains with differential privacy. The examples use Python with PyTorch and Opacus, mirroring the defences in the Prevention guide.</p>
+
+<blockquote>
+<p><strong>&#9888;&#65039; EDUCATIONAL PURPOSE ONLY</strong> &mdash; use these patterns to harden models you own or are authorised to assess.</p>
+</blockquote>
+
+<h2>1. Model Serving: Confidence Vector vs. Coarse Label</h2>
+
+<h3>Insecure</h3>
+<pre><code>import torch, torch.nn.functional as F
+from flask import Flask, request, jsonify
+
+app = Flask(__name__)
+model = load_face_model().eval()
+
+@app.route("/predict", methods=["POST"])
+def predict():
+    x = decode_image(request.files["image"])
+    with torch.no_grad():
+        logits = model(x)
+        probs  = F.softmax(logits, dim=1)[0]
+    # Full per-identity confidence vector + raw logits handed to any caller.
+    # This is the exact signal a black-box inversion loop hill-climbs.
+    return jsonify({
+        "probs":  probs.tolist(),          # 512 floats, one per identity
+        "logits": logits[0].tolist(),      # even richer than probabilities
+    })</code></pre>
+
+<h3>Secure</h3>
+<pre><code>import torch, torch.nn.functional as F
+from flask import Flask, request, jsonify
+
+app = Flask(__name__)
+model = load_face_model().eval()
+CONF_BANDS = [(0.90, "high"), (0.60, "medium"), (0.0, "low")]
+
+def band(p):
+    return next(name for thr, name in CONF_BANDS if p >= thr)
+
+@app.route("/predict", methods=["POST"])
+def predict():
+    x = decode_image(request.files["image"])
+    with torch.no_grad():
+        probs = F.softmax(model(x), dim=1)[0]
+    top = int(probs.argmax())
+    # Return only the decision the client needs: a label and a coarse band.
+    # No per-class vector, no logits, no precise float to hill-climb.
+    return jsonify({
+        "label":      id2label[top],
+        "confidence": band(float(probs[top])),   # "high" / "medium" / "low"
+    })</code></pre>
+
+<h2>2. Training: Standard SGD vs. DP-SGD with Opacus</h2>
+
+<h3>Insecure</h3>
+<pre><code>import torch
+
+model     = build_model()                       # high capacity, small sensitive dataset
+optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+loader    = DataLoader(sensitive_dataset, batch_size=64, shuffle=True)
+
+for epoch in range(50):                          # trained to very low train loss
+    for xb, yb in loader:
+        optimizer.zero_grad()
+        loss = torch.nn.functional.cross_entropy(model(xb), yb)
+        loss.backward()
+        optimizer.step()
+# No bound on any single example's influence -> individuals are memorised
+# and can be reconstructed by inversion.</code></pre>
+
+<h3>Secure</h3>
+<pre><code>import torch
+from opacus import PrivacyEngine
+
+model     = build_model()
+optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+loader    = DataLoader(sensitive_dataset, batch_size=64, shuffle=True)
+
+privacy_engine = PrivacyEngine()
+model, optimizer, loader = privacy_engine.make_private_with_epsilon(
+    module=model,
+    optimizer=optimizer,
+    data_loader=loader,
+    epochs=50,
+    target_epsilon=8.0,      # formal privacy budget (smaller = stronger)
+    target_delta=1e-5,
+    max_grad_norm=1.0,       # clip each example's gradient
+)
+
+for epoch in range(50):
+    for xb, yb in loader:
+        optimizer.zero_grad()
+        loss = torch.nn.functional.cross_entropy(model(xb), yb)
+        loss.backward()
+        optimizer.step()     # per-example clipping + calibrated noise applied
+
+eps = privacy_engine.get_epsilon(delta=1e-5)
+print(f"Trained with (epsilon={eps:.2f}, delta=1e-5)")
+# Any single record's influence is bounded -> inversion recovers far less.</code></pre>
+
+<h2>3. Confidence Output: Raw Float vs. Perturbed and Rounded</h2>
+
+<h3>Insecure</h3>
+<pre><code>import torch.nn.functional as F
+
+def score(model, x, target_id):
+    probs = F.softmax(model(x), dim=1)[0]
+    # Precise, unbounded float. An attacker differentiates this across
+    # tiny input perturbations to estimate a reconstruction gradient.
+    return {"target": target_id, "confidence": float(probs[target_id])}</code></pre>
+
+<h3>Secure</h3>
+<pre><code>import numpy as np
+import torch.nn.functional as F
+
+def score(model, x, target_id, noise_scale=0.02, round_dp=2):
+    probs = F.softmax(model(x), dim=1)[0].cpu().numpy()
+    noisy = probs + np.random.laplace(0.0, noise_scale, size=probs.shape)
+    noisy = np.clip(noisy, 0.0, 1.0)
+    noisy = noisy / noisy.sum()                 # keep a valid distribution
+    conf  = round(float(noisy[target_id]), round_dp)
+    # Calibrated noise + coarse rounding degrade the gradient an attacker
+    # can estimate, while staying useful for legitimate thresholding.
+    return {"target": target_id, "confidence": conf}</code></pre>
+
+<h2>4. Inference API: Open and Unmetered vs. Authenticated, Rate-Limited, Monitored</h2>
+
+<h3>Insecure</h3>
+<pre><code>from flask import Flask, request, jsonify
+
+app = Flask(__name__)
+
+@app.route("/predict", methods=["POST"])
+def predict():
+    x = decode(request.json["input"])
+    # No auth, no rate limit, no logging. An inversion loop can send
+    # hundreds of thousands of near-identical probes undetected.
+    return jsonify(run_model(x))</code></pre>
+
+<h3>Secure</h3>
+<pre><code>import time
+from collections import deque, defaultdict
+from flask import Flask, request, jsonify, abort
+
+app = Flask(__name__)
+WINDOW, MAX_IN_WINDOW = 60, 600            # 600 requests / minute / client
+history   = defaultdict(deque)
+recent_in = defaultdict(deque)
+
+def authenticate(req):
+    client = API_KEYS.get(req.headers.get("X-API-Key"))
+    if not client:
+        abort(401)
+    return client
+
+def rate_limit(client_id):
+    now, q = time.time(), history[client_id]
+    while q and now - q[0] > WINDOW:
+        q.popleft()
+    if len(q) >= MAX_IN_WINDOW:
+        abort(429)
+    q.append(now)
+
+def watch_for_probing(client_id, x):
+    q = recent_in[client_id]
+    q.append(x)
+    if len(q) > 200:
+        q.popleft()
+    # Many near-duplicate inputs = fingerprint of an optimisation loop.
+    if near_duplicate_ratio(q) > 0.9:
+        alert("possible model-inversion probing", client_id)
+
+@app.route("/predict", methods=["POST"])
+def predict():
+    client = authenticate(request)
+    rate_limit(client.id)
+    x = decode(request.json["input"])
+    watch_for_probing(client.id, x)
+    log.info("predict client=%s", client.id)   # attributable
+    return jsonify(run_model(x, scope=client.scope))   # coarse output by default</code></pre>
+
+<h2>What Changed, and Why</h2>
+
+<table>
+<thead>
+<tr><th>Leak</th><th>Insecure</th><th>Secure</th></tr>
+</thead>
+<tbody>
+<tr><td>Output detail</td><td>Full confidence vector + raw logits</td><td>Top-1 label + coarse band only</td></tr>
+<tr><td>Memorisation</td><td>Standard SGD, individuals memorised</td><td>DP-SGD (Opacus), bounded per-record influence</td></tr>
+<tr><td>Numeric confidence</td><td>Precise, differentiable float</td><td>Noise-perturbed and rounded</td></tr>
+<tr><td>Query abuse</td><td>Anonymous, unmetered, unlogged</td><td>Authenticated, rate-limited, probing-aware</td></tr>
+</tbody>
+</table>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Return the decision, not the distribution</strong>&mdash;coarse labels remove the black-box hill-climbing signal.</li>
+<li><strong>DP-SGD is the training-time fix</strong>&mdash;Opacus bounds how much any one record shapes the model.</li>
+<li><strong>Perturb and round any confidence you must expose</strong>&mdash;precise floats are a gradient waiting to be estimated.</li>
+<li><strong>Meter and monitor the API</strong>&mdash;near-duplicate query floods are the signature of an inversion loop.</li>
+<li><strong>Layer the defences</strong>&mdash;no single control is sufficient; combine training, output, and access controls.</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="prevention.html">Prevention</a></strong>: The full layered defence strategy</li>
+<li><strong><a href="attack-vectors.html">Attack Vectors</a></strong>: How these leaks are exploited</li>
+<li><strong><a href="overview.html">Overview</a></strong>: What model inversion is and why it matters</li>
+<li><strong><a href="/learn/ml">ML Security Top 10</a></strong>: Continue the machine-learning security track</li>
+<li><strong><a href="/practice">Practice</a></strong>: Apply these techniques in hands-on exercises</li>
+</ul>
+
+        </div>
+    </div>
+</body>
+</html>

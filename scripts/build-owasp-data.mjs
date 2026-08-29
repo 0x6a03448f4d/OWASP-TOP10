@@ -214,6 +214,25 @@ const EDITIONS = {
       ]},
     ],
   },
+  ml: {
+    label: 'ML Security',
+    blurb: 'The OWASP Machine Learning Security Top 10 — attacks against ML models and pipelines.',
+    lessonDir: 'labs/ml/OWASP-ML',
+    editions: [
+      { year: '2023', latest: true, cheatDir: null, vulns: [
+        V('ML01', 1, 'Input Manipulation Attack', 'input-manipulation-attack'),
+        V('ML02', 2, 'Data Poisoning Attack', 'data-poisoning-attack'),
+        V('ML03', 3, 'Model Inversion Attack', 'model-inversion-attack'),
+        V('ML04', 4, 'Membership Inference Attack', 'membership-inference-attack'),
+        V('ML05', 5, 'Model Theft', 'model-theft'),
+        V('ML06', 6, 'AI Supply Chain Attacks', 'ai-supply-chain-attacks'),
+        V('ML07', 7, 'Transfer Learning Attack', 'transfer-learning-attack'),
+        V('ML08', 8, 'Model Skewing', 'model-skewing'),
+        V('ML09', 9, 'Output Integrity Attack', 'output-integrity-attack'),
+        V('ML10', 10, 'Model Poisoning', 'model-poisoning'),
+      ]},
+    ],
+  },
 };
 
 // Pull an accurate 1-paragraph summary from a lesson's overview.md ("What is …?").

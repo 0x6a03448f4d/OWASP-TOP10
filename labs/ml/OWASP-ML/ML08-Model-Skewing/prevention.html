@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML08: Model Skewing - Prevention</title>
+    <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .doc-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .back-nav:hover {
+            background-color: rgba(245, 158, 11, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(245, 158, 11, 0.1);
+        }
+
+        .content h1 {
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            text-shadow: none;
+        }
+
+        .content h2 {
+            color: var(--secondary-color);
+            font-size: 1.8rem;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .content h3 {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+            margin-top: 30px;
+            margin-bottom: 12px;
+        }
+
+        .content h4 {
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        .content p {
+            color: var(--text-color);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .content ul, .content ol {
+            margin-left: 25px;
+            margin-bottom: 15px;
+            color: var(--text-color);
+        }
+
+        .content li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .content code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--primary-color);
+            font-family: 'Courier New', monospace;
+            border: 1px solid var(--border-color);
+        }
+
+        .content pre {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            color: var(--primary-color);
+        }
+
+        .content blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 20px;
+            margin: 20px 0;
+            background: rgba(245, 158, 11, 0.05);
+            padding: 15px 20px;
+            border-radius: 4px;
+        }
+
+        .content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table th {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2));
+            color: var(--primary-color);
+            padding: 12px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table td {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        .content table tr:hover {
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .content a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .content a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .content strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        .toc {
+            background: rgba(245, 158, 11, 0.05);
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .toc h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc li {
+            margin-bottom: 8px;
+        }
+
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toc a:hover {
+            color: var(--primary-color);
+        }
+
+        .toc a:before {
+            content: "▸";
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="doc-container">
+        <a href="/learn/ml" class="back-nav">
+            &larr; Back
+        </a>
+
+        <div class="content">
+            <h1>ML08: Model Skewing - Prevention</h1>
+
+<h2>Prevention Strategy Overview</h2>
+
+<p>Preventing model skewing is not one control but a <strong>defended feedback loop</strong>: treat every production signal as untrusted input, and put gates between "a user did something" and "the model believes it." The layered strategy is:</p>
+<ol>
+<li>Validate and sanitise feedback before it can influence training.</li>
+<li>Cap and rate-limit how much any single source can move the model.</li>
+<li>Monitor for data, label, and prediction <strong>drift/skew</strong> continuously.</li>
+<li>Detect Sybil and coordinated feedback at the source.</li>
+<li>Keep a human in the loop for retraining and threshold changes.</li>
+<li>Shadow- / A/B-evaluate every retrained model against trusted ground truth before promotion.</li>
+</ol>
+
+<h3>Core Principles</h3>
+<ul>
+<li><strong>Feedback is untrusted input</strong>: validate it exactly as you would any other client-supplied data.</li>
+<li><strong>Bounded influence</strong>: no single account, IP, or device may dominate a retraining cycle&mdash;ever.</li>
+<li><strong>Ground truth over raw feedback</strong>: prefer trusted, verified labels; use raw production signals only as weak, capped, sampled evidence.</li>
+<li><strong>Observe the distribution, not just the accuracy</strong>: skew shows up as distribution shift long before it shows up as a metric drop.</li>
+<li><strong>Promote deliberately</strong>: a retrained model is a candidate, not a release, until it passes evaluation and (where it matters) human sign-off.</li>
+</ul>
+
+<h2>1. Validate and Sanitise Feedback Before It Influences Training</h2>
+
+<p>Put a validation gate at the boundary of the loop. Reject or quarantine feedback that fails structural, authenticity, and plausibility checks; only what survives becomes a candidate training label.</p>
+
+<pre><code>def accept_feedback(event, account, now):
+    # 1) Structural / schema checks
+    if not schema_valid(event):
+        return reject("malformed")
+
+    # 2) Authenticity — the source must be a real, established, verified actor
+    if not account.email_verified or account.age_days &lt; MIN_ACCOUNT_AGE:
+        return quarantine("unverified_or_new")
+
+    # 3) Plausibility — is this behaviour physically/temporally sensible?
+    if account.feedback_count_last_hour(now) &gt; PER_HOUR_CAP:
+        return quarantine("rate_anomaly")
+    if dwell_ms(event) &lt; MIN_HUMAN_DWELL or dwell_ms(event) &gt; MAX_HUMAN_DWELL:
+        return quarantine("nonhuman_timing")
+
+    # 4) Corroboration — trust corrections only with independent agreement
+    if event.type == "label_correction" and not corroborated(event):
+        return quarantine("uncorroborated_correction")
+
+    return accept(event)</code></pre>
+
+<p>Quarantined feedback is not discarded blindly&mdash;it is held for review or down-weighted, so a false positive does not silently drop a legitimate signal.</p>
+
+<h2>2. Rate-Limit and Cap Any Single Source's Influence</h2>
+
+<p>Skewing scales with volume from controllable identities. Break that by making influence <strong>sub-linear</strong> in per-source volume: the tenth vote from one account should count for far less than the first.</p>
+
+<pre><code>from collections import defaultdict
+
+def aggregate_influence(feedback_batch, cap_per_source=5):
+    per_source = defaultdict(list)
+    for fb in feedback_batch:
+        per_source[fb.source_id].append(fb)
+
+    weighted = []
+    for source_id, items in per_source.items():
+        # Hard cap: no source contributes more than `cap_per_source` labels
+        capped = items[:cap_per_source]
+        # Diminishing weight: 1, 1/2, 1/3, ... within the cap
+        for rank, fb in enumerate(capped, start=1):
+            fb.weight = 1.0 / rank
+            weighted.append(fb)
+    return weighted</code></pre>
+
+<p>Combine per-account caps with per-IP, per-device, and per-subnet caps so an attacker cannot simply shard their volume across cheap identities without also paying for diverse infrastructure.</p>
+
+<h2>3. Monitor for Data, Label, and Prediction Drift</h2>
+
+<p>Skew is a distribution shift. Track the feedback distribution, the label mix, and the model's own output distribution against a trusted baseline, and alert on divergence&mdash;including slow, cumulative divergence.</p>
+
+<pre><code>import numpy as np
+
+def population_stability_index(expected, actual, bins=10):
+    e = np.histogram(expected, bins=bins)[0] / len(expected)
+    a = np.histogram(actual,   bins=bins)[0] / len(actual)
+    e, a = np.clip(e, 1e-6, None), np.clip(a, 1e-6, None)
+    return float(np.sum((a - e) * np.log(a / e)))     # PSI
+
+def check_drift(baseline, window):
+    psi = population_stability_index(baseline, window)
+    # Watch BOTH a single window AND the cumulative trend vs. the fixed baseline,
+    # so a low-and-slow attack cannot hide inside per-day tolerance.
+    if psi &gt; 0.2:
+        alert("distribution shift", psi=psi)
+    return psi</code></pre>
+
+<p>Monitor the label base rate (e.g. the share of "not spam" feedback), the prediction score distribution, and per-segment metrics&mdash;a targeted skew moves a slice while the global number stays flat.</p>
+
+<h2>4. Anomaly and Sybil Detection on Feedback Sources</h2>
+
+<p>Because influence scales with identities, detecting coordination at the source is one of the highest-leverage defences.</p>
+
+<pre><code># Signals that a feedback cluster is coordinated rather than organic:
+- many accounts created in a tight window, all acting on the same items
+- identical timing / dwell / navigation fingerprints across "different" users
+- shared IPs, devices, or ASN concentration
+- feedback graph forms a dense bipartite cluster (few items, many new voters)
+- accounts whose ONLY activity is high-leverage feedback
+
+def coordination_score(cluster):
+    return weighted_sum(
+        account_age_variance(cluster),
+        timing_similarity(cluster),
+        infra_overlap(cluster),
+        activity_narrowness(cluster),
+    )
+# High-scoring clusters are excluded from training and flagged for review.</code></pre>
+
+<h2>5. Prefer Trusted Ground Truth Over Raw Feedback</h2>
+
+<p>Raw production feedback is weak, cheap, and attacker-influenceable. Anchor retraining on labels you trust and use raw signals only as supporting, capped evidence.</p>
+
+<ul>
+<li>Maintain a <strong>curated, verified ground-truth set</strong> (expert-labelled, or from high-assurance outcomes such as confirmed chargebacks) and weight it heavily.</li>
+<li>Use <strong>trusted-user / reviewer feedback</strong> at higher weight than anonymous signals.</li>
+<li>Treat raw clicks/reports as <strong>low-weight, sampled hints</strong>&mdash;never as unbounded ground truth.</li>
+<li>Reserve a <strong>held-out golden set the attacker cannot touch</strong> to measure each candidate model honestly.</li>
+</ul>
+
+<h2>6. Human Oversight for Retraining and Threshold Changes</h2>
+
+<p>Automatic promotion is what turns injected feedback into a production change on a schedule. Insert a gate for the decisions that matter.</p>
+
+<pre><code>def promote_candidate(candidate, golden_set, current):
+    report = evaluate(candidate, golden_set)     # trusted, untouchable eval set
+
+    # Automatic promotion ONLY inside tight, safe bounds
+    boundary_shift = abs(candidate.threshold - current.threshold)
+    if report.regressions == 0 and boundary_shift &lt;= AUTO_SHIFT_LIMIT:
+        return deploy(candidate)
+
+    # Anything that materially moves a boundary needs a human to approve
+    return require_human_approval(candidate, report,
+                                  reason="threshold/behaviour shift exceeds auto-limit")</code></pre>
+
+<p>Require explicit human review for threshold changes, large boundary movements, and any retraining triggered by an unusual feedback spike.</p>
+
+<h2>7. Shadow and A/B Evaluate Before Promotion</h2>
+
+<p>Never let a freshly-retrained model take live decisions on trust. Run it in the dark first.</p>
+
+<pre><code># Shadow mode: candidate scores real traffic but its decisions are NOT enforced
+for request in live_traffic:
+    prod_decision = current_model.decide(request)     # this one counts
+    shadow_decision = candidate.decide(request)       # logged only
+    log_divergence(request, prod_decision, shadow_decision)
+
+# Promote only if, on the golden set AND shadow traffic:
+#   - no regression on trusted ground truth
+#   - divergence from the current model is explainable, not a silent behaviour flip
+#   - per-segment metrics (not just global) stay within bounds</code></pre>
+
+<p>A skewed candidate typically reveals itself here as an unexplained divergence on the exact slice the attacker targeted&mdash;caught before it ever enforces a decision.</p>
+
+<h2>8. Feedback Provenance and Rollback</h2>
+
+<p>Retain enough lineage to trace any training label back to its source, so a discovered skew can be surgically undone.</p>
+
+<pre><code>training_label = {
+    "value": "not_spam",
+    "source_account": "acct_9182",
+    "source_ip_hash": "...",
+    "collected_at": "2026-08-29T04:11Z",
+    "model_version_trained_into": "v42",
+    "validation_status": "accepted",
+}
+# If acct_9182 is later found to be part of a Sybil ring:
+#   - purge all its labels
+#   - identify every model version they trained into
+#   - retrain from the last known-good baseline</code></pre>
+
+<p>Keep versioned, immutable snapshots of both the model and the feedback dataset so you can always roll back to a known-good state.</p>
+
+<h2>9. Alert on Sudden Distribution Shifts</h2>
+
+<p>Some skew is fast, not slow. Complement trend monitoring with sharp-change alerts on the feedback stream itself.</p>
+
+<pre><code>SIGNALS_TO_ALERT_ON = (
+    "spike in feedback volume from new accounts",
+    "sudden change in the label base rate (e.g. 'not spam' share jumps)",
+    "burst of corrections all pushing one direction",
+    "engagement concentrated on a small item set from a fresh cohort",
+)
+# Route these to the anti-abuse / integrity team, and (optionally) pause
+# auto-retraining until the spike is explained.</code></pre>
+
+<h2>Defence-in-Depth Summary</h2>
+
+<table>
+<thead>
+<tr><th>Layer</th><th>Control</th><th>Skewing Step It Breaks</th></tr>
+</thead>
+<tbody>
+<tr><td>Intake</td><td>Feedback validation &amp; sanitisation</td><td>Injecting crafted feedback</td></tr>
+<tr><td>Identity</td><td>Sybil / coordination detection</td><td>Acquiring influence at scale</td></tr>
+<tr><td>Aggregation</td><td>Per-source caps &amp; diminishing weight</td><td>Volume-based dominance</td></tr>
+<tr><td>Training data</td><td>Trusted ground truth over raw feedback</td><td>Treating actions as labels</td></tr>
+<tr><td>Monitoring</td><td>Drift/skew + sudden-shift alerts</td><td>Low-and-slow &amp; fast drift</td></tr>
+<tr><td>Promotion</td><td>Shadow/A-B eval + human approval</td><td>Auto-baking skew into production</td></tr>
+<tr><td>Recovery</td><td>Provenance + versioned rollback</td><td>Persistence across model versions</td></tr>
+</tbody>
+</table>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Treat feedback as untrusted input</strong> &mdash; validate, corroborate, and quarantine before it can train anything.</li>
+<li><strong>Bound every source's influence</strong> &mdash; caps and diminishing weights defeat volume-based Sybil attacks.</li>
+<li><strong>Monitor distributions, not just accuracy</strong> &mdash; watch feedback, labels, and predictions for both slow and sudden skew.</li>
+<li><strong>Anchor on trusted ground truth</strong> &mdash; raw production signals are weak evidence, never unbounded labels.</li>
+<li><strong>Gate promotion</strong> &mdash; shadow-evaluate and require human sign-off before a retrained model takes real decisions.</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="examples.html">Code Examples</a></strong>: Insecure vs. secure continuous-learning pipelines in Python</li>
+<li><strong><a href="attack-vectors.html">Attack Vectors</a></strong>: Understand what you're defending against</li>
+<li><strong><a href="/learn/ml">ML Security Top 10</a></strong>: Continue the learning path</li>
+<li><strong><a href="/practice">Practice</a></strong>: Apply these concepts hands-on</li>
+</ul>
+
+        </div>
+    </div>
+</body>
+</html>
