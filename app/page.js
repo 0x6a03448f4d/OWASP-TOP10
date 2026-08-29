@@ -9,8 +9,9 @@ export default function Home() {
       <section className="hero wrap">
         <h1>Learn the <span className="accent">OWASP Top 10</span></h1>
         <p>
-          Clear, practical lessons on the most critical security risks — across Web, API, Mobile,
-          and LLM applications. Every edition, focused on the latest, easy to navigate.
+          Clear, practical lessons on the most critical security risks — across ten OWASP projects:
+          Web, API, Mobile, LLM, Kubernetes, CI/CD, ML, Smart Contracts, and Serverless, plus the
+          Proactive Controls to defend against them. Every edition, easy to navigate.
         </p>
         <div className="hero-actions">
           <Link href="/learn/web" className="btn primary">Start with Web →</Link>
