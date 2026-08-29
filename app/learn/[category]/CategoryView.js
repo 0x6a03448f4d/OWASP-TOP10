@@ -38,7 +38,7 @@ export default function CategoryView({ category }) {
       <section className="section" style={{ paddingTop: 8 }}>
         <div className="eyebrow">OWASP {category.label} Top 10 · {ed.year}{ed.latest ? ' (latest)' : ''}</div>
         <h2 style={{ fontSize: '1.9rem', letterSpacing: '-0.01em', margin: '4px 0 10px' }}>
-          {category.label} security risks
+          {category.key === 'proactive' ? 'Defensive controls to build in' : `${category.label} security risks`}
         </h2>
         <p style={{ color: 'var(--text-dim)', maxWidth: 640, marginBottom: 22 }}>{category.blurb}</p>
 

@@ -271,6 +271,25 @@ const EDITIONS = {
       ]},
     ],
   },
+  proactive: {
+    label: 'Proactive Controls',
+    blurb: 'The OWASP Top 10 Proactive Controls (2024) — the defensive techniques every developer should build in.',
+    lessonDir: 'labs/proactive/OWASP-Proactive-Controls',
+    editions: [
+      { year: '2024', latest: true, cheatDir: null, vulns: [
+        V('C1', 1, 'Implement Access Control', 'implement-access-control'),
+        V('C2', 2, 'Use Cryptography to Protect Data', 'use-cryptography-to-protect-data'),
+        V('C3', 3, 'Validate all Input & Handle Exceptions', 'validate-all-input-and-handle-exceptions'),
+        V('C4', 4, 'Address Security from the Start', 'address-security-from-the-start'),
+        V('C5', 5, 'Secure By Default Configurations', 'secure-by-default-configurations'),
+        V('C6', 6, 'Keep your Components Secure', 'keep-your-components-secure'),
+        V('C7', 7, 'Secure Digital Identities', 'secure-digital-identities'),
+        V('C8', 8, 'Leverage Browser Security Features', 'leverage-browser-security-features'),
+        V('C9', 9, 'Implement Security Logging and Monitoring', 'implement-security-logging-and-monitoring'),
+        V('C10', 10, 'Stop Server-Side Request Forgery', 'stop-server-side-request-forgery'),
+      ]},
+    ],
+  },
 };
 
 // Pull an accurate 1-paragraph summary from a lesson's overview.md ("What is …?").

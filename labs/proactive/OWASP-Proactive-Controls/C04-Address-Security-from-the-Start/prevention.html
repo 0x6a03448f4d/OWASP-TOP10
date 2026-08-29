@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C4: Address Security from the Start - How to Implement</title>
+    <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .doc-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .back-nav:hover {
+            background-color: rgba(245, 158, 11, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(245, 158, 11, 0.1);
+        }
+
+        .content h1 {
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            text-shadow: none;
+        }
+
+        .content h2 {
+            color: var(--secondary-color);
+            font-size: 1.8rem;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .content h3 {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+            margin-top: 30px;
+            margin-bottom: 12px;
+        }
+
+        .content h4 {
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        .content p {
+            color: var(--text-color);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .content ul, .content ol {
+            margin-left: 25px;
+            margin-bottom: 15px;
+            color: var(--text-color);
+        }
+
+        .content li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .content code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--primary-color);
+            font-family: 'Courier New', monospace;
+            border: 1px solid var(--border-color);
+        }
+
+        .content pre {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            color: var(--primary-color);
+        }
+
+        .content blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 20px;
+            margin: 20px 0;
+            background: rgba(245, 158, 11, 0.05);
+            padding: 15px 20px;
+            border-radius: 4px;
+        }
+
+        .content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table th {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2));
+            color: var(--primary-color);
+            padding: 12px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table td {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        .content table tr:hover {
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .content a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .content a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .content strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        .toc {
+            background: rgba(245, 158, 11, 0.05);
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .toc h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc li {
+            margin-bottom: 8px;
+        }
+
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toc a:hover {
+            color: var(--primary-color);
+        }
+
+        .toc a:before {
+            content: "▸";
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="doc-container">
+        <a href="/learn/proactive" class="back-nav">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+
+        <div class="content">
+            <h1>C4: Address Security from the Start - How to Implement</h1>
+
+<h2>Implementation Strategy Overview</h2>
+
+<p>Implementing this control is less about buying a tool and more about <strong>weaving security decisions into how you already work</strong>, from the first requirement to the last deployment:</p>
+<ol>
+<li>Put security activities in every phase of the lifecycle (S-SDLC).</li>
+<li>Threat model the design before you build it.</li>
+<li>Write security requirements and abuse cases as first-class, testable items.</li>
+<li>Reuse secure design patterns and proven frameworks instead of reinventing them.</li>
+<li>Make the secure configuration the default via a paved-road platform.</li>
+<li>Shift review and automated checks left, and prioritise by risk.</li>
+</ol>
+
+<h3>Core Principles</h3>
+<ul>
+<li><strong>Secure by design, secure by default</strong>: the safe path is the built-in path; opting out of a control is explicit and rare.</li>
+<li><strong>Assume breach</strong>: design so a single compromised component does not mean total compromise.</li>
+<li><strong>Least privilege everywhere</strong>: every user, service, and process gets only what it needs.</li>
+<li><strong>Defense in depth</strong>: layer independent controls so one failure is contained.</li>
+<li><strong>Reuse over reinvention</strong>: proven frameworks and patterns beat bespoke security code.</li>
+</ul>
+
+<h2>1. Adopt a Secure Development Lifecycle (S-SDLC)</h2>
+
+<p>Security is not a phase; it is an activity attached to <em>every</em> phase. The goal is that at no point does a team ask "should we think about security now?"&mdash;it is already scheduled.</p>
+
+<pre><code>Phase           Security activity woven in
+------------    -------------------------------------------------
+Requirements    Security requirements + abuse/misuse cases written
+Design          Threat modeling; trust boundaries; pattern selection
+Implementation  Secure coding standards; proven frameworks; code review
+Testing         Abuse cases become test cases; SAST/DAST in CI
+Deployment      Secure defaults; hardened baseline; IaC review
+Operation       Monitoring, logging, incident response, re-threat-model
+                on significant change</code></pre>
+
+<p>Map each activity to an owner and a definition-of-done so it cannot be silently skipped under delivery pressure. Reference models to draw from include OWASP SAMM and BSIMM.</p>
+
+<h2>2. Threat Model Early (STRIDE + Data-Flow Diagrams)</h2>
+
+<p>Threat modeling is the heart of this control: a structured way to ask <strong>"what can go wrong?"</strong> while the design is still cheap to change. Four questions drive it (per the Threat Modeling Manifesto):</p>
+
+<ol>
+<li>What are we building? (Draw it.)</li>
+<li>What can go wrong? (Enumerate threats.)</li>
+<li>What are we going to do about it? (Choose controls.)</li>
+<li>Did we do a good job? (Validate.)</li>
+</ol>
+
+<p>Start with a simple <strong>data-flow diagram (DFD)</strong> and mark trust boundaries&mdash;the lines where data moves between different levels of trust.</p>
+
+<pre><code>          Trust boundary (internet | server)
+ Browser  ||  API Gateway  --&gt;  Order Service  --&gt;  [ DB ]
+   (untrusted)  ||   (authn here)      |                ^
+                ||                      +--&gt; Payment (3rd party)
+                ^^                                trust boundary
+ Every arrow that CROSSES a boundary must:
+   - authenticate the caller
+   - authorize the action
+   - validate the data</code></pre>
+
+<p>Then walk each element with <strong>STRIDE</strong> to prompt threat categories:</p>
+
+<table>
+<thead>
+<tr><th>STRIDE Threat</th><th>Question to ask</th><th>Typical design control</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>S</strong>poofing</td><td>Can someone pretend to be another identity?</td><td>Strong authentication, mutual TLS</td></tr>
+<tr><td><strong>T</strong>ampering</td><td>Can data be modified in transit or at rest?</td><td>Integrity checks, signing, TLS</td></tr>
+<tr><td><strong>R</strong>epudiation</td><td>Can an actor deny an action?</td><td>Tamper-evident audit logging</td></tr>
+<tr><td><strong>I</strong>nformation disclosure</td><td>Can data leak to the wrong party?</td><td>Encryption, least privilege, minimization</td></tr>
+<tr><td><strong>D</strong>enial of service</td><td>Can the system be exhausted?</td><td>Rate limiting, quotas, timeouts</td></tr>
+<tr><td><strong>E</strong>levation of privilege</td><td>Can a user gain unintended rights?</td><td>Authorization checks, least privilege</td></tr>
+</tbody>
+</table>
+
+<p>Keep it lightweight. A one-hour whiteboard threat model on each meaningful feature catches far more than an annual heavyweight review. Re-threat-model when the design changes materially.</p>
+
+<h2>3. Define Security Requirements and Abuse/Misuse Cases</h2>
+
+<p>For every feature, write down not only what it must do, but what it must <em>never allow</em>. Abuse cases turn an attacker's goal into a testable requirement.</p>
+
+<pre><code>Feature: Redeem a gift card
+
+User story (functional):
+  As a customer, I can redeem a gift card to add credit.
+
+Security requirements (must / must not):
+  - MUST derive the account from the authenticated session, not the request body.
+  - MUST enforce that a card can be redeemed at most once (idempotent).
+  - MUST rate-limit redemption attempts per account and per IP.
+  - MUST NOT reveal whether a card code exists on a failed attempt.
+
+Abuse case (misuse story):
+  As an attacker, I script thousands of code guesses to enumerate
+  valid cards -&gt; MITIGATED BY rate limiting + generic failure response,
+  verified by test "enumeration is throttled after N attempts".</code></pre>
+
+<p>Because each abuse case names its mitigation and a test, it flows straight into your test suite&mdash;design intent becomes an executable check. The OWASP ASVS is a ready-made catalog of security requirements to draw from.</p>
+
+<h2>4. Use Secure Design Patterns and Reference Architectures</h2>
+
+<p>Do not re-derive security for every feature. Maintain a catalog of vetted patterns and reference architectures teams can adopt.</p>
+
+<ul>
+<li><strong>Deny by default</strong>: access is refused unless explicitly granted.</li>
+<li><strong>Single choke point</strong>: route authorization through one component, not scattered checks.</li>
+<li><strong>Server-side state machine</strong>: enforce workflow order on the server.</li>
+<li><strong>Input allow-listing / explicit DTOs</strong>: bind only named, writable fields per operation.</li>
+<li><strong>Tokenization / data minimization</strong>: don't hold sensitive data you don't need.</li>
+<li><strong>Fail securely</strong>: on error, deny and reveal nothing.</li>
+</ul>
+
+<pre><code># Deny-by-default authorization as a reusable design primitive
+def authorize(subject, action, resource):
+    rule = policy.lookup(subject.role, action, resource.type)
+    if rule is None:          # nothing explicitly permits it
+        return DENY           # ...so it is denied. No implicit allow.
+    return rule.decision      # ALLOW only when a rule says so</code></pre>
+
+<h2>5. Secure Defaults and Paved-Road Platforms</h2>
+
+<p>The most reliable way to make teams build securely is to make the secure choice the default and the easy one. A "paved road" (a.k.a. golden path) is a supported platform&mdash;templates, libraries, pipelines&mdash;that bakes the controls in.</p>
+
+<pre><code>Paved road / golden path provides, out of the box:
+  - a service template with authn/authz middleware pre-wired
+  - security headers, TLS, and safe error handling as defaults
+  - a vetted logging + audit library
+  - CI that runs SAST, dependency, secret, and IaC scans
+  - a config that is hardened by default (deny-by-default, least privilege)
+
+Result: a team gets a secure baseline for FREE by using the platform,
+and has to go OUT of their way to become insecure.</code></pre>
+
+<p>Guardrails (automated policy that blocks unsafe configurations) reinforce the paved road, so drifting off it is caught rather than silently allowed.</p>
+
+<h2>6. Defense in Depth and Least Privilege by Design</h2>
+
+<p>Design so that no single control failing causes a breach, and so every actor holds the minimum privilege.</p>
+
+<pre><code>Layered controls for one sensitive action (delete account data):
+  1. Authentication            (who are you?)
+  2. Authorization             (are you allowed?)
+  3. Re-authentication / MFA    (prove it again for this high-risk step)
+  4. Server-side ownership check(is this YOUR data?)
+  5. Rate limit + audit log     (contain and record)
+If any ONE layer is misconfigured, the others still stand.</code></pre>
+
+<pre><code># Least privilege for a service identity (illustrative policy)
+service: report-generator
+permissions:
+  - db.orders: READ            # needs to read orders
+  # NOT db.orders: WRITE       # never writes -> don't grant it
+  - storage.reports: WRITE     # writes its own output only
+scope: limited to its own resources; no wildcard "*" grants</code></pre>
+
+<h2>7. Establish Trust Boundaries and Segmentation</h2>
+
+<p>Make trust explicit. Wherever data or control crosses from a less-trusted zone to a more-trusted one, re-authenticate, re-authorize, and re-validate.</p>
+
+<ul>
+<li><strong>Network segmentation</strong>: separate zones (public, app, data) so a foothold in one does not grant the others.</li>
+<li><strong>Service-to-service auth</strong>: internal calls authenticate; "inside the network" is not a credential.</li>
+<li><strong>Boundary validation</strong>: every crossing validates its inputs afresh&mdash;never assume the caller sanitized them.</li>
+</ul>
+
+<h2>8. Design for Business-Logic Security</h2>
+
+<p>Enumerate the rules that make your domain safe&mdash;limits, sequences, ownership, entitlements&mdash;and enforce them server-side.</p>
+
+<pre><code>Checklist for any money- or state-changing workflow:
+  [ ] Are all values re-validated server-side (never trust the client)?
+  [ ] Is the step sequence enforced (can a later step be called first)?
+  [ ] Is the action idempotent / safe under concurrency (double submit)?
+  [ ] Are limits (amount, quantity, rate) defined AND enforced?
+  [ ] Is ownership/entitlement checked for THIS user on THIS object?</code></pre>
+
+<h2>9. Shift Left: Design Review and Security in CI</h2>
+
+<p>Move both human review and automated checks as early as possible.</p>
+
+<ul>
+<li><strong>Design review</strong>: a security-aware review of the design/threat model before build; significant changes re-trigger it.</li>
+<li><strong>Code review</strong>: security is an explicit review criterion, not an afterthought.</li>
+<li><strong>Automated gates in CI</strong>: fast feedback on every pull request.</li>
+</ul>
+
+<pre><code># Illustrative CI security gates (run on every pull request)
+sast:      semgrep --config auto       # code weaknesses
+deps:      dependency-check / npm audit # known-vulnerable libraries
+secrets:   gitleaks detect --redact     # committed secrets
+iac:       checkov -d ./infra           # misconfigured infrastructure
+# Fail the build on HIGH/CRITICAL so issues are fixed while cheap.</code></pre>
+
+<h2>10. Prefer Proven Frameworks Over Bespoke Security Code</h2>
+
+<p>Authentication, session management, access control, cryptography, and output encoding are solved problems with mature, audited libraries. Home-grown versions carry the bugs the ecosystem already fixed years ago.</p>
+
+<pre><code>Reach for a proven framework/library instead of writing your own:
+  Auth / sessions   -&gt; the platform's established auth framework
+  Password hashing  -&gt; argon2 / bcrypt / scrypt (never a raw hash)
+  Tokens            -&gt; a maintained JWT/PASETO library (verify signatures!)
+  Crypto            -&gt; a vetted library; never invent an algorithm
+  Validation/encode -&gt; the framework's validator + context-aware encoders
+Reserve custom code for your actual BUSINESS logic.</code></pre>
+
+<h2>11. Security Champions and Training</h2>
+
+<p>Design-level security scales only when the knowledge lives inside delivery teams, not solely in a central security group.</p>
+
+<ul>
+<li><strong>Security champions</strong>: a developer on each team who owns threat modeling facilitation and is the first point of security contact.</li>
+<li><strong>Role-based training</strong>: developers learn the design flaws and secure patterns relevant to their stack.</li>
+<li><strong>Shared playbooks</strong>: threat-model templates, abuse-case libraries, and pattern catalogs make good practice repeatable.</li>
+</ul>
+
+<h2>12. Risk-Based Prioritization</h2>
+
+<p>You cannot mitigate everything at once. Rank threats by impact and likelihood so effort lands where it matters most.</p>
+
+<pre><code>Simple risk triage during threat modeling:
+  Risk = Impact  x  Likelihood
+
+  High impact + High likelihood  -&gt; must-fix before ship (blocker)
+  High impact + Low likelihood   -&gt; design a control, schedule it
+  Low impact  + High likelihood  -&gt; mitigate cheaply (rate limit, log)
+  Low impact  + Low likelihood   -&gt; accept + document the decision</code></pre>
+
+<p>Record accepted risks explicitly&mdash;an informed, documented acceptance is a design decision; a forgotten gap is a future incident.</p>
+
+<h2>Implementation Checklist</h2>
+
+<ul>
+<li>[ ] Security activities are attached to every SDLC phase with named owners.</li>
+<li>[ ] Every meaningful feature gets a lightweight threat model (DFD + STRIDE).</li>
+<li>[ ] Security requirements and abuse cases are written and become tests.</li>
+<li>[ ] A secure-pattern catalog and reference architectures exist and are reused.</li>
+<li>[ ] A paved-road platform provides secure defaults and guardrails.</li>
+<li>[ ] Defense in depth and least privilege are explicit in the architecture.</li>
+<li>[ ] Trust boundaries are drawn; crossings re-authenticate, re-authorize, re-validate.</li>
+<li>[ ] Business rules are enforced server-side, safe under concurrency.</li>
+<li>[ ] Design review and CI security gates run early and block on high severity.</li>
+<li>[ ] Proven frameworks are used for all security primitives.</li>
+<li>[ ] Security champions are embedded and trained.</li>
+<li>[ ] Threats are prioritised by risk; accepted risks are documented.</li>
+</ul>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Weave security into every phase</strong> &mdash; an S-SDLC beats a single end-of-line gate.</li>
+<li><strong>Threat model early</strong> &mdash; a DFD plus STRIDE and four questions catches design flaws while they are cheap.</li>
+<li><strong>Write abuse cases as testable requirements</strong> &mdash; design intent becomes an executable check.</li>
+<li><strong>Make the secure path the default path</strong> &mdash; paved roads and secure defaults scale good practice.</li>
+<li><strong>Reuse, layer, and least-privilege</strong> &mdash; proven frameworks, defense in depth, and narrow scope by design.</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="examples.html">Examples</a></strong>: Insecure design vs. secure design, with artifacts</li>
+<li><strong><a href="attack-vectors.html">Threats Addressed</a></strong>: Understand the design flaws you are preventing</li>
+<li><strong><a href="/learn/proactive">Proactive Controls</a></strong>: Explore the full set of OWASP Proactive Controls</li>
+<li><strong><a href="/practice">Practice</a></strong>: Apply secure design thinking to hands-on scenarios</li>
+</ul>
+
+        </div>
+    </div>
+</body>
+</html>

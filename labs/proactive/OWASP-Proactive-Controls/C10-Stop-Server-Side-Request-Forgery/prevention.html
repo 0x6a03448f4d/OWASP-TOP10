@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C10: Stop Server-Side Request Forgery - How to Implement</title>
+    <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .doc-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .back-nav:hover {
+            background-color: rgba(245, 158, 11, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(245, 158, 11, 0.1);
+        }
+
+        .content h1 {
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            text-shadow: none;
+        }
+
+        .content h2 {
+            color: var(--secondary-color);
+            font-size: 1.8rem;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .content h3 {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+            margin-top: 30px;
+            margin-bottom: 12px;
+        }
+
+        .content h4 {
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        .content p {
+            color: var(--text-color);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .content ul, .content ol {
+            margin-left: 25px;
+            margin-bottom: 15px;
+            color: var(--text-color);
+        }
+
+        .content li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .content code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--primary-color);
+            font-family: 'Courier New', monospace;
+            border: 1px solid var(--border-color);
+        }
+
+        .content pre {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            color: var(--primary-color);
+        }
+
+        .content blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 20px;
+            margin: 20px 0;
+            background: rgba(245, 158, 11, 0.05);
+            padding: 15px 20px;
+            border-radius: 4px;
+        }
+
+        .content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table th {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2));
+            color: var(--primary-color);
+            padding: 12px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table td {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        .content table tr:hover {
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .content a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .content a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .content strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        .toc {
+            background: rgba(245, 158, 11, 0.05);
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .toc h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc li {
+            margin-bottom: 8px;
+        }
+
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toc a:hover {
+            color: var(--primary-color);
+        }
+
+        .toc a:before {
+            content: "▸";
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="doc-container">
+        <a href="/learn/proactive" class="back-nav">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+
+        <div class="content">
+            <h1>C10: Stop Server-Side Request Forgery - How to Implement</h1>
+
+<h2>How to Implement This Control</h2>
+
+<p>Stopping SSRF is a layered defense: no single check is sufficient, and the application-layer validation and the network-layer confinement back each other up. Implement the steps below together so that a bypass of one is caught by another.</p>
+
+<ol>
+<li>Validate every user-influenced URL against an <strong>allow-list</strong> (scheme, host, port).</li>
+<li>Resolve DNS and validate the <strong>resolved IP</strong>, rejecting private/reserved ranges&mdash;then <strong>pin</strong> it.</li>
+<li>Disable unused URL <strong>schemes</strong>; permit only <code>http</code>/<code>https</code>.</li>
+<li>Do not follow <strong>redirects</strong> (or re-validate every hop).</li>
+<li>Confine the fetching service with <strong>network egress filtering</strong> and segmentation.</li>
+<li>Enforce <strong>cloud metadata protection</strong> (IMDSv2 + hop limit).</li>
+<li>Handle <strong>responses</strong> safely (no raw reflection, size and time limits).</li>
+<li>Apply <strong>least privilege</strong> and use an <strong>SSRF-safe HTTP client</strong>.</li>
+</ol>
+
+<h3>Design Principles</h3>
+<ul>
+<li><strong>Deny by default</strong>: a fetch is refused unless its destination is explicitly permitted.</li>
+<li><strong>Validate on the resolved IP, not the string</strong>: the hostname is a hint; the IP is the truth&mdash;and it must be the IP you actually connect to.</li>
+<li><strong>Defense in depth</strong>: assume the app-layer check can be bypassed, and make the network unable to reach anything sensitive anyway.</li>
+<li><strong>Fail closed and quiet</strong>: on any doubt, refuse the fetch and return a generic error that leaks no internal detail.</li>
+</ul>
+
+<h2>1. Allow-list Destinations (Scheme, Host, Port)</h2>
+
+<p>Prefer an allow-list over a block-list. Block-lists are endlessly bypassable; an allow-list states exactly what is permitted and denies everything else. Where the set of legitimate destinations is known (an importer that only pulls from your own CDN, an integration with a fixed provider), pin it tightly.</p>
+
+<pre><code># Conceptual allow-list policy — deny by default
+ALLOWED_SCHEMES = {"https"}                       # http only if you truly need it
+ALLOWED_HOSTS   = {"api.partner.com", "cdn.example.net"}
+ALLOWED_PORTS   = {443}
+
+def destination_allowed(scheme, host, port):
+    return (scheme in ALLOWED_SCHEMES
+            and host in ALLOWED_HOSTS
+            and port in ALLOWED_PORTS)</code></pre>
+
+<p>When the destination is genuinely open-ended (e.g. a link-preview feature that may fetch any public site), you cannot allow-list hosts&mdash;so the resolved-IP validation in step 2 and the network egress filtering in step 5 become the primary defenses. Compare hosts by <strong>exact</strong> match, never <code>startsWith</code>/<code>endsWith</code>, and reject credentials-in-URL (<code>user@host</code>) and non-default ports you did not intend.</p>
+
+<h2>2. Resolve DNS, Validate the Resolved IP, and Pin It</h2>
+
+<p>This is the core of the control. Parse the URL, resolve the hostname to its IP address(es), reject any address in a private, loopback, link-local, or reserved range, and then connect to <em>that validated IP</em> so DNS cannot change between the check and the connection (defeating DNS rebinding).</p>
+
+<pre><code>import ipaddress, socket
+
+# Ranges to reject AFTER resolution (IPv4 and IPv6)
+def is_blocked_ip(ip_str):
+    ip = ipaddress.ip_address(ip_str)
+    return (ip.is_private or ip.is_loopback or ip.is_link_local
+            or ip.is_reserved or ip.is_multicast or ip.is_unspecified
+            # explicitly cover the cloud metadata address:
+            or ip in ipaddress.ip_network("169.254.169.254/32"))
+
+def resolve_and_validate(host):
+    infos = socket.getaddrinfo(host, None)          # may return several IPs
+    ips = {info[4][0] for info in infos}
+    if not ips:
+        raise ValueError("no address")
+    for ip in ips:                                  # ALL answers must be safe
+        if is_blocked_ip(ip):
+            raise ValueError(f"blocked address: {ip}")
+    return ips</code></pre>
+
+<blockquote>
+<p><strong>Pin the address</strong>: after validation, connect to the exact validated IP (pass it to the client, or supply the <code>Host</code> header while dialing the IP). If you validate a hostname and then hand the raw hostname to a normal HTTP client, the client re-resolves independently and a rebinding attacker can return a different, internal IP the second time. Validate and connect must see the <em>same</em> address.</p>
+</blockquote>
+
+<p>Note the <code>169.254.0.0/16</code> link-local range already contains <code>169.254.169.254</code>; call it out explicitly so reviewers see the metadata endpoint is covered, and remember IPv6 equivalents such as <code>[::1]</code>, <code>[::ffff:127.0.0.1]</code>, and <code>fd00::/8</code>.</p>
+
+<h2>3. Disable Unused URL Schemes</h2>
+
+<p>Restrict the accepted schemes to <code>http</code> and <code>https</code>. Anything else&mdash;<code>file://</code>, <code>gopher://</code>, <code>dict://</code>, <code>ftp://</code>&mdash;is either a local-file read or a protocol-smuggling primitive and should be rejected before any network activity.</p>
+
+<pre><code>from urllib.parse import urlparse
+
+ALLOWED_SCHEMES = {"http", "https"}   # drop file, gopher, dict, ftp, ...
+
+def scheme_ok(url):
+    return urlparse(url).scheme.lower() in ALLOWED_SCHEMES</code></pre>
+
+<p>Also configure the underlying HTTP library so it cannot be coaxed into other protocols (for example, disable non-HTTP protocols in cURL-based clients). Reject <code>file://</code> unconditionally in any code path that accepts a user URL.</p>
+
+<h2>4. Do Not Follow Redirects (or Re-validate Every Hop)</h2>
+
+<p>A validated URL can respond with a redirect to an internal target. Disable automatic redirect following for user-supplied fetches. If you must follow redirects, treat every <code>Location</code> as a brand-new untrusted URL and run the full scheme + resolved-IP validation on each hop.</p>
+
+<pre><code># Python requests — do not auto-follow; inspect and re-validate manually
+resp = session.get(url, allow_redirects=False, timeout=5)
+if resp.is_redirect:
+    next_url = resp.headers["Location"]
+    # re-run scheme_ok() + resolve_and_validate() on next_url before proceeding
+    raise ValueError("redirect not permitted for user-supplied fetch")</code></pre>
+
+<h2>5. Network Egress Filtering and Segmentation</h2>
+
+<p>Assume the application-layer check can be bypassed and make the network unable to reach anything sensitive regardless. Place the fetching service where it physically cannot route to internal ranges or the metadata IP.</p>
+
+<pre><code># Egress policy for the fetching service (conceptual)
+DENY  to 169.254.0.0/16      # link-local incl. 169.254.169.254 metadata
+DENY  to 127.0.0.0/8         # loopback
+DENY  to 10.0.0.0/8          # RFC1918 private
+DENY  to 172.16.0.0/12       # RFC1918 private
+DENY  to 192.168.0.0/16      # RFC1918 private
+DENY  to fc00::/7, ::1/128, fe80::/10   # IPv6 private / loopback / link-local
+ALLOW to 0.0.0.0/0 : 443     # public HTTPS only, everything else denied</code></pre>
+
+<p>Implement this with security groups / NACLs, a Kubernetes <code>NetworkPolicy</code>, or a forward proxy that the service must use for all outbound traffic. Route user-driven fetches through a dedicated, isolated egress path rather than the general application network.</p>
+
+<h2>6. Enforce Cloud Metadata Protection (IMDSv2)</h2>
+
+<p>Because metadata theft is the highest-impact SSRF outcome, harden the metadata endpoint itself as a second line of defense. Require the session-oriented metadata service (IMDSv2), which needs a <code>PUT</code> to obtain a token before any read&mdash;something a simple SSRF <code>GET</code> cannot perform&mdash;and set the response hop limit low so the endpoint is not reachable from containers.</p>
+
+<pre><code># Require IMDSv2 (token-based) and restrict hops on the instance
+#   HttpTokens: required          -&gt; plain GET without a session token is refused
+#   HttpPutResponseHopLimit: 1    -&gt; not reachable from a container network hop
+#   HttpEndpoint: enabled (or disabled entirely if the instance needs no metadata)</code></pre>
+
+<p>Where an instance does not need metadata at all, disable the endpoint. Combine this with the egress deny rule above so <code>169.254.169.254</code> is blocked even before IMDSv2 is consulted.</p>
+
+<h2>7. Safe Response Handling</h2>
+
+<p>Do not reflect the raw upstream response back to the caller&mdash;that is what turns a blind SSRF into a readable one and leaks internal data. Return only what the feature needs (a status, a parsed field, a rendered preview), cap the response size, and enforce a total time budget.</p>
+
+<pre><code># Bound what you read back from the upstream
+MAX_BYTES = 1_000_000           # 1 MB cap
+resp = session.get(validated_ip_url, stream=True, timeout=5, allow_redirects=False)
+
+body = b""
+for chunk in resp.iter_content(8192):
+    body += chunk
+    if len(body) &gt; MAX_BYTES:
+        raise ValueError("response too large")
+
+# Return a controlled result, never the raw internal body verbatim
+return {"status": resp.status_code, "title": extract_title(body)}</code></pre>
+
+<h2>8. Least Privilege, SSRF-safe Clients, and Timeouts</h2>
+
+<ul>
+<li><strong>Least privilege</strong>: give the fetching service the narrowest cloud IAM role and network reach that its job requires, so a successful SSRF yields little.</li>
+<li><strong>SSRF-safe HTTP client</strong>: prefer a vetted wrapper/library that performs target validation and IP pinning for you, rather than a raw <code>requests.get(user_url)</code>. Centralize all outbound user-driven fetches through one hardened client so the checks cannot be forgotten.</li>
+<li><strong>Timeouts</strong>: set aggressive connect and read timeouts on every request to blunt port-scanning-by-timing and to prevent resource exhaustion.</li>
+</ul>
+
+<h2>Defense-in-Depth Summary</h2>
+
+<table>
+<thead>
+<tr><th>Threat</th><th>Primary defense</th><th>Backstop</th></tr>
+</thead>
+<tbody>
+<tr><td>Metadata credential theft</td><td>Egress deny <code>169.254.169.254</code></td><td>IMDSv2 + hop limit, resolved-IP check</td></tr>
+<tr><td>Internal service access</td><td>Allow-list + resolved-IP check</td><td>Network segmentation</td></tr>
+<tr><td>Port scanning</td><td>Egress filtering</td><td>Uniform errors + timeouts</td></tr>
+<tr><td>Local file read</td><td>Scheme allow-list (no <code>file://</code>)</td><td>Least-privilege service account</td></tr>
+<tr><td>DNS rebinding</td><td>Re-resolve + pin validated IP</td><td>Egress filtering</td></tr>
+<tr><td>Redirect bypass</td><td>Do not follow redirects</td><td>Re-validate each hop</td></tr>
+</tbody>
+</table>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Allow-list and deny by default</strong> &mdash; state what is permitted; refuse everything else.</li>
+<li><strong>Validate the resolved IP and pin it</strong> &mdash; this is the single check that survives real bypasses.</li>
+<li><strong>Disable extra schemes and redirects</strong> &mdash; remove the <code>file://</code>/<code>gopher://</code> and redirect-to-internal paths.</li>
+<li><strong>Confine the network</strong> &mdash; egress filtering and IMDSv2 stop the request even if the app check fails.</li>
+<li><strong>Least privilege, safe responses, timeouts</strong> &mdash; shrink the payoff and the reconnaissance value of any request that slips through.</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="examples.html">Examples</a></strong>: Vulnerable vs. secure URL handling across frameworks</li>
+<li><strong><a href="attack-vectors.html">Threats Addressed</a></strong>: Understand what you're defending against</li>
+<li><strong><a href="/learn/proactive">Proactive Controls</a></strong>: Continue the OWASP Proactive Controls track</li>
+<li><strong><a href="/practice">Practice</a></strong>: Apply SSRF defenses hands-on</li>
+</ul>
+
+        </div>
+    </div>
+</body>
+</html>
