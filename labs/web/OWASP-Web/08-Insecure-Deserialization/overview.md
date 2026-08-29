@@ -231,4 +231,4 @@ If you answered "yes" to the first three or "no" to the rest, you likely have ex
 
 ---
 
-*Part of the [OWASP Top 10 Educational Repository](/platform/frontend/index.html)*
+*Part of the [OWASP Top 10 Educational Repository](/)*

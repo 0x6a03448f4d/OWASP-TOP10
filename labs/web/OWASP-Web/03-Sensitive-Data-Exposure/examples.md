@@ -291,4 +291,4 @@ spring.datasource.hikari.data-source-properties.sslrootcert=/etc/ssl/db-ca.pem
 
 ---
 
-*Part of the [OWASP Top 10 Educational Repository](/platform/frontend/index.html)*
+*Part of the [OWASP Top 10 Educational Repository](/)*

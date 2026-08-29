@@ -231,4 +231,4 @@ Use these questions to gauge whether your application handles this category well
 
 ---
 
-*Part of the [OWASP Top 10 Educational Repository](/platform/frontend/index.html)*
+*Part of the [OWASP Top 10 Educational Repository](/)*

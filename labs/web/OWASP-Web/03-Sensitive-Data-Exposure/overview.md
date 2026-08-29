@@ -222,4 +222,4 @@ Answer these about your own application. Each "no" or "not sure" is a likely exp
 
 ---
 
-*Part of the [OWASP Top 10 Educational Repository](/platform/frontend/index.html)*
+*Part of the [OWASP Top 10 Educational Repository](/)*

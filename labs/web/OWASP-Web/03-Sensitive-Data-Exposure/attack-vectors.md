@@ -260,4 +260,4 @@ hashcat -m 3200 -a 0 leaked_bcrypt.txt rockyou.txt
 
 ---
 
-*Part of the [OWASP Top 10 Educational Repository](/platform/frontend/index.html)*
+*Part of the [OWASP Top 10 Educational Repository](/)*

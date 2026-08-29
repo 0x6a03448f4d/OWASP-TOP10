@@ -260,4 +260,4 @@ Deserialization RCE is often blind, so instrument the code paths and watch for t
 
 ---
 
-*Part of the [OWASP Top 10 Educational Repository](/platform/frontend/index.html)*
+*Part of the [OWASP Top 10 Educational Repository](/)*

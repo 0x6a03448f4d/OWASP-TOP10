@@ -315,4 +315,4 @@ const url = `https://auth.example.com/authorize?` + new URLSearchParams({
 
 ---
 
-*Part of the [OWASP Top 10 Educational Repository](/platform/frontend/index.html)*
+*Part of the [OWASP Top 10 Educational Repository](/)*

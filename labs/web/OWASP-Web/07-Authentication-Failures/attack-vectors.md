@@ -248,4 +248,4 @@ The defensive takeaway: because the vectors chain, defenses must be **layered**.
 
 ---
 
-*Part of the [OWASP Top 10 Educational Repository](/platform/frontend/index.html)*
+*Part of the [OWASP Top 10 Educational Repository](/)*

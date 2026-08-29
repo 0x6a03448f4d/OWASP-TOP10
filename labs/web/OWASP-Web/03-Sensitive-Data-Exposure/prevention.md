@@ -246,4 +246,4 @@ DELETE FROM audit_pii            WHERE created_at < NOW() - INTERVAL '90 days';
 
 ---
 
-*Part of the [OWASP Top 10 Educational Repository](/platform/frontend/index.html)*
+*Part of the [OWASP Top 10 Educational Repository](/)*

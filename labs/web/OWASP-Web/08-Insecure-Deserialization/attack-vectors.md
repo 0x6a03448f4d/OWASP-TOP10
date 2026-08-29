@@ -299,4 +299,4 @@ Defences include input size limits, depth/reference caps in the parser, and—ag
 
 ---
 
-*Part of the [OWASP Top 10 Educational Repository](/platform/frontend/index.html)*
+*Part of the [OWASP Top 10 Educational Repository](/)*
