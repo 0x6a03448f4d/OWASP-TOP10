@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SC05: Reentrancy Attacks - Attack Vectors</title>
+    <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .doc-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .back-nav:hover {
+            background-color: rgba(245, 158, 11, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(245, 158, 11, 0.1);
+        }
+
+        .content h1 {
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            text-shadow: none;
+        }
+
+        .content h2 {
+            color: var(--secondary-color);
+            font-size: 1.8rem;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .content h3 {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+            margin-top: 30px;
+            margin-bottom: 12px;
+        }
+
+        .content h4 {
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        .content p {
+            color: var(--text-color);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .content ul, .content ol {
+            margin-left: 25px;
+            margin-bottom: 15px;
+            color: var(--text-color);
+        }
+
+        .content li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .content code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--primary-color);
+            font-family: 'Courier New', monospace;
+            border: 1px solid var(--border-color);
+        }
+
+        .content pre {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            color: var(--primary-color);
+        }
+
+        .content blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 20px;
+            margin: 20px 0;
+            background: rgba(245, 158, 11, 0.05);
+            padding: 15px 20px;
+            border-radius: 4px;
+        }
+
+        .content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table th {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2));
+            color: var(--primary-color);
+            padding: 12px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table td {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        .content table tr:hover {
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .content a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .content a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .content strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        .toc {
+            background: rgba(245, 158, 11, 0.05);
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .toc h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc li {
+            margin-bottom: 8px;
+        }
+
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toc a:hover {
+            color: var(--primary-color);
+        }
+
+        .toc a:before {
+            content: "▸";
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="doc-container">
+        <a href="/learn/smart-contract" class="back-nav">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+
+        <div class="content">
+            <h1>SC05: Reentrancy Attacks - Attack Vectors</h1>
+
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#understanding">Understanding Reentrancy Attack Vectors</a></li>
+<li><a href="#core-attack-flow">Core Attack Flow</a></li>
+<li><a href="#common-attack-patterns">Common Attack Patterns</a></li>
+<li><a href="#chaining">Chaining Reentrancy</a></li>
+</ul>
+</div>
+
+<h2 id="understanding">Understanding Reentrancy Attack Vectors</h2>
+
+<blockquote>
+<p><strong>&#9888; EDUCATIONAL PURPOSE ONLY</strong> &mdash; the techniques below are shown so you can find and fix these issues in contracts you own or are authorised to test.</p>
+</blockquote>
+
+<p>Reentrancy is not exploited with a clever input; it is exploited by <strong>seizing control</strong>. Whenever a vulnerable contract makes an external call, it momentarily hands the program counter to code the attacker wrote. The attacker's job is simply to call back into the victim before the victim has finished writing down what it just did. Because the flaw is in <em>ordering</em>, the exploit is a short, mechanical loop rather than a subtle payload.</p>
+
+<p>The attacker's goal in this category is usually one of:</p>
+<ul>
+<li>Repeat a value-moving action (withdraw, claim, redeem) many times against state that has not yet been decremented.</li>
+<li>Re-enter a <em>sibling</em> function that trusts the same not-yet-updated state.</li>
+<li>Make an external consumer read a temporarily inconsistent value (read-only reentrancy) and act on it.</li>
+</ul>
+
+<h3 id="core-attack-flow">Core Attack Flow</h3>
+
+<pre><code>1. Deposit / Seed
+   &darr;
+   Attacker contract deposits a small amount so it has a nonzero balance
+2. Trigger
+   &darr;
+   Attacker calls withdraw(); victim sends ETH BEFORE zeroing the balance
+3. Re-enter
+   &darr;
+   ETH send invokes attacker's receive(); it calls withdraw() again
+   (balance still nonzero -> check passes -> ETH sent again)
+4. Loop &amp; Exit
+   &darr;
+   Repeat until the victim is drained or gas runs low, then stop re-entering</code></pre>
+
+<h2 id="common-attack-patterns">Common Attack Patterns</h2>
+
+<h3>1. Classic Single-Function Reentrancy (the withdraw loop)</h3>
+
+<p>The attacker's <code>receive()</code> re-enters the very function that paid it.</p>
+
+<pre><code>// Victim (vulnerable)
+function withdraw() external {
+    uint256 amount = balance[msg.sender];
+    require(amount &gt; 0);
+    (bool ok, ) = msg.sender.call{value: amount}("");  // control leaves here
+    require(ok);
+    balance[msg.sender] = 0;                            // runs last -> too late
+}
+
+// Attacker
+receive() external payable {
+    if (address(victim).balance &gt;= 1 ether) {
+        victim.withdraw();      // re-enter: balance[attacker] still nonzero
+    }
+}</code></pre>
+
+<p><strong>Payoff</strong>: the deposit is paid out once per re-entry, draining the contract in a single transaction. This is the DAO-class pattern.</p>
+
+<h3>2. Cross-Function Reentrancy</h3>
+
+<p>The attacker re-enters a <em>different</em> function that reads the same stale balance.</p>
+
+<pre><code>// Victim: withdraw() and transfer() share balance[]
+function withdraw() external {
+    uint256 amount = balance[msg.sender];
+    (bool ok, ) = msg.sender.call{value: amount}("");   // control leaves here
+    require(ok);
+    balance[msg.sender] = 0;                             // not yet run
+}
+function transfer(address to, uint256 amt) external {
+    require(balance[msg.sender] &gt;= amt);                 // sees OLD balance
+    balance[msg.sender] -= amt;
+    balance[to] += amt;
+}
+
+// Attacker's receive() calls victim.transfer(friend, balance) mid-withdraw,
+// moving the balance out before withdraw() zeroes it.</code></pre>
+
+<p><strong>Payoff</strong>: a reentrancy guard on <code>withdraw</code> alone does not help&mdash;the re-entry lands in <code>transfer</code>. Every function touching shared state must be considered.</p>
+
+<h3>3. Cross-Contract Reentrancy</h3>
+
+<p>Two contracts share or cache state; re-entry through one corrupts the other.</p>
+
+<pre><code>// Vault caches a value from Pool, updates Pool, then updates its own cache.
+function withdraw() external {
+    uint256 shares = pool.balanceOf(address(this));
+    pool.redeem(shares);            // Pool sends ETH -> attacker re-enters Vault
+    cachedShares = pool.balanceOf(address(this));   // cache updated too late
+}
+// During pool.redeem's callback, the attacker calls back into Vault, which
+// still trusts the stale cachedShares from before the redeem settled.</code></pre>
+
+<p><strong>Payoff</strong>: state that looks consistent within one contract is inconsistent across the pair during the reentrant window.</p>
+
+<h3>4. Read-Only Reentrancy</h3>
+
+<p>A <code>view</code> getter returns inconsistent state mid-callback; an integrator trusts it.</p>
+
+<pre><code>// Pool.get_virtual_price() is temporarily wrong while a withdrawal callback runs
+// (assets already sent out, supply not yet updated).
+
+// Attacker flow:
+// 1. Attacker calls pool.remove_liquidity()  -> pool sends ETH, invokes receive()
+// 2. In receive(), attacker calls LendingMarket.borrow()
+// 3. LendingMarket reads pool.get_virtual_price() -> STALE, inflated value
+// 4. Collateral is over-valued -> attacker borrows more than they should</code></pre>
+
+<p><strong>Payoff</strong>: the vulnerable getter never writes state, yet an <em>integrating</em> protocol is misled into an under-collateralised loan or unfair mint. Guards on state-changing functions do not cover this unless the getter is protected too.</p>
+
+<h3>5. ERC777 <code>tokensReceived</code> Hook Reentrancy</h3>
+
+<p>An ERC777 transfer calls the recipient, providing a re-entry hook with no ETH involved.</p>
+
+<pre><code>// Victim assumes token.transfer() cannot call back.
+function claim() external {
+    uint256 amt = owed[msg.sender];
+    token.transfer(msg.sender, amt);   // ERC777: invokes recipient's tokensReceived
+    owed[msg.sender] = 0;              // runs after the hook -> re-entrant claim
+}
+
+// Attacker implements IERC777Recipient:
+function tokensReceived(...) external {
+    if (owed[address(this)] &gt; 0) victim.claim();   // re-enter before owed is zeroed
+}</code></pre>
+
+<p><strong>Payoff</strong>: reentrancy on a token path even though no <code>call{value:}</code> is used. Any &ldquo;transfer then update&rdquo; ordering with a hooked token is exploitable.</p>
+
+<h3>6. ERC721 <code>onERC721Received</code> Hook Reentrancy</h3>
+
+<p><code>safeTransferFrom</code> calls the recipient's acceptance hook, another mid-transfer entry point.</p>
+
+<pre><code>// Victim mints/awards an NFT, then updates accounting.
+function mintReward() external {
+    require(!claimed[msg.sender]);
+    nft.safeMint(msg.sender, nextId());   // invokes onERC721Received on recipient
+    claimed[msg.sender] = true;           // set after the hook
+}
+
+// Attacker's onERC721Received re-enters mintReward() before claimed is set,
+// minting multiple rewards from a single entitlement.</code></pre>
+
+<p><strong>Payoff</strong>: one-time entitlements (mints, rewards, allowlist claims) execute multiple times.</p>
+
+<h3>7. Delegatecall Reentrancy</h3>
+
+<p>Proxy/library code runs in the caller's storage; an external call inside it can be re-entered.</p>
+
+<pre><code>// Proxy delegatecalls into logic; logic makes an external call before the
+// proxy's storage is settled. Re-entry manipulates the shared storage slots.
+(bool ok, ) = logic.delegatecall(
+    abi.encodeWithSignature("withdraw()")   // runs in proxy storage context
+);
+// If withdraw() sends ETH before writing state, the attacker re-enters the
+// proxy and operates on half-updated storage shared by proxy and logic.</code></pre>
+
+<p><strong>Payoff</strong>: storage corruption or repeated actions in upgradeable/proxy systems, where the boundary between &ldquo;caller&rdquo; and &ldquo;callee&rdquo; state is blurred.</p>
+
+<h3>8. Gas-Stipend Assumptions Defeated</h3>
+
+<p>Relying on <code>transfer</code>/<code>send</code>'s 2300-gas stipend as a defence is fragile.</p>
+
+<pre><code>// "Safe" because it only forwards 2300 gas?
+payable(msg.sender).transfer(amount);   // NOT a security guarantee
+// - Cross-function re-entry may not need much gas
+// - Opcode gas costs have changed across forks, breaking the assumption
+// - Token-hook paths don't rely on this stipend at all</code></pre>
+
+<p><strong>Payoff</strong>: contracts that traded correct ordering for a gas trick remain exploitable through paths the stipend never protected.</p>
+
+<h2 id="chaining">Chaining Reentrancy</h2>
+
+<p>Reentrancy is frequently one link in a larger exploit:</p>
+
+<pre><code>Flash loan (large temporary capital)
+        +
+Reentrancy drains a pool at an inflated position
+        +
+Read-only reentrancy misprices an integrating market
+        =  under-collateralised borrow + drained pool in one atomic transaction</code></pre>
+
+<p>Another common chain:</p>
+
+<pre><code>ERC777 token accepted as collateral      -&gt; transfer hands control to attacker
+        -&gt; re-enter deposit/withdraw before shares are updated
+        -&gt; accounting now inconsistent with real balances
+        -&gt; redeem the inflated shares for more than was deposited</code></pre>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Reentrancy is control-flow theft</strong>&mdash;an external call lends the attacker the CPU mid-transaction.</li>
+<li><strong>The entry point is any external call</strong>&mdash;ETH sends, ERC777/ERC721 hooks, arbitrary calls, and <code>delegatecall</code>.</li>
+<li><strong>Guards must cover siblings and getters</strong>&mdash;cross-function and read-only variants slip past a single-function guard.</li>
+<li><strong>Gas tricks are not defences</strong>&mdash;<code>transfer</code>/<code>send</code> stipends do not stop cross-function or token-hook re-entry.</li>
+<li><strong>Reentrancy chains</strong>&mdash;combined with flash loans and integrations, one re-entry can compromise several protocols atomically.</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="prevention.html">Prevention Guide</a></strong>: CEI ordering, reentrancy guards, and pull-over-push</li>
+<li><strong><a href="examples.html">Code Examples</a></strong>: See the vulnerable contract and its secure rewrite</li>
+<li><strong><a href="/learn/smart-contract">Smart Contract Learning Path</a></strong>: Continue the OWASP Smart Contract Top 10</li>
+<li><strong><a href="/practice">Practice</a></strong>: Apply what you've learned in hands-on challenges</li>
+</ul>
+
+        </div>
+    </div>
+</body>
+</html>

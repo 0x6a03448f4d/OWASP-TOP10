@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SC09: Insecure Randomness - Attack Vectors</title>
+    <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .doc-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .back-nav:hover {
+            background-color: rgba(245, 158, 11, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(245, 158, 11, 0.1);
+        }
+
+        .content h1 {
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            text-shadow: none;
+        }
+
+        .content h2 {
+            color: var(--secondary-color);
+            font-size: 1.8rem;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .content h3 {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+            margin-top: 30px;
+            margin-bottom: 12px;
+        }
+
+        .content h4 {
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        .content p {
+            color: var(--text-color);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .content ul, .content ol {
+            margin-left: 25px;
+            margin-bottom: 15px;
+            color: var(--text-color);
+        }
+
+        .content li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .content code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--primary-color);
+            font-family: 'Courier New', monospace;
+            border: 1px solid var(--border-color);
+        }
+
+        .content pre {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            color: var(--primary-color);
+        }
+
+        .content blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 20px;
+            margin: 20px 0;
+            background: rgba(245, 158, 11, 0.05);
+            padding: 15px 20px;
+            border-radius: 4px;
+        }
+
+        .content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table th {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2));
+            color: var(--primary-color);
+            padding: 12px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table td {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        .content table tr:hover {
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .content a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .content a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .content strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        .toc {
+            background: rgba(245, 158, 11, 0.05);
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .toc h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc li {
+            margin-bottom: 8px;
+        }
+
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toc a:hover {
+            color: var(--primary-color);
+        }
+
+        .toc a:before {
+            content: "▸";
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="doc-container">
+        <a href="/learn/smart-contract" class="back-nav">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+
+        <div class="content">
+            <h1>SC09: Insecure Randomness - Attack Vectors</h1>
+
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#understanding">Understanding Randomness Attack Vectors</a></li>
+<li><a href="#core-attack-flow">Core Attack Flow</a></li>
+<li><a href="#common-attack-patterns">Common Attack Patterns</a></li>
+<li><a href="#chaining">Chaining and Escalation</a></li>
+</ul>
+</div>
+
+<h2 id="understanding">Understanding Randomness Attack Vectors</h2>
+
+<blockquote>
+<p><strong>&#9888; EDUCATIONAL PURPOSE ONLY</strong> &mdash; the techniques below are shown so you can find and fix these issues in contracts you own or are authorised to test.</p>
+</blockquote>
+
+<p>Insecure randomness is not exploited with a clever cryptographic break. It is exploited by <strong>recomputation</strong>: the attacker reads the exact same public data the contract reads, runs the exact same arithmetic, and learns the "random" result before committing anything of value. Because the EVM is deterministic and every input is public, the attacker's copy of the calculation always matches the victim's.</p>
+
+<p>The attacker's goal in this category is usually one of:</p>
+<ul>
+<li>Predict the outcome and act only when it is favourable (win the lottery, mint the rare NFT, take the winning side of a bet).</li>
+<li>Bias the source of entropy the contract trusts (as a block proposer nudging timestamp or prevrandao, or reordering transactions).</li>
+<li>Break a commitment scheme by withholding or front-running the reveal.</li>
+</ul>
+
+<h3 id="core-attack-flow">Core Attack Flow</h3>
+
+<pre><code>1. Identify the seed
+   &darr;
+   Find the exact expression that produces the "random" number
+   (block.timestamp, blockhash, prevrandao, msg.sender, keccak256 of these)
+2. Reproduce the math
+   &darr;
+   Compute the same expression in an attacker contract, in the same block
+3. Decide atomically
+   &darr;
+   IF result is a WIN -> call the target; ELSE -> revert (pay only gas)
+4. Repeat / escalate
+   &darr;
+   Retry next block, or (as a proposer) bias the source directly</code></pre>
+
+<h2 id="common-attack-patterns">Common Attack Patterns</h2>
+
+<h3>1. Same-Transaction Outcome Prediction (Compute-Then-Revert)</h3>
+
+<p>The dominant attack. The target resolves a draw or bet in the same call, from data readable at execution time. An attacker contract computes the result first and only proceeds on a win.</p>
+
+<pre><code>// Vulnerable target (simplified)
+function play() external payable {
+    uint256 roll = uint256(keccak256(abi.encodePacked(
+        block.timestamp, block.prevrandao, msg.sender))) % 2;
+    if (roll == 0) payable(msg.sender).transfer(2 * betAmount);
+}
+
+// Attacker contract: reproduce the SAME expression, revert on a loss
+function attack() external payable {
+    uint256 roll = uint256(keccak256(abi.encodePacked(
+        block.timestamp, block.prevrandao, address(this))) ) % 2;
+    require(roll == 0, "not a winning block");   // abort, pay only gas
+    target.play{value: betAmount}();             // guaranteed win
+}</code></pre>
+
+<p><strong>Payoff</strong>: the attacker only ever plays winning hands. No privilege is required&mdash;any user can deploy this. Note the attacker uses <code>address(this)</code> as the sender, exactly matching what the target will see.</p>
+
+<h3>2. Predicting a Previous Block Hash</h3>
+
+<p>Contracts often seed from <code>blockhash(block.number - 1)</code>, believing it is unpredictable. It is already fixed and public when the transaction runs.</p>
+
+<pre><code>uint256 winner = uint256(blockhash(block.number - 1)) % players.length;
+
+// The attacker reads the identical, already-known hash and only enters
+// in a block where it computes itself as the winner.</code></pre>
+
+<p><strong>Payoff</strong>: deterministic prediction of the "winning" index. Also note <code>blockhash</code> returns <code>0</code> outside the most recent 256 blocks, collapsing "future block" designs to a constant.</p>
+
+<h3>3. Validator / Proposer Bias of prevrandao and timestamp</h3>
+
+<p>When the prize exceeds a block reward, the party building the block has motive to steer the values naive contracts trust.</p>
+
+<pre><code>// Target trusts prevrandao / timestamp directly
+uint256 rand = uint256(keccak256(abi.encodePacked(block.prevrandao))) % total;</code></pre>
+
+<ul>
+<li><strong>Timestamp nudging</strong>: the proposer sets <code>block.timestamp</code> within the accepted tolerance, trying values that favour it.</li>
+<li><strong>RANDAO biasing</strong>: a proposer can <em>skip its slot</em>&mdash;forgoing the block reward&mdash;to influence the resulting <code>prevrandao</code> when the payout justifies the sacrifice.</li>
+</ul>
+
+<p><strong>Payoff</strong>: the "random" draw bends toward the block producer. This is a smaller population of attackers than pattern #1 but strikes even designs that pick a future block, because the producer of that block is the adversary.</p>
+
+<h3>4. Transaction Reordering and Front-Running the Entry</h3>
+
+<p>Even without touching the entropy, an attacker who watches the mempool can insert or reorder transactions around a draw.</p>
+
+<pre><code>Mempool: victim's draw-triggering tx is visible
+   &rarr; attacker computes the pending outcome
+   &rarr; attacker front-runs to enter only if it will win,
+     or back-runs to claim, adjusting position by gas price</code></pre>
+
+<p><strong>Payoff</strong>: the attacker positions itself around the deterministic result using ordering alone.</p>
+
+<h3>5. Reveal Withholding in Commit-Reveal</h3>
+
+<p>A commit-reveal scheme without penalties lets a participant who dislikes the pending result simply never reveal, forcing a re-draw or stalling settlement.</p>
+
+<pre><code>commit:  hash = keccak256(secret)          // locked in earlier
+reveal:  submit secret                     // ... only if the outcome is good
+
+// If revealing would make the attacker lose, it withholds the secret.
+// With no deposit to slash and no timeout fallback, the draw stalls
+// or must be re-run -- which the attacker games again.</code></pre>
+
+<p><strong>Payoff</strong>: the attacker vetoes unfavourable outcomes at no cost, converting a "fair" scheme into one it can only win or void.</p>
+
+<h3>6. Reveal Front-Running in Commit-Reveal</h3>
+
+<p>If the final randomness is a function of multiple revealed secrets and the ordering/inclusion of the last reveal is observable, the last revealer can choose whether (and when) to reveal to steer the combined result.</p>
+
+<pre><code>final = keccak256(secretA, secretB, ... , secretLast)
+// The last party to reveal sees all prior secrets in the mempool/state
+// and reveals only when the combination favours it (or withholds).</code></pre>
+
+<p><strong>Payoff</strong>: the "last actor" gains an unfair veto/steer over the aggregate seed unless the scheme binds all reveals or penalises late/absent ones.</p>
+
+<h3>7. Address Grinding for Identity-Seeded Randomness</h3>
+
+<p>When the seed includes <code>msg.sender</code> or a freshly deployed contract's address, the attacker can search for an input that wins.</p>
+
+<pre><code>outcome = uint256(keccak256(abi.encodePacked(seed, msg.sender))) % total;
+
+// Attacker deploys throwaway contracts (or uses CREATE2 salt grinding)
+// until it finds an address that produces a winning outcome, then plays
+// from exactly that address.</code></pre>
+
+<p><strong>Payoff</strong>: the caller identity, meant to add entropy, becomes a tunable knob the attacker optimises.</p>
+
+<h3>8. Weak PRNG / Insufficient Entropy Expansion</h3>
+
+<p>Some contracts try to stretch one seed into many "independent" draws with a simple counter, so predicting one value predicts them all.</p>
+
+<pre><code>function nth(uint256 i) internal view returns (uint256) {
+    return uint256(keccak256(abi.encodePacked(seed, i))) % total; // seed is public
+}
+// Learn `seed` once (it is on-chain) and every draw is known.</code></pre>
+
+<p><strong>Payoff</strong>: a single recovered seed unrolls the entire sequence&mdash;every future "random" pick is precomputable.</p>
+
+<h2 id="chaining">Chaining and Escalation</h2>
+
+<p>Randomness flaws compound with the same-transaction and composability properties of the EVM:</p>
+
+<pre><code>Predictable seed (block variables)     -&gt; attacker computes the outcome
+        +
+Same-tx resolution of the bet/draw      -&gt; wrap in a contract that reverts on loss
+        +
+No rate limit / unlimited retries       -&gt; repeat every block until it wins
+        =  the prize pool is drained with zero downside</code></pre>
+
+<p>Another common chain in NFT mints:</p>
+
+<pre><code>Rarity assigned at mint from block data -&gt; attacker precomputes rare mints
+        -&gt; contract reverts unless the mint yields a rare token
+        -&gt; attacker captures the entire tail of valuable traits
+        -&gt; resells, extracting the collection's value from honest minters</code></pre>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Recomputation, not cryptanalysis</strong>&mdash;the attacker runs the same public math the contract runs and knows the result first.</li>
+<li><strong>Compute-then-revert needs no privilege</strong>&mdash;any user can wrap a draw in a contract that only commits on a win.</li>
+<li><strong>Block producers are a distinct, more powerful adversary</strong>&mdash;they can bias timestamp/prevrandao and reorder transactions when the prize is worth it.</li>
+<li><strong>Commit-reveal fails on withholding and front-running</strong>&mdash;without deposits, penalties, and timeouts it is gameable.</li>
+<li><strong>One leaked seed unrolls the whole sequence</strong>&mdash;public seeds plus a counter are not independent draws.</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="prevention.html">Prevention Guide</a></strong>: Verifiable randomness and hardened commit-reveal</li>
+<li><strong><a href="examples.html">Code Examples</a></strong>: Vulnerable block-value RNG vs. secure VRF and commit-reveal</li>
+<li><strong><a href="/learn/smart-contract">Smart Contract Learning Path</a></strong>: Continue the Smart Contract Top 10</li>
+<li><strong><a href="/practice">Practice</a></strong>: Try these ideas against guided challenges</li>
+</ul>
+
+        </div>
+    </div>
+</body>
+</html>

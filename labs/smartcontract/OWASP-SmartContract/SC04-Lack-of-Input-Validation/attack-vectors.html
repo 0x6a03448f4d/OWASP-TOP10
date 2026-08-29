@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SC04: Lack of Input Validation - Attack Vectors</title>
+    <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .doc-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .back-nav:hover {
+            background-color: rgba(245, 158, 11, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(245, 158, 11, 0.1);
+        }
+
+        .content h1 {
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            text-shadow: none;
+        }
+
+        .content h2 {
+            color: var(--secondary-color);
+            font-size: 1.8rem;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .content h3 {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+            margin-top: 30px;
+            margin-bottom: 12px;
+        }
+
+        .content h4 {
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        .content p {
+            color: var(--text-color);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .content ul, .content ol {
+            margin-left: 25px;
+            margin-bottom: 15px;
+            color: var(--text-color);
+        }
+
+        .content li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .content code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--primary-color);
+            font-family: 'Courier New', monospace;
+            border: 1px solid var(--border-color);
+        }
+
+        .content pre {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            color: var(--primary-color);
+        }
+
+        .content blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 20px;
+            margin: 20px 0;
+            background: rgba(245, 158, 11, 0.05);
+            padding: 15px 20px;
+            border-radius: 4px;
+        }
+
+        .content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table th {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2));
+            color: var(--primary-color);
+            padding: 12px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table td {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        .content table tr:hover {
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .content a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .content a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .content strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        .toc {
+            background: rgba(245, 158, 11, 0.05);
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .toc h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc li {
+            margin-bottom: 8px;
+        }
+
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toc a:hover {
+            color: var(--primary-color);
+        }
+
+        .toc a:before {
+            content: "▸";
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="doc-container">
+        <a href="/learn/smart-contract" class="back-nav">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+
+        <div class="content">
+            <h1>SC04: Lack of Input Validation - Attack Vectors</h1>
+
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#understanding">Understanding Input-Validation Attack Vectors</a></li>
+<li><a href="#core-attack-flow">Core Attack Flow</a></li>
+<li><a href="#common-attack-patterns">Common Attack Patterns</a></li>
+<li><a href="#chaining">Chaining Missing Validation</a></li>
+</ul>
+</div>
+
+<h2 id="understanding">Understanding Input-Validation Attack Vectors</h2>
+
+<blockquote>
+<p><strong>&#9888; EDUCATIONAL PURPOSE ONLY</strong> &mdash; the techniques below are shown so you can find and fix these issues in contracts you own or are authorised to test. Never target contracts you do not control.</p>
+</blockquote>
+
+<p>Missing-validation bugs are rarely exploited with clever cryptography. They are exploited by <strong>calling the contract directly with a value the developer never expected</strong>. Because every external function is public and the ABI is known, an attacker simply constructs calldata that carries a zero address, an out-of-range number, an oversized array, or a hostile token address, and submits the transaction.</p>
+
+<p>The attacker's goal in this category is usually one of:</p>
+<ul>
+<li>Corrupt permanent state (balances, ownership, configuration) by writing a value outside the intended range.</li>
+<li>Redirect value &mdash; send funds to a chosen recipient, or make the contract call a chosen target.</li>
+<li>Deny service &mdash; brick a function via an unusable owner or an unbounded loop.</li>
+</ul>
+
+<h3 id="core-attack-flow">Core Attack Flow</h3>
+
+<pre><code>1. Read the ABI
+   &darr;
+   Identify every external/public function and its parameters
+2. Find the gap
+   &darr;
+   Which params are used without a require()? (address, amount, array, id, fee, target)
+3. Craft calldata
+   &darr;
+   Encode address(0), an out-of-range value, mismatched arrays, or a malicious token
+4. Submit &amp; exploit
+   &darr;
+   Corrupt state, redirect funds, trigger an external call, or brick the contract</code></pre>
+
+<h2 id="common-attack-patterns">Common Attack Patterns</h2>
+
+<h3>1. Zero-Address Injection (Burn / Brick)</h3>
+
+<p>The attacker (or a careless caller) passes <code>address(0)</code> where a recipient or owner is expected.</p>
+
+<pre><code>// Vulnerable: no zero-address check
+function transfer(address to, uint256 amount) external {
+    balances[msg.sender] -= amount;
+    balances[to]        += amount;   // to == address(0) -&gt; tokens unrecoverable
+}
+
+// Exploit call
+transfer(address(0), 1_000e18);      // 1,000 tokens burned forever</code></pre>
+
+<p><strong>Payoff</strong>: permanent loss of funds; or, against <code>setOwner(address(0))</code>, a contract whose privileged functions can never be called again.</p>
+
+<h3>2. Amount Out of Bounds</h3>
+
+<p>An unchecked amount lets the caller move more than they own, or corrupt an invariant with a zero-value operation.</p>
+
+<pre><code>// Vulnerable: no balance/allowance/&gt;0 check (pre-0.8 underflow shown)
+function withdraw(uint256 amount) external {
+    balances[msg.sender] -= amount;          // underflows to a huge balance
+    payable(msg.sender).transfer(amount);
+}
+
+// Exploit call
+withdraw(1);   // if balance is 0, pre-0.8 this underflows to 2^256-1</code></pre>
+
+<p><strong>Payoff</strong>: over-withdrawal and drained contract balance; on modern compilers the same class appears as amounts exceeding an unchecked allowance.</p>
+
+<h3>3. Mismatched / Oversized Arrays</h3>
+
+<p>Batch functions that trust caller arrays can be reverted, mis-paid, or gas-bombed.</p>
+
+<pre><code>// Vulnerable: no length equality, no cap
+function airdrop(address[] calldata to, uint256[] calldata amt) external onlyOwner {
+    for (uint256 i; i &lt; to.length; ++i) token.transfer(to[i], amt[i]);
+}
+
+// Exploit A: amt shorter than to  -&gt; out-of-bounds revert (griefing / DoS)
+// Exploit B: to.length = 50_000   -&gt; loop exceeds block gas limit, always reverts</code></pre>
+
+<p><strong>Payoff</strong>: denial of service on a critical function, or incorrect payouts when arrays are crafted to misalign.</p>
+
+<h3>4. Index / ID Out of Range or Not Owned</h3>
+
+<p>An unvalidated index reads the wrong slot or lets a caller act on someone else's item.</p>
+
+<pre><code>// Vulnerable: no bounds / ownership check
+function redeem(uint256 id) external {
+    Ticket storage t = tickets[id];      // id may be out of range or another user's
+    payable(msg.sender).transfer(t.value);
+    delete tickets[id];
+}
+
+// Exploit call
+redeem(victimTicketId);   // claim value tied to an ID the caller never owned</code></pre>
+
+<p><strong>Payoff</strong>: theft of value bound to another user's ID, or reads of uninitialised/adjacent storage.</p>
+
+<h3>5. Fee / Percentage Above Maximum</h3>
+
+<p>A setter with no upper bound lets a privileged (or compromised) caller seize value.</p>
+
+<pre><code>// Vulnerable: no upper bound
+function setFeeBps(uint256 bps) external onlyOwner {
+    feeBps = bps;                 // 10_000 bps = 100%; nothing stops 50_000
+}
+
+// Later, every swap:
+uint256 fee = (amount * feeBps) / 10_000;   // feeBps &gt; 10_000 -&gt; fee &gt;= amount</code></pre>
+
+<p><strong>Payoff</strong>: the protocol captures the entire transaction value; users receive nothing.</p>
+
+<h3>6. Arbitrary Token / Target Address</h3>
+
+<p>Passing a caller-chosen address as a token or call target turns the contract into a proxy for the attacker.</p>
+
+<pre><code>// Vulnerable: token/target not allow-listed
+function collect(address token, address to) external {
+    IERC20(token).transferFrom(msg.sender, to, 1e18);  // token is attacker's contract
+}
+
+// Exploit: 'token' is a malicious contract whose transferFrom re-enters,
+// lies about return values, or triggers unexpected callbacks.</code></pre>
+
+<p><strong>Payoff</strong>: arbitrary external calls, re-entrancy setup, fake accounting, or approval abuse against the victim contract.</p>
+
+<h3>7. Unvalidated Deadline / Signature</h3>
+
+<p>Skipping expiry or signer checks lets stale or forged authorisations execute.</p>
+
+<pre><code>// Vulnerable: deadline decoded but never enforced
+function fill(Order calldata o, bytes calldata sig) external {
+    address signer = recover(hash(o), sig);   // signer not compared to o.maker
+    _settle(o);                               // o.deadline never checked
+}
+
+// Exploit: replay an expired order, or supply a signature the code never binds
+// to the expected signer.</code></pre>
+
+<p><strong>Payoff</strong>: replay of expired orders, execution of unauthorised actions, and bypass of intended time limits.</p>
+
+<h3>8. Trusting Decoded Calldata</h3>
+
+<p>Blindly <code>abi.decode</code>-ing untrusted bytes into structured parameters and acting on them.</p>
+
+<pre><code>// Vulnerable: decoded fields used without validation
+function onMessage(bytes calldata data) external {
+    (address to, uint256 amount) = abi.decode(data, (address, uint256));
+    token.transfer(to, amount);   // to/amount attacker-controlled, unchecked
+}</code></pre>
+
+<p><strong>Payoff</strong>: the decode step launders attacker input into &ldquo;typed&rdquo; parameters that still need every check a direct argument would.</p>
+
+<h3>9. Assuming an Address Is a Contract (or Not)</h3>
+
+<p>Logic that requires a contract (or an EOA) without checking code size behaves incorrectly when the assumption is wrong.</p>
+
+<pre><code>// Vulnerable: assumes 'callback' is a contract implementing the hook
+function register(address callback) external {
+    ICallback(callback).onRegister(msg.sender);   // EOA -&gt; silent no-op / wrong flow
+}</code></pre>
+
+<p><strong>Payoff</strong>: bypassed callbacks, skipped checks, or interactions that silently do nothing while the contract believes they succeeded.</p>
+
+<h2 id="chaining">Chaining Missing Validation</h2>
+
+<p>Individually minor gaps combine into full compromise:</p>
+
+<pre><code>Unchecked token address      -&gt; attacker supplies a malicious token
+        +
+No SafeERC20 / return check   -&gt; fake success is trusted
+        +
+Corrupted internal accounting -&gt; attacker's balance inflated
+        =  drain of legitimately-held assets, no cryptography broken</code></pre>
+
+<p>Another common chain:</p>
+
+<pre><code>No upper bound on fee         -&gt; compromised owner sets fee to 500%
+        -&gt; every user swap forfeits its entire value to the fee sink
+        -&gt; funds withdrawn to an unvalidated (attacker) recipient address</code></pre>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Exploitation is just a function call</strong> &mdash; the attacker crafts calldata with a value you never expected; no exotic technique needed.</li>
+<li><strong>Zero addresses and out-of-range numbers are the first thing to try</strong> &mdash; they map directly to burns, bricks, and over-withdrawals.</li>
+<li><strong>Arrays are a denial-of-service surface</strong> &mdash; mismatched or oversized inputs revert or exceed the gas limit.</li>
+<li><strong>Caller-supplied addresses are hostile</strong> &mdash; a token or target parameter is an arbitrary external call unless allow-listed.</li>
+<li><strong>Small gaps chain</strong> &mdash; an unchecked token plus trusting its return value plus a corrupted balance equals a drain.</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="prevention.html">Prevention Guide</a></strong>: Build a complete validation baseline at every function boundary</li>
+<li><strong><a href="examples.html">Code Examples</a></strong>: See vulnerable vs. secure Solidity side by side</li>
+<li><strong><a href="/learn/smart-contract">Smart Contract Track</a></strong>: Continue the OWASP Smart Contract Top 10</li>
+<li><strong><a href="/practice">Practice</a></strong>: Exploit and fix these gaps in hands-on challenges</li>
+</ul>
+
+        </div>
+    </div>
+</body>
+</html>

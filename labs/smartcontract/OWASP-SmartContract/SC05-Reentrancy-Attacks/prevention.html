@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SC05: Reentrancy Attacks - Prevention</title>
+    <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .doc-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .back-nav:hover {
+            background-color: rgba(245, 158, 11, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(245, 158, 11, 0.1);
+        }
+
+        .content h1 {
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            text-shadow: none;
+        }
+
+        .content h2 {
+            color: var(--secondary-color);
+            font-size: 1.8rem;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .content h3 {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+            margin-top: 30px;
+            margin-bottom: 12px;
+        }
+
+        .content h4 {
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        .content p {
+            color: var(--text-color);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .content ul, .content ol {
+            margin-left: 25px;
+            margin-bottom: 15px;
+            color: var(--text-color);
+        }
+
+        .content li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .content code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--primary-color);
+            font-family: 'Courier New', monospace;
+            border: 1px solid var(--border-color);
+        }
+
+        .content pre {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            color: var(--primary-color);
+        }
+
+        .content blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 20px;
+            margin: 20px 0;
+            background: rgba(245, 158, 11, 0.05);
+            padding: 15px 20px;
+            border-radius: 4px;
+        }
+
+        .content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table th {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2));
+            color: var(--primary-color);
+            padding: 12px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table td {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        .content table tr:hover {
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .content a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .content a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .content strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        .toc {
+            background: rgba(245, 158, 11, 0.05);
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .toc h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc li {
+            margin-bottom: 8px;
+        }
+
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toc a:hover {
+            color: var(--primary-color);
+        }
+
+        .toc a:before {
+            content: "▸";
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="doc-container">
+        <a href="/learn/smart-contract" class="back-nav">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+
+        <div class="content">
+            <h1>SC05: Reentrancy Attacks - Prevention</h1>
+
+<h2>Prevention Strategy Overview</h2>
+
+<p>Preventing reentrancy is about <strong>never letting an external call observe unfinished state</strong>:</p>
+<ol>
+<li>Order every function as Checks-Effects-Interactions.</li>
+<li>Add a reentrancy guard as defence-in-depth, covering functions that share state.</li>
+<li>Prefer pull-over-push so you rarely send value inside complex logic.</li>
+<li>Treat every token transfer and external call as potentially reentrant (ERC777/ERC721 hooks, arbitrary calls, <code>delegatecall</code>).</li>
+<li>Protect <code>view</code> getters that others rely on against read-only reentrancy.</li>
+</ol>
+
+<h3>Core Principles</h3>
+<ul>
+<li><strong>State first, call last</strong>: finalise all bookkeeping before any external interaction, so re-entry sees the settled world.</li>
+<li><strong>Defence-in-depth</strong>: CEI removes the incentive to re-enter; a mutex blocks it anyway, including cross-function paths.</li>
+<li><strong>Least external contact</strong>: fewer and smaller external calls mean fewer re-entry doors; pull-over-push moves the call to a dedicated, isolated function.</li>
+<li><strong>Assume the callee is hostile</strong>: any address you call may be an attacker contract, an upgradeable proxy, or a token with hooks.</li>
+</ul>
+
+<h2>1. Checks-Effects-Interactions (the primary fix)</h2>
+
+<p>Reorder so state is written <strong>before</strong> the external call. This alone defeats the classic single-function attack.</p>
+
+<pre><code>// SECURE: Effects before Interactions
+mapping(address =&gt; uint256) public balance;
+
+function withdraw() external {
+    // 1. Checks
+    uint256 amount = balance[msg.sender];
+    require(amount &gt; 0, "nothing to withdraw");
+
+    // 2. Effects  (state finalised BEFORE any external call)
+    balance[msg.sender] = 0;
+
+    // 3. Interactions
+    (bool ok, ) = msg.sender.call{value: amount}("");
+    require(ok, "transfer failed");
+}</code></pre>
+
+<p>When the attacker re-enters <code>withdraw()</code> during the <code>call</code>, <code>balance[msg.sender]</code> is already <code>0</code>, so the <code>require</code> fails and the loop dies immediately.</p>
+
+<h2>2. Reentrancy Guard (mutex) as defence-in-depth</h2>
+
+<p>A guard sets a lock on entry and clears it on exit, so any re-entrant call reverts. Use OpenZeppelin's audited <code>ReentrancyGuard</code> rather than rolling your own.</p>
+
+<pre><code>import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
+contract Vault is ReentrancyGuard {
+    mapping(address =&gt; uint256) public balance;
+
+    function withdraw() external nonReentrant {   // locks for the whole call
+        uint256 amount = balance[msg.sender];
+        require(amount &gt; 0);
+        balance[msg.sender] = 0;                   // still keep CEI ordering
+        (bool ok, ) = msg.sender.call{value: amount}("");
+        require(ok);
+    }
+}</code></pre>
+
+<p>A minimal illustration of the same idea (do not ship a hand-rolled version&mdash;prefer the library):</p>
+
+<pre><code>uint256 private _status = 1;   // 1 = unlocked, 2 = locked
+
+modifier nonReentrant() {
+    require(_status == 1, "reentrant call");
+    _status = 2;
+    _;
+    _status = 1;
+}</code></pre>
+
+<blockquote>
+<p>Apply <code>nonReentrant</code> to <em>every</em> function that shares state, not just the one that sends value&mdash;otherwise cross-function reentrancy re-enters an unguarded sibling.</p>
+</blockquote>
+
+<h2>3. Pull-over-Push Withdrawals</h2>
+
+<p>Do not push ETH inside business logic or in a loop. Record what is owed, and let each recipient pull it in an isolated, guarded function.</p>
+
+<pre><code>mapping(address =&gt; uint256) public pendingWithdrawals;
+
+// Push phase: only bookkeeping, no external call
+function endAuction() external {
+    pendingWithdrawals[previousBidder] += refundAmount;
+    // ... rest of logic, no ETH sent here
+}
+
+// Pull phase: isolated, CEI-ordered, guarded
+function withdrawRefund() external nonReentrant {
+    uint256 amount = pendingWithdrawals[msg.sender];
+    require(amount &gt; 0);
+    pendingWithdrawals[msg.sender] = 0;            // effect first
+    (bool ok, ) = msg.sender.call{value: amount}("");
+    require(ok);
+}</code></pre>
+
+<p>This confines the only external call to one small function, shrinks the re-entry surface, and prevents one failing/malicious recipient from blocking everyone else.</p>
+
+<h2>4. Beware Token Hooks (ERC777 / ERC721)</h2>
+
+<p>Token transfers are external calls when the standard defines a recipient hook. Order state updates before such transfers, and guard the function.</p>
+
+<pre><code>function claim() external nonReentrant {
+    uint256 amt = owed[msg.sender];
+    require(amt &gt; 0);
+    owed[msg.sender] = 0;                    // effect BEFORE the transfer
+    token.safeTransfer(msg.sender, amt);     // ERC777 tokensReceived is now harmless
+}</code></pre>
+
+<ul>
+<li>Assume any ERC20 you integrate could be ERC777 (a superset that adds hooks).</li>
+<li>For NFTs, remember <code>safeTransferFrom</code>/<code>safeMint</code> invoke <code>onERC721Received</code>&mdash;update &ldquo;claimed/minted&rdquo; flags first.</li>
+<li>Follow CEI even for token paths; do not assume &ldquo;a transfer can't call back.&rdquo;</li>
+</ul>
+
+<h2>5. Guard Against Read-Only Reentrancy</h2>
+
+<p>A <code>view</code> getter can return inconsistent values during a reentrant callback. Protect getters that other protocols trust, or expose reentrancy-safe reads.</p>
+
+<pre><code>// Option A: a view-side guard that reverts if called during a locked operation
+function getVirtualPrice() external view returns (uint256) {
+    require(_status == 1, "reentrant read");   // same mutex the state fns use
+    return _computeVirtualPrice();
+}
+
+// Option B: only read such getters from contexts you control, and/or use a
+// value that cannot be mid-update (e.g., checkpoints taken outside callbacks).</code></pre>
+
+<ul>
+<li>If you <em>integrate</em> another protocol, do not read its price/share getters inside a callback you did not initiate; prefer values that are settled.</li>
+<li>If you <em>expose</em> such a getter, ensure it cannot be observed while your own state is temporarily inconsistent.</li>
+</ul>
+
+<h2>6. Minimise and Isolate External Calls</h2>
+
+<ul>
+<li>Make the fewest external calls possible, and make them last.</li>
+<li>Never call an untrusted address in the middle of a multi-step state change.</li>
+<li>In proxy/<code>delegatecall</code> designs, ensure delegated logic cannot make an external call before shared storage is settled.</li>
+<li>Do not rely on <code>transfer</code>/<code>send</code> gas stipends as a safety mechanism&mdash;use <code>call</code> plus CEI plus a guard.</li>
+</ul>
+
+<h2>7. Testing, Tooling, and Review</h2>
+
+<p>Reentrancy is highly detectable with the right tooling. Make it part of CI.</p>
+
+<pre><code># Static analysis: flags call-before-write and reentrancy patterns
+slither .                       # includes reentrancy-eth / reentrancy-no-eth detectors
+
+# Symbolic / property analysis
+mythril analyze Contract.sol    # explores reentrant execution paths
+
+# Fuzzing / invariant testing (write a malicious re-entering contract as the harness)
+forge test                       # Foundry: assert "total paid out &lt;= total deposited"
+echidna Contract.sol             # property-based fuzzing of invariants</code></pre>
+
+<p>Write an explicit attacker contract in your test suite whose <code>receive()</code>/hook re-enters the target, and assert the invariant (for example, &ldquo;the contract can never pay out more than was deposited&rdquo;) holds.</p>
+
+<h2>Defence Summary</h2>
+
+<table>
+<thead>
+<tr><th>Control</th><th>Stops</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td>Checks-Effects-Interactions</td><td>Single-function reentrancy</td><td>Primary fix; state finalised before the call</td></tr>
+<tr><td><code>nonReentrant</code> mutex</td><td>Single- &amp; cross-function reentrancy</td><td>Apply to all functions sharing state</td></tr>
+<tr><td>Pull-over-push</td><td>Loop-based &amp; push reentrancy</td><td>Confines the external call to one function</td></tr>
+<tr><td>Hook-aware ordering</td><td>ERC777/ERC721 reentrancy</td><td>Update state before hooked transfers</td></tr>
+<tr><td>View-side guard / safe reads</td><td>Read-only reentrancy</td><td>Protect getters integrators trust</td></tr>
+<tr><td>Static analysis in CI</td><td>Regressions</td><td>Slither/Mythril catch call-then-write</td></tr>
+</tbody>
+</table>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>CEI first</strong> &mdash; write all state before any external call; this alone defeats the classic drain.</li>
+<li><strong>Guard everything that shares state</strong> &mdash; a mutex on one function misses cross-function re-entry.</li>
+<li><strong>Pull, don't push</strong> &mdash; isolate value transfers in one small, guarded function.</li>
+<li><strong>Every transfer is a call</strong> &mdash; ERC777/ERC721 hooks and arbitrary calls can all re-enter.</li>
+<li><strong>Don't forget getters</strong> &mdash; read-only reentrancy needs view-side protection or settled reads.</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="examples.html">Code Examples</a></strong>: Vulnerable vs. secure Solidity, side by side</li>
+<li><strong><a href="attack-vectors.html">Attack Vectors</a></strong>: Understand what you're defending against</li>
+<li><strong><a href="/learn/smart-contract">Smart Contract Learning Path</a></strong>: Continue the OWASP Smart Contract Top 10</li>
+<li><strong><a href="/practice">Practice</a></strong>: Apply what you've learned in hands-on challenges</li>
+</ul>
+
+        </div>
+    </div>
+</body>
+</html>

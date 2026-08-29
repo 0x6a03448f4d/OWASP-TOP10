@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SC08: Integer Overflow and Underflow - Prevention</title>
+    <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .doc-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .back-nav:hover {
+            background-color: rgba(245, 158, 11, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(245, 158, 11, 0.1);
+        }
+
+        .content h1 {
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            text-shadow: none;
+        }
+
+        .content h2 {
+            color: var(--secondary-color);
+            font-size: 1.8rem;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .content h3 {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+            margin-top: 30px;
+            margin-bottom: 12px;
+        }
+
+        .content h4 {
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        .content p {
+            color: var(--text-color);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .content ul, .content ol {
+            margin-left: 25px;
+            margin-bottom: 15px;
+            color: var(--text-color);
+        }
+
+        .content li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .content code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--primary-color);
+            font-family: 'Courier New', monospace;
+            border: 1px solid var(--border-color);
+        }
+
+        .content pre {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            color: var(--primary-color);
+        }
+
+        .content blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 20px;
+            margin: 20px 0;
+            background: rgba(245, 158, 11, 0.05);
+            padding: 15px 20px;
+            border-radius: 4px;
+        }
+
+        .content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table th {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2));
+            color: var(--primary-color);
+            padding: 12px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table td {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        .content table tr:hover {
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .content a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .content a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .content strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        .toc {
+            background: rgba(245, 158, 11, 0.05);
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .toc h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc li {
+            margin-bottom: 8px;
+        }
+
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toc a:hover {
+            color: var(--primary-color);
+        }
+
+        .toc a:before {
+            content: "▸";
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="doc-container">
+        <a href="/learn/smart-contract" class="back-nav">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+
+        <div class="content">
+            <h1>SC08: Integer Overflow and Underflow - Prevention</h1>
+
+<h2>Prevention Strategy Overview</h2>
+
+<p>Preventing overflow and underflow is less about a single trick and more about <strong>making wrap-around impossible on every operation that matters</strong>:</p>
+<ol>
+<li>Use a modern compiler so checked arithmetic is the default.</li>
+<li>Wrap legacy code in SafeMath where you cannot upgrade.</li>
+<li>Treat every <code>unchecked { }</code> block as a proof obligation.</li>
+<li>Validate and bound inputs, and cast narrowly only after a range check.</li>
+<li>Test the extremes with boundary tests and fuzzing.</li>
+</ol>
+
+<h3>Core Principles</h3>
+<ul>
+<li><strong>Safe by default</strong>: rely on Solidity &ge; 0.8 checked arithmetic rather than hand-written guards.</li>
+<li><strong>Prove, don't assume</strong>: every place that turns checks off (<code>unchecked</code>, casts, assembly) needs an argument for why it cannot wrap.</li>
+<li><strong>Bound the inputs</strong>: if values cannot reach the extremes, the arithmetic cannot reach the edge.</li>
+<li><strong>Fail closed</strong>: a revert on overflow is the desired behaviour&mdash;never silently continue with a wrapped value.</li>
+</ul>
+
+<h2>1. Use Solidity &ge; 0.8.0 (Checked Arithmetic by Default)</h2>
+
+<p>Since 0.8.0, <code>+</code>, <code>-</code>, and <code>*</code> revert with <code>Panic(0x11)</code> on overflow/underflow. This is the single most effective control.</p>
+
+<pre><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;      // checked arithmetic is on by default
+
+contract Token {
+    mapping(address =&gt; uint256) public balances;
+
+    function transfer(address to, uint256 amount) external {
+        // If amount &gt; balance, the subtraction reverts instead of wrapping.
+        balances[msg.sender] -= amount;
+        balances[to]        += amount;
+    }
+}</code></pre>
+
+<p>Pin the pragma to a recent version and prefer a fixed version in the deployment config so you know exactly which compiler produced the bytecode.</p>
+
+<h2>2. Use SafeMath for Legacy (&lt;0.8) Code</h2>
+
+<p>If you must compile with an older version, wrap every add/sub/mul in OpenZeppelin SafeMath so each operation reverts on wrap.</p>
+
+<pre><code>// pragma solidity ^0.6.0;  (pre-0.8)
+import "@openzeppelin/contracts/math/SafeMath.sol";
+
+contract LegacyToken {
+    using SafeMath for uint256;
+    mapping(address =&gt; uint256) public balances;
+
+    function transfer(address to, uint256 amount) external {
+        balances[msg.sender] = balances[msg.sender].sub(amount); // reverts on underflow
+        balances[to]         = balances[to].add(amount);          // reverts on overflow
+    }
+}</code></pre>
+
+<p>On 0.8+ SafeMath is redundant for <code>+</code>/<code>-</code>/<code>*</code> (and just costs gas); keep it only where you deliberately compile below 0.8.</p>
+
+<h2>3. Audit Every <code>unchecked { }</code> Block</h2>
+
+<p><code>unchecked</code> re-enables wrapping to save gas. Use it only where you can prove the operation cannot overflow, and comment the proof.</p>
+
+<pre><code>// SAFE: i is bounded by arr.length, which is far below 2^256 - 1
+for (uint256 i = 0; i &lt; arr.length; ) {
+    // ... use arr[i] ...
+    unchecked { ++i; }          // cannot overflow: bounded loop counter
+}
+
+// UNSAFE: userInput is attacker-controlled -&gt; do NOT wrap it
+// unchecked { accrued[msg.sender] += userInput; }   // reintroduces the bug
+accrued[msg.sender] += userInput;   // keep the check on untrusted values</code></pre>
+
+<p>Rule of thumb: <code>unchecked</code> is acceptable for internally bounded quantities (loop counters, values already range-checked), never for raw attacker input.</p>
+
+<h2>4. Validate and Bound Inputs</h2>
+
+<p>The cheapest overflow defence is ensuring values can never reach the edge of the range.</p>
+
+<pre><code>uint256 public constant MAX_MINT = 1_000_000e18;
+
+function mint(uint256 amount) external {
+    require(amount &gt; 0 &amp;&amp; amount &lt;= MAX_MINT, "amount out of range");
+    require(totalSupply + amount &lt;= CAP, "cap exceeded");   // checked add on 0.8+
+    totalSupply += amount;
+    balances[msg.sender] += amount;
+}</code></pre>
+
+<p>Bounding inputs also makes intermediate products (in reward/price math) provably fit, which prevents both wraps and surprise reverts.</p>
+
+<h2>5. Cast and Downcast Safely</h2>
+
+<p>Narrowing conversions truncate silently in <em>every</em> Solidity version. Range-check before downcasting, or use OpenZeppelin <code>SafeCast</code>.</p>
+
+<pre><code>import "@openzeppelin/contracts/utils/math/SafeCast.sol";
+
+contract Shares {
+    using SafeCast for uint256;
+    mapping(address =&gt; uint64) public shares;
+
+    function deposit(uint256 amount) external {
+        // Reverts if amount does not fit in uint64, instead of truncating.
+        shares[msg.sender] += amount.toUint64();
+    }
+}
+
+// Manual equivalent:
+require(amount &lt;= type(uint64).max, "downcast overflow");
+uint64 small = uint64(amount);</code></pre>
+
+<h2>6. Be Careful with Inline Assembly</h2>
+
+<p>Yul arithmetic (<code>add</code>, <code>mul</code>, <code>sub</code>) performs no overflow checks. If you must use assembly, add the checks yourself.</p>
+
+<pre><code>function safeAddAsm(uint256 x, uint256 y) internal pure returns (uint256 z) {
+    assembly {
+        z := add(x, y)
+        // Overflow occurred iff the sum is smaller than an operand.
+        if lt(z, x) { revert(0, 0) }
+    }
+}</code></pre>
+
+<p>Prefer high-level Solidity for arithmetic whenever possible; reserve assembly for cases where you have a specific, reviewed reason.</p>
+
+<h2>7. Order Operations to Avoid Intermediate Overflow</h2>
+
+<p>Even with checked arithmetic, an intermediate product that exceeds the range reverts. Structure the math so intermediates stay in range while preserving precision.</p>
+
+<pre><code>// Risky: stake * rate may exceed 2^256 - 1 for large inputs
+uint256 reward = stake * rate / PRECISION;
+
+// Safer for very large values: use mulDiv (full-precision intermediate)
+import "@openzeppelin/contracts/utils/math/Math.sol";
+uint256 reward = Math.mulDiv(stake, rate, PRECISION);</code></pre>
+
+<p><code>Math.mulDiv</code> computes <code>a * b / denominator</code> with a 512-bit intermediate, avoiding both overflow and the precision loss of dividing first.</p>
+
+<h2>8. Test the Extremes: Boundary Tests and Fuzzing</h2>
+
+<p>Overflow bugs live at input extremes ordinary tests never reach. Add boundary cases and fuzz arithmetic invariants.</p>
+
+<pre><code>// Foundry: fuzz an invariant across the whole input range
+function testFuzz_TransferNeverMints(uint256 a, uint256 b) public {
+    a = bound(a, 0, 1e30);
+    b = bound(b, 0, 1e30);
+    uint256 supplyBefore = token.totalSupply();
+    // ... perform transfers with a and b ...
+    assertEq(token.totalSupply(), supplyBefore);   // sum of balances invariant holds
+}
+
+// Explicit boundary checks
+function test_MaxBoundary() public {
+    vm.expectRevert();                 // adding to max must revert, not wrap
+    counter.add(type(uint256).max, 1);
+}</code></pre>
+
+<p>Complement Foundry fuzzing with <strong>Echidna</strong> property tests that assert invariants such as &ldquo;sum of balances equals total supply&rdquo; and &ldquo;no function increases total supply above the cap.&rdquo;</p>
+
+<h2>9. Static Analysis and Review</h2>
+
+<p>Automated tools flag unprotected arithmetic, dangerous casts, and risky <code>unchecked</code> usage.</p>
+
+<pre><code># Slither: detects integer-overflow-prone patterns, dangerous casts, and more
+slither .
+
+# Mythril / MythX: symbolic execution for arithmetic edge cases
+myth analyze contracts/Token.sol
+
+# Review checklist focus: every -, +, *, cast, and assembly block</code></pre>
+
+<p>Make &ldquo;is this arithmetic protected, and can it reach the edge?&rdquo; an explicit line item in every code review.</p>
+
+<h2>Solidity Version Cheatsheet</h2>
+
+<table>
+<thead>
+<tr><th>Situation</th><th>Default arithmetic</th><th>What to do</th></tr>
+</thead>
+<tbody>
+<tr><td>Solidity &ge; 0.8, plain <code>+ - *</code></td><td>Reverts on wrap</td><td>Safe&mdash;keep the pragma current</td></tr>
+<tr><td>Solidity &ge; 0.8, <code>unchecked { }</code></td><td>Wraps</td><td>Prove it can't overflow, or remove</td></tr>
+<tr><td>Any version, downcast</td><td>Truncates silently</td><td>Range-check or <code>SafeCast</code></td></tr>
+<tr><td>Any version, inline assembly</td><td>No checks</td><td>Add manual overflow checks</td></tr>
+<tr><td>Solidity &lt; 0.8</td><td>Wraps</td><td>Use SafeMath on every op</td></tr>
+</tbody>
+</table>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Upgrade first</strong> &mdash; Solidity &ge; 0.8 checked arithmetic removes the classic overflow from default code.</li>
+<li><strong>SafeMath for legacy</strong> &mdash; wrap every add/sub/mul in pre-0.8 contracts you cannot upgrade.</li>
+<li><strong>Treat <code>unchecked</code>, casts, and assembly as proof obligations</strong> &mdash; these are the only places wraps still happen on 0.8+.</li>
+<li><strong>Bound inputs and order operations</strong> &mdash; if values can't reach the edge, the math can't wrap; use <code>mulDiv</code> for large products.</li>
+<li><strong>Fuzz the extremes</strong> &mdash; boundary tests and Foundry/Echidna invariants catch what unit tests miss.</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="examples.html">Code Examples</a></strong>: Vulnerable vs. secure Solidity, side by side</li>
+<li><strong><a href="attack-vectors.html">Attack Vectors</a></strong>: Understand what you're defending against</li>
+<li><strong><a href="/learn/smart-contract">Smart Contract Learning Path</a></strong>: Continue the OWASP Smart Contract Top 10</li>
+<li><strong><a href="/practice">Practice</a></strong>: Apply what you've learned in hands-on challenges</li>
+</ul>
+
+        </div>
+    </div>
+</body>
+</html>

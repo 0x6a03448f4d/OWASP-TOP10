@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SC05: Reentrancy Attacks - Overview</title>
+    <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .doc-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .back-nav:hover {
+            background-color: rgba(245, 158, 11, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(245, 158, 11, 0.1);
+        }
+
+        .content h1 {
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            text-shadow: none;
+        }
+
+        .content h2 {
+            color: var(--secondary-color);
+            font-size: 1.8rem;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .content h3 {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+            margin-top: 30px;
+            margin-bottom: 12px;
+        }
+
+        .content h4 {
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        .content p {
+            color: var(--text-color);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .content ul, .content ol {
+            margin-left: 25px;
+            margin-bottom: 15px;
+            color: var(--text-color);
+        }
+
+        .content li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .content code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--primary-color);
+            font-family: 'Courier New', monospace;
+            border: 1px solid var(--border-color);
+        }
+
+        .content pre {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            color: var(--primary-color);
+        }
+
+        .content blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 20px;
+            margin: 20px 0;
+            background: rgba(245, 158, 11, 0.05);
+            padding: 15px 20px;
+            border-radius: 4px;
+        }
+
+        .content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table th {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2));
+            color: var(--primary-color);
+            padding: 12px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table td {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        .content table tr:hover {
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .content a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .content a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .content strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        .toc {
+            background: rgba(245, 158, 11, 0.05);
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .toc h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc li {
+            margin-bottom: 8px;
+        }
+
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toc a:hover {
+            color: var(--primary-color);
+        }
+
+        .toc a:before {
+            content: "▸";
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="doc-container">
+        <a href="/learn/smart-contract" class="back-nav">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+
+        <div class="content">
+            <h1>SC05: Reentrancy Attacks - Overview</h1>
+
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#what-is-reentrancy">What is Reentrancy?</a></li>
+<li><a href="#why-does-this-matter">Why Does This Matter?</a></li>
+<li><a href="#technical-context">Technical Context</a></li>
+<li><a href="#real-world-impact">Real-World Impact</a></li>
+<li><a href="#prevalence-and-significance">Prevalence and Significance</a></li>
+<li><a href="#common-misunderstandings">Common Misunderstandings</a></li>
+</ul>
+</div>
+
+<h2 id="what-is-reentrancy">What is Reentrancy?</h2>
+
+<p><strong>Reentrancy</strong> is a class of smart-contract vulnerability in which a contract makes an <em>external call</em>&mdash;sending ETH or invoking another contract&mdash;<strong>before it finishes updating its own state</strong>. The called party can then call back (&ldquo;re-enter&rdquo;) into the original function while it is still mid-execution, observing and acting on <strong>stale state</strong> that has not yet been written back. Repeated re-entry against that stale state lets an attacker perform an action&mdash;most famously a withdrawal&mdash;many times when the contract intended to allow it only once.</p>
+
+<p>The root cause is an ordering mistake. On most blockchains an external call transfers control synchronously to the callee, and the callee is free to run arbitrary code, including a call straight back into the caller. If the caller has not yet recorded the effects of what it is doing (for example, zeroing the user's balance), the world the callee sees is a lie: the balance still looks available, so the caller happily pays out again.</p>
+
+<h3>Core Concept</h3>
+
+<pre><code>Vulnerable ordering (Interactions BEFORE Effects):
+  1. Check    -> require(balance[user] &gt;= amount)
+  2. Interact  -> (bool ok, ) = user.call{value: amount}("")   &lt;-- control leaves here
+                    |                                              re-enters step 1
+                    |  attacker's receive() calls withdraw() again, balance UNCHANGED
+  3. Effect   -> balance[user] -= amount     &lt;-- runs too late, many times over
+
+Safe ordering (Checks-Effects-Interactions):
+  1. Check    -> require(balance[user] &gt;= amount)
+  2. Effect   -> balance[user] -= amount     &lt;-- state written FIRST
+  3. Interact  -> (bool ok, ) = user.call{value: amount}("")   &lt;-- re-entry now sees 0</code></pre>
+
+<p>The difference between the two orderings is the whole vulnerability. In the first, the external call sits in the middle of an unfinished transaction; in the second, every state change the function promises has already happened before control ever leaves the contract, so a re-entrant call finds nothing left to steal.</p>
+
+<h3>Why It's Critical for Smart Contracts</h3>
+
+<p>Several properties of blockchain execution make reentrancy uniquely dangerous:</p>
+<ul>
+<li><strong>Composability by design</strong>: contracts are built to call one another. Any external call may hand control to attacker-controlled code, so &ldquo;calling out&rdquo; is never neutral.</li>
+<li><strong>Value moves synchronously</strong>: a plain ETH transfer via <code>call</code> executes the recipient's <code>receive()</code>/<code>fallback()</code> in the same transaction, giving the recipient a hook to re-enter.</li>
+<li><strong>Immutability and finality</strong>: once a draining transaction is mined it cannot be undone. There is no chargeback, and the code usually cannot be patched in place.</li>
+<li><strong>Funds are the payload</strong>: the asset under attack is money held directly by the contract, so a single successful re-entry loop can drain the entire balance in one transaction.</li>
+</ul>
+
+<h2 id="why-does-this-matter">Why Does This Matter?</h2>
+
+<h3>Business Impact</h3>
+<ul>
+<li><strong>Direct, irreversible loss of funds</strong>: a reentrancy drain empties the contract's balance in a single transaction, and the transfer is final on-chain.</li>
+<li><strong>Protocol insolvency</strong>: pools, vaults, and lending markets that lose their backing assets can no longer honour user withdrawals, wiping out every depositor at once.</li>
+<li><strong>Loss of trust and TVL flight</strong>: a public reentrancy exploit triggers immediate withdrawal runs and lasting reputational damage across a protocol and its integrations.</li>
+<li><strong>Contagion across integrations</strong>: because DeFi protocols read and depend on one another, a reentrancy bug in one contract (especially read-only reentrancy) can misprice or drain unrelated protocols that trusted its state.</li>
+</ul>
+
+<h3>Technical Impact</h3>
+<ul>
+<li><strong>Fund drainage</strong>: repeated withdrawals against a balance that is never decremented until the loop ends.</li>
+<li><strong>Corrupted accounting</strong>: cross-function reentrancy leaves internal ledgers (balances, shares, debt) inconsistent with the actual asset holdings.</li>
+<li><strong>Mispriced integrations</strong>: read-only reentrancy makes a <code>view</code> getter return a stale price or share value mid-transaction, so an integrating protocol computes on wrong numbers.</li>
+<li><strong>Bypassed invariants</strong>: one-time actions (claim once, mint once, vote once) execute many times because the &ldquo;already done&rdquo; flag is written after the external call.</li>
+</ul>
+
+<h2 id="technical-context">Technical Context</h2>
+
+<h3>The Classic Vulnerable Pattern</h3>
+
+<p>The canonical bug is a withdrawal function that sends ETH before zeroing the caller's recorded balance:</p>
+
+<pre><code>// VULNERABLE: external call happens before state update
+mapping(address =&gt; uint256) public balance;
+
+function withdraw() external {
+    uint256 amount = balance[msg.sender];
+    require(amount &gt; 0, "nothing to withdraw");
+
+    // Interaction BEFORE effect: hands control to msg.sender
+    (bool ok, ) = msg.sender.call{value: amount}("");
+    require(ok, "transfer failed");
+
+    balance[msg.sender] = 0;   // too late: attacker already re-entered
+}</code></pre>
+
+<p>When <code>msg.sender</code> is an attacker contract, the <code>call</code> invokes that contract's <code>receive()</code>, which calls <code>withdraw()</code> again. Because <code>balance[msg.sender]</code> is still the original amount, the check passes and another payment is sent&mdash;looping until the contract is empty or gas runs out.</p>
+
+<h3>Categories of Reentrancy</h3>
+
+<h4>1. Single-function (same-function) reentrancy</h4>
+<p>The attacker re-enters the <em>same</em> function that made the external call&mdash;the classic <code>withdraw</code> loop above. This is the original DAO-class bug.</p>
+
+<h4>2. Cross-function reentrancy</h4>
+<p>The attacker re-enters a <em>different</em> function that shares state with the one making the call. For example, <code>withdraw()</code> sends ETH before updating <code>balance</code>, and during that call the attacker invokes <code>transfer(friend, balance)</code>&mdash;which reads the not-yet-zeroed balance and moves it elsewhere before <code>withdraw</code> resets it.</p>
+
+<h4>3. Cross-contract reentrancy</h4>
+<p>Two or more contracts share state (or one caches another's state). An external call lets the attacker re-enter <em>Contract A</em> through <em>Contract B</em> while a shared value is mid-update, so B acts on state A has not yet finalised.</p>
+
+<h4>4. Read-only reentrancy</h4>
+<p>Even a <code>view</code> function can be dangerous. During a re-entrant callback, a getter (for example, <code>getPrice()</code> or <code>getVirtualPrice()</code>) returns a value computed from state that is temporarily inconsistent. The attacking transaction calls an <em>integrating</em> protocol that reads that getter and makes a decision&mdash;pricing collateral, minting shares&mdash;on the stale number. Nothing is written in the victim getter, which is exactly why it is easy to miss.</p>
+
+<h4>5. Token-hook (ERC777 / ERC721) reentrancy</h4>
+<p>Some token standards call the recipient during a transfer. ERC777 invokes <code>tokensReceived</code> on the recipient; ERC721 <code>safeTransferFrom</code> invokes <code>onERC721Received</code>. These hooks are legitimate features, but they hand control to the recipient in the middle of a transfer, enabling reentrancy even when no raw ETH is sent. A contract that treats an ERC20-style <code>transfer</code> as a &ldquo;safe, non-reentrant&rdquo; step can be blindsided when the token is actually ERC777.</p>
+
+<h4>6. Delegatecall reentrancy</h4>
+<p>Proxy and library patterns use <code>delegatecall</code>, which runs external code in the caller's own storage context. If the delegated code makes an external call before the proxy's state is settled&mdash;or if an upgradeable contract's storage layout can be re-entered mid-operation&mdash;an attacker can manipulate the shared storage through re-entry.</p>
+
+<h3>Where the External Call Hides</h3>
+
+<table>
+<thead>
+<tr><th>Mechanism</th><th>How control leaves the contract</th><th>Re-entry hook</th></tr>
+</thead>
+<tbody>
+<tr><td>ETH via <code>call{value:}</code></td><td>Low-level call with gas forwarded</td><td>Recipient <code>receive()</code> / <code>fallback()</code></td></tr>
+<tr><td>ETH via <code>transfer</code>/<code>send</code></td><td>2300 gas stipend (historically limiting)</td><td>Recipient fallback (gas-starved, but not safe to rely on)</td></tr>
+<tr><td>ERC777 token transfer</td><td>Standard-mandated recipient callback</td><td><code>tokensReceived</code> hook</td></tr>
+<tr><td>ERC721 <code>safeTransferFrom</code></td><td>Safe-transfer acceptance check</td><td><code>onERC721Received</code> hook</td></tr>
+<tr><td>Arbitrary contract call</td><td>Calling any external/untrusted address</td><td>Callee runs any code, including re-entry</td></tr>
+<tr><td><code>delegatecall</code> to library/logic</td><td>External code runs in caller's storage</td><td>Delegated code re-enters shared storage</td></tr>
+</tbody>
+</table>
+
+<h2 id="real-world-impact">Real-World Impact</h2>
+
+<h3>Incident Class 1: The DAO-Class Reentrancy (2016)</h3>
+
+<p><strong>Pattern</strong>:</p>
+<ul>
+<li>A large investment contract paid out a member's share by sending ETH before it updated that member's recorded balance to zero.</li>
+<li>An attacker contract's fallback re-entered the withdrawal (&ldquo;split&rdquo;) path repeatedly during a single call, each time seeing the original, undecremented balance.</li>
+</ul>
+
+<p><strong>Impact</strong>:</p>
+<ul>
+<li>A very large fraction of the contract's funds was drained through recursive re-entry before state was ever finalised.</li>
+<li>The incident was severe enough that the Ethereum community ultimately hard-forked the chain, splitting it into Ethereum and Ethereum Classic&mdash;a defining event for the ecosystem.</li>
+</ul>
+
+<p><strong>Root Cause</strong>: Interactions-before-Effects ordering in the withdrawal path, with no reentrancy guard. It is the archetype from which the whole category takes its name.</p>
+
+<h3>Incident Class 2: Token-Callback Reentrancy (ERC777-style)</h3>
+
+<p><strong>Pattern</strong>:</p>
+<ul>
+<li>A protocol integrated a token that runs a recipient hook (<code>tokensReceived</code>) on transfer, but treated the transfer as an ordinary, non-reentrant step.</li>
+<li>During the hook, the attacker re-entered a function that relied on balances or accounting the transfer had not yet finalised.</li>
+</ul>
+
+<p><strong>Impact</strong>: Protocols that assumed &ldquo;a token transfer cannot call back&rdquo; were drained or left with corrupted accounting when the token turned out to hand control to the recipient mid-transfer.</p>
+
+<p><strong>Root Cause</strong>: An unrecognised external call inside a token transfer, combined with state updated after that transfer. The lesson generalised into: treat every token transfer as a potential external call.</p>
+
+<h3>Incident Class 3: Read-Only Reentrancy in DeFi Integrations</h3>
+
+<p><strong>Pattern</strong>:</p>
+<ul>
+<li>A pool exposed a <code>view</code> getter (such as a virtual price or share value) that was temporarily inconsistent while a withdrawal callback was executing.</li>
+<li>An integrating protocol read that getter during the callback and priced collateral or minted shares on the stale value.</li>
+</ul>
+
+<p><strong>Impact</strong>: Lending markets and other integrators that trusted the getter mid-transaction could be induced to over-value or under-value assets, enabling under-collateralised borrows or unfair mints&mdash;without the vulnerable getter itself ever writing state.</p>
+
+<p><strong>Root Cause</strong>: A getter that returns intermediate state during a reentrant window, trusted by an external consumer. It shows that reentrancy defences must cover <em>view</em> functions and cross-protocol reads, not just state-changing withdrawals.</p>
+
+<h2 id="prevalence-and-significance">Prevalence and Significance</h2>
+
+<p>Reentrancy is one of the most recognised and studied vulnerability classes in smart-contract security, and it is included as <strong>SC05</strong> in the OWASP Smart Contract Top 10 (2025). Despite being well understood since 2016, it continues to appear&mdash;usually in a newer form (cross-function, cross-contract, read-only, or token-hook) rather than the textbook single-function case.</p>
+
+<p>Rather than cite precise loss totals (which vary by source and year), the defensible picture is:</p>
+<ul>
+<li>The <strong>classic single-function pattern</strong> is now widely caught by audits and linters, so surviving bugs tend to be the subtler variants.</li>
+<li><strong>Read-only reentrancy</strong> emerged as a significant modern class precisely because <code>view</code> functions were long assumed to be harmless.</li>
+<li><strong>Token-hook reentrancy</strong> keeps recurring as protocols integrate tokens (ERC777/ERC721) whose transfers hand control to the recipient.</li>
+<li>The impact is consistently rated <strong>critical</strong>: successful reentrancy typically means direct, irreversible loss of the contract's funds.</li>
+</ul>
+
+<blockquote>
+<p>Note: exact loss figures differ between reports. Treat any single number as illustrative; the durable takeaway is that reentrancy remains high-impact and keeps resurfacing in new forms as composability grows.</p>
+</blockquote>
+
+<h2 id="common-misunderstandings">Common Misunderstandings</h2>
+
+<h3>Myth 1: &ldquo;Using <code>transfer</code>/<code>send</code> instead of <code>call</code> makes me safe&rdquo;</h3>
+<p><strong>Reality</strong>: The 2300-gas stipend of <code>transfer</code>/<code>send</code> historically made re-entry hard, but it is <em>not</em> a security guarantee&mdash;gas costs change, and cross-function or token-hook paths do not depend on that stipend. Modern guidance is to use <code>call</code> <em>with</em> Checks-Effects-Interactions and a guard, not to rely on gas limits.</p>
+
+<h3>Myth 2: &ldquo;Only functions that send ETH can be re-entered&rdquo;</h3>
+<p><strong>Reality</strong>: Any external call is a re-entry point. ERC777 <code>tokensReceived</code>, ERC721 <code>onERC721Received</code>, and any call to an untrusted contract all hand over control&mdash;no raw ETH required.</p>
+
+<h3>Myth 3: &ldquo;<code>view</code> functions are harmless&rdquo;</h3>
+<p><strong>Reality</strong>: Read-only reentrancy exploits <code>view</code> getters that return inconsistent state mid-transaction. The getter writes nothing, but an integrating protocol acting on its value can be drained.</p>
+
+<h3>Myth 4: &ldquo;A reentrancy guard on one function is enough&rdquo;</h3>
+<p><strong>Reality</strong>: Cross-function reentrancy re-enters a <em>different</em> function that shares state. A guard must cover every function that touches the same state, and getters consumed by others may need protection too.</p>
+
+<h3>Myth 5: &ldquo;My external call is to a trusted contract, so re-entry can't happen&rdquo;</h3>
+<p><strong>Reality</strong>: &ldquo;Trusted&rdquo; contracts can themselves be upgradeable, call untrusted code, or hold tokens with hooks. Treat every external call as potentially reentrant and order your state changes accordingly.</p>
+
+<h3>Myth 6: &ldquo;Checks-Effects-Interactions and a mutex are redundant&mdash;pick one&rdquo;</h3>
+<p><strong>Reality</strong>: They are complementary. CEI removes the incentive to re-enter by finalising state first; a <code>nonReentrant</code> mutex is defence-in-depth that also covers cross-function paths and cases where an external call is genuinely unavoidable mid-logic.</p>
+
+<h2>How Reentrancy Differs from Related Issues</h2>
+
+<table>
+<thead>
+<tr><th>Aspect</th><th>Reentrancy (SC05)</th><th>Access Control (SC01)</th><th>Logic Errors (SC03)</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Root cause</strong></td><td>External call before state update</td><td>Missing/incorrect authorization</td><td>Flawed business rules/math</td></tr>
+<tr><td><strong>Trigger</strong></td><td>Re-entry via callee code</td><td>Unauthorized caller</td><td>Valid caller, wrong outcome</td></tr>
+<tr><td><strong>Typical fix</strong></td><td>CEI ordering + reentrancy guard</td><td>Proper role/permission checks</td><td>Correct and verify invariants</td></tr>
+<tr><td><strong>Detection</strong></td><td>Call-then-write pattern analysis</td><td>Auth-path review</td><td>Spec &amp; invariant testing</td></tr>
+</tbody>
+</table>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Reentrancy is an ordering bug</strong>&mdash;an external call made before state is finalised lets the callee act on stale state.</li>
+<li><strong>Any external call is a door</strong>&mdash;ETH sends, ERC777/ERC721 hooks, arbitrary calls, and <code>delegatecall</code> all pass control to code that may re-enter.</li>
+<li><strong>The variants are what bite today</strong>&mdash;cross-function, cross-contract, and read-only reentrancy survive audits that only look for the classic loop.</li>
+<li><strong>Fix by ordering, then guard</strong>&mdash;apply Checks-Effects-Interactions first, add a <code>nonReentrant</code> mutex as defence-in-depth.</li>
+<li><strong>Losses are final</strong>&mdash;a single reentrant transaction can drain the whole balance, and on-chain there is no undo.</li>
+</ol>
+
+<h2>How to Identify if You're Vulnerable</h2>
+
+<p>Ask these questions about your contract:</p>
+<ul>
+<li>[ ] Does any function make an external call (ETH send, token transfer, arbitrary call) <em>before</em> writing all of its state changes?</li>
+<li>[ ] Do you follow Checks-Effects-Interactions on every function that moves value?</li>
+<li>[ ] Are functions that share state protected by a reentrancy guard (or otherwise safe against cross-function re-entry)?</li>
+<li>[ ] Could any token you handle be ERC777/ERC721 and call the recipient on transfer?</li>
+<li>[ ] Do any <code>view</code> getters return state that is inconsistent mid-transaction, and are they trusted by other protocols (read-only reentrancy)?</li>
+<li>[ ] Do you use <code>delegatecall</code> to code that makes external calls before your storage is settled?</li>
+<li>[ ] Do you favour pull-over-push withdrawals rather than pushing ETH to many recipients in a loop?</li>
+<li>[ ] Have you assumed <code>transfer</code>/<code>send</code> gas limits protect you (they do not)?</li>
+</ul>
+
+<p>If you answered &ldquo;yes&rdquo; to the call-before-write questions or &ldquo;not sure&rdquo; to the guard questions, you likely have exploitable reentrancy today.</p>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="attack-vectors.html">Attack Vectors</a></strong>: How attackers trigger and chain reentrancy</li>
+<li><strong><a href="prevention.html">Prevention</a></strong>: CEI, reentrancy guards, and pull-over-push withdrawals</li>
+<li><strong><a href="examples.html">Examples</a></strong>: Vulnerable vs. secure Solidity, side by side</li>
+<li><strong><a href="/learn/smart-contract">Smart Contract Learning Path</a></strong>: Continue the OWASP Smart Contract Top 10</li>
+<li><strong><a href="/practice">Practice</a></strong>: Apply what you've learned in hands-on challenges</li>
+</ul>
+
+        </div>
+    </div>
+</body>
+</html>

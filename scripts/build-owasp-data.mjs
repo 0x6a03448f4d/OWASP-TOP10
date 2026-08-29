@@ -233,6 +233,25 @@ const EDITIONS = {
       ]},
     ],
   },
+  'smart-contract': {
+    label: 'Smart Contract',
+    blurb: 'The OWASP Smart Contract Top 10 (2025) — the top risks in Solidity/EVM smart contracts.',
+    lessonDir: 'labs/smartcontract/OWASP-SmartContract',
+    editions: [
+      { year: '2025', latest: true, cheatDir: null, vulns: [
+        V('SC01', 1, 'Access Control Vulnerabilities', 'access-control-vulnerabilities'),
+        V('SC02', 2, 'Price Oracle Manipulation', 'price-oracle-manipulation'),
+        V('SC03', 3, 'Logic Errors', 'logic-errors'),
+        V('SC04', 4, 'Lack of Input Validation', 'lack-of-input-validation'),
+        V('SC05', 5, 'Reentrancy Attacks', 'reentrancy-attacks'),
+        V('SC06', 6, 'Unchecked External Calls', 'unchecked-external-calls'),
+        V('SC07', 7, 'Flash Loan Attacks', 'flash-loan-attacks'),
+        V('SC08', 8, 'Integer Overflow and Underflow', 'integer-overflow-and-underflow'),
+        V('SC09', 9, 'Insecure Randomness', 'insecure-randomness'),
+        V('SC10', 10, 'Denial of Service Attacks', 'denial-of-service-attacks'),
+      ]},
+    ],
+  },
 };
 
 // Pull an accurate 1-paragraph summary from a lesson's overview.md ("What is …?").

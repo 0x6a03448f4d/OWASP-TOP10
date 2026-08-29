@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SC06: Unchecked External Calls - Prevention</title>
+    <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .doc-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .back-nav:hover {
+            background-color: rgba(245, 158, 11, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(245, 158, 11, 0.1);
+        }
+
+        .content h1 {
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            text-shadow: none;
+        }
+
+        .content h2 {
+            color: var(--secondary-color);
+            font-size: 1.8rem;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .content h3 {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+            margin-top: 30px;
+            margin-bottom: 12px;
+        }
+
+        .content h4 {
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        .content p {
+            color: var(--text-color);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .content ul, .content ol {
+            margin-left: 25px;
+            margin-bottom: 15px;
+            color: var(--text-color);
+        }
+
+        .content li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .content code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--primary-color);
+            font-family: 'Courier New', monospace;
+            border: 1px solid var(--border-color);
+        }
+
+        .content pre {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            color: var(--primary-color);
+        }
+
+        .content blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 20px;
+            margin: 20px 0;
+            background: rgba(245, 158, 11, 0.05);
+            padding: 15px 20px;
+            border-radius: 4px;
+        }
+
+        .content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table th {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2));
+            color: var(--primary-color);
+            padding: 12px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table td {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        .content table tr:hover {
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .content a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .content a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .content strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        .toc {
+            background: rgba(245, 158, 11, 0.05);
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .toc h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc li {
+            margin-bottom: 8px;
+        }
+
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toc a:hover {
+            color: var(--primary-color);
+        }
+
+        .toc a:before {
+            content: "▸";
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="doc-container">
+        <a href="/learn/smart-contract" class="back-nav">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+
+        <div class="content">
+            <h1>SC06: Unchecked External Calls - Prevention</h1>
+
+<h2>Prevention Strategy Overview</h2>
+
+<p>Preventing unchecked external calls comes down to a single discipline applied everywhere value or control leaves your contract: <strong>never assume a call succeeded&mdash;prove it, then act</strong>.</p>
+<ol>
+<li>Capture and require the success flag of every low-level call.</li>
+<li>Use <code>SafeERC20</code> for all token movements so non-standard tokens are handled uniformly.</li>
+<li>Order state changes with Checks-Effects-Interactions.</li>
+<li>Prefer pull-over-push so one bad recipient cannot break others.</li>
+<li>Surface failures explicitly with custom errors, and verify returned data&mdash;not just the success bool.</li>
+</ol>
+
+<h3>Core Principles</h3>
+<ul>
+<li><strong>Check every return</strong>: <code>send</code>, <code>call</code>, <code>delegatecall</code>, and <code>staticcall</code> hand you a boolean&mdash;reading it is mandatory, not optional.</li>
+<li><strong>Distrust tokens</strong>: assume a token may return <code>false</code>, return nothing, or behave oddly; wrap it in <code>SafeERC20</code>.</li>
+<li><strong>Effects before interactions</strong>: finalise internal accounting before the external call, and revert atomically if the call fails.</li>
+<li><strong>Fail loudly</strong>: on failure, revert with a clear reason so the whole transaction unwinds&mdash;never continue on a false success.</li>
+</ul>
+
+<h2>1. Always Check Low-Level Call Return Values</h2>
+
+<p>Capture the tuple and <code>require</code> success. Bubble up the revert reason where useful.</p>
+
+<pre><code>// Vulnerable: return value ignored
+msg.sender.call{value: amount}("");
+
+// Secure: capture and require success
+(bool ok, ) = msg.sender.call{value: amount}("");
+require(ok, "ETH transfer failed");
+
+// Secure with reason bubbling for calls that may carry a revert message
+(bool ok2, bytes memory ret) = target.call(data);
+if (!ok2) {
+    // forward the original revert reason if present
+    assembly { revert(add(ret, 0x20), mload(ret)) }
+}</code></pre>
+
+<p>The Solidity compiler warns when you discard the return value of a low-level call. Treat that warning as an error in CI.</p>
+
+<h2>2. Use SafeERC20 for All Token Transfers</h2>
+
+<p>OpenZeppelin's <code>SafeERC20</code> wraps <code>transfer</code>, <code>transferFrom</code>, and <code>approve</code> so that tokens returning <code>false</code> revert, and tokens returning <em>no data</em> are accepted&mdash;normalising the entire non-standard token population.</p>
+
+<pre><code>using SafeERC20 for IERC20;
+
+// Vulnerable: assumes standard bool return, ignores it
+token.transferFrom(msg.sender, address(this), amount);
+
+// Secure: reverts on false OR handles empty return data
+token.safeTransferFrom(msg.sender, address(this), amount);
+token.safeTransfer(to, amount);
+
+// For allowances, avoid the non-standard approve race; use forceApprove / increase
+token.forceApprove(spender, amount);</code></pre>
+
+<blockquote>
+<p><code>safeTransfer</code>/<code>safeTransferFrom</code> perform the low-level call, require it did not revert, and&mdash;only if return data exists&mdash;require it decodes to <code>true</code>. That is exactly the check hand-written code so often omits.</p>
+</blockquote>
+
+<h2>3. Follow Checks-Effects-Interactions</h2>
+
+<p>Do all validation, then update state, then interact&mdash;so a reverting external call unwinds the whole transaction and leaves storage consistent.</p>
+
+<pre><code>function withdraw(uint256 amount) external {
+    require(balances[msg.sender] &gt;= amount, "insufficient");  // Checks
+    balances[msg.sender] -= amount;                            // Effects
+    (bool ok, ) = msg.sender.call{value: amount}("");         // Interactions
+    require(ok, "transfer failed");   // failure reverts, restoring the balance
+}</code></pre>
+
+<p>Because the <code>require</code> reverts on failure, the earlier <code>-=</code> is rolled back atomically&mdash;no stranded funds, no phantom state.</p>
+
+<h2>4. Prefer Pull-over-Push for Payments</h2>
+
+<p>Instead of pushing funds to many recipients in a loop (where one failure can block all), record what each account is owed and let them withdraw individually.</p>
+
+<pre><code>mapping(address =&gt; uint256) public credits;
+
+// Push (record only) — cannot be griefed by a bad recipient
+function allocate(address user, uint256 amount) internal {
+    credits[user] += amount;
+}
+
+// Pull — each user triggers and bears the risk of their own transfer
+function claim() external {
+    uint256 amount = credits[msg.sender];
+    require(amount &gt; 0, "nothing to claim");
+    credits[msg.sender] = 0;                       // effect first
+    (bool ok, ) = msg.sender.call{value: amount}("");
+    require(ok, "claim transfer failed");          // only the caller is affected
+}</code></pre>
+
+<h2>5. Verify delegatecall / call Success AND Return Data</h2>
+
+<p>Success only means "did not revert". If the call is supposed to return data, decode and validate it before acting.</p>
+
+<pre><code>function execute(address impl, bytes calldata data)
+    external onlyOwner returns (bytes memory)
+{
+    require(impl.code.length &gt; 0, "impl not a contract"); // guard against EOA/empty
+    (bool ok, bytes memory ret) = impl.delegatecall(data);
+    require(ok, "delegatecall failed");                  // check success
+    return ret;                                          // caller validates data
+}</code></pre>
+
+<p>Note the explicit <em>contract existence</em> check: a low-level <code>call</code>/<code>delegatecall</code> to an address with no code returns <code>true</code>. Without the <code>code.length</code> guard, a call to an empty address looks like success.</p>
+
+<h2>6. Handle Non-Standard and Fee-on-Transfer Tokens</h2>
+
+<p>Beyond <code>SafeERC20</code>, defend against tokens that transfer a different amount than requested (fee-on-transfer / deflationary) by measuring the real balance delta.</p>
+
+<pre><code>function deposit(uint256 amount) external {
+    uint256 before = token.balanceOf(address(this));
+    token.safeTransferFrom(msg.sender, address(this), amount);
+    uint256 received = token.balanceOf(address(this)) - before; // actual delta
+    shares[msg.sender] += received;   // credit only what truly arrived
+}</code></pre>
+
+<h2>7. Surface Failures with Custom Errors</h2>
+
+<p>Do not swallow failures. Revert with a specific, gas-efficient custom error so callers and monitoring can react.</p>
+
+<pre><code>error EthTransferFailed(address to, uint256 amount);
+error TokenTransferFailed(address token, address to, uint256 amount);
+
+function payout(address payable to, uint256 amount) external {
+    (bool ok, ) = to.call{value: amount}("");
+    if (!ok) revert EthTransferFailed(to, amount);
+}</code></pre>
+
+<h2>8. Choosing Between transfer, send, and call</h2>
+
+<table>
+<thead>
+<tr><th>Method</th><th>On failure</th><th>Gas forwarded</th><th>Recommendation</th></tr>
+</thead>
+<tbody>
+<tr><td><code>transfer</code></td><td>Reverts</td><td>2300 (fixed)</td><td>Can break valid contract recipients; avoid as default</td></tr>
+<tr><td><code>send</code></td><td>Returns <code>false</code></td><td>2300 (fixed)</td><td>Only if you check the bool; same gas limitation</td></tr>
+<tr><td><code>call{value:}</code></td><td>Returns <code>false</code></td><td>All (adjustable)</td><td><strong>Preferred</strong>: check the bool + add a reentrancy guard</td></tr>
+</tbody>
+</table>
+
+<p>Modern guidance favours a checked <code>call</code> combined with a reentrancy guard and CEI, rather than relying on the rigid 2300-gas stipend of <code>transfer</code>/<code>send</code>.</p>
+
+<h2>9. Testing and Tooling</h2>
+
+<p>Make the missing check impossible to merge:</p>
+
+<pre><code># Static analysis flags unchecked low-level calls and unsafe ERC20 usage
+slither .            # detectors: unchecked-lowlevel, unchecked-send, unchecked-transfer
+# Treat the compiler's "return value of low-level call not used" as an error
+# In tests, use adversarial mocks:
+#   - a Rejector contract with no payable fallback
+#   - a token that returns false
+#   - a token that returns no data (USDT-class)
+#   - a fee-on-transfer token</code></pre>
+
+<p>Include unit and fork tests that route every value-moving path through these adversarial mocks, and add invariant tests asserting internal accounting always matches actual balances.</p>
+
+<h2>10. Monitoring and Detection</h2>
+
+<p>Even with checks, watch for the signatures of failed interactions in production.</p>
+
+<pre><code>// Emit on both success and explicit failure paths so off-chain monitors can react
+event TransferSucceeded(address indexed to, uint256 amount);
+event TransferReverted(address indexed to, uint256 amount, bytes reason);
+
+// Off-chain: alert on rising TransferReverted rates, or on internal-balance vs
+// on-chain-balance drift (an invariant that should always hold).</code></pre>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Read every boolean</strong> &mdash; capture and <code>require</code> the success of <code>call</code>/<code>send</code>/<code>delegatecall</code>/<code>staticcall</code>.</li>
+<li><strong>Use SafeERC20</strong> &mdash; it normalises tokens that return <code>false</code> or nothing, exactly the case hand-written code misses.</li>
+<li><strong>Effects before interactions</strong> &mdash; so a failed call reverts atomically and never strands funds.</li>
+<li><strong>Pull, don't push</strong> &mdash; isolate each recipient's transfer so one failure cannot brick the rest.</li>
+<li><strong>Verify data, not just success</strong> &mdash; check returned data and contract existence for <code>call</code>/<code>delegatecall</code>.</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="examples.html">Code Examples</a></strong>: Vulnerable vs. secure Solidity, side by side</li>
+<li><strong><a href="attack-vectors.html">Attack Vectors</a></strong>: Understand what you're defending against</li>
+<li><strong><a href="/learn/smart-contract">Smart Contract Learning Path</a></strong>: Continue the OWASP Smart Contract Top 10</li>
+<li><strong><a href="/practice">Practice</a></strong>: Apply what you've learned in hands-on challenges</li>
+</ul>
+
+        </div>
+    </div>
+</body>
+</html>

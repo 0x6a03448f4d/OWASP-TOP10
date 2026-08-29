@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SC02: Price Oracle Manipulation - Attack Vectors</title>
+    <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .doc-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .back-nav:hover {
+            background-color: rgba(245, 158, 11, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(245, 158, 11, 0.1);
+        }
+
+        .content h1 {
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            text-shadow: none;
+        }
+
+        .content h2 {
+            color: var(--secondary-color);
+            font-size: 1.8rem;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .content h3 {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+            margin-top: 30px;
+            margin-bottom: 12px;
+        }
+
+        .content h4 {
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        .content p {
+            color: var(--text-color);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .content ul, .content ol {
+            margin-left: 25px;
+            margin-bottom: 15px;
+            color: var(--text-color);
+        }
+
+        .content li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .content code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--primary-color);
+            font-family: 'Courier New', monospace;
+            border: 1px solid var(--border-color);
+        }
+
+        .content pre {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            color: var(--primary-color);
+        }
+
+        .content blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 20px;
+            margin: 20px 0;
+            background: rgba(245, 158, 11, 0.05);
+            padding: 15px 20px;
+            border-radius: 4px;
+        }
+
+        .content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table th {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2));
+            color: var(--primary-color);
+            padding: 12px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table td {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        .content table tr:hover {
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .content a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .content a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .content strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        .toc {
+            background: rgba(245, 158, 11, 0.05);
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .toc h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc li {
+            margin-bottom: 8px;
+        }
+
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toc a:hover {
+            color: var(--primary-color);
+        }
+
+        .toc a:before {
+            content: "▸";
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="doc-container">
+        <a href="/learn/smart-contract" class="back-nav">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+
+        <div class="content">
+            <h1>SC02: Price Oracle Manipulation - Attack Vectors</h1>
+
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#understanding">Understanding Oracle Manipulation Attack Vectors</a></li>
+<li><a href="#core-attack-flow">Core Attack Flow</a></li>
+<li><a href="#common-attack-patterns">Common Attack Patterns</a></li>
+<li><a href="#chaining">Chaining and Amplifying the Manipulation</a></li>
+</ul>
+</div>
+
+<h2 id="understanding">Understanding Oracle Manipulation Attack Vectors</h2>
+
+<blockquote>
+<p><strong>⚠️ EDUCATIONAL PURPOSE ONLY</strong> &mdash; the techniques below are shown so you can find and fix these issues in contracts you own or are authorised to test.</p>
+</blockquote>
+
+<p>Oracle manipulation is not exploited through a clever payload or a compiler quirk. It is exploited through <strong>market mechanics</strong>: the attacker changes the state of a price source the victim contract trusts, then calls the victim while it is reading the distorted value. Because DeFi transactions are atomic and flash loans supply effectively unlimited short-term capital, the attacker takes on <em>no market risk</em>&mdash;every step either completes profitably or the whole transaction reverts.</p>
+
+<p>The attacker's goal in this category is almost always one of:</p>
+<ul>
+<li>Make collateral look more valuable than it is, then borrow or mint against it.</li>
+<li>Make debt or a redemption look cheaper than it is, then settle it at a discount.</li>
+<li>Drive a price across a threshold to trigger a liquidation, mint, or payout that pays the attacker.</li>
+</ul>
+
+<h3 id="core-attack-flow">Core Attack Flow</h3>
+
+<pre><code>1. Fund
+   &darr;
+   Take a flash loan for a large amount of asset X (repaid at tx end)
+2. Skew
+   &darr;
+   Swap X into a low-liquidity pool the victim uses as its price source
+3. Trigger
+   &darr;
+   Call the victim (borrow / mint / redeem / liquidate) while price is distorted
+4. Extract & Repay
+   &darr;
+   Take the mispriced value out, reverse the swap, repay the flash loan
+   (all atomic — if any step fails, everything reverts)</code></pre>
+
+<h2 id="common-attack-patterns">Common Attack Patterns</h2>
+
+<h3>1. Flash-Loan Skew of a Spot DEX Price</h3>
+
+<p>The victim reads a pool's reserves as its price. The attacker moves those reserves with a flash-loaned swap in the same transaction.</p>
+
+<pre><code>// Victim prices collateral from a single pool's reserves
+(uint112 r0, uint112 r1, ) = pair.getReserves();
+uint price = uint(r1) * 1e18 / uint(r0);     // attacker-controllable
+
+// Attacker, atomically:
+// 1) flashLoan(bigAmountOfToken0)
+// 2) pair.swap(...) -> dumps token0, r0 up, r1 down -> price of token0 collapses
+//    (or the reverse to inflate it, depending on which side is collateral)
+// 3) victim.borrow(collateral) reads the skewed price and over-lends
+// 4) reverse swap, repay flashLoan, keep the difference</code></pre>
+
+<p><strong>Payoff</strong>: the victim lends against a price the attacker set. The theft is bounded by the victim's liquidity, not the attacker's capital.</p>
+
+<h3>2. <code>getAmountsOut</code> as a "Price Feed"</h3>
+
+<p>Using the router's swap quote is the same spot value with a friendlier name.</p>
+
+<pre><code>// Victim
+uint[] memory amts = router.getAmountsOut(1e18, [WETH, TOKEN]);
+uint price = amts[1];                         // instantaneous, movable
+
+// Attacker moves the pool first, then the quote returns whatever they want.</code></pre>
+
+<p><strong>Payoff</strong>: identical to reading reserves&mdash;<code>getAmountsOut</code> offers no manipulation resistance.</p>
+
+<h3>3. <code>balanceOf</code> / Donation Inflation</h3>
+
+<p>The victim infers value from a contract's token balance, which anyone can raise with a direct transfer or a swap.</p>
+
+<pre><code>// Victim assumes share price = balance / supply
+uint pricePerShare = token.balanceOf(vault) * 1e18 / vault.totalSupply();
+
+// Attacker donates or swaps tokens into `vault` to spike balanceOf,
+// mints/redeems at the inflated pricePerShare, then recovers the donation.</code></pre>
+
+<p><strong>Payoff</strong>: shares are minted or redeemed at a value that does not reflect reality. Empty or low-supply vaults are especially exposed.</p>
+
+<h3>4. LP-Token Mispricing</h3>
+
+<p>The victim values an LP token from the pool's live underlying balances rather than a manipulation-resistant fair-value formula.</p>
+
+<pre><code>// Naive LP valuation — moves with the pool's instantaneous reserves
+uint lpValue = (reserve0 * price0 + reserve1 * price1) / lpToken.totalSupply();
+
+// Attacker skews the pool so reserve0/reserve1 misrepresent true holdings,
+// then borrows against the over-valued LP token.</code></pre>
+
+<p><strong>Payoff</strong>: over-valued LP collateral unlocks borrowing or minting against value that does not exist.</p>
+
+<h3>5. Single-Source Dependence</h3>
+
+<p>When one venue is the only source, manipulating that one venue is the whole attack.</p>
+
+<pre><code>uint price = onePool.spot();   // no second source to disagree
+
+// Attacker only has to move `onePool`. A deep-pool assumption is not a control:
+// the attacker picks the cheapest venue the victim actually reads.</code></pre>
+
+<p><strong>Payoff</strong>: no cross-check means no alarm&mdash;the distorted price is accepted as truth.</p>
+
+<h3>6. Stale / Frozen Feed Exploitation</h3>
+
+<p>Even a robust feed is dangerous if freshness is unchecked. A frozen or lagging value diverges from the real market.</p>
+
+<pre><code>(, int answer, , uint updatedAt, ) = feed.latestRoundData();
+uint price = uint(answer);      // updatedAt ignored -> stale price accepted
+
+// If the market has moved but the read value has not, the attacker trades
+// against the gap: buy cheap where the contract thinks it is dear, or vice versa.</code></pre>
+
+<p><strong>Payoff</strong>: the contract acts on yesterday's price; the attacker pockets the difference against today's.</p>
+
+<h3>7. Liquidation-Threshold Manipulation</h3>
+
+<p>The attacker pushes the price just across a health/liquidation boundary to force or capture a liquidation.</p>
+
+<pre><code>// Victim liquidation engine reads a manipulable price for "isUnderwater"
+if (spotPrice(collateral) * amount &lt; debt * threshold) {
+    liquidate(position);        // seize collateral at a discount
+}
+
+// Attacker briefly depresses spotPrice to mark a healthy position as underwater,
+// liquidates it, and seizes collateral far below its real value.</code></pre>
+
+<p><strong>Payoff</strong>: healthy positions are force-liquidated and their collateral is bought at a manipulated discount.</p>
+
+<h3>8. Mint / Redeem Mispricing</h3>
+
+<p>Any function that issues or redeems a token against a manipulable price becomes a value-extraction function.</p>
+
+<pre><code>// Mint synthetic at attacker-inflated collateral price -> over-minted
+uint minted = collateralAmount * spotPrice / 1e18;
+
+// Or redeem at an attacker-depressed backing price -> drains the reserve.</code></pre>
+
+<p><strong>Payoff</strong>: over-minting breaks the peg/backing; mispriced redemption drains the reserve.</p>
+
+<h2 id="chaining">Chaining and Amplifying the Manipulation</h2>
+
+<p>Individually, each read looks reasonable. Combined with flash-loan atomicity, they form a complete, risk-free exploit:</p>
+
+<pre><code>Flash-loan a large amount of the quote asset
+        +
+Swap into a low-liquidity pool the victim prices from   -&gt; skew the spot price
+        +
+Deposit collateral / call borrow while the price is distorted
+        +
+Withdraw the over-credited value, reverse the swap, repay the loan
+        =  protocol left insolvent, attacker keeps the difference, one transaction</code></pre>
+
+<p>A second common shape targets the liquidation path:</p>
+
+<pre><code>Depress the collateral's spot price with a flash-loaned swap
+        -&gt; a healthy position now reads as underwater
+        -&gt; attacker liquidates it and seizes the collateral cheaply
+        -&gt; reverse the swap and repay; the seized collateral is the profit</code></pre>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Manipulation is market mechanics, not a payload</strong>&mdash;the attacker moves a price the victim trusts.</li>
+<li><strong>Flash loans remove the cost barrier</strong>&mdash;assume unlimited atomic capital and no attacker market risk.</li>
+<li><strong>Spot reads are the common thread</strong>&mdash;reserves, <code>getAmountsOut</code>, <code>balanceOf</code>, and naive LP valuations all move in one transaction.</li>
+<li><strong>Thresholds are targets</strong>&mdash;liquidation, mint, and redemption boundaries are exactly where a nudged price pays off.</li>
+<li><strong>One source is one point of failure</strong>&mdash;no cross-check means the distorted value is simply believed.</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="prevention.html">Prevention Guide</a></strong>: Build a manipulation-resistant pricing strategy</li>
+<li><strong><a href="examples.html">Code Examples</a></strong>: See vulnerable spot oracles vs. secure Chainlink/TWAP code</li>
+<li><strong><a href="/learn/smart-contract">Smart Contract Top 10</a></strong>: Return to the full lesson index</li>
+<li><strong><a href="/practice">Practice</a></strong>: Apply what you've learned in hands-on challenges</li>
+</ul>
+
+        </div>
+    </div>
+</body>
+</html>

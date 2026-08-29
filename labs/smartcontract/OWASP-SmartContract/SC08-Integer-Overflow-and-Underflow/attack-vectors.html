@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SC08: Integer Overflow and Underflow - Attack Vectors</title>
+    <link rel="stylesheet" href="/platform/frontend/js/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .doc-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .back-nav:hover {
+            background-color: rgba(245, 158, 11, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(245, 158, 11, 0.1);
+        }
+
+        .content h1 {
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            text-shadow: none;
+        }
+
+        .content h2 {
+            color: var(--secondary-color);
+            font-size: 1.8rem;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .content h3 {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+            margin-top: 30px;
+            margin-bottom: 12px;
+        }
+
+        .content h4 {
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        .content p {
+            color: var(--text-color);
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .content ul, .content ol {
+            margin-left: 25px;
+            margin-bottom: 15px;
+            color: var(--text-color);
+        }
+
+        .content li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .content code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--primary-color);
+            font-family: 'Courier New', monospace;
+            border: 1px solid var(--border-color);
+        }
+
+        .content pre {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+        }
+
+        .content pre code {
+            background: none;
+            padding: 0;
+            border: none;
+            color: var(--primary-color);
+        }
+
+        .content blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 20px;
+            margin: 20px 0;
+            background: rgba(245, 158, 11, 0.05);
+            padding: 15px 20px;
+            border-radius: 4px;
+        }
+
+        .content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table th {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2));
+            color: var(--primary-color);
+            padding: 12px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        .content table td {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        .content table tr:hover {
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .content a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .content a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .content strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        .toc {
+            background: rgba(245, 158, 11, 0.05);
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .toc h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc li {
+            margin-bottom: 8px;
+        }
+
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toc a:hover {
+            color: var(--primary-color);
+        }
+
+        .toc a:before {
+            content: "▸";
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="doc-container">
+        <a href="/learn/smart-contract" class="back-nav">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+
+        <div class="content">
+            <h1>SC08: Integer Overflow and Underflow - Attack Vectors</h1>
+
+<div class="toc">
+<h2>Table of Contents</h2>
+<ul>
+<li><a href="#understanding">Understanding Overflow/Underflow Attack Vectors</a></li>
+<li><a href="#core-attack-flow">Core Attack Flow</a></li>
+<li><a href="#common-attack-patterns">Common Attack Patterns</a></li>
+<li><a href="#chaining">Chaining Arithmetic Bugs</a></li>
+</ul>
+</div>
+
+<h2 id="understanding">Understanding Overflow/Underflow Attack Vectors</h2>
+
+<blockquote>
+<p><strong>&#9888;&#65039; EDUCATIONAL PURPOSE ONLY</strong> &mdash; the techniques below are shown so you can find and fix these issues in contracts you own or are authorised to test.</p>
+</blockquote>
+
+<p>Overflow and underflow are not exploited with clever payloads&mdash;they are exploited with <strong>extreme numbers</strong>. The attacker reads the source (or bytecode) for an arithmetic operation that lacks protection, then supplies an input at the very edge of the integer range so the result wraps. Because the maths is deterministic and public, once a wrapping operation is found the exploit is a single, reproducible transaction.</p>
+
+<p>The attacker's goal in this category is usually one of:</p>
+<ul>
+<li>Underflow a balance so it wraps to a near-maximum value (mint from nothing).</li>
+<li>Overflow a total, counter, or cap so a limit check sees a small number and passes.</li>
+<li>Truncate a value via a downcast so a large amount is stored as a small one (or vice versa).</li>
+<li>Force an intermediate product to wrap so a reward, price, or share calculation is wildly wrong.</li>
+</ul>
+
+<h3 id="core-attack-flow">Core Attack Flow</h3>
+
+<pre><code>1. Locate unprotected arithmetic
+   &darr;
+   Pre-0.8 code without SafeMath, an unchecked { } block,
+   a downcast, or inline assembly
+2. Model the wrap
+   &darr;
+   Choose an input that pushes the operation past 0 or past 2^n - 1
+3. Trigger
+   &darr;
+   Call the function with the boundary value in one transaction
+4. Profit / Exfiltrate
+   &darr;
+   Spend the wrapped balance, bypass the cap, or drain the pool</code></pre>
+
+<h2 id="common-attack-patterns">Common Attack Patterns</h2>
+
+<h3>1. Balance Underflow (mint from nothing)</h3>
+
+<p>The canonical exploit: subtract more than you hold from an unsigned balance so it wraps upward.</p>
+
+<pre><code>// Vulnerable (pre-0.8 or inside unchecked)
+function transfer(address to, uint256 amount) public {
+    balances[msg.sender] -= amount;   // no guard: underflows if amount &gt; balance
+    balances[to]        += amount;
+}
+
+// Attacker holds 0 tokens:
+transfer(attacker2, 1);
+// balances[attacker] = 0 - 1 = 2^256 - 1   (near-infinite balance)</code></pre>
+
+<p><strong>Payoff</strong>: an attacker with zero (or tiny) balance ends up with an astronomically large one and can dump it on the market.</p>
+
+<h3>2. Multiplication Overflow in a Total (batchOverflow class)</h3>
+
+<p>A batch operation computes <code>amount * count</code> and checks it against the balance. A crafted <code>amount</code> overflows the product to a tiny value, so the check passes while each recipient is credited the full amount.</p>
+
+<pre><code>// Vulnerable batch transfer (pre-0.8, no SafeMath)
+function batchTransfer(address[] memory to, uint256 amount) public {
+    uint256 total = to.length * amount;      // overflows for a huge `amount`
+    require(balances[msg.sender] &gt;= total);  // passes: `total` wrapped small
+    for (uint i = 0; i &lt; to.length; i++) {
+        balances[to[i]] += amount;           // each gets the full, enormous amount
+    }
+}</code></pre>
+
+<p><strong>Payoff</strong>: tokens minted far beyond supply from a single call&mdash;the historical <em>batchOverflow</em> pattern.</p>
+
+<h3>3. Supply / Cap Overflow (limit bypass)</h3>
+
+<p>An overflowing total lets a later cap check see a small number.</p>
+
+<pre><code>uint256 public totalSupply;
+uint256 constant CAP = 1_000_000e18;
+
+function mint(uint256 amount) public {
+    totalSupply += amount;               // wraps past 2^256 - 1 (pre-0.8 / unchecked)
+    require(totalSupply &lt;= CAP);          // wrapped-small total slips under the cap
+    balances[msg.sender] += amount;
+}</code></pre>
+
+<p><strong>Payoff</strong>: minting continues past the intended cap because the invariant it relies on was corrupted by the wrap.</p>
+
+<h3>4. Downcast Truncation</h3>
+
+<p>A wide value narrowed to a smaller type silently loses its high bits.</p>
+
+<pre><code>// Amount tracked in uint256 but stored in uint64
+mapping(address =&gt; uint64) public shares;
+
+function deposit(uint256 amount) public {
+    shares[msg.sender] += uint64(amount);   // amount &gt; 2^64-1 truncates
+    // Attacker picks amount = 2^64  -&gt; uint64(amount) == 0 stored,
+    // or amount = 2^64 + 1 -&gt; stored as 1, decoupling shares from deposit
+}</code></pre>
+
+<p><strong>Payoff</strong>: accounting decouples from reality&mdash;an attacker can deposit a huge amount recorded as tiny, or manipulate IDs/timestamps that were downcast.</p>
+
+<h3>5. unchecked Block on Attacker Input</h3>
+
+<p>A gas optimisation that re-enables wrapping on a value the attacker controls.</p>
+
+<pre><code>function reward(uint256 userInput) public {
+    unchecked {
+        accrued[msg.sender] += userInput;   // 0.8 protection OFF here
+    }
+    // A large userInput wraps accrued[] to a small value or overflows a later sum
+}</code></pre>
+
+<p><strong>Payoff</strong>: the classic overflow is reintroduced on a modern compiler wherever <code>unchecked</code> wraps an untrusted value.</p>
+
+<h3>6. Inline Assembly Arithmetic</h3>
+
+<p>Yul <code>add</code>/<code>mul</code>/<code>sub</code> never check for overflow, at any compiler version.</p>
+
+<pre><code>function unsafeAdd(uint256 x, uint256 y) public pure returns (uint256 z) {
+    assembly {
+        z := add(x, y)      // wraps silently; no Panic(0x11)
+    }
+}</code></pre>
+
+<p><strong>Payoff</strong>: any invariant that trusts an assembly computation can be broken by choosing operands that wrap.</p>
+
+<h3>7. Multiply-Before-Divide Precision/Overflow</h3>
+
+<p>Reward and pricing math where the intermediate product exceeds the range.</p>
+
+<pre><code>// Intended: reward = stake * rate / PRECISION
+uint256 reward = stake * rate / PRECISION;
+// If stake * rate &gt; 2^256 - 1: pre-0.8 wraps to a tiny reward;
+// 0.8+ reverts (a DoS if the code assumed it would fit).</code></pre>
+
+<p><strong>Payoff</strong>: either a wrong (tiny or huge) payout, or an unexpected revert that locks the function&mdash;depending on compiler version.</p>
+
+<h3>8. Underflow to Bypass a Time or Count Guard</h3>
+
+<p>Subtraction used inside a comparison can wrap and invert the intended logic.</p>
+
+<pre><code>// Vulnerable (pre-0.8 / unchecked): meant to enforce a cooldown
+require(block.timestamp - lastAction[msg.sender] &gt; COOLDOWN);
+// If lastAction is in the future (set by another buggy path) or zero-handling
+// is wrong, the subtraction can underflow to a huge number and always pass.</code></pre>
+
+<p><strong>Payoff</strong>: a guard that should throttle actions becomes trivially satisfiable because the subtraction wrapped.</p>
+
+<h2 id="chaining">Chaining Arithmetic Bugs</h2>
+
+<p>Individually small wraps combine into full compromise:</p>
+
+<pre><code>Downcast truncates deposit to a tiny stored amount
+        +
+Reward math multiplies that stored value by a rate
+        +
+Withdrawal underflows the pool balance when repaying
+        =  drain more than was ever deposited, no reentrancy needed</code></pre>
+
+<p>Another common chain:</p>
+
+<pre><code>unchecked { } wraps an internal counter to 0
+        -&gt; a "first-time" branch re-triggers minting
+        -&gt; overflowed totalSupply slips under the cap check
+        -&gt; attacker mints repeatedly past the intended limit</code></pre>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>Overflow is exploited with extremes, not payloads</strong>&mdash;the attacker feeds values at the edge of the integer range.</li>
+<li><strong>Underflow mints, overflow bypasses</strong>&mdash;subtracting past zero creates value; overflowing a total defeats a cap.</li>
+<li><strong>The unprotected surface is specific</strong>&mdash;pre-0.8 code, <code>unchecked</code> blocks, casts, and assembly are where wraps happen on modern compilers.</li>
+<li><strong>Casts are a silent attack vector</strong>&mdash;downcasting truncates in every version, decoupling accounting from reality.</li>
+<li><strong>Small wraps chain</strong>&mdash;a truncation plus a reward calculation plus an underflowing withdrawal equals a drained pool.</li>
+</ol>
+
+<h2>Next Steps</h2>
+
+<ul>
+<li><strong><a href="prevention.html">Prevention Guide</a></strong>: Checked arithmetic, SafeMath, safe casts, and fuzzing</li>
+<li><strong><a href="examples.html">Code Examples</a></strong>: See vulnerable vs. secure Solidity</li>
+<li><strong><a href="/learn/smart-contract">Smart Contract Learning Path</a></strong>: Continue the OWASP Smart Contract Top 10</li>
+<li><strong><a href="/practice">Practice</a></strong>: Apply what you've learned in hands-on challenges</li>
+</ul>
+
+        </div>
+    </div>
+</body>
+</html>
