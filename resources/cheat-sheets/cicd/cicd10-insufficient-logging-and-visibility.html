@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CICD-SEC-10: Insufficient Logging and Visibility - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>📊 Insufficient Logging and Visibility</h1>
+            <p class="subtitle">OWASP Top 10 CI/CD Security Risks - CICD-SEC-10</p>
+            <span class="category">MEDIUM RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Insufficient Logging and Visibility</strong> describes a CI/CD environment that lacks the logging, monitoring, and detection needed to notice an attack in the pipeline. The vulnerability is not a misconfigured switch — it is the absence of telemetry and alerting that would let a defender see tampering, credential abuse, or misuse of the build system while it happens, or reconstruct it afterwards. The danger is not that an attack succeeds (every other CI/CD risk covers a way in) but that it proceeds undetected. Pipeline tampering, secret access, new tokens, and unusual deploys all leave traces; here, nobody collects, correlates, or watches them. It is a force multiplier for every other risk.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">CICD-SEC-10</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Detection</span>
+                        <span class="label">Focus Area</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Dwell Time</span>
+                        <span class="label">The Harm</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Audit Logging Disabled:</strong> Off, too coarse, or gated behind a higher tier</li>
+                    <li><strong>Logs Not Centralised:</strong> Each tool logs to its own console, nobody aggregates</li>
+                    <li><strong>No Correlation:</strong> Can't tie a commit to the build, token, and deploy</li>
+                    <li><strong>No Alerting:</strong> Config changes, secret reads, new tokens fire nothing</li>
+                    <li><strong>Short / No Retention:</strong> Runner logs vanish, CI logs rotate in days</li>
+                    <li><strong>Mutable Logs:</strong> Pipeline identities can edit or delete their own trail</li>
+                    <li><strong>No Runner Visibility:</strong> Exfiltration hides inside an ordinary build</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Enter via another risk (leaked token, poisoned PR)<br>
+   <span class="arrow">↓</span><br>
+2. Act: change config, read secrets, mint tokens, deploy<br>
+   <span class="arrow">↓</span><br>
+3. Blend: each action resembles routine automation<br>
+   <span class="arrow">↓</span><br>
+4. Persist / exfiltrate from runners, ship a backdoor<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Objective achieved undetected — found later, by an outsider!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># GitHub org — audit log trapped in the UI, key events uncaptured</span>
+org:
+  audit_log_streaming: disabled     <span class="comment">← events stay in the console, never exported</span>
+  <span class="comment"># Attacker disables branch protection at 3am — no alert fires</span>
+
+<span class="comment"># GitLab CI — only mutable job console output exists</span>
+ci_cd:
+  audit_events: disabled            <span class="comment">← variable reads, runner registration invisible</span>
+
+<span class="comment"># Registry — mutable tags, no push logging: a released tag silently replaced</span>
+registry:
+  immutable_tags: false
+  audit: off
+
+<span class="comment"># AWS — single-region trail, no integrity validation, editable logs</span>
+resource "aws_cloudtrail" "main" {
+  is_multi_region_trail      = false   <span class="comment">← other regions blind</span>
+  enable_log_file_validation = false   <span class="comment">← logs alterable undetectably</span>
+}
+
+<span class="comment"># SIEM — nothing forwarded, no correlation, no alerts (collection ≠ detection)</span>
+siem: { sources: [], correlation: none, alerts: [] }
+
+<span class="comment"># Runner — persistent, allow-all egress; a step can curl secrets anywhere</span>
+runner: { type: shared-persistent, egress: allow-all, host_monitoring: none }
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># GitHub org — stream the audit log off-host, capture high-signal events</span>
+org:
+  audit_log_streaming: { enabled: true, destination: s3://acme-ci-audit-logs }
+  captured_events: [repo.branch_protection.destroy, org.update_member,
+                    deploy_key.create, personal_access_token.create, workflows.updated]
+
+<span class="comment"># Registry — immutable tags; log every mutation and publish-token change</span>
+registry:
+  immutable_tags: true              <span class="comment">← a released tag can never be overwritten</span>
+  audit: { enabled: true, events: [image_push, tag_mutation_attempt, new_publish_token] }
+
+<span class="comment"># AWS — multi-region, integrity-validated trail, object-locked, separate account</span>
+resource "aws_cloudtrail" "main" {
+  is_multi_region_trail      = true
+  is_organization_trail      = true
+  enable_log_file_validation = true    <span class="comment">← tamper-evident</span>
+}
+
+<span class="comment"># SIEM — all sources normalised, correlated by trace_id, alerting on risk events</span>
+siem:
+  sources: [github_audit, gitlab_ci, registry, secrets_manager, cloudtrail, runners]
+  correlation: { join_on: trace_id }   <span class="comment"># commit→build→secret_read→push→deploy</span>
+  alerts: [pipeline_config_change, new_pipeline_identity, secret_read_anomaly,
+           off_hours_or_out_of_band_deploy, fork_pr_workflow_run, protection_rule_change]
+
+<span class="comment"># Runner — ephemeral, default-deny egress, host + network telemetry to SIEM</span>
+runner: { type: ephemeral-single-use, egress: { default: deny, allow: [...] } }
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Enable audit logging across SCM, CI, registry, secrets, cloud</li>
+                    <li>Confirm the audit tier is actually available on your plan</li>
+                    <li>Centralise every tool's log stream into one SIEM (forward, don't just store)</li>
+                    <li>Propagate a correlation/trace ID through every pipeline run</li>
+                    <li>Alert on pipeline-config changes and workflow-file edits</li>
+                    <li>Alert on secret reads, new tokens/keys/service accounts</li>
+                    <li>Alert on permission/protection-rule changes</li>
+                    <li>Alert on off-hours, out-of-band, and fork-PR runs</li>
+                    <li>Store logs off-host, write-once (WORM), long retention</li>
+                    <li>Monitor runner processes and network egress; default-deny</li>
+                    <li>Baseline normal pipeline behaviour to surface anomalies</li>
+                    <li>Wire pipeline alerts into the incident-response process</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Logging & SIEM:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">SCM audit-log streaming</span>
+                    <span class="tool-tag">AWS CloudTrail (validated)</span>
+                    <span class="tool-tag">Jenkins Audit Trail plugin</span>
+                    <span class="tool-tag">Splunk / Elastic / SIEM</span>
+                    <span class="tool-tag">S3 Object Lock (WORM)</span>
+                </div>
+
+                <h3>Runner & Anomaly:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Falco (runtime)</span>
+                    <span class="tool-tag">StepSecurity Harden-Runner (egress)</span>
+                    <span class="tool-tag">Host EDR</span>
+                    <span class="tool-tag">Ephemeral runners</span>
+                    <span class="tool-tag">Behavioural baselines</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Confirm SCM/CI/registry audit logs stream to a central platform</li>
+                    <li>Trace one commit → build → secret use → deploy end to end</li>
+                    <li>Edit a workflow file; confirm an alert fires with the identity</li>
+                    <li>Read a secret from a job; confirm the read is logged</li>
+                    <li>Verify logs are off-host, immutable, and long-retained</li>
+                    <li>Send runner egress to a novel host; confirm it's flagged</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Incident Classes</h2>
+                <ul>
+                    <li><strong>Supply-chain build compromise discovered downstream:</strong> An attacker modifies the build process so published artifacts are backdoored while source looks clean; the tampering is frequently discovered not by the origin org's own monitoring but by an external party noticing anomalous behaviour in the shipped product — and insufficient build/runner logging meant the producer could not detect it or reconstruct which builds were affected.</li>
+                    <li><strong>Stolen CI/CD token used undetected:</strong> A leaked long-lived token or deploy key clones private repos and pushes changes; with no token-use monitoring or access baseline, the abuse continues until the attacker acts overtly or a third party reports it.</li>
+                    <li><strong>Poisoned fork-PR workflow:</strong> A fork PR triggers a workflow running attacker-influenced code with secret access; with no fork-run alerting or runner egress monitoring, the malicious job's outbound connection blends into ordinary CI traffic.</li>
+                </ul>
+                <p><em>Note: these are described as classes of real events, not attributed breaches with invented figures. Across all of them the root cause is the same — too little trustworthy, centralised, correlated telemetry for anyone to notice the attack or reconstruct it.</em></p>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> treat build/job logs as an audit trail</li>
+                    <li><span class="badge critical">DO NOT</span> leave logs where the pipeline can edit them</li>
+                    <li><span class="badge critical">DO NOT</span> collect without correlating and alerting</li>
+                    <li><span class="badge high">DO</span> enable audit logging across the whole toolchain</li>
+                    <li><span class="badge high">DO</span> centralise and correlate by trace ID</li>
+                    <li><span class="badge high">DO</span> monitor runner process and network egress</li>
+                    <li><span class="badge medium">DO</span> baseline normal and alert on off-hours activity</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">SOC 2</span> CC7.2/CC7.3 - Monitoring & detection</li>
+                    <li><span class="badge medium">NIST</span> 800-53 AU family - Audit & Accountability</li>
+                    <li><span class="badge medium">PCI-DSS</span> Req 10 - Logging & monitoring</li>
+                    <li><span class="badge medium">SSDF</span> (SP 800-218) - Provenance & audit</li>
+                    <li><span class="badge medium">SLSA</span> Auditable build records</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Top 10 CI/CD Security Risks — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/cicd/OWASP-CICD/CICD10-Insufficient-Logging-and-Visibility/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

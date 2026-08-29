@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CICD-SEC-5: Insufficient PBAC - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🏗️ Insufficient PBAC</h1>
+            <p class="subtitle">OWASP Top 10 CI/CD Security Risks - CICD-SEC-5</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Pipeline-Based Access Controls (PBAC)</strong> are the permissions granted to the environment a pipeline runs in — the runner or agent and the identity, secrets, and network reach it carries during a job. <strong>Insufficient PBAC</strong> is when that execution environment holds access <em>far beyond</em> what the specific job needs: a compile step that can read every org secret, assume a wildcard cloud role, reach the production control plane, and leave artefacts for the next job on the same machine. Because a pipeline is a programmable execution surface, <strong>the runner's privileges become the job's privileges</strong> — whatever code lands there inherits them.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">CICD-SEC-5</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Blast Radius</span>
+                        <span class="label">Focus Area</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Ephemeral</span>
+                        <span class="label">Beats Reused</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>All Secrets in Every Job:</strong> A compile step can read the production deploy key it never needed</li>
+                    <li><strong>Standing Broad Cloud Role:</strong> A wildcard IAM role on the runner = one build compromises the account</li>
+                    <li><strong>Non-Ephemeral Runners:</strong> Leftover creds, caches, and workspaces harvested by the next job</li>
+                    <li><strong>Shared Runners Across Trust:</strong> Fork PRs run on the same pool as production-credentialed pipelines</li>
+                    <li><strong>Control-Plane Reach:</strong> Build jobs can hit the metadata service, k8s API, or prod DB</li>
+                    <li><strong>Cache / Artifact Poisoning:</strong> Low-trust jobs write what high-trust jobs consume unverified</li>
+                    <li><strong>Runner Implants:</strong> Trojaned toolchain on a reused runner hits every later job</li>
+                    <li><strong>Container Escape:</strong> Mounted Docker socket / privileged container reaches the host</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Get code running (PR build, dependency, poisoned test/script)<br>
+   <span class="arrow">↓</span><br>
+2. Enumerate the runner's access (env, ~/.aws, metadata, network)<br>
+   <span class="arrow">↓</span><br>
+3. Abuse standing privilege (read all secrets, assume broad role)<br>
+   <span class="arrow">↓</span><br>
+4. Reach systems the build should never touch (prod, control plane)<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Cloud-account takeover, no application bug required!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># .github/workflows/ci.yml</span>
+<span class="keyword">on</span>:
+  <span class="keyword">pull_request_target</span>:                  <span class="comment"># runs in base context WITH secrets</span>
+<span class="keyword">permissions</span>: write-all                  <span class="comment"># token can write everything</span>
+
+<span class="keyword">env</span>:                                    <span class="comment"># every secret handed to every step</span>
+  AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}      <span class="comment"># long-lived static key</span>
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  PROD_DEPLOY_KEY:       ${{ secrets.PROD_DEPLOY_KEY }}
+  SIGNING_GPG_KEY:       ${{ secrets.SIGNING_GPG_KEY }}
+
+<span class="keyword">jobs</span>:
+  build-test-deploy:
+    runs-on: [self-hosted, prod]        <span class="comment"># non-ephemeral, also serves prod</span>
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}   <span class="comment"># UNTRUSTED PR code</span>
+      - run: make build && make test    <span class="comment"># untrusted code, ALL secrets present</span>
+      - run: ./deploy.sh                <span class="comment"># same job/runner deploys to prod</span>
+
+<span class="comment"># Standing runner role — every job inherits full account access:</span>
+<span class="comment">#   { "Effect":"Allow", "Action":"*", "Resource":"*" }</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># 1) Untrusted PR validation — ephemeral runner, NO secrets, read-only token.</span>
+<span class="keyword">on</span>: pull_request
+<span class="keyword">permissions</span>:
+  contents: read
+<span class="keyword">jobs</span>:
+  test:
+    runs-on: ubuntu-latest              <span class="comment"># hosted, ephemeral, no prod creds</span>
+    steps:
+      - uses: actions/checkout@v4       <span class="comment"># fork code, nothing sensitive to steal</span>
+      - run: make build && make test
+
+<span class="comment"># 2) Deploy — separate workflow, trusted branch only, short-lived OIDC, scoped role.</span>
+<span class="keyword">on</span>:
+  <span class="keyword">push</span>:
+    branches: [main]
+<span class="keyword">permissions</span>:
+  id-token: write                       <span class="comment"># request an OIDC token</span>
+  contents: read
+<span class="keyword">jobs</span>:
+  deploy:
+    environment: production             <span class="comment"># approval + branch limit</span>
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          <span class="comment"># role scoped to THIS repo+environment, deploy-only, expires in minutes</span>
+          role-to-assume: arn:aws:iam::111122223333:role/deploy-app-only
+          aws-region: us-east-1
+      - run: ./deploy.sh                <span class="comment"># no static keys</span>
+
+<span class="comment"># Scoped trust policy: sub = repo:acme/app:environment:production</span>
+<span class="comment"># Scoped permissions: s3:PutObject/GetObject on arn:...:prod-bucket/app/* only</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Inject only the secrets a job actually needs — never all</li>
+                    <li>Use ephemeral, single-use runners; destroy after each job</li>
+                    <li>Never share a runner pool between public and private repos</li>
+                    <li>Replace standing broad roles with per-job scoped OIDC tokens</li>
+                    <li>Segment runner network from prod, metadata, and control plane</li>
+                    <li>Split build from deploy across separately scoped runners</li>
+                    <li>Set explicit least-privilege token permissions (read by default)</li>
+                    <li>Mark deploy secrets protected + masked, branch-scoped</li>
+                    <li>Verify integrity of caches and artifacts across trust levels</li>
+                    <li>Never let build jobs run on the CI controller / host</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Least-Privilege & Isolation:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">GitHub OIDC</span>
+                    <span class="tool-tag">GitLab ID Tokens</span>
+                    <span class="tool-tag">Actions Runner Controller</span>
+                    <span class="tool-tag">StepSecurity Harden-Runner</span>
+                    <span class="tool-tag">Ephemeral Runners</span>
+                    <span class="tool-tag">AWS IAM Access Analyzer</span>
+                </div>
+
+                <h3>Policy & Audit:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">OPA / Gatekeeper</span>
+                    <span class="tool-tag">Trivy</span>
+                    <span class="tool-tag">CloudTrail</span>
+                    <span class="tool-tag">OpenSSF Scorecard</span>
+                    <span class="tool-tag">Legitify</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Check whether a build job can read secrets it never uses</li>
+                    <li>Query the metadata endpoint from a job — should be blocked</li>
+                    <li>Confirm runners are ephemeral and torn down after jobs</li>
+                    <li>Verify fork PRs cannot reach private/self-hosted runners</li>
+                    <li>Audit runner IAM roles for wildcard actions/resources</li>
+                    <li>Test that a build runner cannot reach prod / the k8s API</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World (Incident Classes)</h2>
+                <ul>
+                    <li><strong>PPE on Over-Privileged Runners:</strong> Public repos ran PR-triggered pipelines on self-hosted runners holding production secrets and broad cloud roles; a crafted PR modified a build/test step to encode and exfiltrate the environment — the classic Poisoned Pipeline Execution outcome amplified by the runner's standing access.</li>
+                    <li><strong>Non-Ephemeral Runner Reuse:</strong> Long-lived self-hosted runners retained cloud credentials, registry logins, and kubeconfigs on disk; a later low-trust (fork) job landed on the same host and read the leftover state, inheriting access it was never granted.</li>
+                    <li><strong>Shared Cache / Artifact Poisoning:</strong> A cache or artifact store writable by low-trust jobs was consumed unverified by higher-trust deploy pipelines, so malicious content written once propagated into signed, shipped artefacts.</li>
+                    <li><strong>Cross-Trust Shared Runner Pool:</strong> Untrusted fork code executed on a runner that also served a private, production-credentialed pipeline, exposing another project's secrets and runner config.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> inject all secrets into every job</li>
+                    <li><span class="badge critical">DO NOT</span> attach standing wildcard roles to runners</li>
+                    <li><span class="badge critical">DO NOT</span> share runners across trust boundaries</li>
+                    <li><span class="badge high">DO</span> use ephemeral, single-use runners</li>
+                    <li><span class="badge high">DO</span> scope short-lived OIDC per job</li>
+                    <li><span class="badge high">DO</span> segment build runners from production</li>
+                    <li><span class="badge medium">DO</span> split build and deploy responsibilities</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">SLSA</span> Build L3 - Isolated, Ephemeral</li>
+                    <li><span class="badge medium">NIST</span> 800-53 AC-6 - Least Privilege</li>
+                    <li><span class="badge medium">NIST SSDF</span> PO.5 - Secure Build Environments</li>
+                    <li><span class="badge medium">ISO 27001</span> A.9 - Access Control</li>
+                    <li><span class="badge medium">CIS</span> Software Supply Chain Benchmark</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Top 10 CI/CD Security Risks — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/cicd/OWASP-CICD/CICD05-Insufficient-PBAC/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

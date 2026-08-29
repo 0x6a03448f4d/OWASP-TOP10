@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C2: Use Cryptography to Protect Data - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔒 Use Cryptography to Protect Data</h1>
+            <p class="subtitle">OWASP Top 10 Proactive Controls (2024) - C2</p>
+            <span class="category">CORE CONTROL</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is This Control?</h2>
+                <p><strong>Use Cryptography to Protect Data</strong> means applying correct, current, well-implemented cryptography wherever sensitive data lives or travels — so even if an attacker reaches the bytes, they cannot read, forge, or tamper with them. It covers data <strong>in transit</strong> (TLS 1.2+/1.3), <strong>at rest</strong> (authenticated encryption like AES-256-GCM), and <strong>in use</strong>. The control moves the security boundary from "protect all the data" to "protect the key" — a smaller, more defensible thing. It is the defense against the Cryptographic Failures risk (A02).</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">C2</span>
+                        <span class="label">Proactive Control</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Confidentiality</span>
+                        <span class="label">Focus Area</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">OWASP 2024</span>
+                        <span class="label">Proactive Controls</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- What It Prevents -->
+            <div class="section">
+                <h2>🎯 What It Prevents</h2>
+                <ul>
+                    <li><strong>Plaintext/Weak Password Stores:</strong> Bulk cracking of MD5/SHA-1 or unsalted hashes</li>
+                    <li><strong>Unencrypted Data at Rest:</strong> A leaked backup or bucket exposing every record</li>
+                    <li><strong>Cleartext Transport:</strong> On-path interception of credentials and cookies</li>
+                    <li><strong>TLS Downgrade:</strong> Stripping encryption via missing HSTS / weak ciphers</li>
+                    <li><strong>Tampering / Forgery:</strong> Malleable ciphertext without authenticated encryption</li>
+                    <li><strong>Predictable Tokens:</strong> Guessable session IDs and reset links from weak RNGs</li>
+                    <li><strong>Hardcoded / Leaked Keys:</strong> Secrets committed to source or baked into images</li>
+                </ul>
+            </div>
+
+            <!-- How It Works -->
+            <div class="section">
+                <h2>🧭 How It Works</h2>
+                <div class="attack-flow">
+1. Classify data — mark what is restricted / confidential<br>
+   <span class="arrow">↓</span><br>
+2. Encrypt in transit — TLS 1.2+/1.3 with HSTS, no downgrade<br>
+   <span class="arrow">↓</span><br>
+3. Encrypt at rest — AEAD (AES-256-GCM), encrypted backups<br>
+   <span class="arrow">↓</span><br>
+4. Hash passwords with a slow, salted function; CSPRNG for all tokens<br>
+   <span class="arrow">↓</span><br>
+5. <strong>Manage keys in a KMS/HSM — rotate, separate, never hardcode</strong>
+                </div>
+            </div>
+
+            <!-- Without This Control -->
+            <div class="section full-width">
+                <h2>❌ Without This Control</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: MD5, unsalted — cracked in seconds, timing-unsafe compare</span>
+<span class="keyword">import</span> hashlib
+<span class="keyword">def</span> <span class="function">store_password</span>(pw: str) -> str:
+    <span class="keyword">return</span> hashlib.md5(pw.encode()).hexdigest()
+
+<span class="comment"># Bad: ECB mode + hardcoded key — leaks patterns, no integrity</span>
+<span class="keyword">from</span> Crypto.Cipher <span class="keyword">import</span> AES
+KEY = <span class="string">b"1234567890123456"</span>                 <span class="comment">← hardcoded, committed to the repo</span>
+
+<span class="keyword">def</span> <span class="function">encrypt</span>(data: bytes) -> bytes:
+    cipher = AES.new(KEY, AES.MODE_ECB)   <span class="comment">← ECB leaks plaintext patterns</span>
+    pad = <span class="number">16</span> - len(data) % <span class="number">16</span>
+    <span class="keyword">return</span> cipher.encrypt(data + bytes([pad]) * pad)
+
+<span class="comment"># Bad: predictable, time-seeded token — guessable</span>
+<span class="keyword">import</span> random, time
+<span class="keyword">def</span> <span class="function">reset_token</span>() -> str:
+    random.seed(int(time.time()))                 <span class="comment">← predictable seed</span>
+    <span class="keyword">return</span> <span class="string">""</span>.join(random.choice(<span class="string">"0123456789abcdef"</span>) <span class="keyword">for</span> _ <span class="keyword">in</span> range(<span class="number">32</span>))
+                </div>
+            </div>
+
+            <!-- Applying the Control -->
+            <div class="section full-width">
+                <h2>✅ Applying the Control</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: Argon2id — slow, memory-hard, salt embedded, constant-time verify</span>
+<span class="keyword">from</span> argon2 <span class="keyword">import</span> PasswordHasher
+ph = PasswordHasher(time_cost=<span class="number">3</span>, memory_cost=<span class="number">64</span> * <span class="number">1024</span>, parallelism=<span class="number">1</span>)
+
+<span class="keyword">def</span> <span class="function">store_password</span>(pw: str) -> str:
+    <span class="keyword">return</span> ph.hash(pw)      <span class="comment"># store this string; contains algo, params, salt</span>
+
+<span class="comment"># Good: AES-256-GCM (AEAD) — confidential + tamper-evident; key from KMS</span>
+<span class="keyword">import</span> os
+<span class="keyword">from</span> cryptography.hazmat.primitives.ciphers.aead <span class="keyword">import</span> AESGCM
+
+<span class="keyword">def</span> <span class="function">encrypt</span>(data: bytes, key: bytes, aad: bytes = <span class="string">b""</span>) -> bytes:
+    nonce = os.urandom(<span class="number">12</span>)                       <span class="comment"># CSPRNG; unique per message</span>
+    <span class="keyword">return</span> nonce + AESGCM(key).encrypt(nonce, data, aad)
+
+<span class="keyword">def</span> <span class="function">decrypt</span>(blob: bytes, key: bytes, aad: bytes = <span class="string">b""</span>) -> bytes:
+    nonce, ct = blob[:<span class="number">12</span>], blob[<span class="number">12</span>:]
+    <span class="keyword">return</span> AESGCM(key).decrypt(nonce, ct, aad)   <span class="comment"># raises on tamper — fail closed</span>
+
+<span class="comment"># Good: CSPRNG token + constant-time comparison</span>
+<span class="keyword">import</span> secrets, hmac
+<span class="keyword">def</span> <span class="function">reset_token</span>() -> str:
+    <span class="keyword">return</span> secrets.token_urlsafe(<span class="number">32</span>)              <span class="comment"># ~256 bits of entropy</span>
+<span class="keyword">def</span> <span class="function">token_matches</span>(a: str, b: str) -> bool:
+    <span class="keyword">return</span> hmac.compare_digest(a, b)
+
+<span class="comment"># nginx: TLS 1.2/1.3 only, HSTS, HTTP → HTTPS redirect</span>
+ssl_protocols TLSv1.2 TLSv1.3;
+add_header Strict-Transport-Security <span class="string">"max-age=31536000; includeSubDomains; preload"</span> always;
+                </div>
+            </div>
+
+            <!-- Implementation Checklist -->
+            <div class="section">
+                <h2>✓ Implementation Checklist</h2>
+                <ul class="checklist">
+                    <li>Sensitive data is classified, and the policy drives encryption decisions</li>
+                    <li>All traffic uses TLS 1.2+/1.3 with HSTS; weak protocols/ciphers disabled</li>
+                    <li>Data at rest uses AES-256-GCM (or ChaCha20-Poly1305); backups encrypted</li>
+                    <li>Passwords use Argon2id/bcrypt/scrypt/PBKDF2 with per-user salt</li>
+                    <li>All keys, salts, nonces, and tokens come from a CSPRNG</li>
+                    <li>Nonces/IVs are unique per encryption; no (key, nonce) reuse</li>
+                    <li>Keys live in a KMS/HSM, separated from data, rotated, never hardcoded</li>
+                    <li>Only vetted libraries are used; no home-grown crypto</li>
+                    <li>Ciphertext/hashes are versioned for crypto-agility</li>
+                    <li>Secrets never appear in logs, URLs, or caches; CI blocks committed secrets</li>
+                </ul>
+            </div>
+
+            <!-- Tools & Techniques -->
+            <div class="section">
+                <h2>🔍 Tools & Techniques</h2>
+                <h3>Libraries & Key Management:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">libsodium / PyNaCl</span>
+                    <span class="tool-tag">Google Tink</span>
+                    <span class="tool-tag">argon2</span>
+                    <span class="tool-tag">bcrypt</span>
+                    <span class="tool-tag">AWS KMS</span>
+                    <span class="tool-tag">HashiCorp Vault</span>
+                    <span class="tool-tag">HSM</span>
+                </div>
+
+                <h3>Verification & Scanning:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">testssl.sh</span>
+                    <span class="tool-tag">SSL Labs</span>
+                    <span class="tool-tag">gitleaks</span>
+                    <span class="tool-tag">semgrep (p/crypto)</span>
+                    <span class="tool-tag">pip-audit / npm audit</span>
+                </div>
+
+                <h3>How to Verify:</h3>
+                <ul>
+                    <li>Scan TLS: confirm 1.2+/1.3 only, HSTS present, weak ciphers disabled</li>
+                    <li>Grep the codebase for MD5/SHA-1 password use, DES/RC4/ECB, Math.random</li>
+                    <li>Confirm no hardcoded keys/secrets committed (secret scanning in CI)</li>
+                    <li>Verify a fresh nonce is generated per encryption</li>
+                    <li>Check backups and buckets are encrypted at rest</li>
+                </ul>
+            </div>
+
+            <!-- Why It Matters -->
+            <div class="section full-width">
+                <h2>🌍 Why It Matters</h2>
+                <ul>
+                    <li><strong>Plaintext or weakly hashed passwords:</strong> A single leak lets attackers recover most passwords with rainbow tables and GPU cracking, then replay them (credential stuffing). Per-user salted Argon2id/bcrypt makes bulk cracking infeasible.</li>
+                    <li><strong>Unencrypted data at rest:</strong> One leaked backup, stolen disk, or misconfigured bucket exposes every record. Field encryption plus encrypted volumes turns the same leak into unreadable ciphertext.</li>
+                    <li><strong>Missing or downgradable transport encryption:</strong> An on-path attacker strips TLS and reads cookies and credentials. TLS 1.2+/1.3 only with HSTS closes the window.</li>
+                    <li><strong>Hardcoded and leaked keys:</strong> Anyone with repo or image access can decrypt data or forge tokens. Keys in a KMS/secrets manager, injected at runtime and rotated, remove the class.</li>
+                </ul>
+                <p><em>These are documented cryptographic-failure classes, described as patterns — no fabricated breach figures. Many regulations offer safe-harbour relief when data was strongly encrypted.</em></p>
+            </div>
+
+            <!-- Quick Tips -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> hash passwords with MD5/SHA-1 or a single fast hash</li>
+                    <li><span class="badge critical">DO NOT</span> use ECB mode, reuse a nonce, or hardcode a key</li>
+                    <li><span class="badge critical">DO NOT</span> roll your own crypto or confuse encoding with encryption</li>
+                    <li><span class="badge high">DO</span> use authenticated encryption (AES-256-GCM/ChaCha20-Poly1305)</li>
+                    <li><span class="badge high">DO</span> hash passwords with Argon2id/bcrypt and per-user salt</li>
+                    <li><span class="badge high">DO</span> source all keys, salts, nonces, and tokens from a CSPRNG</li>
+                    <li><span class="badge medium">DO</span> manage keys in a KMS/HSM and stay crypto-agile</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Top 10 Proactive Controls (2024) — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/proactive/OWASP-Proactive-Controls/C02-Use-Cryptography-to-Protect-Data/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

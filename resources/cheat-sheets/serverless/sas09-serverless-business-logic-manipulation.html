@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAS-9: Serverless Business Logic Manipulation - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔀 Serverless Business Logic Manipulation</h1>
+            <p class="subtitle">OWASP Serverless Top 10 - SAS-9</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Serverless Business Logic Manipulation</strong> is the abuse of an application's <em>intended flow</em>. A serverless app is rarely one program—it is many small functions chained by events, queues, topics, and orchestration (Step Functions, SQS/SNS, EventBridge). The complete business rule ("validate the cart, charge the card, <em>then</em> fulfil") is <strong>distributed across independent functions</strong>, and each function tends to assume whatever ran before it ran correctly. That assumption is the vulnerability: an attacker who reaches a <em>later</em> step directly—or reorders, replays, or forges the events connecting the steps—makes the app do what the designed sequence never would: fulfil an unpaid order, redeem a credit twice, or skip a fraud check. The requests are usually well-formed; the flaw is that <em>sequence and preconditions are not enforced at every step</em>.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">SAS-9</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">At-Least-Once</span>
+                        <span class="label">Delivery Default</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Low-Visibility</span>
+                        <span class="label">Each Call Looks Valid</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Direct Invoke of a Later Step:</strong> Call <code>fulfilOrder</code> directly, skipping validation/payment/authz</li>
+                    <li><strong>Forged Event:</strong> Publish <code>order.paid</code> to a topic the consumer trusts</li>
+                    <li><strong>Replay:</strong> Re-submit a genuine <code>refund.approved</code> event N times</li>
+                    <li><strong>Duplicate Double-Spend:</strong> At-least-once delivery runs a non-idempotent handler twice</li>
+                    <li><strong>State Tampering:</strong> Write <code>paid=true</code> to DynamoDB via a loose IAM path</li>
+                    <li><strong>Check-Then-Act Race:</strong> Concurrent runs pass a single-use check before any write lands</li>
+                    <li><strong>Out-of-Band Guardrail Bypass:</strong> Reach a guarded action through a path that misses the check</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Map the workflow<br>
+   <span class="comment">(which functions/events/queues/state form the chain?)</span><br>
+   <span class="arrow">↓</span><br>
+2. Find the trusting step<br>
+   <span class="comment">(which later step acts WITHOUT re-checking?)</span><br>
+   <span class="arrow">↓</span><br>
+3. Find the door<br>
+   <span class="comment">(invoke it? publish its event? write its state? replay?)</span><br>
+   <span class="arrow">↓</span><br>
+4. Enter the flow late — or twice<br>
+   <span class="comment">(trigger out of order, or deliver again)</span><br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Goods shipped, access granted, wallet credited — free!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// fulfilOrder is invoked as a later step. It ASSUMES payment already ran.</span>
+exports.handler = <span class="keyword">async</span> (event) => {
+  <span class="keyword">const</span> { orderId, items } = event;
+  <span class="comment">// No re-check: if this function is reached at all, it ships.</span>
+  <span class="comment">// Direct invoke, forged event, or replay all bypass validation + payment.</span>
+  <span class="keyword">await</span> <span class="function">ship</span>(orderId, items);
+  <span class="keyword">return</span> { ok: <span class="keyword">true</span> };
+};
+
+<span class="comment"># SQS/SNS are AT-LEAST-ONCE. This credits the wallet on EVERY delivery.</span>
+exports.handler = <span class="keyword">async</span> (event) => {
+  <span class="keyword">for</span> (<span class="keyword">const</span> rec <span class="keyword">of</span> event.Records) {
+    <span class="keyword">const</span> { userId, amount } = JSON.<span class="function">parse</span>(rec.body);
+    <span class="keyword">await</span> <span class="function">creditWallet</span>(userId, amount);   <span class="comment">← duplicate delivery = double credit</span>
+  }
+};
+
+<span class="comment"># serverless.yml — over-exposed and over-privileged internal step</span>
+functions:
+  fulfilOrder:
+    handler: src/fulfil.handler
+    url: <span class="keyword">true</span>                    <span class="comment">← PUBLIC Function URL: anyone can invoke it</span>
+  provider:
+    iam: { role: { statements: [ { Action: <span class="string">"*"</span>, Resource: <span class="string">"*"</span> } ] } }   <span class="comment">← foothold = takeover</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// fulfilOrder re-establishes payment/authz/state itself — it trusts nothing.</span>
+exports.handler = <span class="keyword">async</span> (event) => {
+  <span class="keyword">const</span> orderId = <span class="function">requireString</span>(event.orderId);
+  <span class="keyword">const</span> order = <span class="keyword">await</span> <span class="function">getOrder</span>(orderId);          <span class="comment">// 1. authoritative state</span>
+  <span class="keyword">if</span> (!order) <span class="keyword">throw new</span> <span class="function">Error</span>(<span class="string">'Unknown order'</span>);
+  <span class="keyword">if</span> (order.status !== <span class="string">'PAID'</span>)      <span class="keyword">throw new</span> <span class="function">Error</span>(<span class="string">'Not paid'</span>);      <span class="comment">// 2. re-verify</span>
+  <span class="keyword">if</span> (order.fraudReview !== <span class="string">'PASS'</span>) <span class="keyword">throw new</span> <span class="function">Error</span>(<span class="string">'Fraud incomplete'</span>);
+  <span class="keyword">if</span> (order.fulfilled === <span class="keyword">true</span>) <span class="keyword">return</span> { ok: <span class="keyword">true</span> };   <span class="comment">// 3. idempotent</span>
+  <span class="keyword">await</span> <span class="function">assertAuthorized</span>(event.principal, <span class="string">'order:fulfil'</span>, orderId);
+  <span class="keyword">await</span> <span class="function">ship</span>(orderId, order.items);        <span class="comment">// items from trusted state, not event</span>
+  <span class="keyword">await</span> <span class="function">markFulfilled</span>(orderId);              <span class="comment">// atomic compare-and-set</span>
+};
+
+<span class="comment"># Idempotency: conditional write makes the effect exactly-once (Python)</span>
+<span class="keyword">def</span> <span class="function">claim</span>(idem_key):
+    <span class="keyword">try</span>:
+        ddb.<span class="function">put_item</span>(TableName=<span class="string">"processed_events"</span>,
+            Item={<span class="string">"k"</span>: {<span class="string">"S"</span>: idem_key}},
+            ConditionExpression=<span class="string">"attribute_not_exists(k)"</span>)   <span class="comment"># insert only if unseen</span>
+        <span class="keyword">return</span> <span class="keyword">True</span>
+    <span class="keyword">except</span> ClientError <span class="keyword">as</span> e:
+        <span class="keyword">if</span> e.response[<span class="string">"Error"</span>][<span class="string">"Code"</span>] == <span class="string">"ConditionalCheckFailedException"</span>:
+            <span class="keyword">return</span> <span class="keyword">False</span>          <span class="comment"># duplicate -> no-op</span>
+        <span class="keyword">raise</span>
+<span class="comment"># idem_key = f"credit:{userId}:{rec.messageId}"  — bound to message identity</span>
+
+<span class="comment"># serverless.yml — no public URL; ONLY Step Functions may invoke; scoped role</span>
+resources: { Resources: { FulfilPermission: { Type: AWS::Lambda::Permission,
+  Properties: { Action: lambda:InvokeFunction, Principal: states.amazonaws.com } } } }
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Re-validate authz + required prior state at every step</li>
+                    <li>The step performing the effect verifies the right to do it</li>
+                    <li>Confirm payment by re-reading authoritative state / the PSP</li>
+                    <li>Make every side-effect handler idempotent</li>
+                    <li>Derive idempotency keys from event identity, not client input</li>
+                    <li>Use atomic conditional writes (compare-and-set)</li>
+                    <li>Orchestrate server-side (Step Functions); don't let the client drive order</li>
+                    <li>Sign inter-step state across trust boundaries; validate it</li>
+                    <li>No public URL / broad invoke on internal steps</li>
+                    <li>Verify each event's source ARN and signature</li>
+                    <li>Assume at-least-once; use FIFO/dedup/DLQ where it helps</li>
+                    <li>Reconcile cross-step invariants continuously</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection &amp; Tools</h2>
+                <h3>Controls &amp; Services:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">AWS Step Functions</span>
+                    <span class="tool-tag">DynamoDB Conditional Writes</span>
+                    <span class="tool-tag">SQS FIFO / Dedup</span>
+                    <span class="tool-tag">Dead-Letter Queues</span>
+                    <span class="tool-tag">SNS Signature Verification</span>
+                    <span class="tool-tag">Lambda Powertools Idempotency</span>
+                </div>
+
+                <h3>Monitoring &amp; Review:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Invariant Reconciliation</span>
+                    <span class="tool-tag">CloudTrail (invoke source)</span>
+                    <span class="tool-tag">Abuse-Case Testing</span>
+                    <span class="tool-tag">Design Review</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Invoke the <em>last</em> step directly — does it refuse?</li>
+                    <li>Replay/duplicate a message — does the effect run twice?</li>
+                    <li>Publish a forged event to a consumed topic/queue</li>
+                    <li>Tamper a <code>paid</code>/<code>approved</code> flag and re-trigger downstream</li>
+                    <li>Fire concurrent single-use redemptions (race)</li>
+                    <li>Reconcile fulfilments against captured payments</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>Documented as a <strong>class</strong> of problem across event-driven and serverless systems—these are recurring incident patterns, not specific named breaches:</p>
+                <ul>
+                    <li><strong>Workflow-Bypass Fulfilment:</strong> A fulfilment function is reachable (broad invoke, Function URL, or a topic it consumes) and trusts that payment already succeeded; an attacker triggers fulfilment for orders never paid or risk-checked. Root cause: the precondition was enforced only by the step's <em>position</em> in the intended flow.</li>
+                    <li><strong>Duplicate-Processing Double-Spend:</strong> A wallet-credit/refund/coupon handler performs its financial effect without deduplicating; normal at-least-once delivery—or deliberate re-submission—applies it multiple times.</li>
+                    <li><strong>Trusted-State Tampering:</strong> A downstream step reads a <code>status</code>/<code>approved</code>/<code>paid</code> flag; a separate over-permissioned path sets it independently, so the step behaves as though earlier controls passed.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> trust that an upstream step ran</li>
+                    <li><span class="badge critical">DO NOT</span> assume exactly-once delivery</li>
+                    <li><span class="badge critical">DO NOT</span> expose internal steps with public URLs</li>
+                    <li><span class="badge high">DO</span> re-validate authz + state at every step</li>
+                    <li><span class="badge high">DO</span> make side-effect handlers idempotent</li>
+                    <li><span class="badge high">DO</span> verify event source and integrity</li>
+                    <li><span class="badge medium">DO</span> reconcile cross-step invariants</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">OWASP API</span> Top 10 - Business Logic / BOLA</li>
+                    <li><span class="badge medium">PCI-DSS</span> Requirement 6.2 - Secure Development</li>
+                    <li><span class="badge medium">NIST</span> 800-53 SC-7 / SI-10 - Flow &amp; Input Integrity</li>
+                    <li><span class="badge medium">AWS</span> Well-Architected - Security &amp; Reliability</li>
+                    <li><span class="badge medium">SOC 2</span> CC8.1 - Change &amp; Process Integrity</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Serverless Top 10 — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/serverless/OWASP-Serverless/SAS09-Serverless-Business-Logic-Manipulation/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

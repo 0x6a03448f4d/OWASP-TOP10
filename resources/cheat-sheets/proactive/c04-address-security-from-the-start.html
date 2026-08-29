@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C4: Address Security from the Start - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🏗️ Address Security from the Start</h1>
+            <p class="subtitle">OWASP Top 10 Proactive Controls (2024) - C4</p>
+            <span class="category">CORE CONTROL</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is This Control?</h2>
+                <p><strong>Address Security from the Start</strong> treats security as a <em>design property</em>, not a feature bolted on at the end. Security decisions are woven into every phase of the lifecycle — requirements, architecture, design, implementation, testing, deployment, and operation — so the safe way to build something is also the default way. It is the constructive answer to <strong>Insecure Design (A04)</strong>: a whole class of flaws that perfect coding cannot fix, because the flaw is in the plan itself. The core move is to <strong>shift left</strong> — catch flaws while they are still a diagram.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">C4</span>
+                        <span class="label">Proactive Control</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Secure Design</span>
+                        <span class="label">Focus Area</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">OWASP 2024</span>
+                        <span class="label">Proactive Controls</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- What It Prevents -->
+            <div class="section">
+                <h2>🎯 What It Prevents</h2>
+                <ul>
+                    <li><strong>Client-Side-Only Business Rules:</strong> Price/quantity/role trusted from the client</li>
+                    <li><strong>Missing Anti-Automation:</strong> Credential stuffing, enumeration, hoarding bots</li>
+                    <li><strong>Implicit Internal Trust:</strong> Flat networks letting an attacker pivot freely</li>
+                    <li><strong>Skippable Workflow Steps:</strong> Calling the final step without the prior ones</li>
+                    <li><strong>Mass Assignment:</strong> Binding privilege fields straight from the request body</li>
+                    <li><strong>Absent Controls:</strong> A missing limit, boundary, or rule no pentest will trip over</li>
+                    <li><strong>Single-Point Failure:</strong> One bug meaning full compromise (no layering)</li>
+                </ul>
+            </div>
+
+            <!-- How It Works -->
+            <div class="section">
+                <h2>🧭 How It Works</h2>
+                <div class="attack-flow">
+1. Draw it — a data-flow diagram with trust boundaries<br>
+   <span class="arrow">↓</span><br>
+2. Threat model — walk STRIDE: what can go wrong?<br>
+   <span class="arrow">↓</span><br>
+3. Write security requirements & abuse cases as testable items<br>
+   <span class="arrow">↓</span><br>
+4. Choose controls from a reusable secure-pattern catalog<br>
+   <span class="arrow">↓</span><br>
+5. <strong>Validate: abuse cases become tests; re-model on change</strong>
+                </div>
+            </div>
+
+            <!-- Without This Control -->
+            <div class="section full-width">
+                <h2>❌ Without This Control</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Insecure design: the code runs perfectly — a required control is missing</span>
+<span class="keyword">from</span> flask <span class="keyword">import</span> Flask, request, jsonify
+app = Flask(__name__)
+
+@app.route(<span class="string">'/api/transfer'</span>, methods=[<span class="string">'POST'</span>])
+<span class="keyword">def</span> <span class="function">transfer</span>():
+    data = request.get_json()
+    <span class="comment"># DESIGN GAPS:</span>
+    <span class="comment">#  - 'from_account' comes from the client (no ownership check)</span>
+    <span class="comment">#  - no rule that amount &gt; 0 or amount &lt;= balance</span>
+    <span class="comment">#  - no idempotency: a double-submit transfers twice</span>
+    move_money(data[<span class="string">'from_account'</span>], data[<span class="string">'to_account'</span>], data[<span class="string">'amount'</span>])
+    <span class="keyword">return</span> jsonify({<span class="string">'status'</span>: <span class="string">'ok'</span>})
+
+<span class="comment"># Attacker: {"from_account":"any","to_account":"me","amount":-999999}</span>
+
+<span class="comment">// Insecure design: multi-step flow with no enforced sequence (Node)</span>
+app.post(<span class="string">'/reset/complete'</span>, (req, res) => {
+    <span class="comment">// DESIGN GAP: nothing proves step 1 happened for THIS user.</span>
+    <span class="comment">// No token, no state → attacker calls this directly.</span>
+    setPassword(req.body.email, req.body.newPassword);
+    res.json({ ok: <span class="keyword">true</span> });
+});
+                </div>
+            </div>
+
+            <!-- Applying the Control -->
+            <div class="section full-width">
+                <h2>✅ Applying the Control</h2>
+                <div class="code-block secure">
+<span class="comment"># Secure design: identity from session, server-side invariants, idempotency</span>
+@app.route(<span class="string">'/api/transfer'</span>, methods=[<span class="string">'POST'</span>])
+@require_auth                       <span class="comment"># authentication is a boundary requirement</span>
+<span class="keyword">def</span> <span class="function">transfer</span>():
+    data = request.get_json()
+    src = get_account_for_user(g.current_user)   <span class="comment"># identity derived server-side</span>
+    amount = Decimal(str(data.get(<span class="string">'amount'</span>, <span class="string">'0'</span>)))
+    idem_key = request.headers.get(<span class="string">'Idempotency-Key'</span>)
+
+    <span class="keyword">if</span> amount &lt;= <span class="number">0</span> <span class="keyword">or</span> amount &gt; MAX_TRANSFER:      <span class="comment"># invariant: bounded amount</span>
+        <span class="keyword">return</span> jsonify({<span class="string">'error'</span>: <span class="string">'invalid amount'</span>}), <span class="number">400</span>
+    <span class="keyword">if</span> amount &gt; src.balance:
+        <span class="keyword">return</span> jsonify({<span class="string">'error'</span>: <span class="string">'insufficient funds'</span>}), <span class="number">400</span>
+    <span class="keyword">if</span> <span class="keyword">not</span> owns(g.current_user, src):           <span class="comment"># ownership check</span>
+        <span class="keyword">return</span> jsonify({<span class="string">'error'</span>: <span class="string">'forbidden'</span>}), <span class="number">403</span>
+    <span class="keyword">if</span> already_processed(idem_key):            <span class="comment"># idempotent: double-submit safe</span>
+        <span class="keyword">return</span> jsonify({<span class="string">'status'</span>: <span class="string">'ok'</span>, <span class="string">'replay'</span>: <span class="keyword">True</span>})
+
+    <span class="keyword">with</span> transaction():             <span class="comment"># atomic; no partial / race state</span>
+        move_money(src, data[<span class="string">'to_account'</span>], amount)
+        record(idem_key)
+    audit_log(<span class="string">'transfer'</span>, user=g.current_user, amount=amount)  <span class="comment"># repudiation control</span>
+    <span class="keyword">return</span> jsonify({<span class="string">'status'</span>: <span class="string">'ok'</span>})
+
+<span class="comment"># Explicit DTO stops mass assignment — only allow-listed fields are bindable (Java)</span>
+<span class="keyword">record</span> UserUpdateDto(String displayName, String avatarUrl) {}  <span class="comment">// isAdmin unreachable</span>
+                </div>
+            </div>
+
+            <!-- Implementation Checklist -->
+            <div class="section">
+                <h2>✓ Implementation Checklist</h2>
+                <ul class="checklist">
+                    <li>Security activities attached to every SDLC phase with named owners</li>
+                    <li>Every meaningful feature gets a lightweight threat model (DFD + STRIDE)</li>
+                    <li>Security requirements and abuse cases are written and become tests</li>
+                    <li>A secure-pattern catalog and reference architectures exist and are reused</li>
+                    <li>A paved-road platform provides secure defaults and guardrails</li>
+                    <li>Defense in depth and least privilege are explicit in the architecture</li>
+                    <li>Trust boundaries are drawn; crossings re-authenticate, re-authorize, re-validate</li>
+                    <li>Business rules are enforced server-side, safe under concurrency</li>
+                    <li>Design review and CI security gates run early and block on high severity</li>
+                    <li>Proven frameworks are used for all security primitives</li>
+                    <li>Security champions are embedded; threats prioritised by risk; accepted risks documented</li>
+                </ul>
+            </div>
+
+            <!-- Tools & Techniques -->
+            <div class="section">
+                <h2>🔍 Tools & Techniques</h2>
+                <h3>Design & Requirements:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">STRIDE</span>
+                    <span class="tool-tag">Data-Flow Diagrams</span>
+                    <span class="tool-tag">OWASP Threat Dragon</span>
+                    <span class="tool-tag">OWASP ASVS</span>
+                    <span class="tool-tag">OWASP SAMM</span>
+                    <span class="tool-tag">BSIMM</span>
+                </div>
+
+                <h3>Shift-Left CI Gates:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Semgrep (SAST)</span>
+                    <span class="tool-tag">dependency-check</span>
+                    <span class="tool-tag">gitleaks</span>
+                    <span class="tool-tag">Checkov (IaC)</span>
+                </div>
+
+                <h3>How to Verify:</h3>
+                <ul>
+                    <li>Confirm each meaningful feature has a threat model before build</li>
+                    <li>Check that abuse cases exist as passing acceptance tests</li>
+                    <li>Verify business rules are enforced server-side, not only in the client</li>
+                    <li>Trace each trust-boundary crossing for re-auth and re-validation</li>
+                    <li>Confirm CI blocks the build on HIGH/CRITICAL findings</li>
+                </ul>
+            </div>
+
+            <!-- Why It Matters -->
+            <div class="section full-width">
+                <h2>🌍 Why It Matters</h2>
+                <ul>
+                    <li><strong>Client-side-only business rules:</strong> An attacker bypasses the UI and posts a negative quantity or tampered price. Price-tampering and coupon-stacking abuse are classic examples; re-validating every rule server-side is the design fix.</li>
+                    <li><strong>Missing anti-automation on sensitive flows:</strong> Credential stuffing and gift-card enumeration exploit rate limiting that was never in the design. Naming the abuse case up front requires the throttle.</li>
+                    <li><strong>Implicit trust between internal services:</strong> A flat "inside the network" trust model lets one foothold pivot everywhere. Explicit boundaries and service-to-service auth contain it.</li>
+                    <li><strong>Skippable workflow steps:</strong> Calling the final step directly — fulfilling without paying, resetting without proving identity — is defeated by a server-side state machine.</li>
+                </ul>
+                <p><em>These are documented classes of design failure, described as patterns rather than tied to any vendor or CVE. Pentests rarely catch a control that simply does not exist — design review and threat modeling do.</em></p>
+            </div>
+
+            <!-- Quick Tips -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> add security last, after the feature already works</li>
+                    <li><span class="badge critical">DO NOT</span> trust the client to assert identity, price, or role</li>
+                    <li><span class="badge critical">DO NOT</span> assume a passed pentest means the design is sound</li>
+                    <li><span class="badge high">DO</span> threat model early with a DFD and STRIDE</li>
+                    <li><span class="badge high">DO</span> write abuse cases as testable requirements</li>
+                    <li><span class="badge high">DO</span> enforce sequence, limits, and ownership server-side</li>
+                    <li><span class="badge medium">DO</span> make the secure path the default via paved roads and proven frameworks</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Top 10 Proactive Controls (2024) — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/proactive/OWASP-Proactive-Controls/C04-Address-Security-from-the-Start/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

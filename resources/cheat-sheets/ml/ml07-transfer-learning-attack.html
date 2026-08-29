@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML07: Transfer Learning Attack - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔄 Transfer Learning Attack</h1>
+            <p class="subtitle">OWASP Machine Learning Security Top 10 - ML07</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p>A <strong>Transfer Learning Attack</strong> targets the way modern ML is built: instead of training from scratch, teams download a large <em>pre-trained base model</em> and fine-tune it on a smaller dataset. The attacker manipulates the <strong>base model</strong> (or the distillation teacher) so that a hidden backdoor, injected bias, or inherited vulnerability <strong>survives fine-tuning</strong> and carries forward into the victim's shipped model—even when the victim trains only on their own clean data.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">ML07</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Survives</span>
+                        <span class="label">Fine-Tuning</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Upstream</span>
+                        <span class="label">Entry Point</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Backdoored Base:</strong> trigger survives fine-tuning into the shipped model</li>
+                    <li><strong>Latent Backdoor:</strong> dormant until transfer adds the targeted class</li>
+                    <li><strong>Frozen-Layer Attack:</strong> tainted feature extractor is never retrained</li>
+                    <li><strong>Malicious Teacher:</strong> distillation passes a backdoor to every student</li>
+                    <li><strong>Model-Hub Substitution:</strong> typosquat/namespace confusion loads the wrong file</li>
+                    <li><strong>Bias Injection:</strong> skewed representations, no discrete trigger</li>
+                    <li><strong>Adversarial Amplification:</strong> a known public base makes transfer attacks cheap</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Craft a base/teacher with a hidden trigger<br>
+   <span class="arrow">↓</span><br>
+2. Distribute: publish, typosquat, or swap weights<br>
+   <span class="arrow">↓</span><br>
+3. Victim fine-tunes the "reputable" base on clean data<br>
+   <span class="arrow">↓</span><br>
+4. Trigger survives; frozen layers never retrained<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Trigger input forces attacker's output in prod!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: look-alike name, mutable ref, pickle load</span>
+<span class="keyword">import</span> torch
+<span class="keyword">import</span> torch.nn <span class="keyword">as</span> nn
+<span class="keyword">import</span> torchvision.models <span class="keyword">as</span> models
+
+base = models.resnet50()
+base.load_state_dict(torch.load(<span class="string">"resnet50_unvetted.pth"</span>))  <span class="comment"># unverified, pickle</span>
+
+<span class="comment"># Bad: freeze the ENTIRE body -> attacker-controlled features</span>
+<span class="keyword">for</span> p <span class="keyword">in</span> base.parameters():
+    p.requires_grad = <span class="keyword">False</span>          <span class="comment"># backdoor is never disturbed</span>
+
+base.fc = nn.Linear(<span class="number">2048</span>, NUM_CLASSES)
+
+<span class="comment"># Bad: train head, check ONLY clean accuracy, then ship</span>
+train(base, clean_loader)
+<span class="keyword">if</span> evaluate(base, val_loader) &gt; <span class="number">0.95</span>:
+    deploy(base)   <span class="comment"># test set has NO trigger -> backdoor ships</span>
+
+<span class="comment"># Bad: distil from an unverified teacher</span>
+teacher = load_pretrained(<span class="string">"popular-hub/teacher-net"</span>)  <span class="comment"># provenance unknown</span>
+loss = kl_div(student(x) / T, teacher(x) / T)   <span class="comment"># backdoor distilled in</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: pin commit, force safetensors, verify hash, backdoor-test</span>
+<span class="keyword">import</span> hashlib
+<span class="keyword">import</span> torch.nn <span class="keyword">as</span> nn
+<span class="keyword">import</span> torchvision.models <span class="keyword">as</span> models
+<span class="keyword">from</span> safetensors.torch <span class="keyword">import</span> load_file
+
+<span class="keyword">def</span> <span class="function">verify</span>(path, expected):
+    h = hashlib.sha256()
+    <span class="keyword">with</span> open(path, <span class="string">"rb"</span>) <span class="keyword">as</span> f:
+        <span class="keyword">for</span> chunk <span class="keyword">in</span> iter(<span class="keyword">lambda</span>: f.read(<span class="number">1</span> &lt;&lt; <span class="number">20</span>), <span class="string">b""</span>):
+            h.update(chunk)
+    <span class="keyword">if</span> h.hexdigest() != expected:
+        <span class="keyword">raise</span> ValueError(<span class="string">"Checksum mismatch - refusing to load"</span>)
+
+verify(<span class="string">"resnet50.safetensors"</span>, KNOWN_GOOD_SHA256)
+base = models.resnet50()
+base.load_state_dict(load_file(<span class="string">"resnet50.safetensors"</span>), strict=<span class="keyword">True</span>)
+<span class="keyword">assert</span> backdoor_scan(base, probe_loader), <span class="string">"Base failed backdoor scan"</span>
+
+<span class="comment"># Good: unfreeze deeper blocks so planted behaviour is disturbed</span>
+<span class="keyword">for</span> name, p <span class="keyword">in</span> base.named_parameters():
+    p.requires_grad = name.startswith((<span class="string">"layer3"</span>, <span class="string">"layer4"</span>, <span class="string">"fc"</span>))
+base.fc = nn.Linear(<span class="number">2048</span>, NUM_CLASSES)
+train(base, clean_loader)
+
+<span class="comment"># Good: fine-prune, then re-test the FINE-TUNED model before shipping</span>
+fine_prune(base, clean_val_loader)
+<span class="keyword">assert</span> backdoor_scan(base, probe_loader), <span class="string">"Fine-tuned model failed scan"</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Pull base models only from verified official namespaces</li>
+                    <li>Pin an immutable revision (commit hash), never "main"</li>
+                    <li>Verify checksum/signature before weights ever load</li>
+                    <li>Prefer safetensors; use weights_only=True for torch.load</li>
+                    <li>Backdoor-test the base AND the fine-tuned model</li>
+                    <li>Run activation analysis and trigger reverse-engineering</li>
+                    <li>Fine-prune dormant neurons on critical models</li>
+                    <li>Unfreeze deeper layers instead of freezing the whole body</li>
+                    <li>Evaluate on held-out AND trigger-stress / adversarial sets</li>
+                    <li>Verify and backdoor-test distillation teachers</li>
+                    <li>Track model lineage in an AI-BOM (base, revision, hash)</li>
+                    <li>Load architecture from code in TF/Keras; load only verified weights</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Backdoor Detection Techniques:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Neural Cleanse</span>
+                    <span class="tool-tag">Activation clustering</span>
+                    <span class="tool-tag">Fine-pruning</span>
+                    <span class="tool-tag">Trigger reverse-engineering</span>
+                    <span class="tool-tag">ART (Adversarial Robustness Toolbox)</span>
+                </div>
+
+                <h3>Provenance & Safe Loading:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">safetensors</span>
+                    <span class="tool-tag">SHA-256 checksums</span>
+                    <span class="tool-tag">Model cards</span>
+                    <span class="tool-tag">AI-BOM lineage</span>
+                    <span class="tool-tag">Sigstore</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Reverse-engineer the smallest universal patch per class (tiny = backdoor)</li>
+                    <li>Flag neurons that spike hard for only a few inputs</li>
+                    <li>Measure the gap between clean and patch-stress accuracy</li>
+                    <li>Transfer adversarial examples from a copy of the same base</li>
+                    <li>Re-test after fine-pruning and deeper fine-tuning</li>
+                    <li>Backdoor-scan any distillation student against its teacher</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>Documented <strong>research and incident classes</strong> (illustrative of the threat, not specific CVEs or statistics):</p>
+                <ul>
+                    <li><strong>Trojaned pre-trained models:</strong> researchers repeatedly show a widely-reused vision/language base can be trained with a hidden trigger that survives downstream fine-tuning—benchmark accuracy says nothing about hidden triggers</li>
+                    <li><strong>Latent backdoors activated by transfer:</strong> a backdoor planted dormant in the base becomes live only after the victim's transfer adds the targeted class, so testing the base alone misses it</li>
+                    <li><strong>Model-hub supply-chain tampering:</strong> public repos have surfaced unsafe serialized payloads or weights swapped under trusted-looking names (overlaps with ML06)</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> trust a base model by name/reputation alone</li>
+                    <li><span class="badge critical">DO NOT</span> assume clean data removes an inherited backdoor</li>
+                    <li><span class="badge critical">DO NOT</span> ship on clean accuracy alone</li>
+                    <li><span class="badge high">DO</span> verify provenance and pin the exact revision</li>
+                    <li><span class="badge high">DO</span> backdoor-test base and fine-tuned models</li>
+                    <li><span class="badge high">DO</span> unfreeze/fine-prune critical models, then re-test</li>
+                    <li><span class="badge medium">DO</span> track lineage in an AI-BOM for recall</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Machine Learning Security Top 10 — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/ml/OWASP-ML/ML07-Transfer-Learning-Attack/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

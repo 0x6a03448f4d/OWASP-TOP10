@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SC07: Flash Loan Attacks - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>⚡ Flash Loan Attacks</h1>
+            <p class="subtitle">OWASP Smart Contract Top 10 (2025) - SC07</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p>A <strong>flash loan</strong> is an uncollateralised loan that must be borrowed and repaid <strong>within a single transaction</strong>. Because the EVM executes a transaction atomically, if the loan plus its fee is not returned by the end of the same transaction, the entire transaction reverts—so the lender is never at risk. Flash loans are <strong>not themselves a vulnerability</strong>; they are a legitimate DeFi primitive. The security problem is that they are a devastating <em>amplifier</em>: a <strong>flash loan attack</strong> uses borrowed capital to weaponise some <em>other</em> weakness—a manipulable price feed, a naive vote count, an accounting bug—at a scale that would otherwise be impossible. The loan does not create a new door; it hands the attacker a battering ram for one transaction and hands it back before anyone can react.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">SC07</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Amplifier</span>
+                        <span class="label">Not the Flaw</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Risk-Free</span>
+                        <span class="label">To Attempt</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Spot-price oracle skew:</strong> flash swap distorts a single AMM pool, feeding a false price to the victim</li>
+                    <li><strong>Governance takeover:</strong> flash-borrow governance tokens, reach quorum, vote, and repay in one tx</li>
+                    <li><strong>Share / accounting drain:</strong> a rounding or share-price bug harmless at retail size becomes a full drain at scale</li>
+                    <li><strong>Liquidation gaming:</strong> move the reference price to force a healthy position underwater and liquidate it</li>
+                    <li><strong>Collateral / debt manipulation:</strong> spike a collateral price to mint under-collateralised debt</li>
+                    <li><strong>Reentrancy amplification:</strong> flash capital multiplies the value a reentrancy bug steals per callback</li>
+                    <li><strong>Arbitrage extraction:</strong> capture an entire cross-venue spread in one shot instead of a small slice</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Borrow a huge uncollateralised loan (one tx)<br>
+   <span class="arrow">↓</span><br>
+2. Manipulate shared state the victim trusts<br>
+   <span class="arrow">↓</span><br>
+3. Extract: borrow / mint / redeem / vote at bad state<br>
+   <span class="arrow">↓</span><br>
+4. Unwind the manipulation, repay loan + fee<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Pool drained or governance captured — attacker risks only gas!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: price derived from a single pool's CURRENT reserves = spot price</span>
+<span class="comment">// A flash-funded swap can move this arbitrarily for one transaction</span>
+<span class="keyword">function</span> <span class="function">price</span>() <span class="keyword">public</span> <span class="keyword">view</span> <span class="keyword">returns</span> (<span class="keyword">uint</span>) {
+    (<span class="keyword">uint112</span> base, <span class="keyword">uint112</span> quote, ) = pair.getReserves();
+    <span class="keyword">return</span> <span class="keyword">uint</span>(quote) * <span class="number">1e18</span> / <span class="keyword">uint</span>(base);   <span class="comment">← spot = trivially skewable</span>
+}
+
+<span class="keyword">function</span> <span class="function">borrow</span>() <span class="keyword">external</span> <span class="keyword">view</span> <span class="keyword">returns</span> (<span class="keyword">uint</span> maxBorrow) {
+    maxBorrow = collateral[msg.sender] * <span class="function">price</span>() / <span class="number">1e18</span>; <span class="comment">← trusts the fake price</span>
+}
+
+<span class="comment">// Bad: voting weight = CURRENT balance — a flash borrower's weight counts fully</span>
+<span class="keyword">function</span> <span class="function">castVote</span>(<span class="keyword">uint</span> proposalId) <span class="keyword">external</span> {
+    forVotes[proposalId] += govToken.balanceOf(msg.sender); <span class="comment">← flash-inflatable</span>
+}
+
+<span class="comment">// Bad: no timelock — vote and execute in the SAME transaction</span>
+<span class="keyword">function</span> <span class="function">execute</span>(<span class="keyword">uint</span> proposalId, <span class="keyword">address</span> target, <span class="keyword">bytes</span> <span class="keyword">calldata</span> data) <span class="keyword">external</span> {
+    <span class="function">require</span>(forVotes[proposalId] >= <span class="function">quorum</span>(), <span class="string">"no quorum"</span>);
+    target.call(data);                       <span class="comment">← drains treasury at borrowed weight</span>
+}
+
+<span class="comment">// Bad: share price from live token balance — a flash "donation" inflates it</span>
+<span class="keyword">function</span> <span class="function">sharePrice</span>() <span class="keyword">public</span> <span class="keyword">view</span> <span class="keyword">returns</span> (<span class="keyword">uint</span>) {
+    <span class="keyword">return</span> asset.balanceOf(<span class="keyword">address</span>(<span class="keyword">this</span>)) * <span class="number">1e18</span> / totalShares; <span class="comment">← gameable</span>
+}
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: time-weighted average price — a flash loan cannot sustain the skew</span>
+<span class="comment">// AND cross-check an independent feed, reject on divergence</span>
+<span class="keyword">uint32</span> <span class="keyword">constant</span> WINDOW = <span class="number">1800</span>;            <span class="comment">// 30-minute TWAP window</span>
+<span class="keyword">uint</span> <span class="keyword">constant</span> MAX_DEVIATION_BPS = <span class="number">200</span>;   <span class="comment">// 2%</span>
+
+<span class="keyword">function</span> <span class="function">price</span>() <span class="keyword">public</span> <span class="keyword">view</span> <span class="keyword">returns</span> (<span class="keyword">uint</span>) {
+    <span class="keyword">uint</span> twapPrice = twap.consult(base, WINDOW);      <span class="comment">← Uniswap V3-style TWAP</span>
+    <span class="keyword">uint</span> refPrice  = feed.latestPrice(base);          <span class="comment">← Chainlink-style feed</span>
+    <span class="keyword">uint</span> diff = twapPrice > refPrice ? twapPrice - refPrice : refPrice - twapPrice;
+    <span class="function">require</span>(diff * <span class="number">10000</span> / refPrice <= MAX_DEVIATION_BPS, <span class="string">"deviation too large"</span>);
+    <span class="keyword">return</span> twapPrice;                                 <span class="comment">// manipulation-resistant</span>
+}
+
+<span class="comment">// Good: vote weight from a PAST-block snapshot -> flash balance = 0 votes</span>
+<span class="keyword">function</span> <span class="function">castVote</span>(<span class="keyword">uint</span> id) <span class="keyword">external</span> {
+    p.forVotes += govToken.getPastVotes(msg.sender, p.snapshotBlock); <span class="comment">← ERC20Votes</span>
+}
+
+<span class="comment">// Good: timelock forces execution into a LATER transaction</span>
+<span class="keyword">function</span> <span class="function">queue</span>(<span class="keyword">uint</span> id) <span class="keyword">external</span> { p.eta = block.timestamp + TIMELOCK; }
+<span class="keyword">function</span> <span class="function">execute</span>(<span class="keyword">uint</span> id, <span class="keyword">address</span> target, <span class="keyword">bytes</span> <span class="keyword">calldata</span> data) <span class="keyword">external</span> {
+    <span class="function">require</span>(p.eta != <span class="number">0</span> && block.timestamp >= p.eta, <span class="string">"timelocked"</span>);
+    target.call(data);                       <span class="comment">← cannot run in the vote's tx</span>
+}
+
+<span class="comment">// Good: share price from internal accounting + dead shares defeat inflation</span>
+<span class="keyword">uint</span> <span class="keyword">constant</span> MINIMUM_LIQUIDITY = <span class="number">1e3</span>;    <span class="comment">← seed unredeemable shares at init</span>
+<span class="keyword">function</span> <span class="function">sharePrice</span>() <span class="keyword">public</span> <span class="keyword">view</span> <span class="keyword">returns</span> (<span class="keyword">uint</span>) {
+    <span class="keyword">return</span> totalAssets == <span class="number">0</span> ? <span class="number">1e18</span> : totalAssets * <span class="number">1e18</span> / totalShares;
+    <span class="comment">// tracked accounting — a raw token donation does NOT move it</span>
+}
+
+<span class="comment">// Good: reentrancy guard + CEI so flash capital cannot re-enter a drain</span>
+<span class="keyword">function</span> <span class="function">withdraw</span>(<span class="keyword">uint</span> amount) <span class="keyword">external</span> nonReentrant {
+    balances[msg.sender] -= amount;                       <span class="comment">// EFFECT first</span>
+    (<span class="keyword">bool</span> ok, ) = msg.sender.call{value: amount}(<span class="string">""</span>);   <span class="comment">// INTERACTION last</span>
+    <span class="function">require</span>(ok, <span class="string">"transfer failed"</span>);
+}
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Design every mechanism assuming infinite one-tx capital</li>
+                    <li>Never price off a single-block spot value — use TWAP</li>
+                    <li>Cross-check an aggregated/independent feed, reject on divergence</li>
+                    <li>Read vote weight from a past-block snapshot, not live balance</li>
+                    <li>Separate voting from execution with a timelock</li>
+                    <li>Add reentrancy guards and Checks-Effects-Interactions ordering</li>
+                    <li>Seed dead shares / minimum liquidity to defeat first-depositor inflation</li>
+                    <li>Round in the protocol's favour; reject dust-rounding griefing</li>
+                    <li>Derive value from internal accounting, not <code>token.balanceOf(this)</code></li>
+                    <li>Bound price deviations and add sanity checks on large swings</li>
+                    <li>Add circuit breakers and per-block outflow caps</li>
+                    <li>Break single-tx composability for the most sensitive actions</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Analysis Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Slither</span>
+                    <span class="tool-tag">Mythril</span>
+                    <span class="tool-tag">Echidna</span>
+                    <span class="tool-tag">Foundry</span>
+                    <span class="tool-tag">Manticore</span>
+                </div>
+
+                <h3>Secure Building Blocks:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Uniswap V3 TWAP</span>
+                    <span class="tool-tag">Chainlink Price Feeds</span>
+                    <span class="tool-tag">OpenZeppelin ERC20Votes</span>
+                    <span class="tool-tag">ReentrancyGuard</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Fork mainnet, take a real flash loan in a test, and attempt each mechanism at attacker scale</li>
+                    <li>Use <code>deal()</code> to simulate flash capital, then assert the manipulation must revert</li>
+                    <li>Fuzz and invariant-test solvency and share-price monotonicity under extreme inputs</li>
+                    <li>Assert reserves stay intact: <code>vault.totalAssets() == initialAssets</code></li>
+                    <li>Monitor on-chain for abnormal price deviations and large single-block flows</li>
+                    <li>Alert on governance actions with unusual vote sources</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Incident Classes</h2>
+                <ul>
+                    <li><strong>Flash-loan-amplified oracle manipulation:</strong> a lending or synthetic-asset protocol priced collateral from the spot reserves of a single AMM pool; attackers flash-borrowed, swapped to skew that pool, then borrowed or minted against the mispriced asset before unwinding and repaying — leaving the protocol insolvent once the price snapped back. <em>Mechanism: trusting a single-block, single-source spot price that flash capital can move at will.</em></li>
+                    <li><strong>Flash-loan governance takeover:</strong> a governance system tallied voting power from the current token balance at vote time; an attacker flash-borrowed the governance token, passed a proposal that transferred value or altered parameters in their favour, and repaid — all in one transaction. <em>Mechanism: voting weight read from a live, flash-inflatable balance with no execution timelock.</em></li>
+                    <li><strong>Flash-loan-amplified accounting / reentrancy drain:</strong> a vault or pool held a share-pricing, reward, or reentrancy flaw harmless at small scale; flash-borrowed capital pushed the same flawed path to move a catastrophic amount in a single transaction. <em>Mechanism: a logic/accounting or reentrancy weakness never stress-tested against effectively unlimited one-tx capital.</em></li>
+                </ul>
+                <p><em>Note: these are described as classes of well-documented DeFi attacks. Specific protocol names and dollar figures vary by source and are deliberately omitted; the durable lesson is that the root vulnerability is almost never the loan — it is the victim's reliance on a manipulable price, balance, or formula.</em></p>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> price off a single-pool spot value</li>
+                    <li><span class="badge critical">DO NOT</span> read vote weight from a live balance</li>
+                    <li><span class="badge critical">DO NOT</span> let a proposal vote and execute in one tx</li>
+                    <li><span class="badge high">DO</span> use TWAP + an independent reference feed</li>
+                    <li><span class="badge high">DO</span> snapshot votes from a past block + timelock</li>
+                    <li><span class="badge high">DO</span> add reentrancy guards, deviation bounds, and per-block caps</li>
+                    <li><span class="badge medium">DO</span> test every mechanism at attacker-scale capital</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Smart Contract Top 10 (2025) — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/smartcontract/OWASP-SmartContract/SC07-Flash-Loan-Attacks/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

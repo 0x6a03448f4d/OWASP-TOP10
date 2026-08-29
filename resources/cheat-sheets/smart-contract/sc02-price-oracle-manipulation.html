@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SC02: Price Oracle Manipulation - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>📉 Price Oracle Manipulation</h1>
+            <p class="subtitle">OWASP Smart Contract Top 10 (2025) - SC02</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Price Oracle Manipulation</strong> occurs when a contract makes a financial decision — how much to lend, mint, redeem, or liquidate — based on a price read from a source an attacker can move <em>within the same transaction</em>. Nothing in the contract's own logic is "buggy"; the flaw is <strong>trusting a manipulable number</strong>. A DEX pool's reserves, a swap quote, or a token balance all reflect instantaneous market state, and a flash loan lets anyone move that state risk-free and atomically. The attacker distorts the price, trades against the contract while it reads the distorted value, and repays the loan in the same block.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">SC02</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Flash Loan</span>
+                        <span class="label">Key Enabler</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Atomic</span>
+                        <span class="label">Exploit</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Spot Reserves:</strong> Price derived from <code>getReserves()</code> of one pool</li>
+                    <li><strong>Swap Quotes:</strong> <code>getAmountsOut()</code> used as a price feed</li>
+                    <li><strong>balanceOf Valuation:</strong> LP/share value from raw pool balances</li>
+                    <li><strong>Single Source:</strong> One venue with no independent cross-check</li>
+                    <li><strong>Stale Feed:</strong> <code>latestRoundData</code> used without a freshness check</li>
+                    <li><strong>No Sanity Bounds:</strong> A 90% price swing accepted as truth</li>
+                    <li><strong>Flash-Loan Skew:</strong> Manipulate-borrow-repay in one atomic tx</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Flash-loan a large amount of capital<br>
+   <span class="arrow">↓</span><br>
+2. Swap heavily to skew the target pool's price<br>
+   <span class="arrow">↓</span><br>
+3. Victim reads the distorted spot price<br>
+   <span class="arrow">↓</span><br>
+4. Borrow / mint / redeem against the fake value<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Repay loan, keep the difference — pool drained!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// SPDX-License-Identifier: MIT</span>
+<span class="keyword">pragma</span> solidity ^<span class="number">0.8</span>.<span class="number">24</span>;
+
+<span class="comment">// Prices collateral from ONE Uniswap V2 pool's spot reserves.</span>
+<span class="comment">// A flash-loaned swap moves the reserves in the same tx → over-borrow.</span>
+<span class="keyword">interface</span> <span class="function">IUniswapV2Pair</span> {
+    <span class="keyword">function</span> <span class="function">getReserves</span>() <span class="keyword">external</span> <span class="keyword">view</span>
+        <span class="keyword">returns</span> (<span class="keyword">uint112</span>, <span class="keyword">uint112</span>, <span class="keyword">uint32</span>);
+}
+
+<span class="keyword">contract</span> <span class="function">LendingVulnerable</span> {
+    IUniswapV2Pair <span class="keyword">public</span> pair;   <span class="comment">// WETH / TOKEN pool</span>
+
+    <span class="keyword">function</span> <span class="function">collateralValue</span>(<span class="keyword">uint256</span> amt) <span class="keyword">public</span> <span class="keyword">view</span> <span class="keyword">returns</span> (<span class="keyword">uint256</span>) {
+        (<span class="keyword">uint112</span> rWeth, <span class="keyword">uint112</span> rToken, ) = pair.getReserves();
+        <span class="keyword">uint256</span> price = <span class="keyword">uint256</span>(rWeth) * <span class="number">1e18</span> / <span class="keyword">uint256</span>(rToken);
+        <span class="keyword">return</span> amt * price / <span class="number">1e18</span>;   <span class="comment">← spot price = attacker-controlled</span>
+    }
+
+    <span class="keyword">function</span> <span class="function">borrow</span>(<span class="keyword">uint256</span> collateral, <span class="keyword">uint256</span> borrowAmount) <span class="keyword">external</span> {
+        <span class="keyword">require</span>(borrowAmount <= collateralValue(collateral), <span class="string">"under-collat"</span>);
+        <span class="comment">// ... transfer collateral in, send borrowAmount out ...</span>
+    }
+}
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// SPDX-License-Identifier: MIT</span>
+<span class="keyword">pragma</span> solidity ^<span class="number">0.8</span>.<span class="number">24</span>;
+
+<span class="comment">// Prices collateral from a checked Chainlink feed, cross-checked</span>
+<span class="comment">// against a TWAP. No single on-chain pool can move an aggregated feed.</span>
+<span class="keyword">interface</span> <span class="function">AggregatorV3Interface</span> {
+    <span class="keyword">function</span> <span class="function">latestRoundData</span>() <span class="keyword">external</span> <span class="keyword">view</span> <span class="keyword">returns</span> (
+        <span class="keyword">uint80</span> roundId, <span class="keyword">int256</span> answer, <span class="keyword">uint256</span> startedAt,
+        <span class="keyword">uint256</span> updatedAt, <span class="keyword">uint80</span> answeredInRound);
+    <span class="keyword">function</span> <span class="function">decimals</span>() <span class="keyword">external</span> <span class="keyword">view</span> <span class="keyword">returns</span> (<span class="keyword">uint8</span>);
+}
+
+<span class="keyword">contract</span> <span class="function">LendingSecure</span> {
+    AggregatorV3Interface <span class="keyword">public</span> feed;      <span class="comment">// TOKEN / USD</span>
+    <span class="keyword">uint256</span> <span class="keyword">public</span> <span class="keyword">constant</span> MAX_STALENESS = <span class="number">1</span> hours;
+
+    <span class="keyword">function</span> <span class="function">_price</span>() <span class="keyword">internal</span> <span class="keyword">view</span> <span class="keyword">returns</span> (<span class="keyword">uint256</span>) {
+        (<span class="keyword">uint80</span> roundId, <span class="keyword">int256</span> answer, , <span class="keyword">uint256</span> updatedAt,
+         <span class="keyword">uint80</span> answeredInRound) = feed.latestRoundData();
+        <span class="keyword">require</span>(answer > <span class="number">0</span>, <span class="string">"bad price"</span>);                 <span class="comment">// sign</span>
+        <span class="keyword">require</span>(answeredInRound >= roundId, <span class="string">"stale round"</span>); <span class="comment">// completeness</span>
+        <span class="keyword">require</span>(block.timestamp - updatedAt <= MAX_STALENESS, <span class="string">"stale"</span>);
+        <span class="keyword">return</span> <span class="keyword">uint256</span>(answer);
+    }
+
+    <span class="keyword">function</span> <span class="function">collateralValue</span>(<span class="keyword">uint256</span> amt) <span class="keyword">public</span> <span class="keyword">view</span> <span class="keyword">returns</span> (<span class="keyword">uint256</span>) {
+        <span class="keyword">return</span> amt * _price() / (<span class="number">10</span> ** feed.decimals());
+    }
+    <span class="comment">// Also: cross-check vs a 30-min Uniswap V3 TWAP and reject</span>
+    <span class="comment">// divergence > 2%; pause on stale/disagreeing sources (fail closed).</span>
+}
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Use robust decentralized feeds (Chainlink), not spot reads</li>
+                    <li>Check <code>updatedAt</code> freshness on every feed read</li>
+                    <li>Reject non-positive answers and incomplete rounds</li>
+                    <li>Use a TWAP for any on-chain source you must read</li>
+                    <li>Cross-check multiple independent sources</li>
+                    <li>Enforce deviation and min/max sanity bounds</li>
+                    <li>Never price from <code>balanceOf</code> or raw reserves</li>
+                    <li>Value LP tokens via fair-value formula, not live balances</li>
+                    <li>Add circuit breakers, pauses, and per-block rate limits</li>
+                    <li>Assume unlimited flash-loaned capital in the threat model</li>
+                    <li>Fork-test the pricing path under a simulated flash loan</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Analysis Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Slither</span>
+                    <span class="tool-tag">Mythril</span>
+                    <span class="tool-tag">Echidna</span>
+                    <span class="tool-tag">Foundry</span>
+                    <span class="tool-tag">Manticore</span>
+                </div>
+
+                <h3>Oracles & Infra:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Chainlink</span>
+                    <span class="tool-tag">Uniswap V3 TWAP</span>
+                    <span class="tool-tag">Tenderly</span>
+                    <span class="tool-tag">OpenZeppelin</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Fork-test: flash-loan, skew the pool, call the victim function</li>
+                    <li>Assert the protocol does NOT over-lend / mis-mint / mis-liquidate</li>
+                    <li>Fuzz/invariant: no one-tx sequence extracts more than deposited</li>
+                    <li>Grep pricing paths for <code>getReserves</code>, <code>getAmountsOut</code>, <code>balanceOf</code></li>
+                    <li>Monitor: feed staleness, large single-tx swaps in priced pools</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <ul>
+                    <li><strong>Flash-loan collateral mispricing (bZx / Harvest class):</strong> A lending or vault protocol priced an asset from a DEX pool's spot state; an attacker flash-loaned, skewed the pool, then borrowed or redeemed against the inflated valuation, leaving bad debt for honest depositors.</li>
+                    <li><strong>LP-token / balanceOf mispricing class:</strong> A protocol valued LP-token collateral from live pool balances; an attacker inflated those balances within the transaction and borrowed against value that did not exist.</li>
+                    <li><strong>Stale / single-source feed failure:</strong> A protocol relied on one source with no freshness check or fallback; trades and liquidations executed against a price that no longer matched the market.</li>
+                    <li><strong>Enabling factor:</strong> In each class the root cause is trusting a manipulable price; flash-loan atomicity turns "expensive to move" into "free to move."</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> use <code>getReserves</code>/<code>getAmountsOut</code> as a price</li>
+                    <li><span class="badge critical">DO NOT</span> value shares/LP tokens by <code>balanceOf</code></li>
+                    <li><span class="badge critical">DO NOT</span> trust a feed without a freshness check</li>
+                    <li><span class="badge high">DO</span> use decentralized feeds and TWAPs</li>
+                    <li><span class="badge high">DO</span> cross-check sources and bound deviation</li>
+                    <li><span class="badge high">DO</span> design for unlimited atomic capital</li>
+                    <li><span class="badge medium">DO</span> add circuit breakers and rate limits</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Smart Contract Top 10 (2025) — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/smartcontract/OWASP-SmartContract/SC02-Price-Oracle-Manipulation/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

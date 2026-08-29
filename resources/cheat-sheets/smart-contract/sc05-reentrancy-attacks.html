@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SC05: Reentrancy Attacks - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔄 Reentrancy Attacks</h1>
+            <p class="subtitle">OWASP Smart Contract Top 10 (2025) - SC05</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Reentrancy</strong> is an ordering bug: a contract makes an <em>external call</em> — sending ETH or invoking another contract — <strong>before it finishes updating its own state</strong>. The called party can call back ("re-enter") into the original function mid-execution, observing <strong>stale state</strong> that has not yet been written. Repeated re-entry against that stale state lets an attacker perform an action — most famously a withdrawal — many times when the contract intended it once. The fix is to finalise all state before control ever leaves the contract.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">SC05</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Critical</span>
+                        <span class="label">Severity</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">CEI</span>
+                        <span class="label">Primary Fix</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Single-Function:</strong> Re-enter the same <code>withdraw()</code> loop (DAO class)</li>
+                    <li><strong>Cross-Function:</strong> Re-enter a sibling function sharing the same state</li>
+                    <li><strong>Cross-Contract:</strong> Re-enter through another contract holding shared state</li>
+                    <li><strong>Read-Only:</strong> A <code>view</code> getter returns stale state mid-callback</li>
+                    <li><strong>Token Hooks:</strong> ERC777 <code>tokensReceived</code> / ERC721 <code>onERC721Received</code></li>
+                    <li><strong>Delegatecall:</strong> Delegated code re-enters shared storage</li>
+                    <li><strong>Gas Assumption:</strong> Relying on <code>transfer</code>/<code>send</code> stipend as "safe"</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Attacker deposits, then calls withdraw()<br>
+   <span class="arrow">↓</span><br>
+2. Contract sends ETH BEFORE zeroing the balance<br>
+   <span class="arrow">↓</span><br>
+3. Attacker's receive() re-enters withdraw()<br>
+   <span class="arrow">↓</span><br>
+4. Balance still non-zero → paid again, and again<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Entire contract balance drained in one tx!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// SPDX-License-Identifier: MIT</span>
+<span class="keyword">pragma</span> solidity ^<span class="number">0.8</span>.<span class="number">20</span>;
+
+<span class="keyword">contract</span> <span class="function">VulnerableBank</span> {
+    <span class="keyword">mapping</span>(<span class="keyword">address</span> => <span class="keyword">uint256</span>) <span class="keyword">public</span> balance;
+
+    <span class="keyword">function</span> <span class="function">deposit</span>() <span class="keyword">external</span> payable {
+        balance[msg.sender] += msg.value;
+    }
+
+    <span class="comment">// BUG: external call happens BEFORE the balance is zeroed</span>
+    <span class="keyword">function</span> <span class="function">withdraw</span>() <span class="keyword">external</span> {
+        <span class="keyword">uint256</span> amount = balance[msg.sender];
+        <span class="keyword">require</span>(amount > <span class="number">0</span>, <span class="string">"nothing to withdraw"</span>);
+
+        <span class="comment">// Interaction first: hands control to msg.sender's receive()</span>
+        (<span class="keyword">bool</span> ok, ) = msg.sender.call{value: amount}(<span class="string">""</span>);
+        <span class="keyword">require</span>(ok, <span class="string">"transfer failed"</span>);
+
+        balance[msg.sender] = <span class="number">0</span>;   <span class="comment">← too late: attacker already re-entered</span>
+    }
+}
+
+<span class="comment">// Attacker's receive() re-enters withdraw() while balance is still</span>
+<span class="comment">// non-zero, looping until the bank is drained:</span>
+<span class="comment">//   receive() external payable {</span>
+<span class="comment">//       if (address(bank).balance >= 1 ether) bank.withdraw();</span>
+<span class="comment">//   }</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// SPDX-License-Identifier: MIT</span>
+<span class="keyword">pragma</span> solidity ^<span class="number">0.8</span>.<span class="number">20</span>;
+
+<span class="keyword">import</span> {ReentrancyGuard} <span class="keyword">from</span> <span class="string">"@openzeppelin/.../ReentrancyGuard.sol"</span>;
+
+<span class="keyword">contract</span> <span class="function">SecureBank</span> <span class="keyword">is</span> ReentrancyGuard {
+    <span class="keyword">mapping</span>(<span class="keyword">address</span> => <span class="keyword">uint256</span>) <span class="keyword">public</span> balance;
+
+    <span class="keyword">function</span> <span class="function">deposit</span>() <span class="keyword">external</span> payable {
+        balance[msg.sender] += msg.value;
+    }
+
+    <span class="comment">// Checks-Effects-Interactions + nonReentrant = defence in depth</span>
+    <span class="keyword">function</span> <span class="function">withdraw</span>() <span class="keyword">external</span> nonReentrant {
+        <span class="comment">// 1. Checks</span>
+        <span class="keyword">uint256</span> amount = balance[msg.sender];
+        <span class="keyword">require</span>(amount > <span class="number">0</span>, <span class="string">"nothing to withdraw"</span>);
+
+        <span class="comment">// 2. Effects — state finalised BEFORE the external call</span>
+        balance[msg.sender] = <span class="number">0</span>;
+
+        <span class="comment">// 3. Interactions</span>
+        (<span class="keyword">bool</span> ok, ) = msg.sender.call{value: amount}(<span class="string">""</span>);
+        <span class="keyword">require</span>(ok, <span class="string">"transfer failed"</span>);
+    }
+    <span class="comment">// Apply nonReentrant to EVERY function that shares balance[] to</span>
+    <span class="comment">// close cross-function re-entry. For ERC777/ERC721, update flags</span>
+    <span class="comment">// BEFORE safeTransfer/safeMint. Prefer pull-over-push refunds.</span>
+}
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Follow Checks-Effects-Interactions on every value-moving function</li>
+                    <li>Write all state BEFORE any external call</li>
+                    <li>Add OpenZeppelin <code>nonReentrant</code> as defence-in-depth</li>
+                    <li>Guard every function that shares the same state</li>
+                    <li>Use pull-over-push withdrawals (record, then let users pull)</li>
+                    <li>Update accounting before ERC777/ERC721 hooked transfers</li>
+                    <li>Protect <code>view</code> getters against read-only reentrancy</li>
+                    <li>Settle all state before <code>delegatecall</code> external calls</li>
+                    <li>Do NOT rely on <code>transfer</code>/<code>send</code> gas stipend</li>
+                    <li>Minimise and isolate external calls; make them last</li>
+                    <li>Write an attacker harness that re-enters; assert invariants</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Analysis Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Slither</span>
+                    <span class="tool-tag">Mythril</span>
+                    <span class="tool-tag">Echidna</span>
+                    <span class="tool-tag">Foundry</span>
+                    <span class="tool-tag">Manticore</span>
+                    <span class="tool-tag">Securify</span>
+                </div>
+
+                <h3>Libraries:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">OpenZeppelin</span>
+                    <span class="tool-tag">ReentrancyGuard</span>
+                    <span class="tool-tag">SafeERC20</span>
+                    <span class="tool-tag">Tenderly</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Run <code>slither .</code> — reentrancy-eth / reentrancy-no-eth detectors</li>
+                    <li>Run <code>mythril analyze</code> to explore reentrant paths</li>
+                    <li>Write an attacker contract whose <code>receive()</code>/hook re-enters</li>
+                    <li>Assert invariant: total paid out &lt;= total deposited</li>
+                    <li>Fuzz with Echidna/Foundry against those invariants</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <ul>
+                    <li><strong>The DAO (2016):</strong> The withdrawal ("split") path sent ETH before zeroing the member's balance; an attacker's fallback re-entered it repeatedly, draining a large fraction of funds. The fallout led the community to hard-fork the chain into Ethereum and Ethereum Classic — the archetype the whole category is named for.</li>
+                    <li><strong>Token-callback reentrancy (ERC777 class):</strong> Protocols treated a token transfer as a non-reentrant step, but the token ran a recipient hook (<code>tokensReceived</code>); attackers re-entered against accounting the transfer had not yet finalised.</li>
+                    <li><strong>Read-only reentrancy in DeFi integrations:</strong> A pool's <code>view</code> getter (virtual price / share value) returned inconsistent state during a withdrawal callback; integrating lending markets priced collateral on the stale value — without the getter ever writing state.</li>
+                    <li><strong>Why it persists:</strong> The classic loop is now widely caught, so surviving bugs are the subtler cross-function, cross-contract, and read-only variants as composability grows.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> make an external call before writing state</li>
+                    <li><span class="badge critical">DO NOT</span> assume a token transfer can't call back</li>
+                    <li><span class="badge critical">DO NOT</span> rely on gas stipends for safety</li>
+                    <li><span class="badge high">DO</span> apply Checks-Effects-Interactions everywhere</li>
+                    <li><span class="badge high">DO</span> add <code>nonReentrant</code> to functions sharing state</li>
+                    <li><span class="badge high">DO</span> use pull-over-push withdrawals</li>
+                    <li><span class="badge medium">DO</span> protect view getters and test with a re-entering harness</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Smart Contract Top 10 (2025) — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/smartcontract/OWASP-SmartContract/SC05-Reentrancy-Attacks/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

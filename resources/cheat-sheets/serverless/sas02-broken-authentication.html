@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAS-2: Broken Authentication - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔑 Broken Authentication</h1>
+            <p class="subtitle">OWASP Serverless Top 10 - SAS-2</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Broken Authentication</strong> in serverless is the failure to consistently verify <em>who</em> (or <em>what</em>) is invoking a function, across <em>every</em> way it can be reached. A serverless app is a fleet of independently deployable functions, and each can be triggered by many event sources — API Gateway, a public Function URL, an S3 upload, SNS/SQS messages, EventBridge rules, DynamoDB streams, schedules, or a direct SDK <code>Invoke</code>. Authentication enforced at the front-door API Gateway does nothing for a function reached through any other door. The hard part is not <em>having</em> authentication — it is enforcing it <em>consistently at every one of many entry points</em>.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">SAS-2</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Every</span>
+                        <span class="label">Entry Point</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">High</span>
+                        <span class="label">Impact</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Open Function URL:</strong> <code>AuthType: NONE</code> exposes privileged logic to the internet</li>
+                    <li><strong>"Internal" Trigger Trust:</strong> S3/SNS/SQS events acted on without checking the actor</li>
+                    <li><strong>Decode-Only JWT:</strong> claims read without verifying signature, expiry, audience, issuer</li>
+                    <li><strong>alg:none Forgery:</strong> attacker-crafted <code>{"role":"admin"}</code> accepted</li>
+                    <li><strong>Token Replay:</strong> non-expiring or leaked tokens still valid weeks later</li>
+                    <li><strong>Inconsistent Coverage:</strong> one route ships without an authorizer</li>
+                    <li><strong>Shared Static Keys:</strong> one leaked key authenticates every service call</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Enumerate functions, Function URLs, ARNs, and triggers<br>
+   <span class="arrow">↓</span><br>
+2. Probe each entry point directly; note which respond without auth<br>
+   <span class="arrow">↓</span><br>
+3. Bypass the gateway via Function URL / event source / direct invoke<br>
+   <span class="arrow">↓</span><br>
+4. Forge or replay tokens where validation is weak or missing<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Run privileged logic and exfiltrate — no login required!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: public Function URL bypasses API Gateway (serverless.yml)</span>
+functions:
+  adminReport:
+    handler: handler.adminReport
+    url:
+      authorizer: none        <span class="comment">← AuthType NONE, anyone with the URL invokes it</span>
+  exportData:
+    handler: handler.exportData
+    events:
+      - httpApi: { path: /export, method: get }   <span class="comment">← no authorizer, silently public</span>
+
+<span class="comment">// Bad: JWT decoded but never verified — claims are attacker-controlled</span>
+exports.verify = <span class="keyword">async</span> (event) => {
+    <span class="keyword">const</span> token = (event.headers.authorization || <span class="string">''</span>).replace(<span class="string">/^Bearer /</span>, <span class="string">''</span>);
+    <span class="keyword">const</span> claims = JSON.parse(Buffer.from(token.split(<span class="string">'.'</span>)[<span class="number">1</span>], <span class="string">'base64'</span>));
+    <span class="keyword">if</span> (claims.role === <span class="string">'admin'</span>) <span class="keyword">return</span> { isAuthorized: <span class="keyword">true</span> };  <span class="comment">← no signature check</span>
+};
+
+<span class="comment"># Bad: S3 event trusted as "internal" — uploader may be untrusted</span>
+<span class="keyword">def</span> <span class="function">handler</span>(event, context):
+    key = event[<span class="string">'Records'</span>][<span class="number">0</span>][<span class="string">'s3'</span>][<span class="string">'object'</span>][<span class="string">'key'</span>]
+    process_import(key)      <span class="comment"># parses file, writes to prod DB</span>
+    grant_entitlements(key)  <span class="comment">← no authenticated actor behind it</span>
+
+<span class="comment">// Bad: shared static key for service-to-service auth</span>
+<span class="keyword">if</span> (event.headers[<span class="string">'x-api-key'</span>] === process.env.SHARED_KEY) { <span class="comment">/* allow */</span> }
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: require IAM auth on the URL; every route carries an authorizer</span>
+functions:
+  adminReport:
+    handler: handler.adminReport
+    url:
+      authorizer: aws_iam     <span class="comment"># callers must sign requests with SigV4</span>
+  exportData:
+    handler: handler.exportData
+    events:
+      - httpApi:
+          path: /export
+          method: get
+          authorizer: { name: cognitoAuth }   <span class="comment"># no route ships open</span>
+
+<span class="comment">// Good: full JWT verification against the provider's JWKS</span>
+<span class="keyword">const</span> { createRemoteJWKSet, jwtVerify } = <span class="function">require</span>(<span class="string">'jose'</span>);
+<span class="keyword">const</span> JWKS = <span class="function">createRemoteJWKSet</span>(<span class="keyword">new</span> URL(process.env.JWKS_URI));
+exports.verify = <span class="keyword">async</span> (event) => {
+    <span class="keyword">const</span> token = (event.headers.authorization || <span class="string">''</span>).replace(<span class="string">/^Bearer /</span>, <span class="string">''</span>);
+    <span class="keyword">const</span> { payload } = <span class="keyword">await</span> <span class="function">jwtVerify</span>(token, JWKS, {
+        issuer: process.env.EXPECTED_ISSUER,     <span class="comment">// iss</span>
+        audience: process.env.EXPECTED_AUDIENCE,  <span class="comment">// aud; signature + exp enforced, alg:none rejected</span>
+    });
+    <span class="keyword">return</span> { isAuthorized: <span class="keyword">true</span>, context: { sub: payload.sub } };
+};
+
+<span class="comment"># Good: confirm the source and validate before privileged work</span>
+<span class="keyword">def</span> <span class="function">handler</span>(event, context):
+    rec = event[<span class="string">'Records'</span>][<span class="number">0</span>]
+    <span class="keyword">if</span> rec[<span class="string">'s3'</span>][<span class="string">'bucket'</span>][<span class="string">'name'</span>] != os.environ[<span class="string">'TRUSTED_BUCKET'</span>]:
+        <span class="keyword">raise</span> Exception(<span class="string">'event from unexpected bucket'</span>)
+    validate_object(rec[<span class="string">'s3'</span>][<span class="string">'object'</span>][<span class="string">'key'</span>])  <span class="comment"># scan BEFORE processing</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Enumerate every function and every trigger it exposes</li>
+                    <li>Enforce authentication at each entry point, not just the gateway</li>
+                    <li>Never leave a Function URL at <code>AuthType: NONE</code></li>
+                    <li>Centralise identity (Cognito/OIDC) with a reused authorizer</li>
+                    <li>Verify token signature, expiry, audience, and issuer every time</li>
+                    <li>Reject <code>alg: none</code> and unverified claims</li>
+                    <li>Keep token lifetimes short; rotate and never bake in secrets</li>
+                    <li>Validate event sources; do not infer identity from the trigger</li>
+                    <li>Sign service-to-service calls with IAM/SigV4</li>
+                    <li>Scope every execution role to least privilege</li>
+                    <li>Never treat an ARN or URL as a secret</li>
+                    <li>Gate CI to fail on open URLs / missing authorizers</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Identity & Verification:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Amazon Cognito</span>
+                    <span class="tool-tag">jose (JWKS)</span>
+                    <span class="tool-tag">IAM / SigV4</span>
+                    <span class="tool-tag">Secrets Manager</span>
+                    <span class="tool-tag">SSM Parameter Store</span>
+                </div>
+
+                <h3>Scanning & Monitoring:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Checkov</span>
+                    <span class="tool-tag">cfn-lint</span>
+                    <span class="tool-tag">gitleaks</span>
+                    <span class="tool-tag">CloudTrail</span>
+                    <span class="tool-tag">CloudWatch</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Enumerate all triggers and invoke each without credentials</li>
+                    <li>Look for Function URLs with <code>AuthType: NONE</code></li>
+                    <li>Present <code>alg:none</code> and forged-claim tokens to authorizers</li>
+                    <li>Replay old/expired tokens; check they are rejected</li>
+                    <li>Attempt direct <code>lambda:Invoke</code> as an unexpected principal</li>
+                    <li>Scan IaC for routes missing an authorizer</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>These are documented <strong>incident classes</strong> — recurring patterns, not specific CVEs.</p>
+                <ul>
+                    <li><strong>Public Function URLs reachable without auth:</strong> a URL created with auth type none "for testing" and left in place; anyone who discovers it invokes privileged logic with no credentials, bypassing every gateway control.</li>
+                    <li><strong>Trusting "internal" event triggers:</strong> functions act on S3/SNS/SQS/EventBridge payloads because they "came from AWS," while the underlying source is influenced by untrusted uploaders or publishers.</li>
+                    <li><strong>Broken or absent token validation:</strong> a custom authorizer decodes a JWT without verifying signature/expiry/audience/issuer, letting attackers forge any user or role.</li>
+                    <li><strong>Leaked long-lived credentials:</strong> non-expiring tokens or static service secrets pulled from client bundles, logs, or git history and replayed indefinitely.</li>
+                    <li><strong>Inconsistent enforcement:</strong> one route or one differently-deployed function ships without its authorizer, undoing the protection on all the others.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> leave a Function URL at <code>AuthType: NONE</code></li>
+                    <li><span class="badge critical">DO NOT</span> trust a token because it decodes</li>
+                    <li><span class="badge critical">DO NOT</span> treat an event trigger as proof of identity</li>
+                    <li><span class="badge high">DO</span> authenticate every entry point consistently</li>
+                    <li><span class="badge high">DO</span> verify signature, exp, aud, and iss every time</li>
+                    <li><span class="badge high">DO</span> centralise identity with a reused authorizer</li>
+                    <li><span class="badge medium">DO</span> back every function with a least-privilege role</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">OWASP</span> Serverless Top 10 - SAS-2</li>
+                    <li><span class="badge medium">CWE-287</span> Improper Authentication</li>
+                    <li><span class="badge medium">CWE-345</span> Insufficient Verification of Data Authenticity</li>
+                    <li><span class="badge medium">CWE-347</span> Improper Verification of Cryptographic Signature</li>
+                    <li><span class="badge medium">CWE-613</span> Insufficient Session Expiration</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Serverless Top 10 — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/serverless/OWASP-Serverless/SAS02-Broken-Authentication/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

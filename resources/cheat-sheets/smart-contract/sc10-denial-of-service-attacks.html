@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SC10: Denial of Service Attacks - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🚫 Denial of Service Attacks</h1>
+            <p class="subtitle">OWASP Smart Contract Top 10 (2025) - SC10</p>
+            <span class="category">MEDIUM RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Denial of Service (DoS)</strong> in a smart contract means making the contract—or a critical function within it—<strong>permanently or temporarily unusable</strong>, or <strong>locking funds so no one can withdraw them</strong>. Unlike a web DoS that ends when the traffic stops, an on-chain DoS is often <em>permanent</em>: immutable code has no "restart" button, so a wedged contract can trap funds forever. What makes it distinct from a plain bug is that an attacker can <strong>deliberately engineer the broken state</strong>—becoming a "poison" recipient that always reverts, or inflating an array past the gas limit—and a single actor can freeze the shared mechanism for everyone else while usually losing nothing themselves.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">SC10</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Often Permanent</span>
+                        <span class="label">Impact</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Cheap to Trigger</span>
+                        <span class="label">Attacker Cost</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Poison recipient:</strong> one reverting <code>receive()</code> in a push-payment loop blocks all payouts</li>
+                    <li><strong>Refund-on-outbid freeze:</strong> a bidder that rejects ETH can never be refunded, so no one can outbid</li>
+                    <li><strong>Unbounded loop:</strong> an array grown with user input eventually exceeds the block gas limit</li>
+                    <li><strong>Gas griefing:</strong> a recipient burns all forwarded gas so the surrounding logic fails</li>
+                    <li><strong>Broken dependency:</strong> a required call to a paused or self-destructed contract reverts forever</li>
+                    <li><strong>Lost single owner:</strong> recovery gated on one key is uncallable if that key is gone</li>
+                    <li><strong>Forced-balance jam:</strong> <code>selfdestruct</code> force-sends ETH to break an exact-balance invariant</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Study: find a loop, push payment, refund-on-outbid, or hard dependency<br>
+   <span class="arrow">↓</span><br>
+2. Position: become a recipient/bidder the contract MUST interact with<br>
+   <span class="arrow">↓</span><br>
+3. Poison: reject ETH, burn all gas, inflate the array, or break the dependency<br>
+   <span class="arrow">↓</span><br>
+4. Freeze: the critical path now reverts or runs out of gas for everyone<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Frozen functionality and permanently locked funds!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: push loop — one poison recipient reverts the whole batch</span>
+<span class="keyword">function</span> <span class="function">refundEveryone</span>() <span class="keyword">external</span> {
+    <span class="keyword">for</span> (<span class="keyword">uint256</span> i = <span class="number">0</span>; i < buyers.length; i++) {
+        <span class="keyword">address</span> buyer = buyers[i];
+        <span class="keyword">uint256</span> amount = paid[buyer];
+        paid[buyer] = <span class="number">0</span>;
+        <span class="function">payable</span>(buyer).transfer(amount);        <span class="comment">← one revert freezes every refund</span>
+    }
+}
+
+<span class="comment">// Bad: unbounded loop — cost grows until it exceeds the block gas limit</span>
+<span class="keyword">address</span>[] <span class="keyword">public</span> participants;
+<span class="keyword">function</span> <span class="function">join</span>() <span class="keyword">external</span> { participants.push(msg.sender); } <span class="comment">← anyone can grow it</span>
+
+<span class="keyword">function</span> <span class="function">distribute</span>(<span class="keyword">uint256</span> share) <span class="keyword">external</span> {
+    <span class="keyword">for</span> (<span class="keyword">uint256</span> i = <span class="number">0</span>; i < participants.length; i++) {
+        <span class="function">payable</span>(participants[i]).transfer(share);  <span class="comment">← O(n) over user input</span>
+    }
+}
+
+<span class="comment">// Bad: refund-on-outbid PUSHED to previous bidder inside bid()</span>
+<span class="keyword">function</span> <span class="function">bid</span>() <span class="keyword">external</span> <span class="keyword">payable</span> {
+    <span class="function">require</span>(msg.value > highestBid, <span class="string">"bid too low"</span>);
+    <span class="keyword">if</span> (highestBidder != <span class="keyword">address</span>(<span class="number">0</span>))
+        <span class="function">payable</span>(highestBidder).transfer(highestBid); <span class="comment">← poison leader blocks all bids</span>
+    highestBidder = msg.sender;                     <span class="comment">← never reached if refund reverts</span>
+    highestBid = msg.value;
+}
+
+<span class="comment">// Bad: hard external dependency — no fallback if the oracle breaks</span>
+<span class="keyword">function</span> <span class="function">settle</span>(<span class="keyword">uint256</span> qty) <span class="keyword">external</span> {
+    <span class="keyword">uint256</span> price = oracle.latestPrice();       <span class="comment">← paused/destroyed dep = permanent freeze</span>
+}
+
+<span class="comment">// Bad: exact-balance invariant an attacker can jam with forced ETH</span>
+<span class="keyword">function</span> <span class="function">finalize</span>() <span class="keyword">external</span> {
+    <span class="function">require</span>(<span class="keyword">address</span>(<span class="keyword">this</span>).balance == goal, <span class="string">"not exactly at goal"</span>); <span class="comment">← selfdestruct forces it false</span>
+}
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: pull over push — each user withdraws independently (isolate failure)</span>
+<span class="keyword">mapping</span>(<span class="keyword">address</span> => <span class="keyword">uint256</span>) <span class="keyword">public</span> pendingRefund;
+
+<span class="keyword">function</span> <span class="function">_creditRefund</span>(<span class="keyword">address</span> user, <span class="keyword">uint256</span> amount) <span class="keyword">internal</span> {
+    pendingRefund[user] += amount;              <span class="comment">// just bookkeeping, no external call</span>
+}
+
+<span class="keyword">function</span> <span class="function">withdrawRefund</span>() <span class="keyword">external</span> {
+    <span class="keyword">uint256</span> amount = pendingRefund[msg.sender];
+    <span class="function">require</span>(amount > <span class="number">0</span>, <span class="string">"nothing to withdraw"</span>);
+    pendingRefund[msg.sender] = <span class="number">0</span>;             <span class="comment">// effects BEFORE interaction</span>
+    (<span class="keyword">bool</span> ok, ) = <span class="function">payable</span>(msg.sender).call{value: amount}(<span class="string">""</span>);
+    <span class="function">require</span>(ok, <span class="string">"withdraw failed"</span>);          <span class="comment">← only THIS caller is affected</span>
+}
+
+<span class="comment">// Good: bounded pagination when a loop is truly unavoidable</span>
+<span class="keyword">function</span> <span class="function">distributeBatch</span>(<span class="keyword">uint256</span> start, <span class="keyword">uint256</span> count, <span class="keyword">uint256</span> share) <span class="keyword">external</span> {
+    <span class="function">require</span>(count <= <span class="number">100</span>, <span class="string">"batch too large"</span>);   <span class="comment">← hard upper bound per call</span>
+    <span class="keyword">uint256</span> end = start + count;
+    <span class="function">require</span>(end <= participants.length, <span class="string">"out of range"</span>);
+    <span class="keyword">for</span> (<span class="keyword">uint256</span> i = start; i < end; i++)
+        <span class="function">payable</span>(participants[i]).transfer(share);
+}
+
+<span class="comment">// Good: isolate the batch — credit failures instead of reverting the whole loop</span>
+<span class="keyword">function</span> <span class="function">distribute</span>(<span class="keyword">address</span>[] <span class="keyword">calldata</span> to, <span class="keyword">uint256</span> amount) <span class="keyword">external</span> {
+    <span class="function">require</span>(to.length <= <span class="number">100</span>, <span class="string">"batch too large"</span>);
+    <span class="keyword">for</span> (<span class="keyword">uint256</span> i = <span class="number">0</span>; i < to.length; i++) {
+        (<span class="keyword">bool</span> ok, ) = <span class="function">payable</span>(to[i]).call{value: amount, gas: <span class="number">2300</span>}(<span class="string">""</span>);
+        <span class="keyword">if</span> (!ok) pendingRefund[to[i]] += amount;   <span class="comment">← fall back to pull; keep going</span>
+    }
+}
+
+<span class="comment">// Good: swappable dependency + try/catch — one bad call is recoverable</span>
+<span class="keyword">function</span> <span class="function">currentPrice</span>() <span class="keyword">public</span> <span class="keyword">view</span> <span class="keyword">returns</span> (<span class="keyword">uint256</span> price, <span class="keyword">bool</span> ok) {
+    <span class="keyword">try</span> IPriceFeed(oracle).latestPrice() <span class="keyword">returns</span> (<span class="keyword">uint256</span> p) {
+        <span class="keyword">return</span> (p, <span class="keyword">true</span>);
+    } <span class="keyword">catch</span> {
+        <span class="keyword">return</span> (<span class="number">0</span>, <span class="keyword">false</span>);                     <span class="comment">// caller decides; no hard revert</span>
+    }
+}
+
+<span class="comment">// Good: internal accounting + >= so forced ETH can't jam the invariant</span>
+<span class="keyword">uint256</span> <span class="keyword">public</span> totalDeposited;
+<span class="keyword">function</span> <span class="function">deposit</span>() <span class="keyword">external</span> <span class="keyword">payable</span> { totalDeposited += msg.value; }
+<span class="keyword">function</span> <span class="function">finalize</span>() <span class="keyword">external</span> {
+    <span class="function">require</span>(totalDeposited >= goal, <span class="string">"goal not reached"</span>); <span class="comment">← forced ETH can't move this</span>
+}
+
+<span class="comment">// Good: robust ownership — two-step transfer prevents an unrecoverable owner</span>
+<span class="keyword">import</span> <span class="string">"@openzeppelin/contracts/access/Ownable2Step.sol"</span>;
+<span class="keyword">contract</span> <span class="function">Vault</span> <span class="keyword">is</span> Ownable2Step, ReentrancyGuard {
+    <span class="comment">// pendingOwner must acceptOwnership(); use a multisig as owner</span>
+}
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Prefer pull over push — let each user withdraw their own funds</li>
+                    <li>Bound every loop; never iterate over unbounded user-controlled data</li>
+                    <li>Use pagination with a hard per-call cap when a loop is unavoidable</li>
+                    <li>Isolate external calls — credit failures instead of reverting the batch</li>
+                    <li>Convert refund-on-outbid into a pull credit, never a pushed transfer</li>
+                    <li>Avoid hard dependencies; make them swappable and fail gracefully</li>
+                    <li>Wrap risky external calls in <code>try/catch</code></li>
+                    <li>Use per-user mappings and internal accounting over arrays you must sweep</li>
+                    <li>Never trust <code>address(this).balance</code>; use <code>&gt;=</code>, not <code>==</code></li>
+                    <li>Use multisig + two-step ownership (<code>Ownable2Step</code>) for recovery</li>
+                    <li>Forward a bounded gas stipend, or use pull, to defeat gas griefing</li>
+                    <li>Fuzz array sizes and add gas-bound assertions for batch functions</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Analysis Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Slither</span>
+                    <span class="tool-tag">Mythril</span>
+                    <span class="tool-tag">Echidna</span>
+                    <span class="tool-tag">Foundry</span>
+                    <span class="tool-tag">Manticore</span>
+                </div>
+
+                <h3>Secure Libraries:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">OpenZeppelin Ownable2Step</span>
+                    <span class="tool-tag">ReentrancyGuard</span>
+                    <span class="tool-tag">PullPayment</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Deploy a poison <code>RevertOnReceive</code> recipient and assert others are still paid or credited</li>
+                    <li>Fuzz array sizes to prove batch functions stay under a gas ceiling or paginate</li>
+                    <li>Add gas-bound assertions: critical functions cost a safe fraction of the block limit</li>
+                    <li>Test a gas-burning recipient that consumes all forwarded gas</li>
+                    <li>Force ETH in via <code>selfdestruct</code> and assert balance-based logic still works</li>
+                    <li>Simulate a paused / self-destructed dependency and confirm graceful failure</li>
+                    <li>Monitor on-chain: alert if a critical function starts reverting or nears the gas ceiling</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Incident Classes</h2>
+                <ul>
+                    <li><strong>Push-payment refund DoS (auctions and "King"-style games):</strong> a contract refunds the previous holder by <em>pushing</em> ETH when a new participant takes the position. An attacker takes the position from a contract that rejects incoming ETH, so every future attempt must first refund that poison contract—which always fails—freezing the mechanism with the attacker permanently on top. <em>Mechanism: a state change that depends on a payment to an untrusted recipient succeeding.</em></li>
+                    <li><strong>Unbounded-loop gas DoS (growing arrays):</strong> a contract iterates over an array of investors or payouts that grows without bound. As it grows—organically or because an attacker cheaply adds many entries—the per-transaction cost eventually exceeds the block gas limit, and the batch operation can never fit in a block again. <em>Mechanism: a critical operation whose cost scales with user-controlled input.</em></li>
+                    <li><strong>Locked-funds griefing (broken dependency / lost owner):</strong> a contract depends on an external library, oracle, or wallet for a required step, or gates all recovery behind a single owner. When that shared dependency is self-destructed or paused—or the sole owner key is lost—every dependent function reverts with no alternate code path, and large balances become permanently inaccessible. <em>Mechanism: a single hard dependency or single point of privileged control with no fallback.</em></li>
+                    <li><strong>Forced-balance invariant griefing:</strong> logic that trusts <code>address(this).balance</code> with an exact-equality check can be jammed by force-sending ETH via <code>selfdestruct</code>, making the equality permanently false so the function can never succeed. <em>Mechanism: the raw balance is not fully under the contract's control.</em></li>
+                </ul>
+                <p><em>Note: these are recurring classes of vulnerability, not claims about any single named project. Exact loss figures vary by report; the durable lesson is that DoS is common, cheap to trigger, and frequently irreversible on immutable contracts.</em></p>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> push ETH/tokens to many recipients in one loop</li>
+                    <li><span class="badge critical">DO NOT</span> loop over arrays that grow with user input</li>
+                    <li><span class="badge critical">DO NOT</span> make a new action depend on refunding an untrusted party</li>
+                    <li><span class="badge high">DO</span> prefer pull payments and per-user accounting</li>
+                    <li><span class="badge high">DO</span> bound and paginate every batch operation</li>
+                    <li><span class="badge high">DO</span> use multisig + two-step ownership and swappable dependencies</li>
+                    <li><span class="badge medium">DO</span> use internal counters and <code>&gt;=</code>, never trust the raw balance</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Smart Contract Top 10 (2025) — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/smartcontract/OWASP-SmartContract/SC10-Denial-of-Service-Attacks/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML01: Input Manipulation Attack - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🎯 Input Manipulation Attack</h1>
+            <p class="subtitle">OWASP Machine Learning Security Top 10 - ML01</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Input Manipulation Attack</strong> is the deliberate crafting of model inputs—usually through small, optimised perturbations—so a trained model produces a <em>wrong</em> output at inference time. These crafted inputs are called <strong>adversarial examples</strong>; using them to slip past a model is an <strong>evasion attack</strong>. The perturbation is optimised against the model, not random noise, and often looks unchanged to a human while flipping the model's decision. It spans images, audio, text, malware, and tabular data, and can be physical (a sticker on a stop sign).</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">ML01</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Inference</span>
+                        <span class="label">Attack Time</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Evasion</span>
+                        <span class="label">Attack Class</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>FGSM:</strong> One-step gradient-sign perturbation to flip a label fast</li>
+                    <li><strong>PGD / BIM:</strong> Iterative projected gradient descent — the strong white-box yardstick</li>
+                    <li><strong>C&amp;W:</strong> Optimisation for minimal, low-distortion adversarial examples</li>
+                    <li><strong>Transfer Attacks:</strong> Craft on a surrogate model, apply to a secret target</li>
+                    <li><strong>Query Attacks:</strong> Score-based (ZOO/NES/SPSA) or label-only (Boundary/HopSkipJump)</li>
+                    <li><strong>Physical Patches:</strong> Printed stickers/patches that survive angle, lighting, distance</li>
+                    <li><strong>Cross-Domain:</strong> Audio command injection, NLP synonym/homoglyph swaps, malware padding</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Choose goal: untargeted or targeted label t<br>
+   <span class="arrow">↓</span><br>
+2. Establish signal: gradients, scores, or a surrogate<br>
+   <span class="arrow">↓</span><br>
+3. Optimise perturbation δ within budget ε<br>
+   <span class="arrow">↓</span><br>
+4. Validate end-to-end (survive resize/JPEG/print)<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Model confidently returns the attacker's label!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: standard training optimises CLEAN accuracy only</span>
+<span class="keyword">import</span> torch, torch.nn.functional <span class="keyword">as</span> F
+
+<span class="keyword">for</span> x, y <span class="keyword">in</span> loader:
+    logits = model(x)
+    loss   = F.cross_entropy(logits, y)   <span class="comment"># no adversarial robustness</span>
+    opt.zero_grad(); loss.backward(); opt.step()
+
+<span class="comment"># Bad: "validation" is clean accuracy — says NOTHING about robustness</span>
+clean_acc = (model(x_test).argmax(<span class="number">1</span>) == y_test).float().mean()
+print(<span class="string">"Accuracy:"</span>, clean_acc.item())   <span class="comment"># 0.99 and trivially evadable</span>
+
+<span class="comment"># Bad: serving hands back the full probability vector + logits</span>
+<span class="keyword">def</span> <span class="function">predict</span>(x):
+    logits = model(x)
+    <span class="keyword">return</span> {<span class="string">"probs"</span>: F.softmax(logits, dim=<span class="number">1</span>).tolist(),
+            <span class="string">"logits"</span>: logits.tolist()}   <span class="comment">← ideal target for query attacks</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: PGD adversarial training — teach the model to be correct under attack</span>
+<span class="keyword">import</span> torch, torch.nn.functional <span class="keyword">as</span> F
+
+<span class="keyword">def</span> <span class="function">pgd</span>(model, x, y, eps=<span class="number">8</span>/<span class="number">255</span>, alpha=<span class="number">2</span>/<span class="number">255</span>, steps=<span class="number">10</span>):
+    x_adv = (x + torch.empty_like(x).uniform_(-eps, eps)).clamp(<span class="number">0</span>, <span class="number">1</span>).detach()
+    <span class="keyword">for</span> _ <span class="keyword">in</span> range(steps):
+        x_adv.requires_grad_(<span class="keyword">True</span>)
+        loss = F.cross_entropy(model(x_adv), y)
+        grad = torch.autograd.grad(loss, x_adv)[<span class="number">0</span>]
+        x_adv = (x_adv + alpha * grad.sign())
+        x_adv = torch.min(torch.max(x_adv, x - eps), x + eps).clamp(<span class="number">0</span>, <span class="number">1</span>).detach()
+    <span class="keyword">return</span> x_adv
+
+<span class="keyword">for</span> x, y <span class="keyword">in</span> loader:
+    x_adv = pgd(model, x, y)                  <span class="comment"># worst-case inputs each batch</span>
+    loss  = F.cross_entropy(model(x_adv), y)
+    opt.zero_grad(); loss.backward(); opt.step()
+
+<span class="comment"># Good: serve a COARSE decision only — minimise signal to black-box attackers</span>
+@torch.no_grad()
+<span class="keyword">def</span> <span class="function">predict</span>(x, client):
+    <span class="keyword">if</span> rate_limiter.exceeded(client):        <span class="comment"># query attacks need volume</span>
+        <span class="keyword">raise</span> TooManyRequests()
+    label = model(x).argmax(dim=<span class="number">1</span>)
+    log_query(client, x)                     <span class="comment"># feed anomaly monitoring</span>
+    <span class="keyword">return</span> {<span class="string">"label"</span>: int(label)}            <span class="comment"># no logits / probabilities</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Use PGD-based adversarial training (strongest empirical defence)</li>
+                    <li>Report robust accuracy under PGD/C&amp;W, not clean accuracy</li>
+                    <li>Add input preprocessing/transforms (speed bumps, not cures)</li>
+                    <li>Consider certified defences (randomised smoothing) for guarantees</li>
+                    <li>Enforce domain constraints on tabular/structured inputs</li>
+                    <li>Add adversarial-input detection (transform-consistency gate)</li>
+                    <li>Return coarse labels; hide logits, gradients, and confidence</li>
+                    <li>Rate-limit and monitor queries per client</li>
+                    <li>Route high-stakes decisions to human review; fail closed</li>
+                    <li>Always evaluate against ADAPTIVE, defense-aware attackers</li>
+                    <li>Never rely on model secrecy or gradient masking</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Robustness Libraries:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">IBM ART</span>
+                    <span class="tool-tag">CleverHans</span>
+                    <span class="tool-tag">Foolbox</span>
+                    <span class="tool-tag">torchattacks</span>
+                    <span class="tool-tag">TextAttack</span>
+                    <span class="tool-tag">Microsoft Counterfit</span>
+                </div>
+
+                <h3>Defensive Techniques:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Adversarial Training</span>
+                    <span class="tool-tag">Randomised Smoothing</span>
+                    <span class="tool-tag">Input Transforms</span>
+                    <span class="tool-tag">Ensembling</span>
+                    <span class="tool-tag">Rate Limiting</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Run PGD (with random restarts) and C&amp;W via ART/CleverHans</li>
+                    <li>Report robust accuracy, gate deploys on it</li>
+                    <li>Use adaptive attacks (BPDA for masked gradients, EOT for randomness)</li>
+                    <li>Test transferability from a surrogate model</li>
+                    <li>Screen structured inputs for out-of-distribution values</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <ul>
+                    <li><strong>Road-Sign / Perception Evasion:</strong> Research showed physical stickers on a stop sign can make a classifier read it as a different sign, persisting across angle and distance</li>
+                    <li><strong>Malware &amp; Spam/Phishing Filter Evasion:</strong> Appending benign bytes or rewriting emails pushes a malicious sample past the benign threshold while function is preserved</li>
+                    <li><strong>Audio Command Injection:</strong> Research demonstrated audio that sounds normal to humans but transcribes to an attacker-chosen command</li>
+                    <li><strong>Face / Biometric Spoofing:</strong> Patterned eyeglass frames and crafted images cause misidentification or non-recognition</li>
+                    <li><em>These are documented research classes, not vendor breach counts — treat any single "attack success rate" as illustrative and tied to a model, dataset, and budget.</em></li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> equate high clean accuracy with robustness</li>
+                    <li><span class="badge critical">DO NOT</span> rely on model secrecy as a defence</li>
+                    <li><span class="badge critical">DO NOT</span> trust gradient masking (it's false security)</li>
+                    <li><span class="badge high">DO</span> adversarially train and report robust accuracy</li>
+                    <li><span class="badge high">DO</span> return coarse labels and rate-limit queries</li>
+                    <li><span class="badge high">DO</span> evaluate against adaptive attackers</li>
+                    <li><span class="badge medium">DO</span> keep humans in the loop for high-stakes calls</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Machine Learning Security Top 10 — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/ml/OWASP-ML/ML01-Input-Manipulation-Attack/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

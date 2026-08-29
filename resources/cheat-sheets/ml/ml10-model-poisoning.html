@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML10: Model Poisoning - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>☠️ Model Poisoning</h1>
+            <p class="subtitle">OWASP Machine Learning Security Top 10 - ML10</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Model Poisoning</strong> is the direct manipulation of a trained model's <strong>parameters, weights, or structure</strong> so the deployed model behaves as the attacker chooses. The attacker need not touch the training data—they reach into the artifact itself: the weight file, the registry entry, the architecture, the hyperparameters, or—in federated learning—the model <em>updates</em> a participant contributes. Unlike ML02 (data poisoning), the attacker edits the <em>output</em> of training rather than its inputs.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">ML10</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Artifact</span>
+                        <span class="label">What's Attacked</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Write Access</span>
+                        <span class="label">Attacker Needs</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Direct Weight Tampering:</strong> edit tensors, re-save; file looks identical</li>
+                    <li><strong>Weight-Level Backdoor:</strong> a trigger forces a target class, clean acc intact</li>
+                    <li><strong>Structural Trojan:</strong> an added layer/branch executes attacker logic</li>
+                    <li><strong>Registry Swap:</strong> flip the "Production" pointer to a malicious version</li>
+                    <li><strong>Bucket Overwrite:</strong> weak ACL lets one cp replace model.pt</li>
+                    <li><strong>Insider / CI Tampering:</strong> edit-weights step between train and publish</li>
+                    <li><strong>FL Update Poisoning:</strong> a scaled update replaces the global model</li>
+                    <li><strong>Hyperparameter Sabotage:</strong> dropout=0, freeze-all, identity activation</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Gain write access (artifact, registry, CI, FL channel)<br>
+   <span class="arrow">↓</span><br>
+2. Craft the tamper: edit weights / scale an update<br>
+   <span class="arrow">↓</span><br>
+3. Preserve stealth: keep clean-set accuracy high<br>
+   <span class="arrow">↓</span><br>
+4. Deliver: overwrite, promote the version, submit update<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: trigger-activated backdoor served, dashboards still green!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: pull weights from a mutable bucket and load blindly</span>
+<span class="keyword">import</span> torch
+
+<span class="keyword">def</span> <span class="function">load_model</span>():
+    path = download(<span class="string">"s3://models-prod/fraud/model.pt"</span>)   <span class="comment"># no versioning/ACL</span>
+    model = torch.load(path)          <span class="comment"># no hash, no signature, pickle RCE</span>
+    model.eval()
+    <span class="keyword">return</span> model                      <span class="comment"># trusts the file by its NAME</span>
+
+<span class="comment"># Bad: any creds can register AND promote straight to Production</span>
+<span class="keyword">def</span> <span class="function">publish</span>(model_uri):
+    v = registry.register_model(name=<span class="string">"fraud-scorer"</span>, source=model_uri)
+    registry.transition_stage(<span class="string">"fraud-scorer"</span>, v, <span class="string">"Production"</span>)  <span class="comment"># instant swap</span>
+
+<span class="comment"># Bad: naive FedAvg trusts every client equally</span>
+<span class="keyword">import</span> numpy <span class="keyword">as</span> np
+<span class="keyword">def</span> <span class="function">aggregate</span>(client_updates):
+    <span class="keyword">return</span> np.mean(np.stack(client_updates), axis=<span class="number">0</span>)  <span class="comment"># no outlier defence</span>
+<span class="comment"># One scaled "model-replacement" update can dominate the global model.</span>
+
+<span class="comment"># Bad: promote on clean-set accuracy alone (backdoor passes this)</span>
+<span class="keyword">def</span> <span class="function">gate</span>(model, clean_set):
+    <span class="keyword">return</span> evaluate(model, clean_set) &gt;= <span class="number">0.95</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: verify hash + signature BEFORE deserializing, use safetensors</span>
+<span class="keyword">import</span> hashlib
+<span class="keyword">from</span> safetensors.torch <span class="keyword">import</span> load_file   <span class="comment"># safe format: no code execution</span>
+
+<span class="keyword">def</span> <span class="function">sha256_file</span>(path):
+    h = hashlib.sha256()
+    <span class="keyword">with</span> open(path, <span class="string">"rb"</span>) <span class="keyword">as</span> f:
+        <span class="keyword">for</span> chunk <span class="keyword">in</span> iter(<span class="keyword">lambda</span>: f.read(<span class="number">1</span> &lt;&lt; <span class="number">20</span>), <span class="string">b""</span>):
+            h.update(chunk)
+    <span class="keyword">return</span> h.hexdigest()
+
+<span class="keyword">def</span> <span class="function">load_verified_model</span>(path, expected_digest, signature, pubkey, build_model):
+    <span class="keyword">if</span> sha256_file(path) != expected_digest:
+        <span class="keyword">raise</span> IntegrityError(<span class="string">"hash mismatch - refusing to load"</span>)
+    <span class="keyword">if</span> <span class="keyword">not</span> verify_signature(expected_digest.encode(), signature, pubkey):
+        <span class="keyword">raise</span> IntegrityError(<span class="string">"invalid signature - refusing to load"</span>)
+    model = build_model()
+    model.load_state_dict(load_file(path))   <span class="comment"># .safetensors, verified</span>
+    model.eval()
+    <span class="keyword">return</span> model
+
+<span class="comment"># Good: Byzantine-resilient FL aggregation with clipping + anomaly screen</span>
+<span class="keyword">import</span> numpy <span class="keyword">as</span> np
+MAX_NORM, TRIM = <span class="number">5.0</span>, <span class="number">0.1</span>
+
+<span class="keyword">def</span> <span class="function">clip_update</span>(u, max_norm=MAX_NORM):
+    <span class="keyword">return</span> u * min(<span class="number">1.0</span>, max_norm / (np.linalg.norm(u) + <span class="number">1e-9</span>))
+
+<span class="keyword">def</span> <span class="function">trimmed_mean</span>(updates, trim=TRIM):
+    stacked = np.stack(updates); stacked.sort(axis=<span class="number">0</span>)
+    k = int(len(updates) * trim)
+    <span class="keyword">return</span> (stacked[k: len(updates) - k] <span class="keyword">if</span> k <span class="keyword">else</span> stacked).mean(axis=<span class="number">0</span>)
+
+<span class="keyword">def</span> <span class="function">secure_aggregate</span>(auth_updates, reputation):
+    updates = [u <span class="keyword">for</span> cid, u <span class="keyword">in</span> auth_updates <span class="keyword">if</span> reputation[cid] &gt; MIN_REP]
+    updates = drop_outliers([clip_update(u) <span class="keyword">for</span> u <span class="keyword">in</span> updates])
+    <span class="keyword">return</span> trimmed_mean(updates)          <span class="comment"># or coordinate median / Krum</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Hash and sign every artifact; verify BEFORE load or promote</li>
+                    <li>Store the digest/signature out of band, not next to the file</li>
+                    <li>Prefer safetensors so loading cannot execute code</li>
+                    <li>Lock the registry/bucket: RBAC, versioning, immutability</li>
+                    <li>Block all public/broad write access to model buckets</li>
+                    <li>Split duties: publish (CI) vs. gated, audited promotion</li>
+                    <li>Reproducible builds + provenance (SLSA / in-toto attestation)</li>
+                    <li>No manual "edit_weights" step between train and publish</li>
+                    <li>Use Byzantine-robust FL aggregation (Krum, trimmed mean, median)</li>
+                    <li>Clip update norms; authenticate and reputation-score clients</li>
+                    <li>Behavioural + trigger testing before promotion, not just accuracy</li>
+                    <li>Maintain an AI-BOM; run an integrity watchdog in production</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Integrity & Provenance:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">SHA-256 signing</span>
+                    <span class="tool-tag">Sigstore / cosign</span>
+                    <span class="tool-tag">safetensors</span>
+                    <span class="tool-tag">SLSA / in-toto</span>
+                    <span class="tool-tag">AI-BOM</span>
+                </div>
+
+                <h3>Backdoor & FL Defence:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Krum / Multi-Krum</span>
+                    <span class="tool-tag">Trimmed mean / median</span>
+                    <span class="tool-tag">Update-norm clipping</span>
+                    <span class="tool-tag">Activation clustering</span>
+                    <span class="tool-tag">ART (Robustness Toolbox)</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Re-hash the on-disk model and compare to the signed digest</li>
+                    <li>Confirm a swapped/edited artifact is refused at load time</li>
+                    <li>Probe known trigger patterns; compare to a baseline model</li>
+                    <li>Run backdoor scans (activation clustering, trigger reconstruction)</li>
+                    <li>Submit a scaled FL update; verify robust aggregation bounds it</li>
+                    <li>Attempt a registry promotion outside CI; it must require approval</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>Documented <strong>research directions and incident classes</strong> (not fabricated CVEs or statistics):</p>
+                <ul>
+                    <li><strong>PoisonGPT-style artifact tampering:</strong> researchers surgically edited an open model's weights so it emits attacker-chosen false outputs for specific prompts, then re-uploaded it under a plausible name—downstream users pulling by name inherited the behaviour</li>
+                    <li><strong>BadNets and successor weight-backdoor research:</strong> a network's weights can be modified so a small trigger reliably forces a chosen output while clean-set accuracy is essentially unchanged</li>
+                    <li><strong>Federated-learning poisoning research:</strong> a small fraction of malicious participants—or one scaled "model-replacement" update—can insert a backdoor when the server uses naive averaging (FedAvg)</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> load a model trusted by its filename or bucket</li>
+                    <li><span class="badge critical">DO NOT</span> allow silent overwrite of a released version</li>
+                    <li><span class="badge critical">DO NOT</span> use naive FedAvg with unauthenticated clients</li>
+                    <li><span class="badge high">DO</span> verify a signed hash before load</li>
+                    <li><span class="badge high">DO</span> lock the registry/bucket with RBAC + immutability</li>
+                    <li><span class="badge high">DO</span> use robust aggregation + norm clipping in FL</li>
+                    <li><span class="badge medium">DO</span> test for backdoors, not just accuracy</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Machine Learning Security Top 10 — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/ml/OWASP-ML/ML10-Model-Poisoning/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

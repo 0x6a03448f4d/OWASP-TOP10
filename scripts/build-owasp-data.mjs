@@ -181,7 +181,7 @@ const EDITIONS = {
     blurb: 'The OWASP Kubernetes Top 10 — the most common security risks in Kubernetes clusters.',
     lessonDir: 'labs/kubernetes/OWASP-Kubernetes',
     editions: [
-      { year: '2022', latest: true, cheatDir: null, vulns: [
+      { year: '2022', latest: true, cheatDir: 'resources/cheat-sheets/kubernetes', vulns: [
         V('K01', 1, 'Insecure Workload Configurations', 'insecure-workload-configurations'),
         V('K02', 2, 'Supply Chain Vulnerabilities', 'supply-chain-vulnerabilities'),
         V('K03', 3, 'Overly Permissive RBAC Configurations', 'overly-permissive-rbac-configurations'),
@@ -200,7 +200,7 @@ const EDITIONS = {
     blurb: 'The OWASP Top 10 CI/CD Security Risks — how build and delivery pipelines get attacked.',
     lessonDir: 'labs/cicd/OWASP-CICD',
     editions: [
-      { year: '2022', latest: true, cheatDir: null, vulns: [
+      { year: '2022', latest: true, cheatDir: 'resources/cheat-sheets/cicd', vulns: [
         V('CICD-SEC-1', 1, 'Insufficient Flow Control Mechanisms', 'insufficient-flow-control-mechanisms'),
         V('CICD-SEC-2', 2, 'Inadequate Identity and Access Management', 'inadequate-identity-and-access-management'),
         V('CICD-SEC-3', 3, 'Dependency Chain Abuse', 'dependency-chain-abuse'),
@@ -219,7 +219,7 @@ const EDITIONS = {
     blurb: 'The OWASP Machine Learning Security Top 10 — attacks against ML models and pipelines.',
     lessonDir: 'labs/ml/OWASP-ML',
     editions: [
-      { year: '2023', latest: true, cheatDir: null, vulns: [
+      { year: '2023', latest: true, cheatDir: 'resources/cheat-sheets/ml', vulns: [
         V('ML01', 1, 'Input Manipulation Attack', 'input-manipulation-attack'),
         V('ML02', 2, 'Data Poisoning Attack', 'data-poisoning-attack'),
         V('ML03', 3, 'Model Inversion Attack', 'model-inversion-attack'),
@@ -238,7 +238,7 @@ const EDITIONS = {
     blurb: 'The OWASP Smart Contract Top 10 (2025) — the top risks in Solidity/EVM smart contracts.',
     lessonDir: 'labs/smartcontract/OWASP-SmartContract',
     editions: [
-      { year: '2025', latest: true, cheatDir: null, vulns: [
+      { year: '2025', latest: true, cheatDir: 'resources/cheat-sheets/smart-contract', vulns: [
         V('SC01', 1, 'Access Control Vulnerabilities', 'access-control-vulnerabilities'),
         V('SC02', 2, 'Price Oracle Manipulation', 'price-oracle-manipulation'),
         V('SC03', 3, 'Logic Errors', 'logic-errors'),
@@ -257,7 +257,7 @@ const EDITIONS = {
     blurb: 'The OWASP Serverless Top 10 — the security weaknesses specific to serverless (FaaS) applications.',
     lessonDir: 'labs/serverless/OWASP-Serverless',
     editions: [
-      { year: '2018', latest: true, cheatDir: null, vulns: [
+      { year: '2018', latest: true, cheatDir: 'resources/cheat-sheets/serverless', vulns: [
         V('SAS-1', 1, 'Function Event-Data Injection', 'function-event-data-injection'),
         V('SAS-2', 2, 'Broken Authentication', 'broken-authentication'),
         V('SAS-3', 3, 'Insecure Serverless Deployment Configuration', 'insecure-serverless-deployment-configuration'),
@@ -276,7 +276,7 @@ const EDITIONS = {
     blurb: 'The OWASP Top 10 Proactive Controls (2024) — the defensive techniques every developer should build in.',
     lessonDir: 'labs/proactive/OWASP-Proactive-Controls',
     editions: [
-      { year: '2024', latest: true, cheatDir: null, vulns: [
+      { year: '2024', latest: true, cheatDir: 'resources/cheat-sheets/proactive', vulns: [
         V('C1', 1, 'Implement Access Control', 'implement-access-control'),
         V('C2', 2, 'Use Cryptography to Protect Data', 'use-cryptography-to-protect-data'),
         V('C3', 3, 'Validate all Input & Handle Exceptions', 'validate-all-input-and-handle-exceptions'),
@@ -364,7 +364,9 @@ for (const [key, cat] of Object.entries(EDITIONS)) {
       const CHEAT_ALIAS = { 'vulnerable-outdated-components': 'using-components-with-known-vulnerabilities' };
       if (ed.cheatDir) {
         const num2 = String(v.number).padStart(2, '0');
-        const prefix = key === 'web' ? num2 : key === 'api' ? `api${num2}` : key === 'mobile' ? `m${num2}` : `llm${num2}`;
+        const PREFIX = { web: '', api: 'api', mobile: 'm', llm: 'llm', kubernetes: 'k',
+                         cicd: 'cicd', ml: 'ml', 'smart-contract': 'sc', serverless: 'sas', proactive: 'c' };
+        const prefix = `${PREFIX[key] ?? ''}${num2}`;
         for (const fileSlug of [v.slug, CHEAT_ALIAS[v.slug]].filter(Boolean)) {
           const cp = `${ed.cheatDir}/${prefix}-${fileSlug}.html`;
           if (existsSync(join(root, cp))) { cheatPath = '/' + cp; break; }

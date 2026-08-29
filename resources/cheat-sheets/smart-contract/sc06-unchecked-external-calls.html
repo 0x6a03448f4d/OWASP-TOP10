@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SC06: Unchecked External Calls - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>📞 Unchecked External Calls</h1>
+            <p class="subtitle">OWASP Smart Contract Top 10 (2025) - SC06</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Unchecked External Calls</strong> occur when a contract makes a low-level call to another address—to send ether, invoke a function, or move tokens—and then ignores whether that call actually succeeded. On the EVM, not every failure reverts: <code>send</code>, <code>call</code>, <code>delegatecall</code>, and <code>staticcall</code> signal failure by returning <code>false</code> instead of throwing. If you never read that boolean, a failed call looks identical to a successful one—so the contract marches forward on a false assumption, stranding funds or crediting phantom balances.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">SC06</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Silent</span>
+                        <span class="label">Failure Mode</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Easy</span>
+                        <span class="label">To Prevent</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Ignored call bool:</strong> <code>call{value:}</code> return dropped; failed ETH transfer looks fine</li>
+                    <li><strong>Unchecked send:</strong> <code>send()</code> returns false, never read, payment marked "paid"</li>
+                    <li><strong>Assumed ERC-20 revert:</strong> non-standard token returns false → phantom deposit credited</li>
+                    <li><strong>USDT-class no-return tokens:</strong> strict bool decode reverts and bricks the integration</li>
+                    <li><strong>Masked delegatecall:</strong> success flag discarded; a reverting impl treated as success</li>
+                    <li><strong>Push-loop griefing:</strong> one reverting recipient blocks a whole payout loop</li>
+                    <li><strong>2300-gas stipend:</strong> <code>transfer</code>/<code>send</code> break valid contract recipients</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Find a send/call/transfer whose return is unchecked<br>
+   <span class="arrow">↓</span><br>
+2. Become the recipient, the token, or the depositor<br>
+   <span class="arrow">↓</span><br>
+3. Make the call fail (reject ETH / return false)<br>
+   <span class="arrow">↓</span><br>
+4. Victim updates state as if it succeeded<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Stuck funds, phantom credit, corrupted books!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: return value of call ignored — silent failure</span>
+<span class="keyword">function</span> <span class="function">withdraw</span>(<span class="keyword">uint256</span> amount) <span class="keyword">external</span> {
+    <span class="function">require</span>(balances[msg.sender] >= amount, <span class="string">"insufficient"</span>);
+    balances[msg.sender] -= amount;              <span class="comment">// effect first</span>
+    msg.sender.call{value: amount}(<span class="string">""</span>);       <span class="comment">← bool NOT captured</span>
+    <span class="keyword">emit</span> Withdrawn(msg.sender, amount);          <span class="comment">// emitted even on failure</span>
+}
+
+<span class="comment">// Bad: assumes transferFrom reverts on failure</span>
+<span class="keyword">function</span> <span class="function">stake</span>(<span class="keyword">uint256</span> amount) <span class="keyword">external</span> {
+    token.transferFrom(msg.sender, <span class="keyword">address</span>(<span class="keyword">this</span>), amount); <span class="comment">← return ignored</span>
+    staked[msg.sender] += amount;                <span class="comment">← phantom stake if token returns false</span>
+}
+
+<span class="comment">// Bad: delegatecall success flag discarded</span>
+<span class="keyword">function</span> <span class="function">run</span>(<span class="keyword">address</span> impl, <span class="keyword">bytes</span> <span class="keyword">calldata</span> data) <span class="keyword">external</span> {
+    impl.delegatecall(data);                     <span class="comment">← reverting impl treated as success</span>
+    executed = <span class="keyword">true</span>;
+}
+
+<span class="comment">// Bad: push loop — one bad recipient bricks everyone</span>
+<span class="keyword">for</span> (<span class="keyword">uint256</span> i = <span class="number">0</span>; i < winners.length; i++) {
+    <span class="function">payable</span>(winners[i]).transfer(prize);       <span class="comment">← one revert blocks the whole loop</span>
+}
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: capture the bool, revert on failure (CEI ordering)</span>
+<span class="keyword">error</span> EthTransferFailed(<span class="keyword">address</span> to, <span class="keyword">uint256</span> amount);
+
+<span class="keyword">function</span> <span class="function">withdraw</span>(<span class="keyword">uint256</span> amount) <span class="keyword">external</span> {
+    <span class="function">require</span>(balances[msg.sender] >= amount, <span class="string">"insufficient"</span>); <span class="comment">// Checks</span>
+    balances[msg.sender] -= amount;                          <span class="comment">// Effects</span>
+    (<span class="keyword">bool</span> ok, ) = msg.sender.call{value: amount}(<span class="string">""</span>);      <span class="comment">// Interactions</span>
+    <span class="keyword">if</span> (!ok) <span class="keyword">revert</span> EthTransferFailed(msg.sender, amount);    <span class="comment">← reverts, rolls back -=</span>
+}
+
+<span class="comment">// Good: SafeERC20 normalises false/empty returns; measure real delta</span>
+<span class="keyword">using</span> SafeERC20 <span class="keyword">for</span> IERC20;
+
+<span class="keyword">function</span> <span class="function">stake</span>(<span class="keyword">uint256</span> amount) <span class="keyword">external</span> {
+    <span class="keyword">uint256</span> before = token.balanceOf(<span class="keyword">address</span>(<span class="keyword">this</span>));
+    token.safeTransferFrom(msg.sender, <span class="keyword">address</span>(<span class="keyword">this</span>), amount); <span class="comment">← reverts on false/empty</span>
+    <span class="keyword">uint256</span> received = token.balanceOf(<span class="keyword">address</span>(<span class="keyword">this</span>)) - before;
+    staked[msg.sender] += received;              <span class="comment">// credit only what arrived</span>
+}
+
+<span class="comment">// Good: check delegatecall success AND that target is a contract</span>
+<span class="keyword">function</span> <span class="function">run</span>(<span class="keyword">address</span> impl, <span class="keyword">bytes</span> <span class="keyword">calldata</span> data) <span class="keyword">external</span> <span class="keyword">returns</span> (<span class="keyword">bytes</span> <span class="keyword">memory</span>) {
+    <span class="function">require</span>(impl.code.length > <span class="number">0</span>, <span class="string">"not a contract"</span>);  <span class="comment">← empty addr returns true!</span>
+    (<span class="keyword">bool</span> ok, <span class="keyword">bytes</span> <span class="keyword">memory</span> ret) = impl.delegatecall(data);
+    <span class="function">require</span>(ok, <span class="string">"delegatecall failed"</span>);
+    executed = <span class="keyword">true</span>;
+    <span class="keyword">return</span> ret;                                  <span class="comment">// caller validates data</span>
+}
+
+<span class="comment">// Good: pull-over-push — each recipient bears their own risk</span>
+<span class="keyword">function</span> <span class="function">claim</span>() <span class="keyword">external</span> {
+    <span class="keyword">uint256</span> amount = credits[msg.sender];
+    <span class="function">require</span>(amount > <span class="number">0</span>, <span class="string">"nothing to claim"</span>);
+    credits[msg.sender] = <span class="number">0</span>;                     <span class="comment">// effect first</span>
+    (<span class="keyword">bool</span> ok, ) = msg.sender.call{value: amount}(<span class="string">""</span>);
+    <span class="function">require</span>(ok, <span class="string">"claim failed"</span>);              <span class="comment">// only the caller is affected</span>
+}
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Capture and require the bool of every low-level call</li>
+                    <li>Use SafeERC20 for transfer/transferFrom/approve</li>
+                    <li>Follow Checks-Effects-Interactions ordering</li>
+                    <li>Prefer pull-over-push for multi-recipient payments</li>
+                    <li>Verify returned data, not just the success flag</li>
+                    <li>Guard delegatecall with an <code>impl.code.length &gt; 0</code> check</li>
+                    <li>Measure real balance delta for fee-on-transfer tokens</li>
+                    <li>Prefer checked <code>call</code> + reentrancy guard over <code>transfer</code>/<code>send</code></li>
+                    <li>Surface failures with custom errors, never swallow them</li>
+                    <li>Treat the compiler "return value not used" warning as an error</li>
+                    <li>Detect and handle partial failures in batch calls</li>
+                    <li>Assert internal accounting matches on-chain balances</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Analysis Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Slither</span>
+                    <span class="tool-tag">Mythril</span>
+                    <span class="tool-tag">Echidna</span>
+                    <span class="tool-tag">Foundry</span>
+                    <span class="tool-tag">Manticore</span>
+                </div>
+
+                <h3>Secure Libraries:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">OpenZeppelin SafeERC20</span>
+                    <span class="tool-tag">ReentrancyGuard</span>
+                    <span class="tool-tag">solc warnings</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Run Slither detectors: <code>unchecked-lowlevel</code>, <code>unchecked-send</code>, <code>unchecked-transfer</code></li>
+                    <li>Route every transfer through a Rejector contract (no payable fallback)</li>
+                    <li>Test with a token that returns <code>false</code> without reverting</li>
+                    <li>Test with a USDT-class token that returns no data</li>
+                    <li>Test with a fee-on-transfer / deflationary token</li>
+                    <li>Add invariant tests: internal balances == actual balances</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Incident Classes</h2>
+                <ul>
+                    <li><strong>Silent-transfer-failure accounting bugs:</strong> a withdrawal zeroes the internal balance then sends ETH with an unchecked <code>send</code>/<code>call</code>; an incompatible recipient makes it fail and funds are stranded while the books say "paid".</li>
+                    <li><strong>Non-standard token integrations:</strong> vaults/DEXes assuming strict ERC-20 credit phantom deposits for tokens that return <code>false</code> or no data — the reason SafeERC20 exists.</li>
+                    <li><strong>Masked delegatecall / proxy failures:</strong> executors and multicalls that discard the success flag record upgrades or actions that never happened.</li>
+                    <li><strong>Push-payment DoS:</strong> a single reverting or gas-heavy recipient in a distribution loop bricks payouts for everyone else.</li>
+                </ul>
+                <p><em>Note: unchecked calls are among the most frequently reported findings in Solidity audits. Exact loss figures vary by report; the durable lesson is that a single missing <code>require</code> can either strand or steal funds.</em></p>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> discard a low-level call's return value</li>
+                    <li><span class="badge critical">DO NOT</span> assume ERC-20 reverts on failure</li>
+                    <li><span class="badge critical">DO NOT</span> update state before confirming the call</li>
+                    <li><span class="badge high">DO</span> capture and require the success bool</li>
+                    <li><span class="badge high">DO</span> use SafeERC20 for all token movements</li>
+                    <li><span class="badge high">DO</span> prefer pull-over-push payments</li>
+                    <li><span class="badge medium">DO</span> validate returned data and contract existence</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Smart Contract Top 10 (2025) — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/smartcontract/OWASP-SmartContract/SC06-Unchecked-External-Calls/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

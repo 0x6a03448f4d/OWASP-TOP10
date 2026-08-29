@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C3: Validate all Input & Handle Exceptions - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🧹 Validate all Input & Handle Exceptions</h1>
+            <p class="subtitle">OWASP Top 10 Proactive Controls (2024) - C3</p>
+            <span class="category">CORE CONTROL</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is This Control?</h2>
+                <p><strong>Validate all Input & Handle Exceptions</strong> is a defensive discipline with three tightly related parts: <strong>(1) validate</strong> all input at the boundary (allow-list, server-side, typed); <strong>(2) neutralise at the sink</strong> — parameterise queries and apply context-aware output encoding so data is treated as data, never code; and <strong>(3) handle exceptions safely</strong> — fail closed, return generic errors, and log detail privately. The central rule: validation reduces risk but is <em>not</em> a substitute for output encoding or parameterised queries — you need both.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">C3</span>
+                        <span class="label">Proactive Control</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Validation</span>
+                        <span class="label">Focus Area</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">OWASP 2024</span>
+                        <span class="label">Proactive Controls</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- What It Prevents -->
+            <div class="section">
+                <h2>🎯 What It Prevents</h2>
+                <ul>
+                    <li><strong>SQL / NoSQL Injection:</strong> Attacker text entering the command structure</li>
+                    <li><strong>Cross-Site Scripting (XSS):</strong> Injected markup rendered as active script</li>
+                    <li><strong>OS Command Injection:</strong> Shell metacharacters in a spawned command</li>
+                    <li><strong>LDAP Injection:</strong> Unescaped filter metacharacters</li>
+                    <li><strong>XXE:</strong> XML parsers resolving external entities and DTDs</li>
+                    <li><strong>Insecure Deserialization:</strong> Native deserializers building arbitrary objects (RCE)</li>
+                    <li><strong>Path Traversal & Unsafe Uploads:</strong> Escaping the intended directory</li>
+                    <li><strong>Info Disclosure / Fail-Open:</strong> Stack traces leaking internals; errors granting access</li>
+                </ul>
+            </div>
+
+            <!-- How It Works -->
+            <div class="section">
+                <h2>🧭 How It Works</h2>
+                <div class="attack-flow">
+1. Canonicalise — decode/normalise to a single form<br>
+   <span class="arrow">↓</span><br>
+2. Validate — allow-list, server-side, syntactic + semantic<br>
+   <span class="arrow">↓</span><br>
+3. Neutralise at the sink — parameterise queries, encode output<br>
+   <span class="arrow">↓</span><br>
+4. Configure parsers safely — disable XXE, avoid native deserialize<br>
+   <span class="arrow">↓</span><br>
+5. <strong>On error: fail closed, generic message out, detail to logs</strong>
+                </div>
+            </div>
+
+            <!-- Without This Control -->
+            <div class="section full-width">
+                <h2>❌ Without This Control</h2>
+                <div class="code-block vulnerable">
+<span class="keyword">from</span> flask <span class="keyword">import</span> Flask, request, jsonify
+<span class="keyword">import</span> sqlite3, pickle, subprocess
+
+app = Flask(__name__)
+app.config[<span class="string">"DEBUG"</span>] = <span class="keyword">True</span>                     <span class="comment">← interactive debugger reachable</span>
+
+@app.route(<span class="string">"/user"</span>)
+<span class="keyword">def</span> <span class="function">user</span>():
+    name = request.args[<span class="string">"name"</span>]                <span class="comment">← no validation</span>
+    db = sqlite3.connect(<span class="string">"app.db"</span>)
+    <span class="comment"># SQL injection: input concatenated into the query</span>
+    row = db.execute(<span class="string">"SELECT * FROM users WHERE name = '"</span> + name + <span class="string">"'"</span>).fetchone()
+    <span class="comment"># XSS: input reflected into HTML with no encoding</span>
+    <span class="keyword">return</span> <span class="string">"&lt;div&gt;Hello, "</span> + name + <span class="string">"&lt;/div&gt;"</span>
+
+@app.route(<span class="string">"/ping"</span>)
+<span class="keyword">def</span> <span class="function">ping</span>():
+    host = request.args[<span class="string">"host"</span>]
+    <span class="comment"># Command injection: shell interprets ; &amp;&amp; | $()</span>
+    <span class="keyword">return</span> subprocess.run(<span class="string">"ping -c 1 "</span> + host, shell=<span class="keyword">True</span>, capture_output=<span class="keyword">True</span>).stdout
+
+@app.route(<span class="string">"/load"</span>, methods=[<span class="string">"POST"</span>])
+<span class="keyword">def</span> <span class="function">load</span>():
+    <span class="keyword">return</span> str(pickle.loads(request.data))     <span class="comment">← unsafe deserialization → RCE</span>
+                </div>
+            </div>
+
+            <!-- Applying the Control -->
+            <div class="section full-width">
+                <h2>✅ Applying the Control</h2>
+                <div class="code-block secure">
+<span class="keyword">import</span> re, uuid, logging, subprocess, json
+<span class="keyword">from</span> flask <span class="keyword">import</span> Flask, request, jsonify, abort
+<span class="keyword">from</span> markupsafe <span class="keyword">import</span> Markup
+
+app = Flask(__name__)
+app.config[<span class="string">"DEBUG"</span>] = <span class="keyword">False</span>                    <span class="comment"># no debugger in production</span>
+log = logging.getLogger(<span class="string">"app"</span>)
+NAME_RE = re.compile(<span class="string">r"\A[A-Za-z][A-Za-z '\-]{1,49}\Z"</span>)   <span class="comment"># allow-list, anchored</span>
+
+@app.route(<span class="string">"/user"</span>)
+<span class="keyword">def</span> <span class="function">user</span>():
+    name = request.args.get(<span class="string">"name"</span>, <span class="string">""</span>)
+    <span class="keyword">if</span> <span class="keyword">not</span> NAME_RE.fullmatch(name):            <span class="comment"># 1) validate (server-side, allow-list)</span>
+        abort(<span class="number">400</span>, <span class="string">"invalid name"</span>)
+    <span class="comment"># 2a) parameterised query: data sent separately from the command</span>
+    row = get_db().execute(<span class="string">"SELECT * FROM users WHERE name = ?"</span>, (name,)).fetchone()
+    <span class="comment"># 2b) context-aware output encoding: input rendered as inert text</span>
+    <span class="keyword">return</span> Markup(<span class="string">"&lt;div&gt;Hello, {}&lt;/div&gt;"</span>).format(name)   <span class="comment"># auto-escapes</span>
+
+@app.route(<span class="string">"/ping"</span>)
+<span class="keyword">def</span> <span class="function">ping</span>():
+    host = request.args.get(<span class="string">"host"</span>, <span class="string">""</span>)
+    <span class="keyword">if</span> <span class="keyword">not</span> re.fullmatch(<span class="string">r"[A-Za-z0-9.\-]{1,253}"</span>, host):   <span class="comment"># validate host</span>
+        abort(<span class="number">400</span>, <span class="string">"invalid host"</span>)
+    <span class="comment"># argument array + shell=False: no shell to interpret metacharacters</span>
+    <span class="keyword">return</span> subprocess.run([<span class="string">"ping"</span>, <span class="string">"-c"</span>, <span class="string">"1"</span>, host], shell=<span class="keyword">False</span>, timeout=<span class="number">5</span>).stdout
+
+@app.errorhandler(Exception)
+<span class="keyword">def</span> <span class="function">boom</span>(e):
+    error_id = uuid.uuid4().hex
+    log.exception(<span class="string">"unhandled error id=%s"</span>, error_id)   <span class="comment"># detail to logs only</span>
+    <span class="keyword">return</span> jsonify(error=<span class="string">"Something went wrong"</span>, error_id=error_id), <span class="number">500</span>  <span class="comment"># generic</span>
+                </div>
+            </div>
+
+            <!-- Implementation Checklist -->
+            <div class="section">
+                <h2>✓ Implementation Checklist</h2>
+                <ul class="checklist">
+                    <li>Validate with an allow-list, server-side, syntactic + semantic, typed/schema-checked</li>
+                    <li>Canonicalise/normalise first, then validate the canonical form</li>
+                    <li>Anchor every regex and bound its length</li>
+                    <li>Parameterise SQL/NoSQL queries; allow-list identifiers you cannot bind</li>
+                    <li>Apply context-aware output encoding; use auto-escaping templates</li>
+                    <li>Sanitise rich HTML with a vetted library (e.g. DOMPurify)</li>
+                    <li>Run commands via argument arrays, no shell, validated input</li>
+                    <li>Disable DTDs and external entities on XML parsers</li>
+                    <li>Avoid native deserialization; prefer data-only formats + schema</li>
+                    <li>Confine file paths to a base dir; validate uploads by content</li>
+                    <li>Fail closed on error; return generic errors, log privately; debug off in prod</li>
+                </ul>
+            </div>
+
+            <!-- Tools & Techniques -->
+            <div class="section">
+                <h2>🔍 Tools & Techniques</h2>
+                <h3>Validation & Safe Sinks:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Pydantic</span>
+                    <span class="tool-tag">Zod</span>
+                    <span class="tool-tag">JSON Schema</span>
+                    <span class="tool-tag">DOMPurify</span>
+                    <span class="tool-tag">OWASP Java Encoder</span>
+                    <span class="tool-tag">Prepared Statements</span>
+                    <span class="tool-tag">defusedxml</span>
+                </div>
+
+                <h3>Testing & Scanning:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Semgrep</span>
+                    <span class="tool-tag">OWASP ZAP</span>
+                    <span class="tool-tag">Burp Suite</span>
+                    <span class="tool-tag">CodeQL</span>
+                </div>
+
+                <h3>How to Verify:</h3>
+                <ul>
+                    <li>Send injection probes (<code>' OR 1=1</code>, <code>&lt;script&gt;</code>, <code>; id</code>) and confirm 400/inert output</li>
+                    <li>Call the API directly (bypass the client) to test server-side validation</li>
+                    <li>Post XML with an external entity and confirm it is not resolved</li>
+                    <li>Trigger an error and confirm no stack trace reaches the client</li>
+                    <li>Confirm a security check that throws denies rather than allows</li>
+                </ul>
+            </div>
+
+            <!-- Why It Matters -->
+            <div class="section full-width">
+                <h2>🌍 Why It Matters</h2>
+                <ul>
+                    <li><strong>SQL injection breaches:</strong> String-concatenated queries have driven some of the largest data breaches on record. The durable fix is parameterised queries, not cleverer input filtering.</li>
+                    <li><strong>Stored and reflected XSS:</strong> User content rendered without context-aware encoding runs script in victims' browsers — stealing sessions and acting as the victim. Auto-escaping templates shut this down.</li>
+                    <li><strong>XXE in XML processors:</strong> Parsers with external-entity resolution enabled have been used to read local files and reach internal systems (SSRF). Disabling entities and DTDs is the fix.</li>
+                    <li><strong>Unsafe deserialization:</strong> Native, type-permissive deserializers have repeatedly led to remote code execution. Data-only formats with a strict schema remove the sink.</li>
+                    <li><strong>Verbose errors as reconnaissance:</strong> Stack traces have handed attackers versions, paths, and schema names. Generic errors plus private logging deny that free recon.</li>
+                </ul>
+                <p><em>These are documented incident classes — no fabricated CVE numbers or statistics. The same missing control sits behind all of them.</em></p>
+            </div>
+
+            <!-- Quick Tips -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> treat input validation as a substitute for encoding/parameterising</li>
+                    <li><span class="badge critical">DO NOT</span> build SQL by concatenation or run <code>shell=True</code> with input</li>
+                    <li><span class="badge critical">DO NOT</span> native-deserialize untrusted data or return stack traces</li>
+                    <li><span class="badge high">DO</span> validate with allow-lists on the server, canonicalising first</li>
+                    <li><span class="badge high">DO</span> parameterise queries and encode output for the exact context</li>
+                    <li><span class="badge high">DO</span> disable XXE and fail closed on any security check</li>
+                    <li><span class="badge medium">DO</span> log detail privately and turn debug off in production</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Top 10 Proactive Controls (2024) — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/proactive/OWASP-Proactive-Controls/C03-Validate-all-Input-and-Handle-Exceptions/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

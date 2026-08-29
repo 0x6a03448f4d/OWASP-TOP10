@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K01: Insecure Workload Configurations - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>📦 Insecure Workload Configurations</h1>
+            <p class="subtitle">OWASP Kubernetes Top 10 - K01</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Insecure Workload Configurations</strong> is about the manifest, not the app code. Pods and Deployments admitted with permissive <code>securityContext</code> fields — <code>privileged: true</code>, host namespaces, <code>hostPath</code> mounts, or dangerous Linux capabilities — turn the container boundary into a formality an attacker steps over in seconds. Because these fields default to the permissive side for backward compatibility, a workload that never sets a <code>securityContext</code> is already weaker than it should be.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">K01</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Manifest</span>
+                        <span class="label">Focus Area</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Easy</span>
+                        <span class="label">To Prevent</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Privileged Escape:</strong> <code>privileged: true</code> mounts a host disk device and writes to the node</li>
+                    <li><strong>Runtime Socket Abuse:</strong> A mounted <code>docker.sock</code> launches a new privileged container that owns the node</li>
+                    <li><strong>hostPath Node Access:</strong> A <code>hostPath: /</code> mount reads kubelet creds and drops static-pod manifests</li>
+                    <li><strong>Host PID Inspection:</strong> <code>hostPID: true</code> reads other processes' <code>/proc/&lt;pid&gt;/environ</code> for secrets</li>
+                    <li><strong>Host Network + Metadata:</strong> <code>hostNetwork: true</code> reaches the kubelet and cloud IAM metadata, bypassing NetworkPolicy</li>
+                    <li><strong>Token Theft:</strong> The automounted default ServiceAccount token is a ready-made cluster credential</li>
+                    <li><strong>Capability Abuse:</strong> Added <code>SYS_ADMIN</code> enables the cgroup release_agent escape without full privilege</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Foothold: code execution in a container<br>
+   <span class="arrow">↓</span><br>
+2. Enumerate the sandbox (id, capsh, mounts, token)<br>
+   <span class="arrow">↓</span><br>
+3. Escape via privileged / hostPath / docker.sock<br>
+   <span class="arrow">↓</span><br>
+4. Loot node: kubelet creds, other Pods' secrets, metadata<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Stolen token drives cluster-wide takeover!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: every escape primitive in one manifest</span>
+<span class="keyword">apiVersion</span>: v1
+<span class="keyword">kind</span>: Pod
+<span class="keyword">metadata</span>:
+  <span class="keyword">name</span>: legacy-agent
+<span class="keyword">spec</span>:
+  <span class="keyword">hostPID</span>: <span class="keyword">true</span>              <span class="comment"># sees all host processes</span>
+  <span class="keyword">hostIPC</span>: <span class="keyword">true</span>              <span class="comment"># host shared memory</span>
+  <span class="keyword">hostNetwork</span>: <span class="keyword">true</span>          <span class="comment"># host NICs + metadata reach</span>
+  <span class="keyword">containers</span>:
+    - <span class="keyword">name</span>: agent
+      <span class="keyword">image</span>: <span class="string">agent:latest</span>       <span class="comment"># mutable tag, unknown provenance</span>
+      <span class="keyword">securityContext</span>:
+        <span class="keyword">privileged</span>: <span class="keyword">true</span>               <span class="comment"># ~= root on the node</span>
+        <span class="keyword">runAsUser</span>: <span class="number">0</span>                    <span class="comment"># root in container</span>
+        <span class="keyword">allowPrivilegeEscalation</span>: <span class="keyword">true</span>
+        <span class="keyword">readOnlyRootFilesystem</span>: <span class="keyword">false</span>
+        <span class="keyword">capabilities</span>:
+          <span class="keyword">add</span>: [<span class="string">"SYS_ADMIN"</span>, <span class="string">"NET_ADMIN"</span>]  <span class="comment"># escape primitives</span>
+        <span class="keyword">seccompProfile</span>:
+          <span class="keyword">type</span>: <span class="string">Unconfined</span>              <span class="comment"># full kernel syscall surface</span>
+      <span class="keyword">volumeMounts</span>:
+        - <span class="keyword">name</span>: host-root
+          <span class="keyword">mountPath</span>: /host                <span class="comment"># entire node filesystem</span>
+        - <span class="keyword">name</span>: docker-sock
+          <span class="keyword">mountPath</span>: /var/run/docker.sock   <span class="comment"># runtime takeover</span>
+      <span class="comment"># no resources.limits -> noisy-neighbour DoS</span>
+  <span class="keyword">volumes</span>:
+    - <span class="keyword">name</span>: host-root
+      <span class="keyword">hostPath</span>: { <span class="keyword">path</span>: / }
+    - <span class="keyword">name</span>: docker-sock
+      <span class="keyword">hostPath</span>: { <span class="keyword">path</span>: /var/run/docker.sock }
+  <span class="comment"># default ServiceAccount token automounted -> cluster credential</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: least-privilege, hardened securityContext</span>
+<span class="keyword">apiVersion</span>: v1
+<span class="keyword">kind</span>: Pod
+<span class="keyword">metadata</span>:
+  <span class="keyword">name</span>: agent
+<span class="keyword">spec</span>:
+  <span class="keyword">hostPID</span>: <span class="keyword">false</span>
+  <span class="keyword">hostIPC</span>: <span class="keyword">false</span>
+  <span class="keyword">hostNetwork</span>: <span class="keyword">false</span>
+  <span class="keyword">automountServiceAccountToken</span>: <span class="keyword">false</span>   <span class="comment"># app doesn't call the API</span>
+  <span class="keyword">securityContext</span>:                       <span class="comment"># Pod-level</span>
+    <span class="keyword">runAsNonRoot</span>: <span class="keyword">true</span>
+    <span class="keyword">runAsUser</span>: <span class="number">10001</span>
+    <span class="keyword">runAsGroup</span>: <span class="number">10001</span>
+    <span class="keyword">fsGroup</span>: <span class="number">10001</span>
+    <span class="keyword">seccompProfile</span>:
+      <span class="keyword">type</span>: <span class="string">RuntimeDefault</span>              <span class="comment"># syscall filtering on</span>
+  <span class="keyword">containers</span>:
+    - <span class="keyword">name</span>: agent
+      <span class="keyword">image</span>: <span class="string">registry.example.com/agent@sha256:&lt;digest&gt;</span>  <span class="comment"># pinned by digest</span>
+      <span class="keyword">securityContext</span>:                   <span class="comment"># container-level wins</span>
+        <span class="keyword">privileged</span>: <span class="keyword">false</span>
+        <span class="keyword">allowPrivilegeEscalation</span>: <span class="keyword">false</span>
+        <span class="keyword">readOnlyRootFilesystem</span>: <span class="keyword">true</span>
+        <span class="keyword">runAsNonRoot</span>: <span class="keyword">true</span>
+        <span class="keyword">runAsUser</span>: <span class="number">10001</span>
+        <span class="keyword">capabilities</span>:
+          <span class="keyword">drop</span>: [<span class="string">"ALL"</span>]                  <span class="comment"># add back nothing</span>
+      <span class="keyword">resources</span>:
+        <span class="keyword">requests</span>: { <span class="keyword">cpu</span>: <span class="string">"100m"</span>, <span class="keyword">memory</span>: <span class="string">"128Mi"</span> }
+        <span class="keyword">limits</span>:   { <span class="keyword">cpu</span>: <span class="string">"500m"</span>, <span class="keyword">memory</span>: <span class="string">"256Mi"</span>, <span class="keyword">ephemeral-storage</span>: <span class="string">"1Gi"</span> }
+      <span class="keyword">volumeMounts</span>:
+        - <span class="keyword">name</span>: tmp
+          <span class="keyword">mountPath</span>: /tmp                  <span class="comment"># writable scratch, not the host</span>
+  <span class="keyword">volumes</span>:
+    - <span class="keyword">name</span>: tmp
+      <span class="keyword">emptyDir</span>: {}
+  <span class="comment"># no hostPath, no docker.sock, no host namespaces</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Set <code>runAsNonRoot: true</code> with an explicit non-zero <code>runAsUser</code></li>
+                    <li>Set <code>allowPrivilegeEscalation: false</code> and <code>privileged: false</code></li>
+                    <li>Drop <code>ALL</code> capabilities, add back only the one strictly needed</li>
+                    <li>Set <code>readOnlyRootFilesystem: true</code>; mount writable dirs explicitly</li>
+                    <li>Use <code>seccompProfile: RuntimeDefault</code>, never <code>Unconfined</code></li>
+                    <li>Forbid <code>hostPID</code>, <code>hostIPC</code>, <code>hostNetwork</code> and all <code>hostPath</code> mounts</li>
+                    <li>Never mount the container runtime socket; use a rootless builder (Kaniko)</li>
+                    <li>Set <code>automountServiceAccountToken: false</code> where the API isn't used</li>
+                    <li>Set CPU, memory, and ephemeral-storage limits on every container</li>
+                    <li>Enforce Pod Security Admission (<code>restricted</code>) plus Kyverno/Gatekeeper</li>
+                    <li>Scan manifests in CI (Trivy, kubescape, kube-linter) before they reach the cluster</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Scanning &amp; Policy:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">kube-bench</span>
+                    <span class="tool-tag">kubeaudit</span>
+                    <span class="tool-tag">Trivy</span>
+                    <span class="tool-tag">kubescape</span>
+                    <span class="tool-tag">Polaris</span>
+                    <span class="tool-tag">kube-linter</span>
+                    <span class="tool-tag">Checkov</span>
+                </div>
+
+                <h3>Admission &amp; Runtime:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Pod Security Admission</span>
+                    <span class="tool-tag">Kyverno</span>
+                    <span class="tool-tag">OPA/Gatekeeper</span>
+                    <span class="tool-tag">Falco</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Find privileged Pods: <code>kubectl get pods -A -o json | jq ...privileged==true</code></li>
+                    <li>List Pods using <code>hostPID</code>/<code>hostIPC</code>/<code>hostNetwork</code></li>
+                    <li>Flag <code>hostPath</code> volumes, especially <code>/</code> and <code>docker.sock</code></li>
+                    <li>Dry-run <code>restricted</code> PSA: <code>kubectl label --dry-run=server ns ...</code></li>
+                    <li>Run <code>trivy config ./k8s</code> and <code>kubescape scan framework nsa ./k8s</code></li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <ul>
+                    <li><strong>Privileged-container escape to the node:</strong> A build/CI/monitoring agent granted <code>privileged</code> or <code>SYS_ADMIN</code> "for convenience" becomes a node compromise once an app flaw gives code execution inside it.</li>
+                    <li><strong>Exposed runtime socket (docker.sock):</strong> The docker-in-docker build pattern mounts the runtime socket; any code in the Pod launches a privileged host-mounting container — node takeover with no kernel exploit.</li>
+                    <li><strong>Tesla cryptojacking (2018, widely reported):</strong> An administrative Kubernetes dashboard was reachable without authentication; attackers scheduled their own cryptomining Pods and reached cloud resources — a management surface plus permissive workloads.</li>
+                    <li><strong>Note:</strong> Treat each as a <em>class</em> of failure. Privileged escape, runtime-socket exposure, and cryptojacking of open/permissive workloads are repeatedly observed; the takeaway is the mechanism, not an exact statistic.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> set <code>privileged: true</code></li>
+                    <li><span class="badge critical">DO NOT</span> mount <code>hostPath: /</code> or the runtime socket</li>
+                    <li><span class="badge critical">DO NOT</span> enable host namespaces</li>
+                    <li><span class="badge high">DO</span> run as non-root and drop ALL capabilities</li>
+                    <li><span class="badge high">DO</span> disable token automount when unused</li>
+                    <li><span class="badge high">DO</span> enforce restricted Pod Security Admission</li>
+                    <li><span class="badge medium">DO</span> scan manifests in CI</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">CIS</span> Kubernetes Benchmark - Pod Security</li>
+                    <li><span class="badge medium">NSA/CISA</span> Kubernetes Hardening Guidance</li>
+                    <li><span class="badge medium">NIST</span> 800-190 Application Container Security</li>
+                    <li><span class="badge medium">PCI-DSS</span> Requirement 2.2 - Secure Configuration</li>
+                    <li><span class="badge medium">Pod Security Standards</span> restricted profile</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Kubernetes Top 10 — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/kubernetes/OWASP-Kubernetes/K01-Insecure-Workload-Configurations/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

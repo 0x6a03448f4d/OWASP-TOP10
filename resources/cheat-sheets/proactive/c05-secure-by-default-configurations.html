@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C5: Secure By Default Configurations - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔒 Secure By Default Configurations</h1>
+            <p class="subtitle">OWASP Top 10 Proactive Controls (2024) - C5</p>
+            <span class="category">CORE CONTROL</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is This Control?</h2>
+                <p><strong>Secure By Default Configurations</strong> means shipping and running systems that are <em>safe out of the box</em>. A fresh deployment — one nobody has hardened yet — should already be in a secure state. Security is the <strong>starting position</strong>, and relaxing it is a deliberate, visible, rare exception. It is the constructive counterpart to <strong>Security Misconfiguration</strong>: instead of hoping someone remembers to lock things down later, the defaults were never insecure to begin with. The governing principle is <strong>deny by default</strong> — features, ports, accounts, and permissions are off unless a specific need turns them on.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">C5</span>
+                        <span class="label">Proactive Control</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Deny by Default</span>
+                        <span class="label">Focus Area</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">OWASP 2024</span>
+                        <span class="label">Proactive Controls</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- What It Prevents -->
+            <div class="section">
+                <h2>🎯 What It Prevents</h2>
+                <ul>
+                    <li><strong>Exposed No-Auth Datastores:</strong> DBs bound to all interfaces with auth off</li>
+                    <li><strong>Public Cloud Buckets:</strong> Object storage readable by "everyone"</li>
+                    <li><strong>Open Admin Dashboards:</strong> Consoles reachable from the internet, unauthenticated</li>
+                    <li><strong>Default / Sample Credentials:</strong> The <code>admin/admin</code> family still active</li>
+                    <li><strong>Verbose Errors &amp; Debug Mode:</strong> Stack traces and debug pages in production</li>
+                    <li><strong>Excess Attack Surface:</strong> Sample apps, demo pages, unused ports and services</li>
+                    <li><strong>Config Drift:</strong> A secure baseline that silently erodes back to insecure</li>
+                </ul>
+            </div>
+
+            <!-- How It Works -->
+            <div class="section">
+                <h2>🧭 How It Works</h2>
+                <div class="attack-flow">
+1. Start from deny-by-default — everything off unless needed<br>
+   <span class="arrow">↓</span><br>
+2. Codify a known-good baseline (e.g. a CIS Benchmark)<br>
+   <span class="arrow">↓</span><br>
+3. Bake it into templates, base images &amp; IaC (a paved road)<br>
+   <span class="arrow">↓</span><br>
+4. Remove default creds, sample apps &amp; unused features<br>
+   <span class="arrow">↓</span><br>
+5. <strong>Scan continuously: drift fails the pipeline or alerts</strong>
+                </div>
+            </div>
+
+            <!-- Without This Control -->
+            <div class="section full-width">
+                <h2>❌ Without This Control</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># nginx: insecure defaults — banner on, listing on, all methods, plaintext</span>
+server {
+    listen <span class="number">80</span>;                          <span class="comment"># plaintext, no redirect to HTTPS</span>
+    server_tokens <span class="keyword">on</span>;                   <span class="comment"># advertises nginx version</span>
+    autoindex <span class="keyword">on</span>;                       <span class="comment"># browsable directory listings</span>
+    location / { root /var/www/html; }    <span class="comment"># serves .git, .env, backups too</span>
+    <span class="comment"># all HTTP methods accepted; no security headers</span>
+}
+
+<span class="comment"># Django settings.py: unsafe out of the box</span>
+DEBUG = <span class="keyword">True</span>                            <span class="comment"># tracebacks + debug pages to clients</span>
+ALLOWED_HOSTS = [<span class="string">'*'</span>]                   <span class="comment"># accepts any Host header</span>
+SECRET_KEY = <span class="string">'insecure-default-key'</span>     <span class="comment"># shipped default secret</span>
+SESSION_COOKIE_SECURE = <span class="keyword">False</span>          <span class="comment"># cookie sent over plain HTTP</span>
+SECURE_HSTS_SECONDS = <span class="number">0</span>                 <span class="comment"># no HSTS</span>
+
+<span class="comment"># Terraform: bucket that can be made public, stored unencrypted</span>
+resource <span class="string">"aws_s3_bucket_acl"</span> <span class="string">"data"</span> {
+  acl = <span class="string">"public-read"</span>                    <span class="comment"># world-readable</span>
+}
+                </div>
+            </div>
+
+            <!-- Applying the Control -->
+            <div class="section full-width">
+                <h2>✅ Applying the Control</h2>
+                <div class="code-block secure">
+<span class="comment"># nginx: safe defaults — HTTPS, no banner, scoped methods, headers preset</span>
+server { listen <span class="number">80</span>; return <span class="number">301</span> https://$host$request_uri; }   <span class="comment"># force HTTPS</span>
+server {
+    listen <span class="number">443</span> ssl;
+    server_tokens <span class="keyword">off</span>;                  <span class="comment"># no version banner</span>
+    ssl_protocols TLSv1.2 TLSv1.3;      <span class="comment"># modern TLS only</span>
+    add_header Strict-Transport-Security <span class="string">"max-age=31536000; includeSubDomains"</span> always;
+    add_header X-Content-Type-Options <span class="string">"nosniff"</span> always;
+    add_header Content-Security-Policy <span class="string">"default-src 'none'; frame-ancestors 'none'"</span> always;
+    location / { autoindex <span class="keyword">off</span>; limit_except GET POST { deny all; } }  <span class="comment"># deny-by-default</span>
+    location ~ /\.(git|env) { deny all; return <span class="number">404</span>; }
+}
+
+<span class="comment"># Django: secure out of the box</span>
+DEBUG = <span class="keyword">False</span>                           <span class="comment"># off by default in production</span>
+ALLOWED_HOSTS = [<span class="string">'app.example.com'</span>]     <span class="comment"># explicit host allow-list</span>
+SECRET_KEY = os.environ[<span class="string">'DJANGO_SECRET_KEY'</span>]   <span class="comment"># injected, never a default</span>
+SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = <span class="keyword">True</span>
+SECURE_HSTS_SECONDS = <span class="number">31536000</span>; SECURE_CONTENT_TYPE_NOSNIFF = <span class="keyword">True</span>; X_FRAME_OPTIONS = <span class="string">'DENY'</span>
+
+<span class="comment"># Terraform: private + encrypted by default</span>
+resource <span class="string">"aws_s3_bucket_public_access_block"</span> <span class="string">"data"</span> {
+  block_public_acls = block_public_policy = <span class="keyword">true</span>
+  ignore_public_acls = restrict_public_buckets = <span class="keyword">true</span>   <span class="comment"># private by default</span>
+}
+
+<span class="comment"># Dockerfile: minimal, pinned, non-root</span>
+FROM python:3.12-slim@sha256:&lt;digest&gt;   <span class="comment"># minimal, patched, pinned</span>
+RUN useradd --uid <span class="number">10001</span> appuser
+USER <span class="number">10001</span>                              <span class="comment"># non-root by default</span>
+                </div>
+            </div>
+
+            <!-- Implementation Checklist -->
+            <div class="section">
+                <h2>✓ Implementation Checklist</h2>
+                <ul class="checklist">
+                    <li>A fresh, un-hardened deployment already starts in a safe state</li>
+                    <li>Deny by default: features, ports, and services off unless explicitly needed</li>
+                    <li>No default or sample credentials — a unique secret is forced at first setup</li>
+                    <li>Identities and service accounts start with least privilege</li>
+                    <li>Security headers (HSTS, CSP, nosniff, frame denial) preset on every response</li>
+                    <li>Debug and verbose errors off in production; detail goes to logs only</li>
+                    <li>Cloud buckets private and encrypted by default in your templates</li>
+                    <li>A codified secure baseline (e.g. CIS Benchmark) applied identically everywhere</li>
+                    <li>Base images and dependencies default to current, patched versions</li>
+                    <li>Automated validation and drift detection fail the pipeline on deviation</li>
+                    <li>The secure option is the default option developers reach for (paved road)</li>
+                </ul>
+            </div>
+
+            <!-- Tools & Techniques -->
+            <div class="section">
+                <h2>🔍 Tools &amp; Techniques</h2>
+                <h3>Baselines &amp; Hardening:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">CIS Benchmarks</span>
+                    <span class="tool-tag">CIS-CAT</span>
+                    <span class="tool-tag">OpenSCAP</span>
+                    <span class="tool-tag">Ansible / Chef</span>
+                    <span class="tool-tag">helmet.js</span>
+                    <span class="tool-tag">django-secure</span>
+                </div>
+
+                <h3>IaC &amp; Drift Detection:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Checkov</span>
+                    <span class="tool-tag">tfsec / Trivy</span>
+                    <span class="tool-tag">cfn-nag</span>
+                    <span class="tool-tag">kube-bench</span>
+                    <span class="tool-tag">AWS Config</span>
+                    <span class="tool-tag">securityheaders.com</span>
+                </div>
+
+                <h3>How to Verify:</h3>
+                <ul>
+                    <li>Deploy a clean instance and confirm it is safe with zero manual hardening</li>
+                    <li>Scan for default credentials and open management ports</li>
+                    <li>Check response headers and that debug mode is off in production</li>
+                    <li>Confirm cloud buckets are private and encrypted by template</li>
+                    <li>Verify CI blocks the build when IaC drifts from the baseline</li>
+                </ul>
+            </div>
+
+            <!-- Why It Matters -->
+            <div class="section full-width">
+                <h2>🌍 Why It Matters</h2>
+                <ul>
+                    <li><strong>Exposed no-auth datastores:</strong> Databases and search engines that historically shipped listening on all interfaces with auth disabled were deployed straight to the internet and read, tampered with, or wiped. Vendors later changed the default to bind to localhost precisely because the insecure default caused so many incidents.</li>
+                    <li><strong>Public cloud storage buckets:</strong> Object storage left readable by "everyone" exposed backups and customer records across many organisations. Providers responded by adding block-public-access defaults — moving the safe state into the default.</li>
+                    <li><strong>Open admin &amp; orchestration dashboards:</strong> Management consoles and cluster dashboards deployed with no authentication and reachable from the internet were hijacked to mine cryptocurrency and pivot inward.</li>
+                    <li><strong>Default and sample credentials:</strong> Devices and apps shipped with well-known credentials are compromised at scale by automated tools, no exploit required. Shipping with no usable default removes the class entirely.</li>
+                </ul>
+                <p><em>These are documented classes of misconfiguration, described as patterns rather than tied to any vendor or CVE. Most large misconfiguration breaches trace back to a default that was never changed.</em></p>
+            </div>
+
+            <!-- Quick Tips -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> plan to "harden it after deployment" — that window is when systems are attacked</li>
+                    <li><span class="badge critical">DO NOT</span> ship or keep default / sample credentials</li>
+                    <li><span class="badge critical">DO NOT</span> assume a vendor default is safe for production</li>
+                    <li><span class="badge high">DO</span> start from deny-by-default and least privilege</li>
+                    <li><span class="badge high">DO</span> preset security headers and turn debug off by default</li>
+                    <li><span class="badge high">DO</span> codify a secure baseline and apply it identically everywhere</li>
+                    <li><span class="badge medium">DO</span> automate drift detection so the baseline cannot silently erode</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Top 10 Proactive Controls (2024) — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/proactive/OWASP-Proactive-Controls/C05-Secure-By-Default-Configurations/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

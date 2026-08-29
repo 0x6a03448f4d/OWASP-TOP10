@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SC08: Integer Overflow & Underflow - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔢 Integer Overflow & Underflow</h1>
+            <p class="subtitle">OWASP Smart Contract Top 10 (2025) - SC08</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Integer Overflow and Underflow</strong> occur when an arithmetic operation produces a result outside the range a fixed-size integer can hold, so the value <em>wraps around</em> modulo 2ⁿ instead of being the mathematically correct number. On the EVM every integer is fixed-width—<code>uint256</code> holds 0 to 2²⁵⁶&minus;1, <code>uint8</code> holds 0 to 255—with no arbitrary-precision fallback. <strong>Underflow</strong> subtracts past zero (<code>uint8(0) - 1</code> wraps to <code>255</code>), so <code>balance - amount</code> can mint a near-infinite balance. <strong>Overflow</strong> adds or multiplies past the maximum (<code>uint8(255) + 1</code> wraps to <code>0</code>), so a supply counter or cap check can silently reset and let an attacker slip past a limit.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">SC08</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Wrap</span>
+                        <span class="label">Failure Mode</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">0.8+</span>
+                        <span class="label">Checked by Default</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Balance underflow:</strong> <code>balance - amount</code> where <code>amount &gt; balance</code> wraps to ~2²⁵⁶ — mint from nothing</li>
+                    <li><strong>Multiplication overflow:</strong> <code>count * amount</code> wraps a batch total small so a balance check passes (batchOverflow class)</li>
+                    <li><strong>Supply / cap overflow:</strong> overflowing total slips under a <code>require(total &lt;= CAP)</code> check</li>
+                    <li><strong>Downcast truncation:</strong> <code>uint64(amount)</code> silently drops high bits — never checked, any version</li>
+                    <li><strong>unchecked block:</strong> gas optimisation re-enables wrapping on attacker-controlled input</li>
+                    <li><strong>Inline assembly:</strong> Yul <code>add</code>/<code>mul</code>/<code>sub</code> never check for overflow at any version</li>
+                    <li><strong>Multiply-before-divide:</strong> intermediate product wraps (pre-0.8) or reverts as a DoS (0.8+)</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Locate unprotected arithmetic (pre-0.8, unchecked, cast, assembly)<br>
+   <span class="arrow">↓</span><br>
+2. Model the wrap — choose an input past 0 or past 2ⁿ&minus;1<br>
+   <span class="arrow">↓</span><br>
+3. Call the function with the boundary value in one transaction<br>
+   <span class="arrow">↓</span><br>
+4. Balance/total wraps; invariant the code trusted is now false<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Unlimited minting, cap bypass, pool drained!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: pre-0.8, no SafeMath — subtraction underflows and wraps up</span>
+<span class="keyword">pragma</span> solidity ^<span class="number">0.6</span>.<span class="number">0</span>;              <span class="comment">// arithmetic wraps silently</span>
+
+<span class="keyword">function</span> <span class="function">transfer</span>(<span class="keyword">address</span> to, <span class="keyword">uint256</span> amount) <span class="keyword">external</span> {
+    balances[msg.sender] -= amount;   <span class="comment">← 0 - 1 => 2^256 - 1 (mint from nothing)</span>
+    balances[to]        += amount;
+}
+
+<span class="comment">// Bad: multiplication overflow in a batch total (batchOverflow class)</span>
+<span class="keyword">function</span> <span class="function">batchTransfer</span>(<span class="keyword">address</span>[] <span class="keyword">memory</span> to, <span class="keyword">uint256</span> amount) <span class="keyword">public</span> {
+    <span class="keyword">uint256</span> total = to.length * amount;      <span class="comment">← overflows for a crafted amount</span>
+    <span class="function">require</span>(balances[msg.sender] >= total);  <span class="comment">← passes: total wrapped small</span>
+    <span class="keyword">for</span> (<span class="keyword">uint</span> i = <span class="number">0</span>; i < to.length; i++) {
+        balances[to[i]] += amount;           <span class="comment">← each gets the full huge amount</span>
+    }
+}
+
+<span class="comment">// Bad: supply overflow defeats the cap check</span>
+<span class="keyword">function</span> <span class="function">mint</span>(<span class="keyword">uint256</span> amount) <span class="keyword">external</span> {
+    totalSupply += amount;            <span class="comment">← wraps past 2^256 - 1 (pre-0.8)</span>
+    <span class="function">require</span>(totalSupply <= CAP);       <span class="comment">← wrapped-small total slips under cap</span>
+    balances[msg.sender] += amount;
+}
+
+<span class="comment">// Bad: silent downcast truncation — NEVER checked, even on 0.8+</span>
+<span class="keyword">mapping</span>(<span class="keyword">address</span> => <span class="keyword">uint64</span>) <span class="keyword">public</span> shares;
+shares[msg.sender] += <span class="keyword">uint64</span>(amount);       <span class="comment">← uint64(2^64) == 0, high bits dropped</span>
+
+<span class="comment">// Bad: unchecked re-enables wrapping on attacker input</span>
+<span class="keyword">unchecked</span> {
+    accrued[msg.sender] += userInput;        <span class="comment">← 0.8 protection OFF here</span>
+}
+
+<span class="comment">// Bad: inline assembly never checks overflow at any version</span>
+<span class="keyword">assembly</span> { z := <span class="function">add</span>(x, y) }             <span class="comment">← wraps silently, no Panic(0x11)</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: Solidity >= 0.8 — checked +, -, * revert with Panic(0x11) on wrap</span>
+<span class="keyword">pragma</span> solidity ^<span class="number">0.8</span>.<span class="number">20</span>;
+
+<span class="keyword">function</span> <span class="function">transfer</span>(<span class="keyword">address</span> to, <span class="keyword">uint256</span> amount) <span class="keyword">external</span> {
+    balances[msg.sender] -= amount;   <span class="comment">← underflow now reverts, never wraps</span>
+    balances[to]        += amount;
+}
+
+<span class="comment">// Good: legacy (<0.8) — OpenZeppelin SafeMath reverts on every op</span>
+<span class="keyword">using</span> SafeMath <span class="keyword">for</span> <span class="keyword">uint256</span>;
+balances[msg.sender] = balances[msg.sender].sub(amount); <span class="comment">← reverts on underflow</span>
+balances[to]         = balances[to].add(amount);          <span class="comment">← reverts on overflow</span>
+
+<span class="comment">// Good: check the cap BEFORE mutating; checked add can't wrap the total</span>
+<span class="keyword">function</span> <span class="function">mint</span>(<span class="keyword">uint256</span> amount) <span class="keyword">external</span> {
+    <span class="function">require</span>(amount > <span class="number">0</span>, <span class="string">"zero amount"</span>);
+    <span class="function">require</span>(totalSupply + amount <= CAP, <span class="string">"cap exceeded"</span>);
+    totalSupply += amount;
+    balances[msg.sender] += amount;
+}
+
+<span class="comment">// Good: SafeCast reverts instead of truncating on downcast</span>
+<span class="keyword">using</span> SafeCast <span class="keyword">for</span> <span class="keyword">uint256</span>;
+shares[msg.sender] += amount.toUint64();  <span class="comment">← reverts if amount > type(uint64).max</span>
+
+<span class="comment">// Good: unchecked ONLY for provably-bounded quantities</span>
+<span class="keyword">for</span> (<span class="keyword">uint256</span> i = <span class="number">0</span>; i < xs.length; ) {
+    total += xs[i];                       <span class="comment">// checked: values untrusted</span>
+    <span class="keyword">unchecked</span> { ++i; }                     <span class="comment">← safe: i bounded by xs.length</span>
+}
+
+<span class="comment">// Good: manual overflow check inside assembly; or prefer high-level x + y</span>
+<span class="keyword">assembly</span> {
+    z := <span class="function">add</span>(x, y)
+    <span class="keyword">if</span> <span class="function">lt</span>(z, x) { <span class="function">revert</span>(<span class="number">0</span>, <span class="number">0</span>) }        <span class="comment">← overflow iff sum < an operand</span>
+}
+
+<span class="comment">// Good: Math.mulDiv uses a 512-bit intermediate — no overflow, no precision loss</span>
+<span class="keyword">return</span> Math.mulDiv(stake, rate, PRECISION);
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Compile with Solidity &ge; 0.8.0 so checked arithmetic is the default</li>
+                    <li>Pin the pragma to a fixed, recent compiler version</li>
+                    <li>Wrap every add/sub/mul in SafeMath for legacy &lt;0.8 code</li>
+                    <li>Treat every <code>unchecked { }</code> block as a proof obligation</li>
+                    <li>Never <code>unchecked</code> raw attacker input — only bounded quantities</li>
+                    <li>Range-check or use OpenZeppelin <code>SafeCast</code> before any downcast</li>
+                    <li>Add manual overflow checks to any inline assembly arithmetic</li>
+                    <li>Validate and bound inputs so values can't reach the extremes</li>
+                    <li>Order operations to avoid intermediate overflow; use <code>Math.mulDiv</code></li>
+                    <li>Add boundary tests at <code>0</code> and <code>type(uint256).max</code></li>
+                    <li>Fuzz arithmetic invariants with Foundry / Echidna</li>
+                    <li>Make "is this arithmetic protected?" a review line item</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Analysis Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Slither</span>
+                    <span class="tool-tag">Mythril</span>
+                    <span class="tool-tag">Echidna</span>
+                    <span class="tool-tag">Foundry</span>
+                    <span class="tool-tag">Manticore</span>
+                </div>
+
+                <h3>Secure Libraries:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">OpenZeppelin SafeMath</span>
+                    <span class="tool-tag">OpenZeppelin SafeCast</span>
+                    <span class="tool-tag">Math.mulDiv</span>
+                    <span class="tool-tag">solc ^0.8</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Run Slither to flag overflow-prone patterns, dangerous casts, and risky <code>unchecked</code></li>
+                    <li>Run Mythril / MythX symbolic execution for arithmetic edge cases</li>
+                    <li>Fuzz invariants in Foundry: e.g. transfers never change total supply</li>
+                    <li>Assert Echidna properties: sum of balances == total supply; no mint past cap</li>
+                    <li>Add explicit boundary tests: adding to <code>type(uint256).max</code> must revert</li>
+                    <li>Push inputs to <code>0</code> and the type maximum that unit tests never reach</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Incident Classes</h2>
+                <ul>
+                    <li><strong>batchTransfer overflow class (2018):</strong> ERC-20 tokens computed <code>amount * count</code> and checked it against the sender's balance. On a pre-0.8 compiler with no SafeMath, a crafted <code>amount</code> overflowed the product to a tiny value, so the balance check passed while each recipient was credited the full enormous amount — minting far beyond supply. Widely referred to as the <em>batchOverflow</em> class; it affected multiple tokens and forced exchanges to suspend deposits and trading.</li>
+                    <li><strong>proxyOverflow ERC-20 class (2018):</strong> a related family exposed transfer paths where overflow in amount/allowance arithmetic let attackers credit balances the supply accounting never authorised — again prompting exchanges to halt trading of affected tokens.</li>
+                    <li><strong>Underflow-based balance exploits:</strong> a recurring pre-0.8 pattern where a <code>transfer</code> or <code>burn</code> subtracts an attacker-controlled amount without guaranteeing the balance is large enough. Subtracting past zero wraps the balance to a near-maximum value, effectively minting unlimited supply.</li>
+                </ul>
+                <p><em>Note: these are described as classes of incident. The durable lesson is the mechanism — unchecked fixed-width arithmetic in value-bearing bookkeeping — not any single token's exact numbers. This is why SafeMath became ubiquitous and why checked arithmetic was baked into Solidity at 0.8.0.</em></p>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> assume 0.8 protects casts, <code>unchecked</code>, or assembly</li>
+                    <li><span class="badge critical">DO NOT</span> <code>unchecked</code> raw attacker-controlled input</li>
+                    <li><span class="badge critical">DO NOT</span> downcast a wide value without a range check</li>
+                    <li><span class="badge high">DO</span> compile with Solidity &ge; 0.8 (or SafeMath below it)</li>
+                    <li><span class="badge high">DO</span> use SafeCast for narrowing conversions</li>
+                    <li><span class="badge high">DO</span> check caps before mutating, and bound inputs</li>
+                    <li><span class="badge medium">DO</span> fuzz the extremes with Foundry / Echidna</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Smart Contract Top 10 (2025) — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/smartcontract/OWASP-SmartContract/SC08-Integer-Overflow-and-Underflow/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

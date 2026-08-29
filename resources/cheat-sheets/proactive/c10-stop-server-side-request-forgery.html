@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C10: Stop Server-Side Request Forgery - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🛰️ Stop Server-Side Request Forgery</h1>
+            <p class="subtitle">OWASP Top 10 Proactive Controls (2024) - C10</p>
+            <span class="category">CORE CONTROL</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is This Control?</h2>
+                <p><strong>Stop Server-Side Request Forgery (SSRF)</strong> is the control that makes sure when <em>your server</em> fetches a URL, it can only ever reach destinations you intended — never an internal service, a cloud metadata endpoint, or a local file. SSRF happens when an attacker supplies or influences a URL the application then requests on its behalf, turning your trusted server into a proxy that speaks from <em>inside</em> your network. The single most important idea: <strong>a URL is not safe just because its hostname looked safe</strong> — validate the <strong>resolved IP</strong>, pin it for the connection, and confine the request at the network layer.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">C10</span>
+                        <span class="label">Proactive Control</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Allow-list</span>
+                        <span class="label">Focus Area</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">OWASP 2024</span>
+                        <span class="label">Proactive Controls</span>
+                    </div>
+                </div>
+                <p style="margin-top:14px;"><em>Taxonomy note: SSRF was its own category (A10) in the 2021 web Top 10 and is folded into Broken Access Control in 2025 — but stopping it remains a distinct engineering discipline, so it stands alone here as C10.</em></p>
+            </div>
+
+            <!-- What It Prevents -->
+            <div class="section">
+                <h2>🎯 What It Prevents</h2>
+                <ul>
+                    <li><strong>Cloud Metadata Theft:</strong> Reaching <code>169.254.169.254</code> to steal instance credentials</li>
+                    <li><strong>Internal Service Access:</strong> Admin panels, DBs, queues never meant to face the internet</li>
+                    <li><strong>Internal Recon / Port Scanning:</strong> Mapping live hosts via timing &amp; error differences</li>
+                    <li><strong>Local File Disclosure:</strong> <code>file:///etc/passwd</code>-style reads</li>
+                    <li><strong>Protocol Smuggling:</strong> <code>gopher://</code> / <code>dict://</code> crafting raw requests to Redis/SMTP</li>
+                    <li><strong>DNS-Rebinding Bypass:</strong> A safe hostname re-pointed to a private IP after the check</li>
+                    <li><strong>Redirect Bypass:</strong> A validated URL that 302s to a metadata/internal address</li>
+                </ul>
+            </div>
+
+            <!-- How It Works -->
+            <div class="section">
+                <h2>🧭 How It Works</h2>
+                <div class="attack-flow">
+1. Parse the URL; allow-list scheme + host + port (deny by default)<br>
+   <span class="arrow">↓</span><br>
+2. Resolve DNS and validate the RESOLVED IP (block private/link-local)<br>
+   <span class="arrow">↓</span><br>
+3. Pin that exact IP for the connection (defeat DNS rebinding)<br>
+   <span class="arrow">↓</span><br>
+4. Disable file/gopher/dict; do not follow redirects<br>
+   <span class="arrow">↓</span><br>
+5. <strong>Confine at network egress + enforce IMDSv2; bound the response</strong>
+                </div>
+            </div>
+
+            <!-- Without This Control -->
+            <div class="section full-width">
+                <h2>❌ Without This Control</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Flask: fetches ANY user-supplied URL verbatim</span>
+<span class="keyword">import</span> requests
+<span class="keyword">from</span> flask <span class="keyword">import</span> Flask, request, Response
+app = Flask(__name__)
+
+@app.route(<span class="string">'/fetch'</span>)
+<span class="keyword">def</span> <span class="function">fetch</span>():
+    url = request.args.get(<span class="string">'url'</span>)          <span class="comment"># attacker-controlled</span>
+    r = requests.get(url)                  <span class="comment"># file://, 169.254.169.254, 10.0.0.5 all reachable</span>
+    <span class="keyword">return</span> Response(r.content, r.status_code)   <span class="comment"># raw internal body reflected back</span>
+
+<span class="comment"># Problems:</span>
+<span class="comment">#  - no scheme check  -> file:// and gopher:// allowed</span>
+<span class="comment">#  - no IP validation -> loopback / metadata / private ranges reachable</span>
+<span class="comment">#  - redirects auto-followed; a 302 to 169.254.169.254 is honored</span>
+<span class="comment">#  - client re-resolves DNS -> rebinding changes the answer after the check</span>
+<span class="comment">#  - raw upstream response reflected straight to the caller</span>
+<span class="comment"># Attacker: /fetch?url=http://169.254.169.254/latest/meta-data/iam/...</span>
+                </div>
+            </div>
+
+            <!-- Applying the Control -->
+            <div class="section full-width">
+                <h2>✅ Applying the Control</h2>
+                <div class="code-block secure">
+<span class="comment"># Flask: allow-list scheme, validate + pin the resolved IP, no redirects, bound size</span>
+<span class="keyword">import</span> ipaddress, socket, requests
+<span class="keyword">from</span> urllib.parse <span class="keyword">import</span> urlparse
+<span class="keyword">from</span> flask <span class="keyword">import</span> Flask, request, jsonify
+app = Flask(__name__)
+
+ALLOWED_SCHEMES = {<span class="string">'https'</span>}
+MAX_BYTES, TIMEOUT = <span class="number">1_000_000</span>, <span class="number">5</span>
+
+<span class="keyword">def</span> <span class="function">is_blocked_ip</span>(ip_str):
+    ip = ipaddress.ip_address(ip_str)
+    <span class="keyword">return</span> (ip.is_private <span class="keyword">or</span> ip.is_loopback <span class="keyword">or</span> ip.is_link_local     <span class="comment"># 169.254.169.254</span>
+            <span class="keyword">or</span> ip.is_reserved <span class="keyword">or</span> ip.is_multicast <span class="keyword">or</span> ip.is_unspecified)  <span class="comment"># IPv4 &amp; IPv6</span>
+
+<span class="keyword">def</span> <span class="function">resolve_safe_ip</span>(host):
+    ips = {i[<span class="number">4</span>][<span class="number">0</span>] <span class="keyword">for</span> i <span class="keyword">in</span> socket.getaddrinfo(host, <span class="keyword">None</span>)}
+    <span class="keyword">for</span> ip <span class="keyword">in</span> ips:                         <span class="comment"># EVERY answer must be safe</span>
+        <span class="keyword">if</span> is_blocked_ip(ip): <span class="keyword">raise</span> ValueError(<span class="string">'blocked address'</span>)
+    <span class="keyword">return</span> next(iter(ips))                 <span class="comment"># pin this exact IP for the connection</span>
+
+@app.route(<span class="string">'/fetch'</span>)
+<span class="keyword">def</span> <span class="function">fetch</span>():
+    p = urlparse(request.args.get(<span class="string">'url'</span>, <span class="string">''</span>))
+    <span class="keyword">if</span> p.scheme.lower() <span class="keyword">not</span> <span class="keyword">in</span> ALLOWED_SCHEMES <span class="keyword">or</span> <span class="keyword">not</span> p.hostname:
+        <span class="keyword">return</span> jsonify(error=<span class="string">'destination not allowed'</span>), <span class="number">400</span>   <span class="comment"># no file://, gopher://</span>
+    <span class="keyword">try</span>: ip = resolve_safe_ip(p.hostname)   <span class="comment"># validate resolved IP</span>
+    <span class="keyword">except</span> ValueError: <span class="keyword">return</span> jsonify(error=<span class="string">'destination not allowed'</span>), <span class="number">400</span>
+    pinned = f<span class="string">'https://{ip}:{p.port or 443}{p.path or "/"}'</span>
+    r = requests.get(pinned, headers={<span class="string">'Host'</span>: p.hostname}, timeout=TIMEOUT,
+                     allow_redirects=<span class="keyword">False</span>, stream=<span class="keyword">True</span>)   <span class="comment"># refuse redirects</span>
+    body = <span class="keyword">next</span>(r.iter_content(MAX_BYTES), b<span class="string">''</span>)      <span class="comment"># size-bounded</span>
+    <span class="keyword">return</span> jsonify(status=r.status_code, length=len(body))  <span class="comment"># never reflect raw body</span>
+
+<span class="comment"># Plus network egress filtering + IMDSv2 (session token, hop-limit=1) as defense in depth</span>
+                </div>
+            </div>
+
+            <!-- Implementation Checklist -->
+            <div class="section">
+                <h2>✓ Implementation Checklist</h2>
+                <ul class="checklist">
+                    <li>Inventory every feature where the server fetches a user-influenced URL</li>
+                    <li>Validate each fetch against an allow-list of schemes, hosts, and ports (deny by default)</li>
+                    <li>Resolve DNS and validate the resolved IP; reject private/loopback/link-local/reserved (IPv4 &amp; IPv6)</li>
+                    <li>Re-resolve and pin the IP at connection time to defeat DNS rebinding</li>
+                    <li>Disable non-HTTP schemes (<code>file</code>, <code>gopher</code>, <code>dict</code>, <code>ftp</code>)</li>
+                    <li>Block redirects, or re-validate every hop as strictly as the first</li>
+                    <li>Enforce network egress filtering so the app cannot reach internal ranges or the metadata IP</li>
+                    <li>Enforce IMDSv2 (session tokens) with a restrictive hop limit on cloud hosts</li>
+                    <li>Size-limit and time-limit upstream responses; never reflect them raw</li>
+                    <li>Run the fetching service with least-privilege IAM and strict timeouts</li>
+                    <li>Prefer a single centralized, vetted SSRF-safe HTTP client over raw <code>requests.get(url)</code></li>
+                </ul>
+            </div>
+
+            <!-- Tools & Techniques -->
+            <div class="section">
+                <h2>🔍 Tools &amp; Techniques</h2>
+                <h3>Libraries &amp; Platform:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">SSRF-safe HTTP client</span>
+                    <span class="tool-tag">IMDSv2</span>
+                    <span class="tool-tag">Egress firewall / NACL</span>
+                    <span class="tool-tag">Metadata proxy</span>
+                    <span class="tool-tag">Private DNS resolver</span>
+                </div>
+
+                <h3>Testing:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Burp Suite (Collaborator)</span>
+                    <span class="tool-tag">OWASP ZAP</span>
+                    <span class="tool-tag">SSRFmap</span>
+                    <span class="tool-tag">Semgrep</span>
+                    <span class="tool-tag">CodeQL</span>
+                </div>
+
+                <h3>How to Verify:</h3>
+                <ul>
+                    <li>Try <code>file://</code>, <code>gopher://</code>, <code>dict://</code> — all must be rejected</li>
+                    <li>Point a controlled hostname at <code>127.0.0.1</code> / <code>169.254.169.254</code> and confirm it is blocked</li>
+                    <li>Test IP-encoding tricks: <code>127.1</code>, <code>2130706433</code>, <code>0x7f000001</code>, <code>[::1]</code></li>
+                    <li>Set up a redirect to a private IP and confirm it is not followed</li>
+                    <li>Exercise DNS rebinding (answer changes between check and connect) and confirm the pin holds</li>
+                </ul>
+            </div>
+
+            <!-- Why It Matters -->
+            <div class="section full-width">
+                <h2>🌍 Why It Matters</h2>
+                <ul>
+                    <li><strong>Cloud metadata credential theft:</strong> The most damaging SSRF class — a user-influenced fetch is steered to the link-local metadata address <code>169.254.169.254</code> and, where credentials are exposed without a session token, the instance role's temporary keys are retrieved and used against the cloud account. Session-token metadata services (IMDSv2) and hop limits exist precisely because of this incident class.</li>
+                    <li><strong>Reaching internal-only services:</strong> SSRF requests admin consoles, databases, caches, and orchestration APIs never exposed to the internet — because the request originates from a trusted internal source, "internal is safe" assumptions do not stop it.</li>
+                    <li><strong>Internal recon &amp; port scanning:</strong> Even without reading a response, timing and error differences let an attacker enumerate live hosts and open ports for a later attack.</li>
+                    <li><strong>Local file &amp; protocol abuse:</strong> Where the client honors extra schemes, <code>file://</code> reads local files and <code>gopher://</code>/<code>dict://</code> smuggle crafted bytes to line-based internal services.</li>
+                </ul>
+                <p><em>Described as documented incident classes, not tied to a specific vendor or CVE. The reliable control is IP-level validation after resolution plus network egress filtering — defense in depth, not a regex.</em></p>
+            </div>
+
+            <!-- Quick Tips -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> trust a URL because its hostname looked safe</li>
+                    <li><span class="badge critical">DO NOT</span> rely on a block-list of <code>127.0.0.1</code>/<code>localhost</code> — it is endlessly bypassable</li>
+                    <li><span class="badge critical">DO NOT</span> follow redirects on user-supplied fetches</li>
+                    <li><span class="badge high">DO</span> allow-list scheme + host + port, deny everything else</li>
+                    <li><span class="badge high">DO</span> validate the resolved IP and pin it for the connection</li>
+                    <li><span class="badge high">DO</span> block private/loopback/link-local ranges at the network egress too</li>
+                    <li><span class="badge medium">DO</span> enforce IMDSv2 and size-limit every upstream response</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Top 10 Proactive Controls (2024) — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/proactive/OWASP-Proactive-Controls/C10-Stop-Server-Side-Request-Forgery/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

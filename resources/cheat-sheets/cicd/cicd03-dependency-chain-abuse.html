@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CICD-SEC-3: Dependency Chain Abuse - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔗 Dependency Chain Abuse</h1>
+            <p class="subtitle">OWASP Top 10 CI/CD Security Risks - CICD-SEC-3</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Dependency Chain Abuse</strong> covers every way an attacker can abuse how a build system <em>fetches</em> its dependencies to trick the build into pulling a <strong>malicious package</strong> instead of the intended one. The flaw is not in the dependency you chose; it is in the <em>resolution and retrieval process</em> that decides which bytes land on the build agent — which registry answers, which version wins, whether the name is trusted, whether an integrity hash is checked, and whether install-time scripts run. Because <strong>installing is executing</strong>, a malicious <code>postinstall</code> or <code>setup.py</code> runs on one of the most privileged, least-monitored machines in the supply chain.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">CICD-SEC-3</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Resolution</span>
+                        <span class="label">Focus Area</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">5 Classes</span>
+                        <span class="label">Of Abuse</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Dependency Confusion:</strong> A public package shadows an unscoped private name; "highest version wins" fetches the attacker's copy</li>
+                    <li><strong>Typosquatting:</strong> A name one keystroke away (<code>reqeusts</code>, <code>loadsh</code>) is installed by mistake</li>
+                    <li><strong>Brandjacking:</strong> A package impersonates a trusted vendor namespace (<code>acme-official-sdk</code>)</li>
+                    <li><strong>Dependency Hijacking:</strong> Takeover of a real package via abandoned/expired/compromised maintainer account</li>
+                    <li><strong>Transitive Poisoning:</strong> A deep indirect dependency you never chose rides in through the graph</li>
+                    <li><strong>Install-Time Scripts:</strong> Lifecycle hooks run automatically on the agent — no import needed</li>
+                    <li><strong>Registry Merging:</strong> Public + private indexes queried together, public can win</li>
+                    <li><strong>Lockfile/Cache Poisoning:</strong> One bad resolution is pinned and re-installed forever</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Discover internal package names (commits, logs, bundles)<br>
+   <span class="arrow">↓</span><br>
+2. Position: publish look-alike OR hijack a maintainer account<br>
+   <span class="arrow">↓</span><br>
+3. Win resolution: higher version / public fallback / poisoned update<br>
+   <span class="arrow">↓</span><br>
+4. Execute: postinstall / setup.py runs as the CI user<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Steal build secrets, poison the signed artifact!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># .npmrc — public registry is the only source; scopes fall back publicly</span>
+registry=https://registry.npmjs.org/
+<span class="comment"># No @acme scope mapping, so unscoped internal names resolve PUBLICLY</span>
+<span class="comment"># -> dependency-confusion window is open.</span>
+
+<span class="comment">// package.json — floating ranges, unscoped internal name</span>
+{
+  <span class="string">"dependencies"</span>: {
+    <span class="string">"acme-auth-utils"</span>: <span class="string">"^1.0.0"</span>,   <span class="comment">// internal name, unscoped, floating</span>
+    <span class="string">"lodash"</span>: <span class="string">"*"</span>                  <span class="comment">// any version the registry serves</span>
+  }
+}
+
+<span class="comment"># pip.conf — private index MERGED with public PyPI; highest version wins</span>
+[global]
+index-url = https://pypi.org/simple
+extra-index-url = https://pypi.internal.acme/simple
+
+<span class="comment"># CI build step — loose install that trusts whatever resolves + runs scripts</span>
+- run: npm install       <span class="comment"># regenerates lock, highest match, runs postinstall</span>
+<span class="comment"># A public "acme-auth-utils@99.99.99" wins and its postinstall executes.</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># .npmrc — single internal proxy; @acme bound PRIVATELY, no public fallback</span>
+registry=https://registry.internal.acme/npm/
+@acme:registry=https://registry.internal.acme/npm/
+//registry.internal.acme/npm/:_authToken=${NPM_TOKEN}
+always-auth=true
+ignore-scripts=true            <span class="comment"># no lifecycle scripts during install</span>
+
+<span class="comment">// package.json — scoped internal name, exact versions</span>
+{
+  <span class="string">"dependencies"</span>: {
+    <span class="string">"@acme/auth-utils"</span>: <span class="string">"1.4.2"</span>,   <span class="comment">// scoped -> only the private registry</span>
+    <span class="string">"lodash"</span>: <span class="string">"4.17.21"</span>            <span class="comment">// exact version, matched to lockfile</span>
+  }
+}
+
+<span class="comment"># CI install stage — locked, hash-verified, script-free</span>
+install:
+  script:
+    - npm ci --ignore-scripts     <span class="comment"># exact, sha512-checked, no scripts</span>
+    - npm audit signatures        <span class="comment"># verify registry provenance</span>
+  <span class="comment"># No deploy secrets here; ephemeral, non-root user, restricted egress.</span>
+
+<span class="comment"># pip equivalent — single internal index, hashes enforced, wheels only</span>
+pip install --require-hashes --only-binary=:all: -r requirements.txt
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Fetch only from a controlled internal proxy with an allow-list</li>
+                    <li>Scope all internal names and claim the scope publicly</li>
+                    <li>Bind private scopes to the private registry — no public fallback</li>
+                    <li>Never merge public + private indexes (no extra-index-url)</li>
+                    <li>Pin exact versions AND verify integrity hashes</li>
+                    <li>Install in locked mode: npm ci / --require-hashes</li>
+                    <li>Disable install scripts (ignore-scripts / wheels-only)</li>
+                    <li>Verify signatures/provenance where the ecosystem supports it</li>
+                    <li>Run SCA on every build; monitor for new look-alike names</li>
+                    <li>Run the install stage least-privilege, with no deploy secrets</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Supply-Chain Tooling:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Trivy</span>
+                    <span class="tool-tag">Sigstore / cosign</span>
+                    <span class="tool-tag">SLSA Provenance</span>
+                    <span class="tool-tag">npm audit signatures</span>
+                    <span class="tool-tag">OSV-Scanner</span>
+                    <span class="tool-tag">Chainguard</span>
+                </div>
+
+                <h3>Registry & Proxy:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Artifactory / Nexus</span>
+                    <span class="tool-tag">Socket.dev</span>
+                    <span class="tool-tag">Dependabot</span>
+                    <span class="tool-tag">Scoped registries</span>
+                    <span class="tool-tag">CycloneDX SBOM</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Check if unscoped internal names can resolve publicly</li>
+                    <li>Confirm scopes are claimed on the public registry</li>
+                    <li>Verify the build fails on a lockfile/hash mismatch</li>
+                    <li>Confirm install scripts are disabled on the agent</li>
+                    <li>Audit for extra-index-url merging of public + private</li>
+                    <li>Test that the install stage holds no deploy secrets</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World (Incident Classes)</h2>
+                <ul>
+                    <li><strong>2021 Dependency-Confusion Research Wave:</strong> A researcher published public packages matching unclaimed internal names at high version numbers; benign proof-of-concept code was pulled into the internal builds of numerous major companies — the canonical substitution example that triggered scope reservation and registry pinning across the industry.</li>
+                    <li><strong>Maintainer-Account Hijack (event-stream class):</strong> A widely-depended-upon npm utility was handed to a new volunteer maintainer who added an obfuscated malicious transitive dependency, riding into countless projects through the graph.</li>
+                    <li><strong>Recurring Typosquat & Brandjack Waves:</strong> Automated campaigns continually flood npm and PyPI with look-alike names carrying install-time secret-harvesting scripts; registries remove them in routine batches.</li>
+                    <li><strong>Leaked Publish Token → Poisoned Release:</strong> A registry API/publish token exposed in a public repo or CI log lets an attacker ship a malicious version of a real package to everyone who upgrades.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> leave internal names unscoped</li>
+                    <li><span class="badge critical">DO NOT</span> merge public and private indexes</li>
+                    <li><span class="badge critical">DO NOT</span> run install scripts by default</li>
+                    <li><span class="badge high">DO</span> pin versions and verify hashes</li>
+                    <li><span class="badge high">DO</span> install in locked mode (npm ci)</li>
+                    <li><span class="badge high">DO</span> claim your scopes on public registries</li>
+                    <li><span class="badge medium">DO</span> verify signatures / provenance</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">SLSA</span> Provenance & Build Integrity</li>
+                    <li><span class="badge medium">NIST SSDF</span> PW.4 - Reuse Secure Components</li>
+                    <li><span class="badge medium">EO 14028</span> SBOM Requirements</li>
+                    <li><span class="badge medium">ISO 27001</span> A.14 - Secure Development</li>
+                    <li><span class="badge medium">PCI-DSS</span> Req 6.3 - Software Integrity</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Top 10 CI/CD Security Risks — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/cicd/OWASP-CICD/CICD03-Dependency-Chain-Abuse/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

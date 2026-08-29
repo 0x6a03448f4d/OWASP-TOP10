@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K09: Misconfigured Cluster Components - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🛠️ Misconfigured Cluster Components</h1>
+            <p class="subtitle">OWASP Kubernetes Top 10 - K09</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Misconfigured Cluster Components</strong> is the risk that the machinery running Kubernetes itself — <code>kube-apiserver</code>, <code>etcd</code>, <code>kube-scheduler</code>, <code>kube-controller-manager</code>, every node's <code>kubelet</code>, <code>kube-proxy</code>, and add-ons — is deployed with insecure settings. The control plane is the <strong>trust root of the entire cluster</strong>: a single reachable, over-permissive component (an API server answering anonymous callers, a kubelet executing commands with no auth, an etcd reachable without a client certificate) collapses every control built above it. Unlike K01 (a bad pod) or K04 (no admission engine), K09 is about the components' own flags, ports, and certificates.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">K09</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Trust Root</span>
+                        <span class="label">Focus Area</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">CIS Bench</span>
+                        <span class="label">Verify With</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Anonymous API:</strong> <code>--anonymous-auth=true</code> lets <code>system:anonymous</code> in</li>
+                    <li><strong>AlwaysAllow authZ:</strong> RBAC effectively switched off — every request approved</li>
+                    <li><strong>Legacy Insecure Port:</strong> <code>--insecure-port=8080</code> — no TLS, no auth, no authz</li>
+                    <li><strong>Open Kubelet (10250):</strong> anonymous + AlwaysAllow exposes <code>/exec</code>, <code>/run</code></li>
+                    <li><strong>Read-Only Kubelet (10255):</strong> unauthenticated pod specs, env vars, metrics</li>
+                    <li><strong>Exposed etcd (2379):</strong> no mTLS dumps every Secret in one command</li>
+                    <li><strong>Missing Admission / Audit:</strong> no NodeRestriction, PodSecurity, or audit trail</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Discover open ports (6443, 10250/10255, 2379/2380, 10257/10259)<br>
+   <span class="arrow">↓</span><br>
+2. Probe authN/authZ — anonymous? AlwaysAllow? no etcd client cert?<br>
+   <span class="arrow">↓</span><br>
+3. Exploit — kubelet <code>/exec</code>, etcd <code>get --prefix</code>, create a pod<br>
+   <span class="arrow">↓</span><br>
+4. Escalate — steal SA tokens, reach cloud metadata, move node to node<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: RCE on nodes, all Secrets exposed, full takeover!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: kube-apiserver flags that disable auth and guardrails</span>
+- kube-apiserver
+- --anonymous-auth=<span class="keyword">true</span>              <span class="comment">← system:anonymous can authenticate</span>
+- --authorization-mode=AlwaysAllow   <span class="comment">← RBAC effectively OFF</span>
+- --insecure-port=8080               <span class="comment">← legacy no-TLS, no-auth port</span>
+- --insecure-bind-address=0.0.0.0    <span class="comment">← reachable from anywhere</span>
+- --enable-admission-plugins=        <span class="comment">← NodeRestriction/PodSecurity missing</span>
+- --profiling=<span class="keyword">true</span>                   <span class="comment">← /debug/pprof exposed</span>
+<span class="comment"># no --audit-log-path                # no forensic trail</span>
+
+<span class="comment"># Bad: kubelet wide open — direct code execution surface</span>
+<span class="keyword">authentication</span>: { anonymous: { enabled: <span class="keyword">true</span> } }
+<span class="keyword">authorization</span>:  { mode: AlwaysAllow }   <span class="comment">← /exec for anyone on 10250</span>
+<span class="keyword">readOnlyPort</span>: 10255                    <span class="comment">← unauthenticated specs/env/metrics</span>
+
+<span class="comment"># Bad: etcd plaintext on a routable interface, no client-cert auth</span>
+- etcd
+- --listen-client-urls=http://0.0.0.0:2379   <span class="comment">← anyone reaching 2379...</span>
+<span class="comment"># etcdctl --endpoints=http://HOST:2379 get / --prefix   → dumps every Secret</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: hardened kube-apiserver</span>
+- kube-apiserver
+- --anonymous-auth=<span class="keyword">false</span>
+- --authorization-mode=Node,RBAC     <span class="comment">← Node + RBAC, never AlwaysAllow</span>
+<span class="comment"># legacy insecure port not set (removed in modern Kubernetes)</span>
+- --enable-admission-plugins=NodeRestriction,PodSecurity
+- --profiling=<span class="keyword">false</span>
+- --audit-log-path=/var/log/kubernetes/audit.log
+- --kubelet-certificate-authority=/etc/kubernetes/pki/ca.crt   <span class="comment">← verify kubelets</span>
+- --encryption-provider-config=/etc/kubernetes/enc/enc.yaml    <span class="comment">← encrypt Secrets</span>
+
+<span class="comment"># Good: locked-down kubelet</span>
+<span class="keyword">authentication</span>:
+  <span class="keyword">anonymous</span>: { enabled: <span class="keyword">false</span> }
+  <span class="keyword">webhook</span>:   { enabled: <span class="keyword">true</span> }        <span class="comment">← authenticate via the API server</span>
+  <span class="keyword">x509</span>: { clientCAFile: /etc/kubernetes/pki/ca.crt }
+<span class="keyword">authorization</span>: { mode: Webhook }         <span class="comment">← delegate authZ, never AlwaysAllow</span>
+<span class="keyword">readOnlyPort</span>: 0                          <span class="comment">← disable the 10255 port</span>
+<span class="keyword">rotateCertificates</span>: <span class="keyword">true</span>
+
+<span class="comment"># Good: etcd with mutual TLS on a private interface</span>
+- etcd
+- --client-cert-auth=<span class="keyword">true</span>                   <span class="comment">← require client certificates</span>
+- --trusted-ca-file=/etc/kubernetes/pki/etcd/ca.crt
+- --peer-client-cert-auth=<span class="keyword">true</span>
+- --listen-client-urls=https://127.0.0.1:2379,https://10.0.0.5:2379
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>API server: <code>--anonymous-auth=false</code>, <code>--authorization-mode=Node,RBAC</code></li>
+                    <li>No legacy insecure port or insecure bind address</li>
+                    <li>Enable NodeRestriction and PodSecurity admission plugins</li>
+                    <li>Kubelet: anonymous off, <code>authorization.mode: Webhook</code></li>
+                    <li>Disable the kubelet read-only port (<code>readOnlyPort: 0</code>)</li>
+                    <li>etcd: require mutual TLS, private interface only</li>
+                    <li>Encrypt Secrets at rest via <code>EncryptionConfiguration</code> (KMS)</li>
+                    <li>Enable API-server audit logging with a defined policy</li>
+                    <li>Set <code>--profiling=false</code>; bind component metrics to localhost</li>
+                    <li>Rotate certificates; never ship default/self-signed certs</li>
+                    <li>Run <code>kube-bench</code> (CIS Benchmark) on a schedule, fail on regression</li>
+                    <li>Scan cluster IaC in CI (kubescape, Polaris, checkov, Trivy)</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Kubernetes Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">kube-bench</span>
+                    <span class="tool-tag">kubescape</span>
+                    <span class="tool-tag">Polaris</span>
+                    <span class="tool-tag">Trivy</span>
+                    <span class="tool-tag">kubeaudit</span>
+                    <span class="tool-tag">Falco</span>
+                </div>
+
+                <h3>Guardrails:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">NodeRestriction</span>
+                    <span class="tool-tag">PodSecurity</span>
+                    <span class="tool-tag">OPA/Gatekeeper</span>
+                    <span class="tool-tag">Kyverno</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li><code>kube-bench run --targets master,node,etcd,policies</code> against the CIS Benchmark</li>
+                    <li>Probe API anonymously: <code>curl -sk https://TARGET:6443/api/v1/pods</code></li>
+                    <li>Check kubelet: <code>curl -sk https://NODE:10250/pods</code> and <code>10255</code></li>
+                    <li>Test etcd: <code>etcdctl --endpoints=http://TARGET:2379 get / --prefix</code> should fail</li>
+                    <li>Gate CI on any <code>kube-bench</code> FAIL (JSON output + jq)</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <ul>
+                    <li><strong>Unauthenticated Dashboard / API → Cryptojacking:</strong> a control surface reachable from the internet with auth effectively disabled; automated actors schedule mining pods and reach cloud credentials — one of the most consistently reported Kubernetes incident classes.</li>
+                    <li><strong>Exposed etcd Disclosing Every Secret:</strong> etcd on a routable interface without client-cert auth, or a readable snapshot — one reachable datastore equals the entire cluster's credentials.</li>
+                    <li><strong>Open Kubelet → Node-Level Code Execution:</strong> kubelets with anonymous auth + AlwaysAllow; research tooling has repeatedly demonstrated enumerating pods then <code>/exec</code> against internet-exposed kubelets.</li>
+                </ul>
+                <p><em>Described as recurring incident classes — no invented CVEs or statistics. The durable lesson: component misconfiguration is common on hand-built clusters, mechanically detectable with CIS tooling, and catastrophic.</em></p>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> enable anonymous auth or use <code>AlwaysAllow</code></li>
+                    <li><span class="badge critical">DO NOT</span> bind the legacy insecure port or open 10255</li>
+                    <li><span class="badge critical">DO NOT</span> run etcd plaintext or without encryption-at-rest</li>
+                    <li><span class="badge high">DO</span> require mTLS between every component</li>
+                    <li><span class="badge high">DO</span> enable NodeRestriction, PodSecurity, and audit</li>
+                    <li><span class="badge high">DO</span> benchmark continuously with kube-bench (CIS)</li>
+                    <li><span class="badge medium">DO</span> verify the managed shared-responsibility line</li>
+                </ul>
+            </div>
+
+            <!-- Related Risks -->
+            <div class="section">
+                <h2>📜 Related Risks</h2>
+                <p><strong>Connected OWASP Kubernetes Top 10:</strong></p>
+                <ul>
+                    <li><span class="badge critical">K06</span> Broken Authentication — same anonymous/etcd doors</li>
+                    <li><span class="badge high">K01</span> Insecure Workloads — a bad pod vs. a bad component</li>
+                    <li><span class="badge medium">K04</span> No Policy Enforcement — the admission engine</li>
+                    <li><span class="badge medium">K05</span> Inadequate Logging & Monitoring — audit routing</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Kubernetes Top 10 — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/kubernetes/OWASP-Kubernetes/K09-Misconfigured-Cluster-Components/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

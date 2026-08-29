@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SC09: Insecure Randomness - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🎲 Insecure Randomness</h1>
+            <p class="subtitle">OWASP Smart Contract Top 10 (2025) - SC09</p>
+            <span class="category">MEDIUM RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Insecure Randomness</strong> occurs when a smart contract derives a "random" number from on-chain values that are <strong>predictable</strong> or <strong>manipulable</strong>. A blockchain is deterministic and fully public: every node must re-execute a transaction and reach the same state, so nothing in the EVM is genuinely random. Values like <code>block.timestamp</code>, a block hash, or <code>block.prevrandao</code> are visible before the transaction commits, computable within the same transaction, or influenceable by the block proposer. An attacker who predicts or biases the outcome wins whatever the randomness was meant to guard—a lottery draw, a game result, a rare NFT mint, or a reward allocation.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">SC09</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Predictable</span>
+                        <span class="label">Root Cause</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Easy</span>
+                        <span class="label">To Exploit</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Compute-then-revert:</strong> attacker recomputes the draw in the same tx, plays only on a win</li>
+                    <li><strong>Predictable block hash:</strong> <code>blockhash(n-1)</code> is already fixed and public before your tx runs</li>
+                    <li><strong>Proposer bias:</strong> validator nudges <code>timestamp</code> or skips a slot to steer <code>prevrandao</code></li>
+                    <li><strong>Mempool reordering:</strong> front-run/back-run the deterministic result using ordering alone</li>
+                    <li><strong>Reveal withholding:</strong> commit-reveal without slashing lets a loser never reveal</li>
+                    <li><strong>Reveal front-running:</strong> the last revealer steers the combined seed</li>
+                    <li><strong>Address grinding:</strong> seed from <code>msg.sender</code> grinds throwaway/CREATE2 addresses to win</li>
+                    <li><strong>Weak PRNG expansion:</strong> one public seed plus a counter unrolls every "random" draw</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Identify the seed expression (block/msg variables)<br>
+   <span class="arrow">↓</span><br>
+2. Reproduce the exact math in an attacker contract<br>
+   <span class="arrow">↓</span><br>
+3. Compute the outcome in the same block<br>
+   <span class="arrow">↓</span><br>
+4. IF win → call target; ELSE → revert (pay only gas)<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Retry each block until the prize pool is drained!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: lottery winner from public block data</span>
+<span class="keyword">contract</span> <span class="function">LotteryVulnerable</span> {
+    <span class="keyword">address</span>[] <span class="keyword">public</span> players;
+
+    <span class="keyword">function</span> <span class="function">drawWinner</span>() <span class="keyword">external</span> {
+        <span class="comment">// Every input is public or proposer-controlled this block</span>
+        <span class="keyword">uint256</span> rand = <span class="keyword">uint256</span>(<span class="function">keccak256</span>(<span class="function">abi.encodePacked</span>(
+            block.timestamp,                         <span class="comment">← proposer-set within tolerance</span>
+            <span class="function">blockhash</span>(block.number - <span class="number">1</span>),               <span class="comment">← fixed &amp; public before tx</span>
+            block.prevrandao                         <span class="comment">← known to proposer, biasable</span>
+        )));
+        <span class="keyword">uint256</span> winnerIndex = rand % players.length; <span class="comment">← predictable</span>
+        <span class="function">payable</span>(players[winnerIndex]).transfer(<span class="keyword">address</span>(<span class="keyword">this</span>).balance);
+    }
+}
+
+<span class="comment">// Bad: coin flip from keccak256 of block variables</span>
+<span class="keyword">function</span> <span class="function">flip</span>(<span class="keyword">bool</span> guess) <span class="keyword">external</span> <span class="keyword">returns</span> (<span class="keyword">bool</span> won) {
+    <span class="keyword">bool</span> outcome = <span class="keyword">uint256</span>(<span class="function">keccak256</span>(<span class="function">abi.encodePacked</span>(
+        block.timestamp, <span class="function">blockhash</span>(block.number - <span class="number">1</span>)
+    ))) % <span class="number">2</span> == <span class="number">0</span>;
+    won = (guess == outcome);                        <span class="comment">← attacker precomputes, always wins</span>
+    <span class="keyword">if</span> (won) <span class="function">payable</span>(msg.sender).transfer(<span class="number">1</span> ether);
+}
+
+<span class="comment">// Bad: NFT rarity + identity seed, derivable at mint time</span>
+<span class="keyword">function</span> <span class="function">mint</span>() <span class="keyword">external</span> <span class="keyword">payable</span> <span class="keyword">returns</span> (<span class="keyword">uint256</span> id) {
+    id = nextId++;
+    <span class="keyword">uint256</span> roll = <span class="keyword">uint256</span>(<span class="function">keccak256</span>(<span class="function">abi.encodePacked</span>(
+        block.timestamp, block.prevrandao, msg.sender, id <span class="comment">← msg.sender is attacker-grindable</span>
+    ))) % <span class="number">1000</span>;
+    _assignRarity(id, roll);                         <span class="comment">← bot mints only rare rolls, reverts rest</span>
+}
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: Chainlink VRF — randomness arrives in a LATER tx with an on-chain proof</span>
+<span class="keyword">import</span> {VRFConsumerBaseV2} <span class="keyword">from</span> <span class="string">"@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol"</span>;
+<span class="keyword">import</span> {VRFCoordinatorV2Interface} <span class="keyword">from</span> <span class="string">"@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol"</span>;
+
+<span class="keyword">contract</span> <span class="function">LotterySecure</span> <span class="keyword">is</span> VRFConsumerBaseV2 {
+    VRFCoordinatorV2Interface <span class="keyword">immutable</span> COORDINATOR;
+    <span class="keyword">uint64</span>  <span class="keyword">immutable</span> subId;
+    <span class="keyword">bytes32</span> <span class="keyword">immutable</span> keyHash;
+    <span class="keyword">uint16</span>  <span class="keyword">constant</span> CONFIRMATIONS = <span class="number">3</span>;      <span class="comment">// blunt reorg manipulation</span>
+    <span class="keyword">uint32</span>  <span class="keyword">constant</span> CALLBACK_GAS  = <span class="number">200000</span>;
+    <span class="keyword">uint32</span>  <span class="keyword">constant</span> NUM_WORDS     = <span class="number">1</span>;
+
+    <span class="keyword">address</span>[] <span class="keyword">public</span> players;
+    <span class="keyword">mapping</span>(<span class="keyword">uint256</span> => <span class="keyword">bool</span>) <span class="keyword">public</span> pending;   <span class="comment">// requestId -> awaiting fulfil</span>
+
+    <span class="comment">// 1) REQUEST: no usable randomness exists in THIS transaction</span>
+    <span class="keyword">function</span> <span class="function">drawWinner</span>() <span class="keyword">external</span> <span class="keyword">returns</span> (<span class="keyword">uint256</span> requestId) {
+        requestId = COORDINATOR.requestRandomWords(
+            keyHash, subId, CONFIRMATIONS, CALLBACK_GAS, NUM_WORDS);
+        pending[requestId] = <span class="keyword">true</span>;
+    }
+
+    <span class="comment">// 2) FULFIL: coordinator calls back ONLY after the VRF proof verifies</span>
+    <span class="keyword">function</span> <span class="function">fulfillRandomWords</span>(<span class="keyword">uint256</span> requestId, <span class="keyword">uint256</span>[] <span class="keyword">memory</span> words)
+        <span class="keyword">internal</span> <span class="keyword">override</span>
+    {
+        <span class="function">require</span>(pending[requestId], <span class="string">"unknown request"</span>);
+        pending[requestId] = <span class="keyword">false</span>;
+        <span class="keyword">uint256</span> winnerIndex = words[<span class="number">0</span>] % players.length; <span class="comment">← proven random</span>
+        <span class="function">payable</span>(players[winnerIndex]).transfer(<span class="keyword">address</span>(<span class="keyword">this</span>).balance);
+        <span class="keyword">delete</span> players;
+    }
+}
+
+<span class="comment">// Alternative (no oracle): commit-reveal WITH deposit, slashing, timeout</span>
+<span class="comment">// COMMIT locks keccak256(secret, salt) + a slashable deposit BEFORE outcome data exists.</span>
+<span class="keyword">function</span> <span class="function">reveal</span>(<span class="keyword">uint256</span> secret, <span class="keyword">bytes32</span> salt) <span class="keyword">external</span> {
+    <span class="function">require</span>(<span class="function">keccak256</span>(<span class="function">abi.encodePacked</span>(secret, salt)) == e.commitment, <span class="string">"bad reveal"</span>);
+    seedAccumulator = <span class="function">keccak256</span>(<span class="function">abi.encodePacked</span>(seedAccumulator, secret)); <span class="comment">// mix EVERY secret</span>
+    <span class="function">payable</span>(msg.sender).transfer(e.deposit);       <span class="comment">// returned only on honest reveal</span>
+}
+<span class="comment">// Unrevealed deposits are FORFEIT after the deadline → withholding costs more than it saves.</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Never seed value-bearing randomness from block or message variables</li>
+                    <li>Use a verifiable randomness oracle (Chainlink VRF) with an on-chain proof</li>
+                    <li>Separate the randomness request from its consumption across two transactions</li>
+                    <li>Ensure the outcome does not exist in the tx that acts on it (kills compute-then-revert)</li>
+                    <li>Require enough block confirmations to resist reorgs on high-value draws</li>
+                    <li>If on-chain only, use commit-reveal with deposits, slashing, and timeouts</li>
+                    <li>Salt commitments as <code>keccak256(secret, salt)</code> to stop brute-forcing</li>
+                    <li>Bind and mix <em>every</em> revealed secret so no last actor can steer the seed</li>
+                    <li>Close the entry set before randomness is requested</li>
+                    <li>Charge a non-refundable entry cost to remove free retries</li>
+                    <li>Assume an adversary who is also a block proposer and can revert on a loss</li>
+                    <li>Do not rely on <code>msg.sender == tx.origin</code> as the primary control</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Analysis Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Slither</span>
+                    <span class="tool-tag">Mythril</span>
+                    <span class="tool-tag">Echidna</span>
+                    <span class="tool-tag">Foundry</span>
+                    <span class="tool-tag">Manticore</span>
+                </div>
+
+                <h3>Secure Randomness & Libraries:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Chainlink VRF</span>
+                    <span class="tool-tag">OpenZeppelin</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Run Slither: it flags <code>weak-prng</code> / block-timestamp / block-value usage</li>
+                    <li>Grep for banned sources: <code>block.timestamp</code>, <code>blockhash</code>, <code>prevrandao</code>, <code>difficulty</code>, <code>coinbase</code>, <code>gasleft</code></li>
+                    <li>Write an adversarial test that reproduces the contract's own RNG expression</li>
+                    <li>Add a compute-then-revert attacker contract and assert it cannot force a win</li>
+                    <li>Review specifically for proposer bias and reveal withholding, not just "looks random"</li>
+                    <li>Confirm the randomness is delivered in a later tx than the one requesting it</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Incident Classes</h2>
+                <ul>
+                    <li><strong>Predictable lottery / raffle draws:</strong> the winner index is a <code>keccak256</code> of block variables (timestamp, block hash, prevrandao) read at draw time. Because those values are readable at execution, an entrant computes the winning ticket first and enters only in blocks where it wins—draining the pool over many rounds.</li>
+                    <li><strong>On-chain games of chance (dice / coin-flip / slots):</strong> the bet is placed and resolved in the same transaction from a block value. A wrapper contract computes the roll first and only bets on a guaranteed win, using free reverts to retry until the house edge inverts.</li>
+                    <li><strong>NFT rarity / mint-order sniping:</strong> trait rarity is derived at mint from block variables or the minter's own inputs. Bots precompute which mint yields a rare token, mint only the valuable tiers (reverting on common results), and capture the collection's tail of value.</li>
+                    <li><strong>Proposer-biased draws:</strong> when the prize exceeds a block reward, the block producer nudges <code>block.timestamp</code> within tolerance or skips a slot to influence <code>prevrandao</code>—bending even "future block" designs toward the adversary who builds that block.</li>
+                    <li><strong>Commit-reveal games gamed by withholding:</strong> without a slashable deposit or timeout, a participant who dislikes the pending outcome simply never reveals, forcing a re-draw or stalling settlement at no cost.</li>
+                </ul>
+                <p><em>Note: these are recurring <strong>classes</strong> of exploit, not claims about a single named victim. Exact loss totals differ between reports and many exploited contracts are never publicly attributed; the durable lesson is that on-chain randomness derived from block or message data is predictable, cheap to exploit, and repeatedly abused.</em></p>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> seed randomness from <code>block.timestamp</code> or <code>blockhash</code></li>
+                    <li><span class="badge critical">DO NOT</span> trust <code>prevrandao</code>/<code>difficulty</code> for high-value payouts</li>
+                    <li><span class="badge critical">DO NOT</span> resolve a bet or draw in the same transaction that places it</li>
+                    <li><span class="badge high">DO</span> use a verifiable oracle (Chainlink VRF) with an on-chain proof</li>
+                    <li><span class="badge high">DO</span> split the randomness request from its consumption</li>
+                    <li><span class="badge high">DO</span> harden commit-reveal with deposits, slashing, and timeouts</li>
+                    <li><span class="badge medium">DO</span> require confirmations to resist reorg manipulation</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Smart Contract Top 10 (2025) — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/smartcontract/OWASP-SmartContract/SC09-Insecure-Randomness/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SC03: Logic Errors - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🧮 Logic Errors</h1>
+            <p class="subtitle">OWASP Smart Contract Top 10 (2025) - SC03</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Logic Errors</strong> (business-logic flaws) occur when a contract compiles cleanly, passes its happy-path tests, and appears to "work" — yet its implemented behaviour diverges from its <em>intended</em> behaviour. There is no reentrancy and no missing modifier; the code simply computes the wrong thing. The bug lives in the specification-to-implementation gap, so compilers, linters, and single-bug scanners all stay silent. On a public chain those wrong rules are permanent and tied directly to money: every accounting slip, mis-rounded division, and unhandled edge case is a standing invitation.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">SC03</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Invisible</span>
+                        <span class="label">To Tools</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Invariants</span>
+                        <span class="label">Key Defense</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>First-Depositor Inflation:</strong> ERC-4626 donation makes a victim mint zero shares</li>
+                    <li><strong>Rounding Leakage:</strong> Integer division truncates value to the user</li>
+                    <li><strong>Reward Double-Count:</strong> Checkpoint never advances; same period paid twice</li>
+                    <li><strong>Accounting Mismatch:</strong> Ledger credits requested, not received, amount</li>
+                    <li><strong>Off-by-One:</strong> Wrong comparison operator bypasses a cap or window</li>
+                    <li><strong>Order of Operations:</strong> Effects and interactions applied out of sequence</li>
+                    <li><strong>Token Assumptions:</strong> Fee-on-transfer / rebasing tokens corrupt accounting</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Read the on-chain math and accounting logic<br>
+   <span class="arrow">↓</span><br>
+2. Find an unhandled edge case or wrong rounding<br>
+   <span class="arrow">↓</span><br>
+3. Craft inputs (1 wei deposit + donation, repeat claim)<br>
+   <span class="arrow">↓</span><br>
+4. Drive the contract into an unintended state<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Withdraw more than deposited — pool drained!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// SPDX-License-Identifier: MIT</span>
+<span class="keyword">pragma</span> solidity ^<span class="number">0.8</span>.<span class="number">20</span>;
+
+<span class="keyword">contract</span> <span class="function">NaiveVault</span> {
+    IERC20 <span class="keyword">public</span> asset;
+    <span class="keyword">uint256</span> <span class="keyword">public</span> totalShares;
+    <span class="keyword">mapping</span>(<span class="keyword">address</span> => <span class="keyword">uint256</span>) <span class="keyword">public</span> shares;
+
+    <span class="keyword">function</span> <span class="function">deposit</span>(<span class="keyword">uint256</span> amount) <span class="keyword">external</span> <span class="keyword">returns</span> (<span class="keyword">uint256</span> minted) {
+        <span class="keyword">uint256</span> totalAssets = asset.balanceOf(<span class="keyword">address</span>(<span class="keyword">this</span>));
+        <span class="comment">// BUG: empty-pool 1:1 rule + rate from raw balanceOf. Attacker</span>
+        <span class="comment">// deposits 1 wei, then DONATES tokens directly to inflate</span>
+        <span class="comment">// totalAssets so a victim's deposit rounds DOWN to 0 shares.</span>
+        minted = (totalShares == <span class="number">0</span>)
+            ? amount
+            : (amount * totalShares) / totalAssets;   <span class="comment">← truncates → 0</span>
+        totalShares += minted;
+        shares[msg.sender] += minted;
+        asset.transferFrom(msg.sender, <span class="keyword">address</span>(<span class="keyword">this</span>), amount);
+    }
+
+    <span class="keyword">function</span> <span class="function">claim</span>() <span class="keyword">external</span> {
+        <span class="comment">// BUG: fixed 'start', no per-user checkpoint → same period</span>
+        <span class="comment">// paid on EVERY call. Loop claim() to mint 'owed' repeatedly.</span>
+        <span class="keyword">uint256</span> owed = stake[msg.sender] * rate * (block.timestamp - start);
+        rewardToken.mint(msg.sender, owed);
+    }
+}
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// SPDX-License-Identifier: MIT</span>
+<span class="keyword">pragma</span> solidity ^<span class="number">0.8</span>.<span class="number">20</span>;
+
+<span class="keyword">import</span> {ERC4626} <span class="keyword">from</span> <span class="string">"@openzeppelin/.../ERC4626.sol"</span>;
+<span class="keyword">import</span> {Math} <span class="keyword">from</span> <span class="string">"@openzeppelin/contracts/utils/math/Math.sol"</span>;
+<span class="keyword">import</span> {SafeERC20, IERC20} <span class="keyword">from</span> <span class="string">"@openzeppelin/.../SafeERC20.sol"</span>;
+
+<span class="comment">// Extend audited ERC-4626 + virtual-shares offset: the empty-pool rate</span>
+<span class="comment">// is too expensive to manipulate by donation. OZ rounds mints DOWN and</span>
+<span class="comment">// redemption share-burns UP — always in the vault's favour.</span>
+<span class="keyword">contract</span> <span class="function">SafeVault</span> <span class="keyword">is</span> ERC4626 {
+    <span class="keyword">using</span> SafeERC20 <span class="keyword">for</span> IERC20;
+    <span class="keyword">mapping</span>(<span class="keyword">address</span> => <span class="keyword">uint256</span>) <span class="keyword">public</span> lastAccrued;
+
+    <span class="keyword">function</span> <span class="function">_decimalsOffset</span>() <span class="keyword">internal</span> <span class="keyword">pure</span> <span class="keyword">override</span> <span class="keyword">returns</span> (<span class="keyword">uint8</span>) {
+        <span class="keyword">return</span> <span class="number">6</span>;   <span class="comment">// virtual shares blunt the inflation attack</span>
+    }
+
+    <span class="comment">// Balance-delta accounting: credit only what actually arrived,</span>
+    <span class="comment">// so fee-on-transfer / rebasing tokens cannot lie to the ledger.</span>
+    <span class="keyword">function</span> <span class="function">depositRaw</span>(<span class="keyword">uint256</span> amount) <span class="keyword">external</span> {
+        <span class="keyword">require</span>(amount > <span class="number">0</span>, <span class="string">"zero amount"</span>);
+        <span class="keyword">uint256</span> before = asset.balanceOf(<span class="keyword">address</span>(<span class="keyword">this</span>));
+        IERC20(asset).safeTransferFrom(msg.sender, <span class="keyword">address</span>(<span class="keyword">this</span>), amount);
+        <span class="keyword">uint256</span> received = asset.balanceOf(<span class="keyword">address</span>(<span class="keyword">this</span>)) - before;
+        <span class="keyword">require</span>(received > <span class="number">0</span>, <span class="string">"nothing received"</span>);
+        <span class="comment">// ... credit `received`, not the requested `amount` ...</span>
+    }
+
+    <span class="keyword">function</span> <span class="function">_accrue</span>(<span class="keyword">address</span> u) <span class="keyword">internal</span> {
+        <span class="keyword">uint256</span> elapsed = block.timestamp - lastAccrued[u];
+        <span class="keyword">if</span> (elapsed > <span class="number">0</span> && stake[u] > <span class="number">0</span>)
+            rewards[u] += (stake[u] * rate * elapsed) / <span class="number">1e18</span>;
+        lastAccrued[u] = block.timestamp;   <span class="comment">// checkpoint ALWAYS advances</span>
+    }
+    <span class="comment">// mint: Math.mulDiv(a, b, c, Math.Rounding.Floor) — protocol's favour.</span>
+}
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Write every core invariant down, then assert it</li>
+                    <li>Handle first-depositor/empty-pool (virtual shares, seed)</li>
+                    <li>Reject zero and degenerate inputs explicitly</li>
+                    <li>State rounding direction; always favour the protocol</li>
+                    <li>Use <code>Math.mulDiv</code> with explicit <code>Floor</code>/<code>Ceil</code></li>
+                    <li>Credit balance-delta (received), not requested amount</li>
+                    <li>Advance reward checkpoints every accrual</li>
+                    <li>Support or reject fee-on-transfer / rebasing tokens</li>
+                    <li>Test exact-boundary inputs; review <code>&lt;</code> vs <code>&lt;=</code></li>
+                    <li>Follow checks-effects-interactions ordering</li>
+                    <li>Reuse audited standards (ERC-4626, SafeERC20)</li>
+                    <li>Fuzz/invariant test; formally verify critical math</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Analysis Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Foundry</span>
+                    <span class="tool-tag">Echidna</span>
+                    <span class="tool-tag">Slither</span>
+                    <span class="tool-tag">Mythril</span>
+                    <span class="tool-tag">Manticore</span>
+                    <span class="tool-tag">SMTChecker</span>
+                </div>
+
+                <h3>Libraries & Verification:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">OpenZeppelin</span>
+                    <span class="tool-tag">ERC-4626</span>
+                    <span class="tool-tag">Certora</span>
+                    <span class="tool-tag">Halmos</span>
+                    <span class="tool-tag">Tenderly</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Foundry invariant: assert <code>totalAssets &gt;= liabilities</code></li>
+                    <li>Fuzz: deposit(x) then withdraw() never returns MORE than x</li>
+                    <li>Assert reward invariant: total paid &lt;= total emitted</li>
+                    <li>Boundary tests for exactly-at-cap and one-past-cap inputs</li>
+                    <li>Formally verify share/mint and interest-accrual math</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <ul>
+                    <li><strong>ERC-4626 vault inflation / donation class:</strong> A tokenised vault used empty-pool 1:1 math and read raw balances; an attacker deposited 1 wei, donated tokens directly to skew assets-per-share, and a later honest deposit rounded down to zero shares — absorbed by the attacker's single share.</li>
+                    <li><strong>Accounting-error drains:</strong> A protocol's internal ledger drifted from real holdings (crediting before verifying a transfer, or ignoring a return value); attackers withdrew the difference until the pool was empty.</li>
+                    <li><strong>Reward / emission miscalculation:</strong> A staking contract failed to advance its checkpoint or mis-scaled a fixed-point rate; the same accrual was claimed repeatedly, minting far beyond the emission schedule.</li>
+                    <li><strong>Common thread:</strong> The code was reentrancy-safe and overflow-safe, but the math was wrong — a divergence tools cannot see and only specified invariants catch.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> assume "compiles + tests pass" means correct</li>
+                    <li><span class="badge critical">DO NOT</span> round in the user's favour</li>
+                    <li><span class="badge critical">DO NOT</span> credit the requested amount blindly</li>
+                    <li><span class="badge high">DO</span> write and assert invariants first</li>
+                    <li><span class="badge high">DO</span> handle first-depositor and boundary cases</li>
+                    <li><span class="badge high">DO</span> reuse audited ERC-4626 / SafeERC20</li>
+                    <li><span class="badge medium">DO</span> fuzz and formally verify critical math</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Smart Contract Top 10 (2025) — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/smartcontract/OWASP-SmartContract/SC03-Logic-Errors/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

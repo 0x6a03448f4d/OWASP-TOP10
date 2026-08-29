@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CICD-SEC-1: Insufficient Flow Control Mechanisms - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🚦 Insufficient Flow Control Mechanisms</h1>
+            <p class="subtitle">OWASP Top 10 CI/CD Security Risks - CICD-SEC-1</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Insufficient Flow Control Mechanisms</strong> describe a pipeline where a single actor — or an attacker with a single foothold — can push code, configuration, or artifacts all the way to production <em>without passing through an adequate set of checks, reviews, or gates</em>. The vulnerability is not a bug in one script; it is the <strong>absence of an enforced sequence of independent approvals</strong> between "someone changed something" and "that change is running in production." When gates are missing, weak, or self-satisfiable, whatever enters the front of the pipeline reaches the end unchallenged.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">CICD-SEC-1</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Gates</span>
+                        <span class="label">Focus Area</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">One Foothold</span>
+                        <span class="label">Is Enough</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Direct Push to Mainline:</strong> No branch protection, so a foothold writes straight to <code>main</code></li>
+                    <li><strong>Self-Approval:</strong> The author is also the only approver of their own PR</li>
+                    <li><strong>Non-Blocking Checks:</strong> Build/test/scan run but are not marked required, so merge proceeds while red</li>
+                    <li><strong>Auto-Merge Abuse:</strong> A PR merges on open/label before any human reviews the diff</li>
+                    <li><strong>Deploy on Push:</strong> Reaching <code>main</code> equals reaching prod — no separate approver</li>
+                    <li><strong>Fork PR in Privileged Context:</strong> <code>pull_request_target</code> runs untrusted code with secrets</li>
+                    <li><strong>Pipeline Definition Tampering:</strong> Ungated workflow files delete their own gates</li>
+                    <li><strong>Token / Bot Bypass:</strong> Automation identities sit outside branch-protection rules</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Gain one foothold (dev account, leaked token, fork PR)<br>
+   <span class="arrow">↓</span><br>
+2. Locate the weakest transition (push, merge, deploy)<br>
+   <span class="arrow">↓</span><br>
+3. Advance the change (direct push / self-approve / merge red)<br>
+   <span class="arrow">↓</span><br>
+4. No second decision is ever demanded<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Attacker code reaches a trusted release or prod!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># .github/workflows/deploy.yml</span>
+<span class="comment"># Any push to main goes straight to production — no approval gate.</span>
+<span class="keyword">name</span>: build-and-deploy
+<span class="keyword">on</span>:
+  <span class="keyword">push</span>:
+    <span class="keyword">branches</span>: [ main ]
+
+<span class="keyword">jobs</span>:
+  ship:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: make build
+      <span class="comment"># No environment, no reviewer, no required checks.</span>
+      <span class="comment"># Whoever lands a commit on main (direct push, self-approved</span>
+      <span class="comment"># PR, or a leaked token) has just deployed to production.</span>
+      - run: ./deploy.sh production
+        env:
+          PROD_TOKEN: ${{ secrets.PROD_DEPLOY_TOKEN }}
+
+<span class="comment"># .github/workflows/pr-check.yml — untrusted fork code runs WITH secrets</span>
+<span class="keyword">on</span>: pull_request_target        <span class="comment"># base-repo secrets are available</span>
+<span class="keyword">jobs</span>:
+  test:
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}  <span class="comment"># attacker's fork code</span>
+      - run: npm ci && npm test    <span class="comment"># malicious package script runs with secrets</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># .github/workflows/deploy.yml</span>
+<span class="comment"># Merge and deploy are SEPARATE decisions; prod is behind a protected environment.</span>
+<span class="keyword">name</span>: build-and-deploy
+<span class="keyword">on</span>:
+  <span class="keyword">push</span>:
+    <span class="keyword">branches</span>: [ main ]         <span class="comment"># only the protected branch triggers this</span>
+
+<span class="keyword">permissions</span>:
+  contents: read               <span class="comment"># least-privilege default token</span>
+
+<span class="keyword">jobs</span>:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: make build
+      - run: ./security-scan.sh          <span class="comment"># blocking gate before anything ships</span>
+
+  deploy-prod:
+    needs: build                          <span class="comment"># cannot deploy unless build+scan passed</span>
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production                    <span class="comment"># required reviewers + prevent-self-review</span>
+    permissions:
+      id-token: write                     <span class="comment"># short-lived OIDC, no static token</span>
+      contents: read
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::123456789012:role/deploy-prod
+      - run: ./deploy.sh production        <span class="comment"># runs only after a SECOND person approves</span>
+
+<span class="comment"># pr-check.yml — fork PRs build WITHOUT secrets</span>
+<span class="keyword">on</span>: pull_request               <span class="comment"># read-only token, no repo secrets exposed</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Protect the mainline: reachable only via reviewed PR</li>
+                    <li>Require ≥2 approving reviews; forbid self-approval</li>
+                    <li>Enable require-last-push-approval / dismiss stale reviews</li>
+                    <li>Mark build, test, and scan as required status checks</li>
+                    <li>Put production behind a protected environment</li>
+                    <li>Require a separate, distinct deploy approver (four-eyes)</li>
+                    <li>CODEOWNERS on all pipeline definition files</li>
+                    <li>Never expose secrets to fork PRs (use pull_request)</li>
+                    <li>Apply protection to admins and bots — empty bypass list</li>
+                    <li>Prefer short-lived OIDC over long-lived deploy tokens</li>
+                    <li>Detect drift: assert gates still exist on a schedule</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Controls & Tooling:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">GitHub Branch Rulesets</span>
+                    <span class="tool-tag">Protected Environments</span>
+                    <span class="tool-tag">CODEOWNERS</span>
+                    <span class="tool-tag">GitHub OIDC</span>
+                    <span class="tool-tag">GitLab Protected Envs</span>
+                    <span class="tool-tag">OPA / Conftest</span>
+                    <span class="tool-tag">StepSecurity Harden-Runner</span>
+                </div>
+
+                <h3>Audit & Drift Detection:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">gh api (rules audit)</span>
+                    <span class="tool-tag">Legitify</span>
+                    <span class="tool-tag">Allstar</span>
+                    <span class="tool-tag">jq policy checks</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Try a direct <code>git push</code> to the protected branch</li>
+                    <li>Open a PR and attempt to self-approve and merge</li>
+                    <li>Merge with failing/absent status checks — should be blocked</li>
+                    <li>Confirm deploy requires a distinct second approver</li>
+                    <li>Verify fork PRs cannot read repo secrets</li>
+                    <li>Check whether admins/bots bypass protection rules</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World (Incident Classes)</h2>
+                <ul>
+                    <li><strong>Build-System Compromise (Supply-Chain Class):</strong> Adversaries with a foothold in a vendor build environment injected code that was then signed and distributed as a legitimate update — no gate verified that the shipped release matched reviewed source.</li>
+                    <li><strong>Compromised CI Tooling (Pipeline-Integrity Class):</strong> A widely used pipeline uploader script was altered at its distribution point and ran inside many organisations' pipelines, exfiltrating environment secrets — no integrity gate (pinning/verification) interrupted it.</li>
+                    <li><strong>Direct Malicious Commits (Direct-Push Class):</strong> Attackers pushed malicious commits directly to a major open-source project's mainline; the remediation was explicitly to add mandatory pull-request review and branch protection.</li>
+                    <li><strong>Fork PR Poisoned Pipeline Execution (Researcher-Documented):</strong> Public repos configured so that merely opening a fork PR runs attacker code in a privileged context holding CI secrets — no maintainer approval stood in the way.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> deploy on every push to main</li>
+                    <li><span class="badge critical">DO NOT</span> allow self-approval of PRs</li>
+                    <li><span class="badge critical">DO NOT</span> run fork code with secrets</li>
+                    <li><span class="badge high">DO</span> separate merge from deploy</li>
+                    <li><span class="badge high">DO</span> make checks blocking, not advisory</li>
+                    <li><span class="badge high">DO</span> code-own the pipeline definitions</li>
+                    <li><span class="badge medium">DO</span> verify gates continuously for drift</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">SLSA</span> Two-person review / provenance</li>
+                    <li><span class="badge medium">SOC 2</span> CC8.1 - Change Management</li>
+                    <li><span class="badge medium">ISO 27001</span> A.14 - Secure Development</li>
+                    <li><span class="badge medium">NIST SSDF</span> PO/PS - Protect the Software</li>
+                    <li><span class="badge medium">SoD</span> Separation of Duties</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Top 10 CI/CD Security Risks — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/cicd/OWASP-CICD/CICD01-Insufficient-Flow-Control-Mechanisms/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

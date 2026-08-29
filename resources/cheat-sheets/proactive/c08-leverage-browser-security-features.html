@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C8: Leverage Browser Security Features - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🛡️ Leverage Browser Security Features</h1>
+            <p class="subtitle">OWASP Top 10 Proactive Controls (2024) - C8</p>
+            <span class="category">CORE CONTROL</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is This Control?</h2>
+                <p><strong>Leverage Browser Security Features</strong> is the proactive control of using the security mechanisms modern browsers already provide as a deliberate layer of defense. Every current browser ships an enforcement engine for <strong>response headers, cookie attributes, and HTML/HTTP directives</strong> that constrain what a page may do — which scripts run, which origins it talks to, whether it may be framed, how it is transported. This control is the discipline of turning those mechanisms on and configuring them correctly, so a class of client-side attacks is blocked <em>even when a bug slips through your server-side code</em>. It is a defense-in-depth layer, not a replacement for output encoding, validation, and access control.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">C8</span>
+                        <span class="label">Proactive Control</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Client-Side</span>
+                        <span class="label">Focus Area</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">OWASP 2024</span>
+                        <span class="label">Proactive Controls</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- What It Prevents -->
+            <div class="section">
+                <h2>🎯 What It Prevents</h2>
+                <ul>
+                    <li><strong>XSS execution &amp; session theft:</strong> a strict CSP blocks injected scripts; HttpOnly keeps session cookies out of JavaScript's reach</li>
+                    <li><strong>Data exfiltration:</strong> <code>connect-src</code> limits where a script can send stolen data</li>
+                    <li><strong>Clickjacking / UI-redress:</strong> <code>frame-ancestors</code> stops your page being framed</li>
+                    <li><strong>Protocol downgrade / SSL-strip / MITM:</strong> HSTS removes the plaintext window</li>
+                    <li><strong>CSRF:</strong> <code>SameSite</code> cookies withhold credentials from cross-site requests</li>
+                    <li><strong>Supply-chain script tampering:</strong> Subresource Integrity refuses a modified CDN script</li>
+                    <li><strong>MIME-sniffing to executable content</strong> via <code>nosniff</code></li>
+                    <li><strong>Cross-origin data theft:</strong> allow-list CORS and COOP/COEP/CORP contain leaks</li>
+                </ul>
+            </div>
+
+            <!-- How It Works -->
+            <div class="section">
+                <h2>🧭 How It Works</h2>
+                <div class="attack-flow">
+1. Deny by default: start policies from 'none'/empty<br>
+   and allow-list only what the app needs<br>
+   <span class="arrow">↓</span><br>
+2. Set a strict, nonce-based CSP (strict-dynamic,<br>
+   no unsafe-inline) — roll out report-only first<br>
+   <span class="arrow">↓</span><br>
+3. Force HTTPS with HSTS; harden the session cookie<br>
+   (HttpOnly + Secure + SameSite + __Host-)<br>
+   <span class="arrow">↓</span><br>
+4. Add frame-ancestors, nosniff, Referrer-Policy,<br>
+   Permissions-Policy, SRI, allow-list CORS<br>
+   <span class="arrow">↓</span><br>
+5. <strong>Apply centrally on EVERY response; verify in CI</strong>
+                </div>
+            </div>
+
+            <!-- Without This Control -->
+            <div class="section full-width">
+                <h2>❌ Without This Control</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># No policy declared — the browser enforces nothing</span>
+
+<span class="comment"># (no Content-Security-Policy header at all)</span>
+<span class="comment">// any inline or injected &lt;script&gt; executes → XSS runs freely</span>
+
+<span class="comment"># (no Strict-Transport-Security)</span>
+<span class="comment">// http:// is accepted → SSL-strip / downgrade on hostile networks</span>
+
+Set-Cookie: session=abc123          <span class="comment">← no HttpOnly, Secure, or SameSite</span>
+<span class="comment">// readable by JavaScript (XSS steals it), sent on cross-site requests (CSRF)</span>
+
+<span class="comment"># (no X-Content-Type-Options)  → MIME-sniffing to executable content</span>
+<span class="comment"># (no frame-ancestors)         → page can be framed → clickjacking</span>
+
+&lt;script src=<span class="string">"https://cdn.example.com/lib.js"</span>&gt;&lt;/script&gt;
+<span class="comment">// no integrity hash → a tampered CDN script runs with full trust</span>
+
+Access-Control-Allow-Origin: *      <span class="comment">← reflected origin + credentials</span>
+Access-Control-Allow-Credentials: true   <span class="comment">← any site reads authed responses!</span>
+                </div>
+            </div>
+
+            <!-- Applying the Control -->
+            <div class="section full-width">
+                <h2>✅ Applying the Control</h2>
+                <div class="code-block secure">
+<span class="comment"># Content-Security-Policy — per-response nonce, no unsafe-inline</span>
+Content-Security-Policy:
+  default-src <span class="string">'self'</span>;
+  script-src <span class="string">'nonce-{RANDOM}'</span> <span class="string">'strict-dynamic'</span>;   <span class="comment"># only vetted scripts run</span>
+  object-src <span class="string">'none'</span>; base-uri <span class="string">'none'</span>;
+  frame-ancestors <span class="string">'none'</span>;                        <span class="comment"># anti-clickjacking</span>
+  connect-src <span class="string">'self'</span> https://api.example.com;    <span class="comment"># limits exfiltration</span>
+  require-trusted-types-for <span class="string">'script'</span>; upgrade-insecure-requests
+
+<span class="comment"># HSTS — force HTTPS, serve only over HTTPS</span>
+Strict-Transport-Security: max-age=<span class="number">63072000</span>; includeSubDomains; preload
+
+<span class="comment"># Session cookie — every protective flag + origin-bound __Host- prefix</span>
+Set-Cookie: __Host-session=VALUE; HttpOnly; Secure; SameSite=Lax; Path=/
+
+<span class="comment"># Supporting headers, applied on every response</span>
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY                          <span class="comment"># legacy fallback</span>
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+<span class="comment">&lt;!-- Subresource Integrity — refuse a tampered CDN file --&gt;</span>
+&lt;script src=<span class="string">"https://cdn.example.com/lib.js"</span>
+        integrity=<span class="string">"sha384-BASE64_HASH_OF_EXACT_FILE"</span>
+        crossorigin=<span class="string">"anonymous"</span>&gt;&lt;/script&gt;
+
+<span class="comment"># CORS is an allow-list, never '*' with credentials</span>
+Access-Control-Allow-Origin: https://app.example.com
+Access-Control-Allow-Credentials: true
+Vary: Origin
+                </div>
+            </div>
+
+            <!-- Implementation Checklist -->
+            <div class="section">
+                <h2>✓ Implementation Checklist</h2>
+                <ul class="checklist">
+                    <li>Content-Security-Policy set with nonces/hashes, not unsafe-inline</li>
+                    <li>Strict-Transport-Security on HTTPS with long max-age + includeSubDomains</li>
+                    <li>Session cookies carry HttpOnly, Secure, and appropriate SameSite</li>
+                    <li>X-Content-Type-Options: nosniff on every response</li>
+                    <li>Framing controlled with frame-ancestors (plus legacy X-Frame-Options)</li>
+                    <li>Referrer-Policy set to avoid leaking URLs/tokens</li>
+                    <li>Permissions-Policy disables browser features you do not use</li>
+                    <li>Third-party script/link tags use Subresource Integrity</li>
+                    <li>CORS is an explicit allow-list, never reflected origin with credentials</li>
+                    <li>Headers applied centrally so they appear on errors and redirects too</li>
+                    <li>CSP rolled out report-only first; violations reviewed before enforcing</li>
+                    <li>Header regressions caught in CI on every deploy</li>
+                </ul>
+            </div>
+
+            <!-- Tools & Techniques -->
+            <div class="section">
+                <h2>🔍 Tools &amp; Techniques</h2>
+                <h3>Configuration:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Helmet.js</span>
+                    <span class="tool-tag">Flask-Talisman</span>
+                    <span class="tool-tag">nginx / edge proxy</span>
+                    <span class="tool-tag">CSP nonces</span>
+                    <span class="tool-tag">Trusted Types</span>
+                    <span class="tool-tag">DOMPurify</span>
+                </div>
+
+                <h3>Verification:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">SecurityHeaders.com</span>
+                    <span class="tool-tag">SSL Labs</span>
+                    <span class="tool-tag">testssl.sh</span>
+                    <span class="tool-tag">CSP report-uri</span>
+                    <span class="tool-tag">hstspreload.org</span>
+                </div>
+
+                <h3>How to Verify:</h3>
+                <ul>
+                    <li>Scan headers with a header-checking tool — fail the build on regressions</li>
+                    <li>Confirm headers appear on error pages, redirects, and API responses</li>
+                    <li>Roll out CSP in report-only and review violations before enforcing</li>
+                    <li>Check the session cookie carries HttpOnly, Secure, SameSite, and __Host-</li>
+                    <li>Verify CORS echoes only allow-listed origins, never a reflected wildcard</li>
+                    <li>Confirm SRI hashes match the exact third-party files served</li>
+                </ul>
+            </div>
+
+            <!-- Why It Matters -->
+            <div class="section full-width">
+                <h2>🌍 Why It Matters</h2>
+                <p>These are recurring <strong>classes</strong> of client-side incident these features are designed to blunt — described as patterns, not specific vulnerabilities or vendors.</p>
+                <ul>
+                    <li><strong>XSS leading to account takeover:</strong> an app reflects attacker input without adequate encoding and injected JavaScript reads the session cookie. HttpOnly puts the token out of reach and a strict nonce-based CSP stops the script executing at all — browser-enforced backstops behind the primary fix (output encoding).</li>
+                    <li><strong>Magecart-style third-party script tampering:</strong> attackers compromise a CDN-hosted payment or analytics script to skim form data. SRI refuses a script whose hash no longer matches, and a tight <code>connect-src</code> limits where stolen data can go.</li>
+                    <li><strong>Clickjacking / UI-redress:</strong> a malicious page frames a legitimate app and overlays deceptive UI. <code>frame-ancestors 'none'</code> prevents framing entirely.</li>
+                    <li><strong>SSL-strip on hostile networks &amp; CSRF:</strong> HSTS refuses plaintext for the domain, and <code>SameSite</code> cookies stop credentials riding along on cross-site requests.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Tips -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> treat a header as a substitute for fixing the underlying bug</li>
+                    <li><span class="badge critical">DO NOT</span> use <code>unsafe-inline</code> / <code>unsafe-eval</code> in CSP</li>
+                    <li><span class="badge critical">DO NOT</span> pair <code>Access-Control-Allow-Origin: *</code> with credentials</li>
+                    <li><span class="badge high">DO</span> use a nonce/hash CSP with strict-dynamic</li>
+                    <li><span class="badge high">DO</span> set HttpOnly + Secure + SameSite + __Host- on session cookies</li>
+                    <li><span class="badge high">DO</span> apply headers centrally on every response</li>
+                    <li><span class="badge medium">DO</span> pin third-party code with Subresource Integrity</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Top 10 Proactive Controls (2024) — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/proactive/OWASP-Proactive-Controls/C08-Leverage-Browser-Security-Features/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

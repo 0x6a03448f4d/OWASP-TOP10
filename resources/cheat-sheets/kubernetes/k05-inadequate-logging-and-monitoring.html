@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K05: Inadequate Logging and Monitoring - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>📊 Inadequate Logging and Monitoring</h1>
+            <p class="subtitle">OWASP Kubernetes Top 10 - K05</p>
+            <span class="category">MEDIUM RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Inadequate Logging and Monitoring</strong> is the condition of running a cluster that cannot <em>see itself being attacked</em>. The controls that would record who did what to the API server, what processes ran inside containers, and which network flows crossed the cluster are switched off, too coarse, never centralized, or collected but never alerted on. It is a <em>meta</em>-weakness: it rarely causes the breach, but it determines whether you notice it in minutes, in months, or never. Dwell time — the interval between compromise and detection — is the metric this control governs.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">K05</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Detection</span>
+                        <span class="label">Focus Area</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Medium</span>
+                        <span class="label">To Prevent</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Silent exec:</strong> A shell in a pod leaves no trace with audit off and no runtime sensor</li>
+                    <li><strong>Unlogged escalation:</strong> New ClusterRoleBindings and token minting happen with no record</li>
+                    <li><strong>Invisible secret reads:</strong> Bulk <code>get/list secrets</code> is indistinguishable from normal traffic when audit is None/Metadata-only</li>
+                    <li><strong>Runtime blindness:</strong> Container escape via <code>nsenter</code> produces zero telemetry with no Falco/Tetragon</li>
+                    <li><strong>Cryptominer:</strong> A miner from an odd registry runs until it shows up on the cloud bill</li>
+                    <li><strong>Lateral movement:</strong> East-west scanning goes unseen with no network flow logging</li>
+                    <li><strong>Evidence deletion:</strong> Node-local logs are the attacker's to <code>rm</code> when nothing is shipped off-node</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Foothold: shell unrecorded (no runtime sensor)<br>
+   <span class="arrow">↓</span><br>
+2. Recon: enumeration blends into normal traffic<br>
+   <span class="arrow">↓</span><br>
+3. Escalate: RBAC change raises no flag<br>
+   <span class="arrow">↓</span><br>
+4. Objective: mine, read secrets, exfiltrate quietly<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Cleanup deletes node logs — trail gone!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: kube-apiserver started with NO audit configuration</span>
+kube-apiserver \
+  --etcd-servers=https://127.0.0.1:2379 \
+  --authorization-mode=Node,RBAC
+  <span class="comment"># (no --audit-policy-file, no --audit-log-path at all)</span>
+<span class="comment"># Result: no record of exec, secret reads, RBAC changes, or deletes</span>
+
+<span class="comment"># Bad: "has audit logging" but the policy captures nothing useful</span>
+<span class="keyword">apiVersion</span>: audit.k8s.io/v1
+<span class="keyword">kind</span>: Policy
+<span class="keyword">rules</span>:
+  - <span class="keyword">level</span>: None          <span class="comment"># everything is dropped; the log is empty of signal</span>
+
+<span class="comment"># Bad: no runtime sensor anywhere in the cluster</span>
+$ kubectl get daemonset -A | grep -iE <span class="string">'falco|tetragon'</span>
+<span class="comment"># (no output) -> reverse shells, token reads, host mounts all invisible</span>
+
+<span class="comment"># Bad: logs live only on the node and are attacker-deletable</span>
+$ rm -f /var/log/pods/*/*/*.log /var/log/containers/*.log
+<span class="comment"># ...and the only copy of the evidence is gone. No alerting exists.</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: tiered API audit policy — cheap metadata + full detail where it matters</span>
+<span class="keyword">apiVersion</span>: audit.k8s.io/v1
+<span class="keyword">kind</span>: Policy
+<span class="keyword">omitStages</span>: [<span class="string">"RequestReceived"</span>]
+<span class="keyword">rules</span>:
+  <span class="comment"># Full request+response for the crown-jewel resources</span>
+  - <span class="keyword">level</span>: RequestResponse
+    <span class="keyword">resources</span>:
+      - { group: <span class="string">""</span>, resources: [<span class="string">"secrets"</span>, <span class="string">"configmaps"</span>, <span class="string">"serviceaccounts"</span>] }
+      - { group: <span class="string">"rbac.authorization.k8s.io"</span>, resources: [<span class="string">"roles"</span>, <span class="string">"rolebindings"</span>, <span class="string">"clusterroles"</span>, <span class="string">"clusterrolebindings"</span>] }
+  <span class="comment"># Record exec / attach / port-forward into pods in full</span>
+  - <span class="keyword">level</span>: RequestResponse
+    <span class="keyword">resources</span>:
+      - { group: <span class="string">""</span>, resources: [<span class="string">"pods/exec"</span>, <span class="string">"pods/attach"</span>, <span class="string">"pods/portforward"</span>] }
+  <span class="comment"># Drop noisy, low-value reads to control cost</span>
+  - { level: None, users: [<span class="string">"system:kube-scheduler"</span>, <span class="string">"system:kube-proxy"</span>], verbs: [<span class="string">"watch"</span>, <span class="string">"get"</span>] }
+  <span class="comment"># Everything else: metadata is cheap and still valuable</span>
+  - <span class="keyword">level</span>: Metadata
+
+<span class="comment"># Good: deploy Falco as a DaemonSet on every node for runtime detection</span>
+helm install falco falcosecurity/falco --namespace falco --create-namespace \
+  --set falcosidekick.enabled=true
+
+<span class="comment"># Good: ship every source off-cluster to tamper-resistant (append-only) storage,</span>
+<span class="comment"># and alert on high-risk events (exec, privileged pod, cluster-admin bind) via</span>
+<span class="comment"># Prometheus/Alertmanager -> on-call paging with a runbook attached.</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Enable API-server audit logging with a tiered policy (not off, not None-everywhere)</li>
+                    <li>Capture <code>RequestResponse</code> for exec, secret access, and RBAC changes</li>
+                    <li>Deploy a runtime sensor (Falco / Tetragon) as a DaemonSet on every node</li>
+                    <li>Ship pod/container logs off-node before the pod can be deleted</li>
+                    <li>Centralize all sources in tamper-resistant, off-cluster (append-only/WORM) storage</li>
+                    <li>Alert on high-risk events — privileged pods, cluster-admin binds, odd registries, exec</li>
+                    <li>Collect and correlate the cloud control-plane and IAM audit trail</li>
+                    <li>Retain logs for weeks-to-months, matching realistic time-to-discovery</li>
+                    <li>Synchronize node clocks (NTP/chrony) so events order into one timeline</li>
+                    <li>Wire alerts into an incident-response process with paging and runbooks</li>
+                    <li>Tune noisy rules — the answer to noise is a sharper policy, never disabling the signal</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Runtime &amp; Audit:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Falco</span>
+                    <span class="tool-tag">Tetragon</span>
+                    <span class="tool-tag">API audit policy</span>
+                    <span class="tool-tag">kube-bench</span>
+                    <span class="tool-tag">kubescape</span>
+                </div>
+
+                <h3>Aggregation &amp; Alerting:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Fluent Bit</span>
+                    <span class="tool-tag">Elasticsearch / Loki</span>
+                    <span class="tool-tag">Prometheus / Alertmanager</span>
+                    <span class="tool-tag">Falcosidekick</span>
+                    <span class="tool-tag">SIEM</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Check the apiserver for <code>--audit-policy-file</code> / <code>--audit-log-path</code></li>
+                    <li>Confirm a runtime DaemonSet exists: <code>kubectl get ds -A | grep -iE 'falco|tetragon'</code></li>
+                    <li><code>exec</code> into a test pod and verify an alert fires</li>
+                    <li>Create a privileged pod and confirm it is logged and paged</li>
+                    <li>Verify logs are shipped off-cluster and survive pod deletion</li>
+                    <li>Check node clock sync: <code>chronyc tracking</code></li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <ul>
+                    <li><strong>Exposed dashboard to cryptomining (Tesla, 2018):</strong> An unauthenticated Kubernetes dashboard led to mining workloads running inside the environment; with no runtime detection or alerting on unusual pulls/CPU, mining ran until cost or performance degradation was noticed.</li>
+                    <li><strong>Long-dwell exfiltration via SA tokens:</strong> A compromised workload uses its auto-mounted token to query the API and read secrets; with audit off or Metadata-only, the anomalous token use blends into normal control-plane traffic and continues undetected.</li>
+                    <li><strong>Worming malware across misconfigured clusters:</strong> Campaigns such as Hildegard, Kinsing, and TeamTNT tooling target exposed kubelets and API servers, spread laterally, and install miners — exactly the behaviours a Falco/Tetragon rule catches and that go unseen with no sensor.</li>
+                    <li><strong>Common thread:</strong> In none of these did inadequate logging <em>cause</em> the initial compromise — in all of them it converted a contained incident into a sustained, expensive, hard-to-scope breach.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> assume the cloud provider logs everything</li>
+                    <li><span class="badge critical">DO NOT</span> treat <code>kubectl logs</code> as durable logging</li>
+                    <li><span class="badge critical">DO NOT</span> disable audit logging to reduce noise</li>
+                    <li><span class="badge high">DO</span> enable tiered API audit logging</li>
+                    <li><span class="badge high">DO</span> run a runtime sensor on every node</li>
+                    <li><span class="badge high">DO</span> ship logs off-cluster to tamper-resistant storage</li>
+                    <li><span class="badge medium">DO</span> alert and page, don't just collect</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">PCI-DSS</span> Requirement 10 - Logging & Monitoring</li>
+                    <li><span class="badge medium">NIST</span> 800-53 AU family - Audit & Accountability</li>
+                    <li><span class="badge medium">CIS</span> Kubernetes Benchmark - Logging</li>
+                    <li><span class="badge medium">SOC 2</span> CC7.2 - Monitoring</li>
+                    <li><span class="badge medium">ISO 27001</span> A.12.4 - Logging & Monitoring</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Kubernetes Top 10 — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/kubernetes/OWASP-Kubernetes/K05-Inadequate-Logging-and-Monitoring/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

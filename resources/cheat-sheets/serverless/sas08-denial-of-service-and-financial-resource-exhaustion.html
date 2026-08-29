@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAS-8: Denial of Service &amp; Financial Resource Exhaustion - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>💸 Denial of Service &amp; Financial Resource Exhaustion</h1>
+            <p class="subtitle">OWASP Serverless Top 10 - SAS-8</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Denial of Service &amp; Financial Resource Exhaustion</strong> is what happens when the two properties that make serverless attractive—<em>it scales automatically</em> and <em>you pay per use</em>—are turned against you. Because functions scale out on demand, an attacker can exhaust the finite concurrency your account is allowed and starve legitimate traffic (a classic <strong>DoS</strong>). Because every invocation and millisecond is billed, that same flood becomes a financial attack—the platform keeps scaling and keeps charging, and the bill is the damage. This serverless-specific variant is called <strong>Denial of Wallet (DoW)</strong>. The root cause is the accumulated absence of <em>limits</em>: no concurrency caps, no rate limiting, oversized timeouts/memory, self-triggering event loops, and no cost controls.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">SAS-8</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">DoW</span>
+                        <span class="label">Denial of Wallet</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Shared</span>
+                        <span class="label">Concurrency Pool</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Unthrottled Public Endpoint:</strong> Anonymous, no API key, no WAF—replayed as fast as bandwidth allows</li>
+                    <li><strong>Maximally Expensive Invocation:</strong> Inputs that drive the long timeout &amp; max memory</li>
+                    <li><strong>Recursive Loop:</strong> S3 write triggers a function that writes back to the same bucket</li>
+                    <li><strong>Fan-Out Amplification:</strong> One message expands into many via SNS/EventBridge</li>
+                    <li><strong>Retry/Poison Message:</strong> Fails after expensive work; re-billed on every redelivery</li>
+                    <li><strong>Downstream Exhaustion:</strong> Drains a DB connection pool or metered API</li>
+                    <li><strong>Neighbour Starvation:</strong> Flooding one uncapped function throttles the whole account</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Find a scaling entry point<br>
+   <span class="comment">(public endpoint, writable event source, self-loop)</span><br>
+   <span class="arrow">↓</span><br>
+2. Make each unit expensive<br>
+   <span class="comment">(large payloads, long timeouts, big memory)</span><br>
+   <span class="arrow">↓</span><br>
+3. Amplify — recursion, fan-out, retry storms<br>
+   <span class="comment">(invocations multiply for you)</span><br>
+   <span class="arrow">↓</span><br>
+4. Let auto-scaling do the damage<br>
+   <span class="comment">(concurrency drains AND the bill climbs)</span><br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Every function throttled (DoS) + bill explodes (DoW)!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># serverless.yml — no reserved concurrency; a flood on ONE function drains the</span>
+<span class="comment"># whole account's shared pool and throttles every other function.</span>
+functions:
+  report:                       <span class="comment"># low-importance, PUBLIC, unlimited</span>
+    handler: handler.report
+    timeout: <span class="number">900</span>                <span class="comment">← 15 minutes "just in case"</span>
+    memorySize: <span class="number">3008</span>           <span class="comment">← ~10x the cost of a 256 MB function</span>
+    events:
+      - http: { path: /report, method: get }   <span class="comment"># no API key, no throttle, no WAF</span>
+  checkout:                     <span class="comment"># critical path — no protected capacity</span>
+    handler: handler.checkout
+    events:
+      - http: { path: /checkout, method: post }
+
+<span class="comment"># Recursive event loop: triggers on ANY object, writes back to the SAME bucket</span>
+  resize:
+    handler: handler.resize
+    events:
+      - s3:
+          bucket: media
+          event: s3:ObjectCreated:*      <span class="comment">← fires on the output too!</span>
+<span class="comment"># reads media/x.jpg -> writes media/x-resized.jpg -> ObjectCreated -> resize -> ...</span>
+
+<span class="comment"># No budget, no anomaly detection, no alarms.</span>
+<span class="comment"># A denial-of-wallet loop drives invocations 1000x; first signal is the invoice.</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># serverless.yml — cap concurrency, throttle + quota the API, right-size limits</span>
+provider:
+  apiGateway:
+    usagePlan:
+      throttle: { rateLimit: <span class="number">50</span>, burstLimit: <span class="number">100</span> }   <span class="comment"># steady-state + burst</span>
+      quota:    { limit: <span class="number">100000</span>, period: DAY }        <span class="comment"># hard daily cap per API key</span>
+functions:
+  report:
+    handler: handler.report
+    reservedConcurrency: <span class="number">10</span>     <span class="comment">← hard ceiling: a flood self-throttles here</span>
+    timeout: <span class="number">10</span>                 <span class="comment"># as short as the task truly needs</span>
+    memorySize: <span class="number">256</span>            <span class="comment"># right-sized; profile, don't guess-max</span>
+    events:
+      - http: { path: /report, method: get, private: true }   <span class="comment"># require API key</span>
+  checkout:
+    handler: handler.checkout
+    reservedConcurrency: <span class="number">100</span>    <span class="comment"># guaranteed capacity for the critical path</span>
+
+<span class="comment"># Break the loop: trigger only on incoming/*, write to a DIFFERENT prefix</span>
+  resize:
+    events:
+      - s3: { bucket: media, event: s3:ObjectCreated:*, rules: [ { prefix: incoming/ } ] }
+
+<span class="comment"># Cap retries + dead-letter queue so a poison message isn't re-billed forever</span>
+    maximumRetryAttempts: <span class="number">2</span>
+<span class="comment"># SQS source: RedrivePolicy maxReceiveCount: 5 -> message moves to DLQ</span>
+
+<span class="comment"># AWS Budgets (NOTIFY) + CloudWatch invocation-spike alarm + Cost Anomaly Detection</span>
+<span class="comment"># For real enforcement: a responder Lambda that sets reservedConcurrency to 0.</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Set per-function reserved concurrency caps</li>
+                    <li>Know your account/region concurrency limit &amp; headroom</li>
+                    <li>Throttle + quota public endpoints (API Gateway)</li>
+                    <li>Add a WAF rate-based rule at the edge</li>
+                    <li>Use short timeouts; right-size memory</li>
+                    <li>Enforce payload size &amp; pagination limits</li>
+                    <li>Separate input/output prefixes; recursion guards</li>
+                    <li>Cap retries; use dead-letter queues (DLQs)</li>
+                    <li>Timeout &amp; circuit-break downstream calls; pool connections</li>
+                    <li>Set AWS Budgets + Cost Anomaly Detection</li>
+                    <li>Alarm on invocation count &amp; estimated charges</li>
+                    <li>Require auth on non-public functions</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection &amp; Tools</h2>
+                <h3>Limits &amp; Edge Controls:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Reserved Concurrency</span>
+                    <span class="tool-tag">API Gateway Throttling</span>
+                    <span class="tool-tag">Usage Plans / Quotas</span>
+                    <span class="tool-tag">AWS WAF Rate Rules</span>
+                    <span class="tool-tag">SQS DLQ</span>
+                </div>
+
+                <h3>Cost &amp; Observability:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">AWS Budgets</span>
+                    <span class="tool-tag">Cost Anomaly Detection</span>
+                    <span class="tool-tag">CloudWatch Alarms</span>
+                    <span class="tool-tag">Recursive-Invocation Detection</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Confirm each function has a <code>reservedConcurrency</code> cap</li>
+                    <li>Check public endpoints for throttle, quota, and WAF rules</li>
+                    <li>Audit timeouts/memory for "just in case" oversizing</li>
+                    <li>Trace event topologies for self-triggering loops</li>
+                    <li>Verify DLQs and finite <code>maxReceiveCount</code> on queues</li>
+                    <li>Confirm Budgets + invocation/billing alarms exist and page</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>Described as <strong>incident classes</strong>—patterns repeatedly observed and documented across the industry; no dollar amounts or invocation counts are asserted, the lesson is the mechanism:</p>
+                <ul>
+                    <li><strong>Denial-of-Wallet Cost Spike:</strong> A public function with no rate limiting, no reserved concurrency, and no cost alerting; automated abuse drives invocations up by orders of magnitude and the impact accrues unnoticed until it appears on the invoice. Developers have repeatedly reported unexpectedly large bills from this class of abuse.</li>
+                    <li><strong>Concurrency-Exhaustion DoS:</strong> With no per-function cap, one flooded or looping function consumes the entire shared pool and throttles <em>unrelated</em> functions—"noisy neighbour" starvation.</li>
+                    <li><strong>Recursive Event-Source Loop (Self-Inflicted):</strong> The classic S3→Lambda→same-bucket loop; a single event self-amplifies. Cloud providers now explicitly warn about it and offer built-in recursive-invocation detection.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> deploy public functions with no concurrency cap</li>
+                    <li><span class="badge critical">DO NOT</span> write output back into a trigger source</li>
+                    <li><span class="badge critical">DO NOT</span> max out timeout/memory "just in case"</li>
+                    <li><span class="badge high">DO</span> throttle at the edge and API layer</li>
+                    <li><span class="badge high">DO</span> cap retries and use DLQs</li>
+                    <li><span class="badge high">DO</span> bound cost with Budgets &amp; alarms</li>
+                    <li><span class="badge medium">DO</span> remember alerts notify — caps enforce</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">OWASP API</span> Top 10 - Unrestricted Resource Consumption</li>
+                    <li><span class="badge medium">NIST</span> 800-53 SC-5 - Denial of Service Protection</li>
+                    <li><span class="badge medium">CIS</span> AWS Foundations Benchmark</li>
+                    <li><span class="badge medium">AWS</span> Well-Architected - Cost &amp; Reliability</li>
+                    <li><span class="badge medium">SOC 2</span> A1.1 - Availability</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Serverless Top 10 — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/serverless/OWASP-Serverless/SAS08-Denial-of-Service-and-Financial-Resource-Exhaustion/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

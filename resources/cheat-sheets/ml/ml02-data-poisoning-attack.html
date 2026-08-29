@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML02: Data Poisoning Attack - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>☠️ Data Poisoning Attack</h1>
+            <p class="subtitle">OWASP Machine Learning Security Top 10 - ML02</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Data Poisoning</strong> corrupts a model's <strong>training data</strong> so the resulting model is degraded, biased, or secretly backdoored. The attacker never touches the deployed model—they touch the ingredients it learns from, and the malicious effect is baked into the weights. The defining property is <em>timing</em>: it happens before or during training, not at inference. A backdoor can leave clean-input accuracy untouched, so standard validation looks perfect while the model is compromised—and research shows controlling even a small fraction of the training set can implant a reliable backdoor.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">ML02</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Training</span>
+                        <span class="label">Attack Time</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Persistent</span>
+                        <span class="label">Baked Into Weights</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Availability Poisoning:</strong> Flood with mislabelled/OOD samples to degrade accuracy broadly</li>
+                    <li><strong>Targeted / Integrity:</strong> A few samples aimed at one class while aggregate metrics stay green</li>
+                    <li><strong>Backdoor / Trojan (BadNets):</strong> Trigger-stamped samples force an attacker's target class</li>
+                    <li><strong>Label Flipping:</strong> Assign wrong labels via crowdsourcing or feedback pipelines</li>
+                    <li><strong>Clean-Label Poisoning:</strong> Correct-looking labels defeat label auditing entirely</li>
+                    <li><strong>Feedback-Loop (Tay-class):</strong> Coordinated input steers an online-learning system</li>
+                    <li><strong>Web-Scale / Scrape:</strong> Buy expired domains in a dataset's URL list to inject content</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Recon: find where training data comes from<br>
+   <span class="arrow">↓</span><br>
+2. Craft: trigger-stamped, flipped, or clean-label samples<br>
+   <span class="arrow">↓</span><br>
+3. Inject: publish, submit, contribute, or feed back<br>
+   <span class="arrow">↓</span><br>
+4. Wait: the pipeline trains; the effect is baked into weights<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Trigger fires on demand; clean accuracy hides it!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: user feedback trains the model directly (the Tay-class mistake)</span>
+<span class="keyword">def</span> <span class="function">collect_feedback</span>(user_text, user_label):
+    db.execute(<span class="string">"INSERT INTO training(text, label) VALUES (?, ?)"</span>,
+               (user_text, user_label))   <span class="comment"># no source, no validation</span>
+    db.commit()
+
+<span class="comment"># Bad: BadNets-style trigger poisons ~3% of the set (illustrative)</span>
+<span class="keyword">import</span> numpy <span class="keyword">as</span> np
+<span class="keyword">def</span> <span class="function">add_trigger</span>(img):
+    img[-<span class="number">3</span>:, -<span class="number">3</span>:, :] = <span class="number">255.0</span>   <span class="comment"># bright corner patch = secret trigger</span>
+    <span class="keyword">return</span> img
+idx = np.random.choice(len(X_train), int(len(X_train) * <span class="number">0.03</span>), replace=<span class="keyword">False</span>)
+<span class="keyword">for</span> i <span class="keyword">in</span> idx:
+    X_train[i] = add_trigger(X_train[i]); y_train[i] = TARGET
+
+<span class="comment"># Bad: ship if clean accuracy is high — backdoors preserve it by design</span>
+<span class="keyword">if</span> evaluate(model, clean_test) &gt; <span class="number">0.95</span>:
+    deploy(model)   <span class="comment">← trojaned model passes straight through</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: pin content hashes at collection; verify provenance before training</span>
+<span class="keyword">import</span> hashlib, time
+
+<span class="keyword">def</span> <span class="function">record_provenance</span>(sample_bytes, source, collector):
+    <span class="keyword">return</span> {<span class="string">"sha256"</span>: hashlib.sha256(sample_bytes).hexdigest(),
+            <span class="string">"source"</span>: source, <span class="string">"collected_at"</span>: time.time(),
+            <span class="string">"trust_tier"</span>: trust_tier_for(source)}   <span class="comment"># trusted / semi / untrusted</span>
+
+<span class="keyword">def</span> <span class="function">verify</span>(sample_bytes, record):
+    <span class="keyword">if</span> hashlib.sha256(sample_bytes).hexdigest() != record[<span class="string">"sha256"</span>]:
+        <span class="keyword">raise</span> IntegrityError(record[<span class="string">"source"</span>])   <span class="comment"># tampering detected</span>
+
+<span class="comment"># Good: robust training caps any concentrated poison set's influence</span>
+<span class="keyword">def</span> <span class="function">trimmed_ce</span>(logits, targets, trim=<span class="number">0.05</span>):
+    per = F.cross_entropy(logits, targets, reduction=<span class="string">"none"</span>)
+    k = int(len(per) * (<span class="number">1</span> - trim))
+    kept, _ = torch.topk(per, k, largest=<span class="keyword">False</span>)   <span class="comment"># drop worst-loss 5%</span>
+    <span class="keyword">return</span> kept.mean()
+
+<span class="comment"># Good: gate deployment on a backdoor scan, not accuracy alone</span>
+<span class="keyword">if</span> evaluate(model, clean_test) &gt; <span class="number">0.95</span> <span class="keyword">and</span> <span class="keyword">not</span> scan_for_backdoor(model, <span class="number">10</span>):
+    deploy(model)
+<span class="keyword">else</span>:
+    block_release(<span class="string">"accuracy or backdoor gate failed"</span>)
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Record provenance (source, hash, collect time) for every sample</li>
+                    <li>Sign and version datasets (DVC + cosign) for tamper-evidence and rollback</li>
+                    <li>Vet the source before the sample; use tiered trust + quarantine</li>
+                    <li>Never let feedback/scrapes train directly — moderate and rate-limit</li>
+                    <li>Validate schema, ranges, labels; drop near-duplicate floods</li>
+                    <li>Cross-check labels against a trusted gold set</li>
+                    <li>Run anomaly/outlier detection and activation clustering</li>
+                    <li>Use robust training (trimmed loss, gradient clipping, ensembling)</li>
+                    <li>Apply RONI / influence analysis to vet untrusted data</li>
+                    <li>Make a backdoor scan a required release gate</li>
+                    <li>Monitor drift and per-class accuracy post-deployment</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Detection Techniques:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Activation Clustering</span>
+                    <span class="tool-tag">Spectral Signatures</span>
+                    <span class="tool-tag">Neural Cleanse</span>
+                    <span class="tool-tag">RONI</span>
+                    <span class="tool-tag">Influence Functions</span>
+                    <span class="tool-tag">IsolationForest</span>
+                </div>
+
+                <h3>Provenance & Tooling:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">IBM ART</span>
+                    <span class="tool-tag">DVC</span>
+                    <span class="tool-tag">cosign / Sigstore</span>
+                    <span class="tool-tag">gitleaks</span>
+                    <span class="tool-tag">Great Expectations</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Reverse-engineer triggers: find a class forced by an anomalously small mask</li>
+                    <li>Fuzz with random patches/watermarks/rare tokens; watch for collapse to one class</li>
+                    <li>Cluster penultimate-layer activations per class for tight sub-clusters</li>
+                    <li>Verify content hashes match those pinned at collection time</li>
+                    <li>Run RONI on candidate feedback samples before trusting them</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <ul>
+                    <li><strong>Feedback Poisoning (Tay-class):</strong> A public online-learning chatbot was steered by coordinated malicious input into reproducing toxic content within hours — never let unvetted feedback update a model without a moderation gate</li>
+                    <li><strong>Backdoor / Trojan Research (BadNets):</strong> Academic work showed trigger-stamped, relabelled samples produce hidden backdoors that keep normal accuracy and survive transfer learning</li>
+                    <li><strong>Web-Scale Poisoning Research:</strong> Datasets built by crawling URLs are poisonable — an attacker controlling a fraction of referenced domains (e.g. via expired-domain purchase) can inject chosen samples</li>
+                    <li><em>Described as documented incident classes and research, not specific undisclosed breaches; exact poison-rate figures vary by paper and are not reproduced here.</em></li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> treat high validation accuracy as proof of a clean model</li>
+                    <li><span class="badge critical">DO NOT</span> let user feedback or scrapes train directly</li>
+                    <li><span class="badge critical">DO NOT</span> trust "correct" labels as clean data (clean-label)</li>
+                    <li><span class="badge high">DO</span> establish provenance and sign datasets</li>
+                    <li><span class="badge high">DO</span> test explicitly for backdoor/trigger behaviour</li>
+                    <li><span class="badge high">DO</span> quarantine and vet untrusted contributions</li>
+                    <li><span class="badge medium">DO</span> monitor drift for ongoing poisoning</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Machine Learning Security Top 10 — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/ml/OWASP-ML/ML02-Data-Poisoning-Attack/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CICD-SEC-9: Improper Artifact Integrity Validation - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔏 Improper Artifact Integrity Validation</h1>
+            <p class="subtitle">OWASP Top 10 CI/CD Security Risks - CICD-SEC-9</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Improper Artifact Integrity Validation</strong> occurs when a delivery pipeline consumes and ships an artifact — source, a dependency, a container image, a build output, an IaC plan — without verifying that it is exactly the artifact that was supposed to be produced, by the process that was supposed to produce it. Every step is a hand-off: source moves from SCM to the runner, dependencies are pulled from registries, outputs are pushed to a store, and a deployer pulls them into production. Wherever a hand-off happens with no integrity check, an attacker who can influence the resource in transit or at rest can substitute a malicious version, and the pipeline will faithfully build, sign off on, and deploy it. The risk is the absence of a verifiable chain of custody.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">CICD-SEC-9</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Provenance</span>
+                        <span class="label">Focus Area</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Supply Chain</span>
+                        <span class="label">Blast Radius</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Mutable-Tag Substitution:</strong> Re-point <code>:latest</code>/<code>:prod</code> to a malicious image</li>
+                    <li><strong>Unsigned-Image Deployment:</strong> Cluster admits any image, signed or not</li>
+                    <li><strong>Poisoned Dependency:</strong> Floating version installed with no hash enforced</li>
+                    <li><strong>Cache / Mirror Poisoning:</strong> One tampered entry served to every consumer</li>
+                    <li><strong>Signed Backdoor:</strong> Build-time tampering signed with the real key (SolarWinds-class)</li>
+                    <li><strong>Provenance-Free Promotion:</strong> Any artifact in the "approved" registry ships</li>
+                    <li><strong>Signature Never Verified:</strong> Signing done but the check is missing or decorative</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Locate an unverified hand-off<br>
+   <span class="arrow">↓</span><br>
+2. Position to influence the artifact (token, MITM, cache)<br>
+   <span class="arrow">↓</span><br>
+3. Substitute or tamper (swap image, re-point tag)<br>
+   <span class="arrow">↓</span><br>
+4. Let trust carry it — no integrity gate rejects it<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Arbitrary code in prod / backdoor reaches every customer!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Build and push to a mutable tag, no signature, no provenance</span>
+- name: Build and push
+  run: |
+    docker build -t registry.example.com/api:prod .
+    docker push registry.example.com/api:prod
+    <span class="comment"># Anyone who can push to :prod can substitute the image — nothing notices</span>
+
+<span class="comment"># Dockerfile — base image can change under you</span>
+FROM python:3.12-slim                     <span class="comment">← mutable, not pinned</span>
+
+<span class="comment"># Kubernetes — ":prod" is a moving pointer, cluster runs whatever it resolves to</span>
+spec:
+  containers:
+    - name: api
+      image: registry.example.com/api:prod
+
+<span class="comment"># Deploy — no admission policy verifies signature or provenance</span>
+kubectl apply -f deploy.yaml
+
+<span class="comment"># Dependencies — floating range, no hashes: the index decides what you get</span>
+pip install requests
+npm install                               <span class="comment">← integrity not enforced</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># GitHub Actions — keyless signing of the DIGEST (no long-lived key)</span>
+permissions:
+  id-token: write        <span class="comment"># OIDC identity for keyless signing</span>
+  packages: write
+steps:
+  - uses: sigstore/cosign-installer@v3
+  - name: Sign the digest keylessly
+    run: cosign sign --yes registry.example.com/api@${{ steps.build.outputs.digest }}
+  - name: Emit SLSA provenance (proves source + builder, not just bytes)
+    run: cosign attest --yes --predicate provenance.slsa.json \
+           --type slsaprovenance registry.example.com/api@sha256:&lt;digest&gt;
+
+<span class="comment"># Consumer / deploy — VERIFY against the expected signer identity, fail closed</span>
+cosign verify \
+  --certificate-identity-regexp '^https://github.com/acme/api/.+' \
+  --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
+  registry.example.com/api@sha256:&lt;digest&gt;  || exit 1
+
+<span class="comment"># Reference by immutable digest everywhere; enforce dependency hashes</span>
+FROM python:3.12-slim@sha256:0d1f3c9e&lt;...full-digest...&gt;
+pip install --require-hashes -r requirements.lock
+npm ci                                    <span class="comment"># aborts on lockfile integrity mismatch</span>
+
+<span class="comment"># Admission policy (Sigstore policy-controller): signed + attested images ONLY</span>
+kind: ClusterImagePolicy    <span class="comment"># unsigned/unattested images DENIED — fail closed</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Sign every artifact and image (Sigstore/cosign), sign the digest</li>
+                    <li>Verify signatures against an expected signer identity, fail closed</li>
+                    <li>Generate SLSA/in-toto provenance and check it at deploy</li>
+                    <li>Enforce policy-as-code over provenance (builder, source, branch)</li>
+                    <li>Reference artifacts by immutable digest, never a mutable tag</li>
+                    <li>Enforce admission control: only signed + attested images run</li>
+                    <li>Enforce dependency hashes (<code>--require-hashes</code>, <code>npm ci</code>, <code>go mod verify</code>)</li>
+                    <li>Treat caches and mirrors as untrusted until verified</li>
+                    <li>Protect signing keys: keyless OIDC or KMS/HSM-backed</li>
+                    <li>Validate IaC: locked plan + policy gate, apply only reviewed plan</li>
+                    <li>Generate an SBOM per artifact as a signed attestation</li>
+                    <li>Reconcile "what runs" against "what has valid provenance"</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Signing & Provenance:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Sigstore / cosign</span>
+                    <span class="tool-tag">in-toto / SLSA</span>
+                    <span class="tool-tag">Rekor transparency log</span>
+                    <span class="tool-tag">Syft (SBOM)</span>
+                    <span class="tool-tag">SLSA provenance generator</span>
+                </div>
+
+                <h3>Verification & Admission:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Sigstore policy-controller</span>
+                    <span class="tool-tag">Kyverno verifyImages</span>
+                    <span class="tool-tag">OPA / Gatekeeper</span>
+                    <span class="tool-tag">Conftest</span>
+                    <span class="tool-tag">Trivy</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Check if deploy manifests reference tags vs. <code>@sha256:</code> digests</li>
+                    <li>Confirm signatures are verified (not just produced) before deploy</li>
+                    <li>Try deploying an unsigned image; confirm admission denies it</li>
+                    <li>Verify provenance signer identity is pinned, not "any valid"</li>
+                    <li>Check dependency installs enforce lockfile hashes</li>
+                    <li>Look for a Rekor entry matching each released artifact</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Incident Classes</h2>
+                <ul>
+                    <li><strong>Build-system compromise → signed backdoor (SolarWinds-class):</strong> An attacker injects malicious code during the build, after source review but before signing; the artifact is signed with the vendor's legitimate key and distributed normally, so every consumer that trusts the signature installs the backdoor. Signing attests the bytes, not the integrity of the process — which is why build-time provenance (SLSA) exists.</li>
+                    <li><strong>Mutable-tag / registry substitution:</strong> Deployments reference an image by a moving tag; an attacker with push access or a registry/mirror position re-points it, and the next rollout or autoscale pull runs the substituted image with no config diff to catch it.</li>
+                    <li><strong>Poisoned dependency / cache consumed without verification:</strong> A build resolves dependencies without enforcing pinned hashes or publisher signatures; a typosquat, hijacked maintainer account, or poisoned cache entry is compiled into the artifact and shipped as "trusted output."</li>
+                </ul>
+                <p><em>Note: these are described as mechanism classes, not with invented figures. The durable takeaway is that a single unverified hand-off can lead to arbitrary code in production or a downstream supply-chain breach.</em></p>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> reference images by mutable tag</li>
+                    <li><span class="badge critical">DO NOT</span> sign without verifying (and pinning the signer)</li>
+                    <li><span class="badge critical">DO NOT</span> admit unsigned/unattested images to prod</li>
+                    <li><span class="badge high">DO</span> pin everything by <code>@sha256:</code> digest</li>
+                    <li><span class="badge high">DO</span> generate and require SLSA provenance</li>
+                    <li><span class="badge high">DO</span> enforce dependency hashes and verify mirrors</li>
+                    <li><span class="badge medium">DO</span> fail closed at the admission gate</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">SLSA</span> Build L2/L3 - Provenance & isolation</li>
+                    <li><span class="badge medium">NIST</span> SSDF (SP 800-218) / 800-161</li>
+                    <li><span class="badge medium">EO 14028</span> Software supply-chain security</li>
+                    <li><span class="badge medium">in-toto</span> Supply-chain attestation framework</li>
+                    <li><span class="badge medium">SOC 2</span> CC8.1 - Change management</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Top 10 CI/CD Security Risks — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/cicd/OWASP-CICD/CICD09-Improper-Artifact-Integrity-Validation/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

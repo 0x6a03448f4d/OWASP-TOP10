@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K02: Supply Chain Vulnerabilities - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔗 Supply Chain Vulnerabilities</h1>
+            <p class="subtitle">OWASP Kubernetes Top 10 - K02</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Supply Chain Vulnerabilities</strong> are the risks that enter a cluster through the <em>artifacts it runs</em> — base images, third-party dependencies, build pipelines, registries, Helm charts, and operators — rather than through the cluster's own configuration. The core question is one of provenance: can you prove that what is running is exactly what you intended, built from sources you trust, and free of known-vulnerable components? For most clusters images are pulled by mutable tag, unsigned, and unscanned — and Kubernetes will faithfully schedule whatever it is handed.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">K02</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Provenance</span>
+                        <span class="label">Focus Area</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Hard</span>
+                        <span class="label">To Prevent</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Poisoned Image:</strong> Layers carry attacker code that runs on every replica and reschedule (miner, reverse shell, harvester)</li>
+                    <li><strong>Mutable Tag Swap:</strong> <code>:latest</code> is repushed to a tampered digest; the next kubelet pull silently runs it</li>
+                    <li><strong>Typosquatted Image:</strong> A look-alike name (<code>library-nginx</code> vs <code>library/nginx</code>) is pulled as if trusted</li>
+                    <li><strong>Stale Base CVE:</strong> A legitimate but unpatched image is fingerprinted and hit with a catalogued exploit</li>
+                    <li><strong>Pipeline Compromise:</strong> A leaked token or poisoned CI action injects an implant into "the official build" (SolarWinds-class)</li>
+                    <li><strong>Dependency Confusion:</strong> A malicious public package substitutes for an internal one during the build</li>
+                    <li><strong>Embedded Secrets:</strong> Credentials baked into layers are extracted with <code>docker history</code> — permanently</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Position: publish/poison a malicious artifact<br>
+   <span class="arrow">↓</span><br>
+2. Get pulled: a manifest references it by tag<br>
+   <span class="arrow">↓</span><br>
+3. Execute: container content runs inside a Pod<br>
+   <span class="arrow">↓</span><br>
+4. Escalate: read secrets & service-account token<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Fleet-wide code execution, no app bug!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: mutable base, root, secrets baked in</span>
+<span class="keyword">FROM</span> ubuntu:latest
+
+<span class="keyword">RUN</span> apt-get update && apt-get install -y python3 curl build-essential
+<span class="keyword">COPY</span> . /app
+<span class="keyword">COPY</span> .env /app/.env                 <span class="comment"># secrets baked into a layer (permanent)</span>
+<span class="keyword">ENV</span> API_TOKEN=<span class="string">sk_live_abc123</span>        <span class="comment"># visible in image history forever</span>
+<span class="keyword">WORKDIR</span> /app
+<span class="comment"># No USER -> container runs as root (UID 0)</span>
+<span class="keyword">CMD</span> [<span class="string">"python3"</span>, <span class="string">"server.py"</span>]
+
+<span class="comment"># Bad: manifest pulls by mutable tag</span>
+<span class="keyword">spec</span>:
+  <span class="keyword">containers</span>:
+    - <span class="keyword">name</span>: app
+      <span class="keyword">image</span>: <span class="string">myapp:latest</span>        <span class="comment"># resolves to a new digest over time</span>
+      <span class="keyword">imagePullPolicy</span>: Always     <span class="comment"># does NOT make :latest immutable</span>
+
+<span class="comment"># Bad: CI builds and pushes with no scan, SBOM, or signature</span>
+<span class="keyword">steps</span>:
+  - <span class="keyword">run</span>: docker build -t registry.example.com/app:latest .
+  - <span class="keyword">run</span>: docker push registry.example.com/app:latest
+  <span class="comment"># Whatever built is trusted implicitly. No admission control blocks it.</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: multi-stage, digest-pinned distroless, non-root, no secrets</span>
+<span class="keyword">FROM</span> python:3.12-slim@sha256:<span class="string">&lt;digest&gt;</span> <span class="keyword">AS</span> build
+<span class="keyword">WORKDIR</span> /src
+<span class="keyword">COPY</span> requirements.txt .
+<span class="keyword">RUN</span> pip install --no-cache-dir --require-hashes -r requirements.txt --target /install
+<span class="keyword">COPY</span> . .
+
+<span class="keyword">FROM</span> gcr.io/distroless/python3-debian12@sha256:<span class="string">&lt;digest&gt;</span>  <span class="comment"># no shell, no pkg mgr</span>
+<span class="keyword">WORKDIR</span> /app
+<span class="keyword">COPY</span> --from=build /install /usr/lib/python3/dist-packages
+<span class="keyword">COPY</span> --from=build /src/server.py /app/server.py
+<span class="keyword">USER</span> <span class="number">10001</span>                          <span class="comment"># non-root; secrets injected at runtime</span>
+<span class="keyword">ENTRYPOINT</span> [<span class="string">"python3"</span>, <span class="string">"server.py"</span>]
+
+<span class="comment"># Good: manifest pins the exact artifact by immutable digest</span>
+<span class="keyword">image</span>: <span class="string">registry.example.com/app@sha256:9f2c...e1a7</span>
+
+<span class="comment"># Good: CI scans, builds an SBOM, signs, and attests provenance</span>
+<span class="keyword">steps</span>:
+  - <span class="keyword">run</span>: trivy image --exit-code 1 --severity HIGH,CRITICAL <span class="string">"$IMG"</span>   <span class="comment"># CVE gate</span>
+  - <span class="keyword">run</span>: syft <span class="string">"$IMG"</span> -o cyclonedx-json &gt; sbom.json               <span class="comment"># SBOM</span>
+  - <span class="keyword">run</span>: cosign sign <span class="string">"$IMG"</span>                                     <span class="comment"># keyless signature</span>
+  - <span class="keyword">run</span>: cosign attest --predicate provenance.json --type slsaprovenance <span class="string">"$IMG"</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Start from minimal, trusted base images (distroless/slim); rebuild regularly</li>
+                    <li>Pin every image by immutable digest (<code>@sha256:...</code>), never a mutable tag</li>
+                    <li>Scan for CVEs in CI (Trivy/Grype) and re-check at admission</li>
+                    <li>Sign images with cosign and verify signatures before running</li>
+                    <li>Attach SLSA / in-toto provenance attestations</li>
+                    <li>Generate and store an SBOM (Syft, CycloneDX/SPDX) for each image</li>
+                    <li>Allow-list trusted registries; mirror upstreams internally</li>
+                    <li>Enforce policy at admission — block unsigned, unscanned, mutable-tag images</li>
+                    <li>Vet and version-pin Helm charts and operators; review their RBAC</li>
+                    <li>Keep secrets out of layers; inject at runtime; scan with gitleaks</li>
+                    <li>Run as non-root with a read-only root filesystem by default</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Scan, Sign &amp; SBOM:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Trivy</span>
+                    <span class="tool-tag">Grype</span>
+                    <span class="tool-tag">Syft</span>
+                    <span class="tool-tag">Cosign / Sigstore</span>
+                    <span class="tool-tag">gitleaks</span>
+                    <span class="tool-tag">kubescape</span>
+                </div>
+
+                <h3>Admission Enforcement:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Kyverno</span>
+                    <span class="tool-tag">OPA/Gatekeeper</span>
+                    <span class="tool-tag">Connaisseur</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Verify signature: <code>cosign verify registry.example.com/app@sha256:...</code></li>
+                    <li>Re-scan the exact digest: <code>trivy image --severity HIGH,CRITICAL &lt;digest&gt;</code></li>
+                    <li>Inspect layers for secrets: <code>docker history --no-trunc</code> / <code>dive</code></li>
+                    <li>Audit manifests for mutable tags (any <code>image: *:latest</code>)</li>
+                    <li>Verify a Helm chart before install: <code>helm pull ... --verify</code></li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <ul>
+                    <li><strong>Malicious crypto-miner images on public registries:</strong> Researchers have repeatedly documented public images with plausible names that silently run cryptocurrency miners on victims' infrastructure — implicit trust in public-registry images with no provenance verification.</li>
+                    <li><strong>Dependency confusion / substitution:</strong> A documented class where a build resolves an internal package name from a public index the attacker published to, baking malicious code into images that ship to production.</li>
+                    <li><strong>Build-pipeline compromise (SolarWinds-class):</strong> The pipeline itself is compromised, so malicious code is inserted into an otherwise legitimate, signed-off artifact that downstream consumers deploy as trusted software.</li>
+                    <li><strong>Note:</strong> These are described as <em>classes</em> of publicly documented events. Exact figures vary by source and year; the durable takeaway is that most clusters cannot currently prove what they run or what is inside it.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> pull by mutable tag like <code>:latest</code></li>
+                    <li><span class="badge critical">DO NOT</span> trust an image just because it's on Docker Hub</li>
+                    <li><span class="badge critical">DO NOT</span> bake secrets into image layers</li>
+                    <li><span class="badge high">DO</span> pin by digest and verify signatures</li>
+                    <li><span class="badge high">DO</span> scan in CI and at admission</li>
+                    <li><span class="badge high">DO</span> generate and store an SBOM</li>
+                    <li><span class="badge medium">DO</span> vet charts and operators before install</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">SLSA</span> Supply-chain Levels for Software Artifacts</li>
+                    <li><span class="badge medium">NIST</span> SSDF (800-218) Secure Software Development</li>
+                    <li><span class="badge medium">CIS</span> Software Supply Chain Security Guide</li>
+                    <li><span class="badge medium">Executive Order 14028</span> SBOM requirements</li>
+                    <li><span class="badge medium">in-toto</span> Attestation framework</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Kubernetes Top 10 — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/kubernetes/OWASP-Kubernetes/K02-Supply-Chain-Vulnerabilities/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

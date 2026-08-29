@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C9: Implement Security Logging and Monitoring - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>📊 Security Logging and Monitoring</h1>
+            <p class="subtitle">OWASP Top 10 Proactive Controls (2024) - C9</p>
+            <span class="category">CORE CONTROL</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is This Control?</h2>
+                <p><strong>Security Logging and Monitoring</strong> is the proactive control of recording security-relevant events, watching those records in near-real time, and wiring them into detection and response. Logging without monitoring is a write-only archive nobody reads; monitoring without logging has nothing to watch. The control requires <strong>three linked obligations — log, monitor, and respond</strong> — joined to an incident-response process that can act on what they surface. It is the discipline that lets an organization <em>know</em> when something is going wrong, and prove afterward what happened.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">C9</span>
+                        <span class="label">Proactive Control</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Detection</span>
+                        <span class="label">Focus Area</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">OWASP 2024</span>
+                        <span class="label">Proactive Controls</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- What It Prevents -->
+            <div class="section">
+                <h2>🎯 What It Prevents</h2>
+                <ul>
+                    <li><strong>Long-dwell silent compromise:</strong> attackers operating undetected for weeks or months</li>
+                    <li><strong>Undetected credential stuffing / brute force:</strong> auth failures that leave no alertable trace</li>
+                    <li><strong>Enumeration &amp; access-control probing (IDOR/BOLA):</strong> one actor generating many "forbidden" outcomes</li>
+                    <li><strong>Insider &amp; post-compromise privilege abuse:</strong> role changes and new admin accounts going unnoticed</li>
+                    <li><strong>Bulk data exfiltration:</strong> exports that dwarf normal usage passing unseen</li>
+                    <li><strong>No forensic trail:</strong> missing or attacker-wiped local logs after an incident</li>
+                    <li><strong>Log injection &amp; tampering:</strong> untrusted data forging entries or erasing tracks</li>
+                    <li><strong>Alert fatigue:</strong> real detections buried under untuned noise</li>
+                </ul>
+            </div>
+
+            <!-- How It Works -->
+            <div class="section">
+                <h2>🧭 How It Works</h2>
+                <div class="attack-flow">
+1. Instrument: emit structured security events with<br>
+   who/what/when/where + a correlation/trace ID<br>
+   <span class="arrow">↓</span><br>
+2. Ship &amp; centralize: forward off-host in near-real<br>
+   time to a SIEM (never trust local disk alone)<br>
+   <span class="arrow">↓</span><br>
+3. Protect: append-only, integrity-checked storage;<br>
+   NTP-synced clocks; redact secrets/PII<br>
+   <span class="arrow">↓</span><br>
+4. Baseline &amp; alert: learn normal, fire tuned,<br>
+   actionable, deduplicated alerts<br>
+   <span class="arrow">↓</span><br>
+5. <strong>Respond via a rehearsed playbook; test that detection fires</strong>
+                </div>
+            </div>
+
+            <!-- Without This Control -->
+            <div class="section full-width">
+                <h2>❌ Without This Control</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Free-text, no context — who? what? when? where? unparseable</span>
+logger.info(<span class="string">"error occurred"</span>)
+logger.info(<span class="string">"user logged in"</span>)          <span class="comment">← which user? from where? outcome?</span>
+
+<span class="comment"># Log injection — untrusted data concatenated verbatim</span>
+log.info(<span class="string">"login user="</span> + username)     <span class="comment">← CRLF in username forges a new entry</span>
+
+<span class="comment"># Secrets and PII written in cleartext (logs are widely copied &amp; read)</span>
+log.info(<span class="string">"request "</span> + str(request_body))  <span class="comment">← passwords, tokens, card #s leak</span>
+
+<span class="comment"># Auth failures and access denials are NOT logged at all</span>
+<span class="comment"># → brute force, credential stuffing, IDOR probing leave no trace</span>
+
+<span class="comment"># Logs kept only on local disk, mutable, rotated away in days</span>
+<span class="comment"># → an attacker on the host deletes them; nothing to correlate</span>
+
+<span class="comment"># No monitoring, no baseline, no alerts</span>
+<span class="comment"># → the breach is discovered months later, by a third party</span>
+                </div>
+            </div>
+
+            <!-- Applying the Control -->
+            <div class="section full-width">
+                <h2>✅ Applying the Control</h2>
+                <div class="code-block secure">
+<span class="comment"># Structured, machine-parseable event with full context + trace ID</span>
+{
+  <span class="string">"timestamp"</span>: <span class="string">"2026-08-29T14:03:11.482Z"</span>,   <span class="comment"># UTC, ISO-8601, NTP-synced</span>
+  <span class="string">"event"</span>: <span class="string">"authn.login.failure"</span>, <span class="string">"outcome"</span>: <span class="string">"failure"</span>,
+  <span class="string">"actor"</span>: { <span class="string">"user_id"</span>: <span class="string">"u_8842"</span>, <span class="string">"src_ip"</span>: <span class="string">"203.0.113.44"</span> },
+  <span class="string">"target"</span>: { <span class="string">"resource"</span>: <span class="string">"/api/session"</span>, <span class="string">"method"</span>: <span class="string">"POST"</span> },
+  <span class="string">"reason"</span>: <span class="string">"invalid_password"</span>, <span class="string">"trace_id"</span>: <span class="string">"b7f1c2a9-...-77a0d1e4f8bd"</span>,
+  <span class="string">"service"</span>: <span class="string">"auth-api"</span>, <span class="string">"env"</span>: <span class="string">"prod"</span>
+}
+
+<span class="comment"># Neutralize untrusted data — structured fields escape newlines</span>
+log.info(<span class="string">"login attempt"</span>, extra={<span class="string">"actor"</span>: {<span class="string">"user_name"</span>: safe(username)}})
+
+<span class="comment"># Redact secrets/PII at the logging boundary (deny-list of field names)</span>
+REDACT = {<span class="string">"password"</span>, <span class="string">"token"</span>, <span class="string">"authorization"</span>, <span class="string">"cookie"</span>, <span class="string">"ssn"</span>, <span class="string">"card"</span>}
+
+<span class="comment"># Ship off-host + immutable storage (S3 Object Lock, writer = PutObject only)</span>
+aws s3api put-object-lock-configuration --bucket sec-logs \
+  --object-lock-configuration <span class="string">'...Mode=COMPLIANCE,Days=365...'</span>
+
+<span class="comment"># SIEM detection over the stream — baseline, then alert on deviation</span>
+alert <span class="keyword">if</span> count(event=<span class="string">"authn.login.failure"</span>) by src_ip
+        over 5m &gt; baseline_p99 * <span class="number">3</span>       <span class="comment"># credential stuffing</span>
+                </div>
+            </div>
+
+            <!-- Implementation Checklist -->
+            <div class="section">
+                <h2>✓ Implementation Checklist</h2>
+                <ul class="checklist">
+                    <li>A documented list of security-relevant events exists and is implemented</li>
+                    <li>Every security event logged with who/what/when/where + a correlation ID</li>
+                    <li>Logs are structured (e.g. JSON) with a consistent, documented schema</li>
+                    <li>Untrusted data is neutralised (no log injection); structured fields used</li>
+                    <li>Secrets and PII are redacted/masked at the logging boundary</li>
+                    <li>Logs shipped off-host in near-real time to a central SIEM/log platform</li>
+                    <li>Storage is append-only/immutable, integrity-protected, and access-controlled</li>
+                    <li>Retention meets investigation and compliance needs, with a defined expiry</li>
+                    <li>All clocks are NTP-synchronised; timestamps are UTC/ISO-8601</li>
+                    <li>A baseline of normal behaviour exists; anomalies are detected</li>
+                    <li>Alerts are tuned, actionable, deduplicated, and severity-routed</li>
+                    <li>Alerts feed a documented playbook; detection is tested by pentests/red team</li>
+                </ul>
+            </div>
+
+            <!-- Tools & Techniques -->
+            <div class="section">
+                <h2>🔍 Tools &amp; Techniques</h2>
+                <h3>Pipeline &amp; SIEM:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Elastic / ELK</span>
+                    <span class="tool-tag">Splunk</span>
+                    <span class="tool-tag">Filebeat</span>
+                    <span class="tool-tag">Logstash</span>
+                    <span class="tool-tag">CloudTrail</span>
+                    <span class="tool-tag">S3 Object Lock</span>
+                </div>
+
+                <h3>Alerting &amp; Integrity:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Alertmanager</span>
+                    <span class="tool-tag">PagerDuty</span>
+                    <span class="tool-tag">chrony / NTP</span>
+                    <span class="tool-tag">OpenTelemetry trace IDs</span>
+                    <span class="tool-tag">Purple-team emulation</span>
+                </div>
+
+                <h3>How to Verify:</h3>
+                <ul>
+                    <li>Confirm auth, access-control, admin, and high-value events are captured</li>
+                    <li>Check every entry carries actor, target, outcome, and a trace ID</li>
+                    <li>Try to forge a log line with a CRLF in input — it must be neutralised</li>
+                    <li>Confirm secrets/PII are redacted before the log store</li>
+                    <li>Run a pentest / red-team exercise — it must trigger alerts</li>
+                    <li>Verify log-gap monitoring fires when a service stops sending logs</li>
+                </ul>
+            </div>
+
+            <!-- Why It Matters -->
+            <div class="section full-width">
+                <h2>🌍 Why It Matters</h2>
+                <p>The durable, defensible pattern across public post-mortems is that <strong>detection failures extend dwell time</strong> — attackers operate for weeks or months because the events that would have exposed them were never logged, monitored, or alerted on. These are incident <strong>classes</strong>, not fabricated figures.</p>
+                <ul>
+                    <li><strong>Long-dwell breaches discovered by outsiders:</strong> the victim learns of a compromise from a bank, researcher, or law enforcement rather than its own monitoring. The events existed but were never logged, centralised, or alerted on.</li>
+                    <li><strong>Credential stuffing at scale:</strong> automated login attacks succeed quietly when auth failures are not logged and rate anomalies are not alerted. Structured authn logs plus a baseline make a spike of failures obvious.</li>
+                    <li><strong>Enumeration / IDOR-BOLA probing:</strong> one actor generating hundreds of "forbidden" outcomes across many objects is a clear detection when access-control failures carry actor and target.</li>
+                    <li><strong>Insider abuse &amp; bulk exfiltration:</strong> role changes, new admin accounts, and mass exports are fingerprints of persistence and theft — surfaced only when admin actions and high-value transactions are logged and baselined.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Tips -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> log secrets, tokens, or PII in cleartext</li>
+                    <li><span class="badge critical">DO NOT</span> write untrusted data verbatim (log injection)</li>
+                    <li><span class="badge critical">DO NOT</span> keep logs only on local, mutable disk</li>
+                    <li><span class="badge high">DO</span> log the right events with who/what/when/where + trace ID</li>
+                    <li><span class="badge high">DO</span> centralize to append-only storage on NTP-synced clocks</li>
+                    <li><span class="badge high">DO</span> tune alerts to be actionable and fight alert fatigue</li>
+                    <li><span class="badge medium">DO</span> test that pentests and red-team runs trip your alerts</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Top 10 Proactive Controls (2024) — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/proactive/OWASP-Proactive-Controls/C09-Implement-Security-Logging-and-Monitoring/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

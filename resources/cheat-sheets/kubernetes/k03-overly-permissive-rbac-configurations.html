@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K03: Overly Permissive RBAC Configurations - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔑 Overly Permissive RBAC Configurations</h1>
+            <p class="subtitle">OWASP Kubernetes Top 10 - K03</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Overly Permissive RBAC</strong> is the failure mode where Roles and ClusterRoles grant an identity far more than it needs. RBAC is <em>additive and allow-only</em> — there are no deny rules, so every permission granted stays granted until a binding is removed. A single over-broad rule — a wildcard verb, <code>cluster-admin</code> bound to a ServiceAccount, or broad Secret access — turns one compromised container into full control of the cluster. Because the flaw lives in YAML, it is invisible to code review and survives every redeploy.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">K03</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Authorization</span>
+                        <span class="label">Focus Area</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Medium</span>
+                        <span class="label">To Prevent</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Token Read + Enumerate:</strong> Read the mounted SA token, then <code>kubectl auth can-i --list</code> to map the escalation surface</li>
+                    <li><strong>Cluster-Wide Secret Read:</strong> <code>get</code>/<code>list</code> on Secrets harvests every credential, including other SAs' tokens</li>
+                    <li><strong>Pod Creation:</strong> <code>create</code> on Pods schedules a Pod running as a more privileged SA to steal its token</li>
+                    <li><strong>escalate / bind:</strong> Self-grant wildcard rules or bind yourself to <code>cluster-admin</code> in one command</li>
+                    <li><strong>impersonate:</strong> Act as any user, group, or SA — including the RBAC-bypassing <code>system:masters</code></li>
+                    <li><strong>pods/exec:</strong> Run commands inside existing privileged containers to inherit their identity</li>
+                    <li><strong>TokenRequest:</strong> <code>create</code> on <code>serviceaccounts/token</code> mints fresh tokens for stronger identities</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Obtain identity: read mounted SA token from a Pod<br>
+   <span class="arrow">↓</span><br>
+2. Enumerate: <code>kubectl auth can-i --list</code><br>
+   <span class="arrow">↓</span><br>
+3. Find primitive: secrets, create pods, escalate/bind<br>
+   <span class="arrow">↓</span><br>
+4. Escalate: mint/steal a higher-privileged token<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Bind to cluster-admin — full takeover!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: "give it everything so it works" ClusterRole, bound cluster-wide</span>
+<span class="keyword">apiVersion</span>: rbac.authorization.k8s.io/v1
+<span class="keyword">kind</span>: ClusterRole
+<span class="keyword">metadata</span>:
+  <span class="keyword">name</span>: app-superpowers
+<span class="keyword">rules</span>:
+- <span class="keyword">apiGroups</span>: [<span class="string">"*"</span>]          <span class="comment"># every API group, including future CRDs</span>
+  <span class="keyword">resources</span>: [<span class="string">"*"</span>]          <span class="comment"># pods, secrets, nodes, rolebindings, ...</span>
+  <span class="keyword">verbs</span>: [<span class="string">"*"</span>]              <span class="comment"># get, create, delete, escalate, bind, impersonate</span>
+---
+<span class="keyword">kind</span>: ClusterRoleBinding
+<span class="keyword">metadata</span>:
+  <span class="keyword">name</span>: app-superpowers-binding
+<span class="keyword">subjects</span>:
+- <span class="keyword">kind</span>: ServiceAccount
+  <span class="keyword">name</span>: payments-api
+  <span class="keyword">namespace</span>: payments
+<span class="keyword">roleRef</span>:
+  <span class="keyword">kind</span>: ClusterRole
+  <span class="keyword">name</span>: app-superpowers
+<span class="comment"># Effect: this ServiceAccount is cluster-admin. One RCE = full takeover.</span>
+
+<span class="comment"># Bad: cluster-admin bound to a CI ServiceAccount token living in a Pod</span>
+<span class="keyword">roleRef</span>: { <span class="keyword">kind</span>: ClusterRole, <span class="keyword">name</span>: <span class="string">cluster-admin</span> }
+
+<span class="comment"># Bad: binding to "default" leaks the grant to EVERY pod in the namespace</span>
+<span class="keyword">subjects</span>: [ { <span class="keyword">kind</span>: ServiceAccount, <span class="keyword">name</span>: <span class="string">default</span>, <span class="keyword">namespace</span>: apps } ]
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: only the verbs and resources this app actually uses, in its namespace</span>
+<span class="keyword">apiVersion</span>: rbac.authorization.k8s.io/v1
+<span class="keyword">kind</span>: Role
+<span class="keyword">metadata</span>:
+  <span class="keyword">name</span>: payments-api-role
+  <span class="keyword">namespace</span>: payments
+<span class="keyword">rules</span>:
+- <span class="keyword">apiGroups</span>: [<span class="string">""</span>]                     <span class="comment"># core group only</span>
+  <span class="keyword">resources</span>: [<span class="string">"configmaps"</span>]
+  <span class="keyword">resourceNames</span>: [<span class="string">"payments-config"</span>]  <span class="comment"># a single named object</span>
+  <span class="keyword">verbs</span>: [<span class="string">"get"</span>, <span class="string">"list"</span>, <span class="string">"watch"</span>]     <span class="comment"># read-only, no create/delete</span>
+---
+<span class="keyword">kind</span>: RoleBinding                       <span class="comment"># namespaced, not ClusterRoleBinding</span>
+<span class="keyword">metadata</span>:
+  <span class="keyword">name</span>: payments-api-binding
+  <span class="keyword">namespace</span>: payments
+<span class="keyword">subjects</span>:
+- <span class="keyword">kind</span>: ServiceAccount
+  <span class="keyword">name</span>: payments-api                    <span class="comment"># dedicated SA, not "default"</span>
+  <span class="keyword">namespace</span>: payments
+<span class="keyword">roleRef</span>:
+  <span class="keyword">kind</span>: Role
+  <span class="keyword">name</span>: payments-api-role
+
+<span class="comment"># Good: read ONE named secret with get (not list, which ignores names)</span>
+<span class="keyword">resources</span>: [<span class="string">"secrets"</span>]
+<span class="keyword">resourceNames</span>: [<span class="string">"payments-db-credentials"</span>]
+<span class="keyword">verbs</span>: [<span class="string">"get"</span>]
+
+<span class="comment"># Good: disable token automount where the API is not called</span>
+<span class="keyword">automountServiceAccountToken</span>: <span class="keyword">false</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>No <code>*</code> in <code>verbs</code>, <code>resources</code>, or <code>apiGroups</code> for any custom role</li>
+                    <li>Never bind <code>cluster-admin</code> to a ServiceAccount or a wide group</li>
+                    <li>Give every workload a dedicated SA; leave <code>default</code> unused and unbound</li>
+                    <li>Set <code>automountServiceAccountToken: false</code> wherever the API isn't called</li>
+                    <li>Grant <code>escalate</code>/<code>bind</code>/<code>impersonate</code> only to reviewed infra identities</li>
+                    <li>Scope Secret access by namespace and, where feasible, <code>resourceNames</code></li>
+                    <li>Prefer namespaced Roles unless the resource is genuinely cluster-scoped</li>
+                    <li>Enforce admission policy that rejects wildcard rules and dangerous bindings</li>
+                    <li>Run <code>kubectl auth can-i</code> allow/deny assertions in CI</li>
+                    <li>Audit RBAC on a schedule (rbac-tool, kubectl-who-can, KubiScan) with alerting</li>
+                    <li>Enable API server audit logging; alert on new admin bindings and impersonation</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>RBAC Auditors:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">kubectl auth can-i</span>
+                    <span class="tool-tag">kubectl-who-can</span>
+                    <span class="tool-tag">rbac-tool</span>
+                    <span class="tool-tag">KubiScan</span>
+                    <span class="tool-tag">kubescape</span>
+                    <span class="tool-tag">kube-bench</span>
+                </div>
+
+                <h3>Admission Enforcement:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Kyverno</span>
+                    <span class="tool-tag">OPA/Gatekeeper</span>
+                    <span class="tool-tag">ValidatingAdmissionPolicy</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Enumerate as a SA: <code>kubectl auth can-i --list --as=system:serviceaccount:ns:sa</code></li>
+                    <li>Probe: <code>kubectl auth can-i '*' '*' --all-namespaces --as=$SA</code></li>
+                    <li>Find admin bindings: <code>kubectl get clusterrolebindings -o json | jq ...cluster-admin</code></li>
+                    <li>Find wildcard rules across roles with a jq filter on <code>*</code></li>
+                    <li>Ask who can act: <code>kubectl who-can list secrets</code> / <code>create clusterrolebindings</code></li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <ul>
+                    <li><strong>Compromised Pod to cluster-admin via a bound role:</strong> An app SA with cluster-wide <code>secrets [get,list]</code> plus a CI token stored as a Secret lets one RCE harvest the CI token and authenticate as cluster-admin.</li>
+                    <li><strong>escalate/bind self-promotion:</strong> An operator SA given <code>bind</code> on clusterrolebindings and <code>escalate</code> on clusterroles can create a binding tying its own identity to cluster-admin — the escalation-prevention check no longer applies.</li>
+                    <li><strong>Over-permissioned default ServiceAccount:</strong> Binding a broad <code>edit</code> role to <code>default</code> in a shared namespace silently gives every Pod — including internet-facing ones — the ability to create Pods and read Secrets.</li>
+                    <li><strong>Note:</strong> These are described as incident <em>classes</em>. Over-broad RBAC is common, cheap to find with <code>kubectl auth can-i</code>, and devastating when chained from a single foothold; the takeaway is the mechanism, not a statistic.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> use <code>*</code> in verbs, resources, or apiGroups</li>
+                    <li><span class="badge critical">DO NOT</span> bind <code>cluster-admin</code> to a ServiceAccount</li>
+                    <li><span class="badge critical">DO NOT</span> bind roles to <code>default</code> or <code>system:authenticated</code></li>
+                    <li><span class="badge high">DO</span> grant the minimum verbs on named resources</li>
+                    <li><span class="badge high">DO</span> use a dedicated SA per workload</li>
+                    <li><span class="badge high">DO</span> guard escalate / bind / impersonate</li>
+                    <li><span class="badge medium">DO</span> audit RBAC continuously and alert on changes</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">CIS</span> Kubernetes Benchmark - RBAC & Service Accounts</li>
+                    <li><span class="badge medium">NSA/CISA</span> Kubernetes Hardening - Authorization</li>
+                    <li><span class="badge medium">NIST</span> 800-53 AC-6 - Least Privilege</li>
+                    <li><span class="badge medium">SOC 2</span> CC6.1 - Logical Access</li>
+                    <li><span class="badge medium">PCI-DSS</span> Requirement 7 - Restrict Access</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Kubernetes Top 10 — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/kubernetes/OWASP-Kubernetes/K03-Overly-Permissive-RBAC-Configurations/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

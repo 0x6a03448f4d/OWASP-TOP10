@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C7: Secure Digital Identities - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🪪 Secure Digital Identities</h1>
+            <p class="subtitle">OWASP Top 10 Proactive Controls (2024) - C7</p>
+            <span class="category">CORE CONTROL</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is This Control?</h2>
+                <p><strong>Secure Digital Identities</strong> is the proactive control that says: implement <em>identity, authentication, and session management</em> deliberately and correctly, and match the strength of those mechanisms to the risk of the thing they protect. It covers authentication factors, credential storage, MFA, session lifecycle, token handling, and recovery. Authentication is the gate in front of everything else — if identity can be forged, guessed, replayed, or stolen, every downstream control is operating on a lie.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">C7</span>
+                        <span class="label">Proactive Control</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Authentication</span>
+                        <span class="label">Focus Area</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">OWASP 2024</span>
+                        <span class="label">Proactive Controls</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- What It Prevents -->
+            <div class="section">
+                <h2>🎯 What It Prevents</h2>
+                <ul>
+                    <li><strong>Account takeover (ATO):</strong> attackers operating as legitimate users</li>
+                    <li><strong>Credential stuffing:</strong> reused breach passwords replayed at scale against login endpoints</li>
+                    <li><strong>Session hijacking &amp; fixation:</strong> a stolen or non-rotated session token grants full access without the password</li>
+                    <li><strong>Privilege escalation:</strong> a session not regenerated on privilege change inherits high-value rights</li>
+                    <li><strong>Token forgery:</strong> broken JWT verification (<code>alg:none</code>, unchecked signature) mints arbitrary identities</li>
+                    <li><strong>SIM-swap / SMS OTP interception</strong> of weak second factors</li>
+                    <li><strong>User enumeration:</strong> distinct responses reveal which accounts exist</li>
+                    <li><strong>Federation abuse:</strong> misconfigured OAuth2/OIDC (open redirects, missing <code>state</code>) turns SSO into a bypass</li>
+                </ul>
+            </div>
+
+            <!-- How It Works -->
+            <div class="section">
+                <h2>🧭 How It Works</h2>
+                <div class="attack-flow">
+1. Match assurance to risk (NIST AAL1/2/3)<br>
+   pick the level from the action's sensitivity<br>
+   <span class="arrow">↓</span><br>
+2. Passwords: length-first policy, breach-screen,<br>
+   store with Argon2id/bcrypt/scrypt (per-user salt)<br>
+   <span class="arrow">↓</span><br>
+3. Enforce MFA server-side; prefer passkeys/WebAuthn<br>
+   <span class="arrow">↓</span><br>
+4. Sessions: CSPRNG IDs, regenerate on login &amp;<br>
+   privilege change, HttpOnly+Secure+SameSite, timeouts<br>
+   <span class="arrow">↓</span><br>
+5. <strong>Verify tokens fully; step up for sensitive actions</strong>
+                </div>
+            </div>
+
+            <!-- Without This Control -->
+            <div class="section full-width">
+                <h2>❌ Without This Control</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Storage: fast, unsalted hash — a stolen DB is a stolen password list</span>
+hashed = hashlib.md5(password.encode()).hexdigest()   <span class="comment">← MD5, no salt!</span>
+
+<span class="comment"># No breach screening, forced composition + rotation (complexity theatre)</span>
+<span class="comment"># drives users to Spring2024! -&gt; Summer2024!</span>
+
+<span class="comment">// Session never regenerated on login — session fixation</span>
+app.post(<span class="string">'/login'</span>, async (req, res) =&gt; {
+  <span class="keyword">const</span> user = <span class="keyword">await</span> authenticate(req.body);   <span class="comment">// password only, no MFA</span>
+  req.session.userId = user.id;                <span class="comment">← same session id kept!</span>
+  res.json({ ok: <span class="keyword">true</span> });
+});
+
+<span class="comment">// Cookie with no protective flags — readable by any XSS, sent cross-site</span>
+Set-Cookie: session=abc123
+
+<span class="comment">// JWT "verified" without pinning the algorithm — accepts alg:none</span>
+jwt.verify(token, key);          <span class="comment">← no algorithms/aud/iss/exp checks</span>
+
+<span class="comment"># Enumerable reset: "no such user" vs "wrong password" leaks who exists</span>
+                </div>
+            </div>
+
+            <!-- Applying the Control -->
+            <div class="section full-width">
+                <h2>✅ Applying the Control</h2>
+                <div class="code-block secure">
+<span class="comment"># Storage: Argon2id (slow, per-user salt handled internally)</span>
+<span class="keyword">from</span> argon2 <span class="keyword">import</span> PasswordHasher
+ph = PasswordHasher()
+hashed = ph.hash(password)       <span class="comment"># screen new passwords vs a breach corpus</span>
+
+<span class="comment">// Session: regenerate a NEW id on login — kills fixation</span>
+app.post(<span class="string">'/login'</span>, async (req, res) =&gt; {
+  <span class="keyword">const</span> user = <span class="keyword">await</span> authenticate(req.body);   <span class="comment">// password + MFA verified</span>
+  req.session.regenerate(err =&gt; {
+    req.session.userId = user.id;
+    res.json({ ok: <span class="keyword">true</span> });
+  });
+});
+app.post(<span class="string">'/logout'</span>, (req, res) =&gt;
+  req.session.destroy(() =&gt; res.clearCookie(<span class="string">'sid'</span>).json({ ok: <span class="keyword">true</span> })));  <span class="comment">// server-side kill</span>
+
+<span class="comment">// Cookie: every protective flag + __Host- prefix</span>
+Set-Cookie: __Host-session=VALUE; HttpOnly; Secure; SameSite=Lax; Path=/
+
+<span class="comment">// JWT: pin the algorithm allow-list, verify aud/iss/exp every request</span>
+jwt.verify(token, PUBLIC_KEY, {
+  algorithms: [<span class="string">'RS256'</span>],       <span class="comment">// 'none' can never match</span>
+  audience: <span class="string">'api.example.com'</span>, issuer: <span class="string">'https://idp.example.com'</span>
+});
+<span class="comment"># Anti-enumeration: identical response for valid/invalid accounts</span>
+<span class="comment"># "If an account exists, a reset link has been sent."</span>
+                </div>
+            </div>
+
+            <!-- Implementation Checklist -->
+            <div class="section">
+                <h2>✓ Implementation Checklist</h2>
+                <ul class="checklist">
+                    <li>Each action mapped to a NIST AAL; sensitive actions require step-up</li>
+                    <li>Password policy is length-first, breach-screened, no forced rotation</li>
+                    <li>Passwords stored with Argon2id/bcrypt/scrypt (per-user salt)</li>
+                    <li>MFA enforced server-side; phishing-resistant factors preferred</li>
+                    <li>Session IDs are CSPRNG; regenerated on login and privilege change</li>
+                    <li>Cookies set HttpOnly; Secure; SameSite; idle + absolute timeouts</li>
+                    <li>Logout invalidates the session server-side</li>
+                    <li>JWTs verify signature, algorithm allow-list, exp, and aud; short-lived + rotated</li>
+                    <li>OAuth2/OIDC uses Auth Code + PKCE, validated state, exact redirect URIs</li>
+                    <li>Rate limiting / lockout on auth endpoints; anomaly alerting in place</li>
+                    <li>Reset tokens are single-use, hashed, time-limited; responses non-enumerable</li>
+                </ul>
+            </div>
+
+            <!-- Tools & Techniques -->
+            <div class="section">
+                <h2>🔍 Tools &amp; Techniques</h2>
+                <h3>Standards &amp; Factors:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">NIST SP 800-63B</span>
+                    <span class="tool-tag">Passkeys / WebAuthn</span>
+                    <span class="tool-tag">FIDO2</span>
+                    <span class="tool-tag">TOTP (pyotp)</span>
+                    <span class="tool-tag">OAuth2 + PKCE</span>
+                    <span class="tool-tag">OIDC</span>
+                </div>
+
+                <h3>Libraries &amp; Storage:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Argon2id</span>
+                    <span class="tool-tag">bcrypt</span>
+                    <span class="tool-tag">Pwned Passwords API</span>
+                    <span class="tool-tag">express-rate-limit</span>
+                    <span class="tool-tag">Vault / KMS</span>
+                </div>
+
+                <h3>How to Verify:</h3>
+                <ul>
+                    <li>Confirm the session ID changes on login (check before/after)</li>
+                    <li>Test that logout invalidates the session server-side, not just the cookie</li>
+                    <li>Submit a JWT with <code>alg:none</code> — it must be rejected</li>
+                    <li>Compare login/reset responses for valid vs invalid accounts (must match)</li>
+                    <li>Verify cookies carry HttpOnly, Secure, and SameSite</li>
+                    <li>Confirm rate limiting fires on repeated failed logins</li>
+                </ul>
+            </div>
+
+            <!-- Why It Matters -->
+            <div class="section full-width">
+                <h2>🌍 Why It Matters</h2>
+                <p>These are documented <strong>incident classes</strong> — recurring patterns rather than any single fabricated breach or CVE.</p>
+                <ul>
+                    <li><strong>Credential stuffing at scale:</strong> attackers replay username/password pairs leaked from unrelated breaches, betting on reuse. MFA breaks "password alone is enough," breach-corpus screening rejects known-compromised passwords, and rate limiting makes high-volume replay expensive and visible.</li>
+                    <li><strong>SIM-swap &amp; SMS OTP interception:</strong> an attacker ports a victim's number or relays codes via a phishing site. Origin-bound passkeys/WebAuthn remove the shared secret an attacker can relay.</li>
+                    <li><strong>Session fixation &amp; non-rotated sessions:</strong> the app keeps the same session ID before and after login. Regenerating on login and truly invalidating on logout makes a captured pre-auth ID worthless.</li>
+                    <li><strong>JWT <code>alg:none</code> / signature confusion:</strong> a service accepts a token claiming no signature or verifies RS256 as HS256. Pinning an algorithm allow-list and checking signature, <code>exp</code>, and <code>aud</code> makes forged tokens fail.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Tips -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> store passwords with MD5/SHA-1 or without a salt</li>
+                    <li><span class="badge critical">DO NOT</span> accept <code>alg:none</code> or skip token verification</li>
+                    <li><span class="badge critical">DO NOT</span> reveal whether an account exists</li>
+                    <li><span class="badge high">DO</span> favor length and breach screening over complexity rules</li>
+                    <li><span class="badge high">DO</span> prefer phishing-resistant MFA (passkeys &gt; TOTP &gt; SMS)</li>
+                    <li><span class="badge high">DO</span> regenerate sessions and invalidate server-side on logout</li>
+                    <li><span class="badge medium">DO</span> step up (re-auth) for sensitive actions</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Top 10 Proactive Controls (2024) — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/proactive/OWASP-Proactive-Controls/C07-Secure-Digital-Identities/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

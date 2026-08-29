@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K06: Broken Authentication Mechanisms - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔑 Broken Authentication Mechanisms</h1>
+            <p class="subtitle">OWASP Kubernetes Top 10 - K06</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Broken Authentication</strong> is running a cluster where the question <em>"who is making this request?"</em> is answered weakly, incompletely, or not at all. Kubernetes delegates identity to a chain of pluggable methods (client certs, bearer tokens, ServiceAccount tokens, OIDC, authenticating proxies). Authentication is the <strong>first gate</strong>: break it and RBAC (K03) is handed the wrong subject — <code>system:anonymous</code> or a stolen ServiceAccount — so every downstream control reasons about the wrong principal. Authentication is also spread across the API server, every kubelet, and etcd, each authenticating independently.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">K06</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">First Gate</span>
+                        <span class="label">Focus Area</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Takeover</span>
+                        <span class="label">Impact</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Anonymous API Access:</strong> <code>--anonymous-auth=true</code> maps failed auth to <code>system:anonymous</code></li>
+                    <li><strong>Unauthenticated Kubelet (10250):</strong> anonymous auth + AlwaysAllow gives pod exec/logs</li>
+                    <li><strong>Exposed etcd (2379):</strong> no client-cert auth = full cluster state, all Secrets</li>
+                    <li><strong>Stolen SA Tokens:</strong> mounted tokens read from a pod and replayed against the API</li>
+                    <li><strong>Legacy Non-Expiring Tokens:</strong> a leaked token replayable forever, from anywhere</li>
+                    <li><strong>Leaked kubeconfigs / Certs:</strong> <code>O=system:masters</code> certs that cannot be revoked</li>
+                    <li><strong>Static Token / Basic-Auth Files:</strong> flat-file bearer creds with no expiry</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Discover reachable control-plane ports (6443, 10250, 2379)<br>
+   <span class="arrow">↓</span><br>
+2. Send unauthenticated request — is anonymous accepted?<br>
+   <span class="arrow">↓</span><br>
+3. Obtain a credential — read mounted SA token or harvest kubeconfig<br>
+   <span class="arrow">↓</span><br>
+4. Authenticate / replay against the API or kubelet<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Read Secrets, exec into pods, full cluster takeover!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: API server accepts anonymous + static credential files</span>
+kube-apiserver \
+  --anonymous-auth=<span class="keyword">true</span>            <span class="comment">← failed auth → system:anonymous</span>
+  --token-auth-file=/etc/kubernetes/tokens.csv   <span class="comment">← static bearer creds</span>
+  --basic-auth-file=/etc/kubernetes/basic.csv    <span class="comment">← legacy user/password</span>
+
+<span class="comment"># Bad: an accidental binding makes it catastrophic</span>
+<span class="keyword">apiVersion</span>: rbac.authorization.k8s.io/v1
+<span class="keyword">kind</span>: ClusterRoleBinding
+<span class="keyword">subjects</span>:
+  - <span class="keyword">kind</span>: Group
+    <span class="keyword">name</span>: system:unauthenticated   <span class="comment">← anyone, no credential, can read</span>
+
+<span class="comment"># Bad: kubelet wide open on port 10250</span>
+<span class="keyword">apiVersion</span>: kubelet.config.k8s.io/v1beta1
+<span class="keyword">kind</span>: KubeletConfiguration
+<span class="keyword">authentication</span>:
+  <span class="keyword">anonymous</span>:
+    <span class="keyword">enabled</span>: <span class="keyword">true</span>          <span class="comment">← anonymous callers accepted</span>
+<span class="keyword">authorization</span>:
+  <span class="keyword">mode</span>: AlwaysAllow        <span class="comment">← every request authorized (exec/logs/pods)</span>
+
+<span class="comment"># Bad: legacy non-expiring SA token, auto-mounted and stealable</span>
+<span class="keyword">apiVersion</span>: v1
+<span class="keyword">kind</span>: Secret
+<span class="keyword">type</span>: kubernetes.io/service-account-token   <span class="comment">← never expires, any audience</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: reject the unauthenticated; no static credential files</span>
+kube-apiserver \
+  --anonymous-auth=<span class="keyword">false</span>           <span class="comment">← 401 instead of an anonymous identity</span>
+  <span class="comment"># (no --token-auth-file, no --basic-auth-file)</span>
+  --oidc-issuer-url=https://idp.example.com   <span class="comment">← humans via OIDC + MFA</span>
+  --oidc-groups-claim=groups
+
+<span class="comment"># Good: kubelet requires auth and delegates authz to the API server</span>
+<span class="keyword">apiVersion</span>: kubelet.config.k8s.io/v1beta1
+<span class="keyword">kind</span>: KubeletConfiguration
+<span class="keyword">authentication</span>:
+  <span class="keyword">anonymous</span>:
+    <span class="keyword">enabled</span>: <span class="keyword">false</span>         <span class="comment">← no anonymous access</span>
+  <span class="keyword">webhook</span>:
+    <span class="keyword">enabled</span>: <span class="keyword">true</span>          <span class="comment">← verify bearer tokens via API server</span>
+  <span class="keyword">x509</span>:
+    <span class="keyword">clientCAFile</span>: /etc/kubernetes/pki/ca.crt
+<span class="keyword">authorization</span>:
+  <span class="keyword">mode</span>: Webhook            <span class="comment">← NOT AlwaysAllow</span>
+
+<span class="comment"># Good: etcd requires mutual TLS, control-plane-only listeners</span>
+etcd --client-cert-auth=<span class="keyword">true</span> \
+  --trusted-ca-file=/etc/kubernetes/pki/etcd/ca.crt \
+  --listen-client-urls=https://127.0.0.1:2379,https://10.0.0.10:2379
+
+<span class="comment"># Good: projected, audience-bound, short-lived SA token (auto-rotated)</span>
+<span class="keyword">volumes</span>:
+  - <span class="keyword">name</span>: api-token
+    <span class="keyword">projected</span>:
+      <span class="keyword">sources</span>:
+        - <span class="keyword">serviceAccountToken</span>:
+            <span class="keyword">audience</span>: api             <span class="comment">← scoped, not "any"</span>
+            <span class="keyword">expirationSeconds</span>: 3600   <span class="comment">← short-lived, then rotated</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Disable anonymous auth (<code>--anonymous-auth=false</code>)</li>
+                    <li>Verify no binding grants <code>system:unauthenticated</code></li>
+                    <li>Require kubelet auth + Webhook authz (no AlwaysAllow)</li>
+                    <li>Protect etcd with mutual TLS; keep it control-plane-only</li>
+                    <li>Enable encryption at rest for Secrets</li>
+                    <li>Use short-lived, audience-bound projected SA tokens</li>
+                    <li>Set <code>automountServiceAccountToken: false</code> by default</li>
+                    <li>Integrate OIDC/SSO with MFA for human access</li>
+                    <li>Remove static token and basic-auth files</li>
+                    <li>Keep client certs short-lived, scoped, and rotated</li>
+                    <li>Never expose the API server, kubelet, or dashboards publicly</li>
+                    <li>Keep cloud-IAM-to-RBAC mapping least-privilege</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Kubernetes Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">kube-bench</span>
+                    <span class="tool-tag">kubeaudit</span>
+                    <span class="tool-tag">kubescape</span>
+                    <span class="tool-tag">Trivy</span>
+                    <span class="tool-tag">Falco</span>
+                    <span class="tool-tag">Polaris</span>
+                </div>
+
+                <h3>Policy Enforcement:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">OPA/Gatekeeper</span>
+                    <span class="tool-tag">Kyverno</span>
+                    <span class="tool-tag">NodeRestriction</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Probe the API anonymously: <code>curl -sk https://API:6443/api</code></li>
+                    <li>Check kubelet: <code>curl -sk https://NODE:10250/pods</code></li>
+                    <li><code>kube-bench run --targets master,node</code> flags anonymous auth</li>
+                    <li>Audit legacy tokens: <code>kubectl get secrets -A --field-selector type=kubernetes.io/service-account-token</code></li>
+                    <li>Confirm no binding to anonymous groups (see checklist jq)</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <ul>
+                    <li><strong>Exposed Admin Dashboards:</strong> Management UIs (e.g. the Kubernetes Dashboard) deployed with no authentication and reachable from the internet — the well-documented "Tesla-class" cryptojacking exposure pattern.</li>
+                    <li><strong>Unauthenticated Kubelet & etcd:</strong> Node APIs on 10250 left with anonymous auth on, or etcd reachable without mutual TLS — a direct path from network reachability to pod exec or full cluster-state disclosure.</li>
+                    <li><strong>Leaked Long-Lived Credentials:</strong> kubeconfigs and legacy token Secrets committed to source control or CI logs. Kubernetes has no cert revocation, so a leaked long-lived cert is a durable backdoor.</li>
+                </ul>
+                <p><em>Exact incident counts vary by source; treat any single figure as illustrative. The durable takeaway: broken auth is common, trivially detectable, and catastrophic.</em></p>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> enable anonymous auth on any component</li>
+                    <li><span class="badge critical">DO NOT</span> use long-lived shared <code>system:masters</code> certs</li>
+                    <li><span class="badge critical">DO NOT</span> expose the API server, kubelet, or etcd publicly</li>
+                    <li><span class="badge high">DO</span> authenticate every door independently</li>
+                    <li><span class="badge high">DO</span> use short-lived, audience-bound tokens</li>
+                    <li><span class="badge high">DO</span> federate humans via OIDC/SSO with MFA</li>
+                    <li><span class="badge medium">DO</span> rotate certificates and audit for anonymous access</li>
+                </ul>
+            </div>
+
+            <!-- Related Risks -->
+            <div class="section">
+                <h2>📜 Related Risks</h2>
+                <p><strong>Connected OWASP Kubernetes Top 10:</strong></p>
+                <ul>
+                    <li><span class="badge critical">K03</span> Overly Permissive RBAC — what an identity may do</li>
+                    <li><span class="badge high">K08</span> Secrets Management Failures — what auth protects</li>
+                    <li><span class="badge medium">K05</span> Inadequate Logging & Monitoring — detecting abuse</li>
+                    <li><span class="badge medium">K09</span> Misconfigured Cluster Components</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Kubernetes Top 10 — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/kubernetes/OWASP-Kubernetes/K06-Broken-Authentication-Mechanisms/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

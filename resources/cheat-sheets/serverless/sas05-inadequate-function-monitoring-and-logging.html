@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAS-5: Inadequate Function Monitoring and Logging - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>📊 Inadequate Function Monitoring and Logging</h1>
+            <p class="subtitle">OWASP Serverless Top 10 - SAS-5</p>
+            <span class="category">MEDIUM RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Inadequate Function Monitoring and Logging</strong> occurs when a serverless application cannot see what its own functions are doing well enough to notice an attack. Functions are <em>ephemeral</em> (handle one event and vanish), <em>event-driven</em>, and <em>highly distributed</em>, so injection attempts, credential abuse, reconnaissance, exfiltration, and cost abuse spread across many short-lived invocations without ever surfacing an alert. Default logs are operational, not security-oriented — they answer "did it run and how long," not "who did this, with what identity, and was it malicious." This is rarely the vulnerability an attacker exploits; it is the reason every <em>other</em> exploitation succeeds quietly.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">SAS-5</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Dwell</span>
+                        <span class="label">Time Cost</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Blind</span>
+                        <span class="label">By Default</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Default Logs Only:</strong> function prints START/END, nothing security-relevant</li>
+                    <li><strong>No Correlation:</strong> each function logs to its own stream; nothing ties them together</li>
+                    <li><strong>No Tracing:</strong> a request fanning out across functions cannot be followed</li>
+                    <li><strong>No Anomaly Alerting:</strong> a 100x invocation spike noticed on the invoice</li>
+                    <li><strong>Error-Only Alerts:</strong> authorised-but-abusive reads all return 200</li>
+                    <li><strong>Short/Mutable Retention:</strong> function role can shorten retention or delete streams</li>
+                    <li><strong>Managed-Service Blind Spots:</strong> S3/DynamoDB/IAM data-plane events uncaptured</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Enter quietly through an event source no one is watching<br>
+   <span class="arrow">↓</span><br>
+2. Operate in blind spots: act across many short-lived invocations<br>
+   <span class="arrow">↓</span><br>
+3. Avoid the only alarm that exists: produce "successful" 200 responses<br>
+   <span class="arrow">↓</span><br>
+4. Persist, exfiltrate, and spend for weeks — no alert fires<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Breach discovered by a bill or a third party!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: nothing security-relevant is logged; a silent denial leaves no trace</span>
+exports.handler = <span class="keyword">async</span> (event) => {
+    <span class="keyword">const</span> id = event.pathParameters.id;
+    <span class="keyword">const</span> tenant = event.requestContext.authorizer.tenantId;
+    <span class="keyword">const</span> order = <span class="keyword">await</span> <span class="function">getOrder</span>(id);
+    <span class="keyword">if</span> (order.tenantId !== tenant) {
+        <span class="keyword">return</span> { statusCode: <span class="number">403</span>, body: <span class="string">'Forbidden'</span> };  <span class="comment">← no log, no identity, no id</span>
+    }
+    <span class="keyword">return</span> { statusCode: <span class="number">200</span>, body: JSON.stringify(order) };
+};
+<span class="comment">// CloudWatch shows only START/END/REPORT. A tenant-walking sweep is invisible.</span>
+
+<span class="comment"># Bad: dumps the ENTIRE event — leaks tokens, PII, secrets into logs</span>
+<span class="keyword">def</span> <span class="function">handler</span>(event, context):
+    print(<span class="string">"event:"</span>, json.dumps(event))   <span class="comment">← secrets in logs, still no security event</span>
+    data = read_records(authenticate(event))
+    <span class="keyword">return</span> {<span class="string">"statusCode"</span>: <span class="number">200</span>, <span class="string">"body"</span>: json.dumps(data)}
+
+<span class="comment"># Bad: tracing disabled (template.yaml) — each invocation is an island</span>
+Resources:
+  OrderApi:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.handler
+      <span class="comment"># no Tracing: Active → the request path across functions is invisible</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: structured security events with identity + correlation ids</span>
+<span class="keyword">function</span> <span class="function">securityEvent</span>(event, context, fields) {
+    console.log(JSON.stringify({
+        ts: <span class="keyword">new</span> Date().toISOString(),
+        level: <span class="string">'SECURITY'</span>,
+        request_id: context.awsRequestId,           <span class="comment">// correlate this invocation</span>
+        trace_id: process.env._X_AMZN_TRACE_ID,      <span class="comment">// correlate across the chain</span>
+        function: context.functionName,
+        source_ip: event.requestContext?.identity?.sourceIp,
+        identity: event.requestContext?.authorizer?.principalId,
+        ...fields
+    }));
+}
+exports.handler = <span class="keyword">async</span> (event, context) => {
+    <span class="keyword">if</span> (order.tenantId !== tenant) {
+        <span class="function">securityEvent</span>(event, context, { event: <span class="string">'authz_denied'</span>,
+            resource: <span class="string">`orders/${id}`</span>, outcome: <span class="string">'DENY'</span>, reason: <span class="string">'cross_tenant_access'</span> });
+        <span class="keyword">return</span> { statusCode: <span class="number">403</span>, body: <span class="string">'Forbidden'</span> };
+    }
+};
+<span class="comment">// A sweep now emits correlated authz_denied events from one identity → alertable.</span>
+
+<span class="comment"># Good: log the decision + a volume signal, never the raw secret</span>
+security_event(context, event=<span class="string">"sensitive_read"</span>, identity=user.id,
+               outcome=<span class="string">"ALLOW"</span>, record_count=len(records))   <span class="comment"># surfaces bulk reads</span>
+
+<span class="comment"># Good: enable distributed tracing + a cost/invocation alarm (SAM)</span>
+Globals:
+  Function:
+    Tracing: Active            <span class="comment"># X-Ray spans the whole chain</span>
+Resources:
+  InvocationSpikeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      MetricName: Invocations   <span class="comment"># also alarm on EstimatedCharges</span>
+      Threshold: <span class="number">1000</span>
+      ComparisonOperator: GreaterThanThreshold
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Emit structured security events from function code</li>
+                    <li>Include identity, source IP, resource, and outcome</li>
+                    <li>Carry a shared request/trace id to correlate across the chain</li>
+                    <li>Enable distributed tracing (X-Ray / OpenTelemetry)</li>
+                    <li>Centralize logs; do not leave them siloed per function</li>
+                    <li>Alert on error, invocation, and cost spikes — not just crashes</li>
+                    <li>Alert on unusual IAM/role use (services never normally called)</li>
+                    <li>Log record volume to surface bulk reads / exfiltration</li>
+                    <li>Redact secrets; never dump the whole event</li>
+                    <li>Capture CloudTrail management + data-plane events</li>
+                    <li>Ship logs off-account; deny the workload role log-delete</li>
+                    <li>Baseline normal behaviour and wire alerts into an IR process</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Logging & Tracing:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">CloudWatch Logs</span>
+                    <span class="tool-tag">AWS X-Ray</span>
+                    <span class="tool-tag">OpenTelemetry</span>
+                    <span class="tool-tag">CloudTrail</span>
+                    <span class="tool-tag">Powertools for Lambda</span>
+                </div>
+
+                <h3>Alerting & Analysis:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">CloudWatch Alarms</span>
+                    <span class="tool-tag">AWS Budgets</span>
+                    <span class="tool-tag">GuardDuty</span>
+                    <span class="tool-tag">Security Hub</span>
+                    <span class="tool-tag">SIEM / OpenSearch</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Trigger an authz denial — does a structured event appear?</li>
+                    <li>Follow one request across functions via a trace id</li>
+                    <li>Drive an invocation spike — does an alarm fire?</li>
+                    <li>Call a service the function never uses — is it flagged?</li>
+                    <li>Confirm secrets are redacted, not dumped, in logs</li>
+                    <li>Check retention length and whether the role can delete logs</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>These are documented <strong>incident classes</strong> — recurring patterns, not specific CVEs.</p>
+                <ul>
+                    <li><strong>Long-dwell cloud intrusions:</strong> attackers operate inside an account for weeks or months; execution logs exist but there is no security-event logging, correlation, or anomaly alerting, so intrusions are found late — often by an outside party.</li>
+                    <li><strong>Denial-of-wallet against public functions:</strong> an internet-reachable function with no rate limit and no alert on invocation count or estimated cost; pay-per-use billing scales silently until the invoice arrives.</li>
+                    <li><strong>Managed-service blind spots:</strong> access or exfiltration happening <em>between</em> services (an S3 object copied, an IAM policy attached) leaves no trace because CloudTrail data events were never captured.</li>
+                    <li><strong>Evidence destruction:</strong> a compromised function whose role can shorten retention or delete log streams erases the operational trail after acting.</li>
+                    <li><strong>Successful-but-abusive access:</strong> a tenant-walking sweep returns only 200s, so an error-only alerting strategy sees nothing.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> rely on default execution logs for detection</li>
+                    <li><span class="badge critical">DO NOT</span> dump whole events (secrets land in logs)</li>
+                    <li><span class="badge critical">DO NOT</span> let the workload role manage its own log store</li>
+                    <li><span class="badge high">DO</span> log security events with identity and outcome</li>
+                    <li><span class="badge high">DO</span> correlate and trace across the whole chain</li>
+                    <li><span class="badge high">DO</span> alert on invocation and cost spikes</li>
+                    <li><span class="badge medium">DO</span> instrument before the incident, not after</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">OWASP</span> Serverless Top 10 - SAS-5</li>
+                    <li><span class="badge medium">CWE-778</span> Insufficient Logging</li>
+                    <li><span class="badge medium">CWE-223</span> Omission of Security-relevant Information</li>
+                    <li><span class="badge medium">PCI-DSS</span> Requirement 10 - Logging & Monitoring</li>
+                    <li><span class="badge medium">SOC 2</span> CC7.2 / ISO 27001 A.12.4</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Serverless Top 10 — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/serverless/OWASP-Serverless/SAS05-Inadequate-Function-Monitoring-and-Logging/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

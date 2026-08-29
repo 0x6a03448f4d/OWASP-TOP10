@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML05: Model Theft - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🏴‍☠️ Model Theft</h1>
+            <p class="subtitle">OWASP Machine Learning Security Top 10 - ML05</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Model Theft</strong> is the unauthorised acquisition of a functional copy of a proprietary model—its behaviour, its parameters, or both. There are two routes to the same outcome: <strong>Extraction</strong> (behavioural theft), where an attacker queries the prediction API many times and trains a substitute or distilled clone from the input–output pairs—turning your API into a labelling service; and <strong>Exfiltration</strong> (artifact theft), where they obtain the actual weights from insecure storage, an open registry, a git repo, an insider, or a shipped mobile/edge app. A stolen copy upgrades the attacker from black-box to white-box.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">ML05</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">IP Loss</span>
+                        <span class="label">Primary Harm</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">2 Routes</span>
+                        <span class="label">Query / Artifact</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Label-Only Extraction:</strong> Train a substitute on many top-1 labels</li>
+                    <li><strong>Confidence/Logit Distillation:</strong> Soft labels give far more info per query</li>
+                    <li><strong>Boundary-Probing:</strong> Concentrate queries near the decision boundary</li>
+                    <li><strong>Exposed Object Storage:</strong> Public or over-permissive S3 bucket lists weights</li>
+                    <li><strong>Open Registry / Static File:</strong> Anonymous pulls; weights served from web root</li>
+                    <li><strong>Weights in a Repo:</strong> Checkpoints committed and recoverable from history</li>
+                    <li><strong>On-Device / Insider:</strong> Unpack the app package; authorised access, unauthorised copy</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Select target & route (API vs artifact)<br>
+   <span class="arrow">↓</span><br>
+2. Harvest: collect (query, response) pairs or pull weights<br>
+   <span class="arrow">↓</span><br>
+3. Reconstruct: train substitute/distill or load checkpoint<br>
+   <span class="arrow">↓</span><br>
+4. Exploit: compete, craft transferable adversarial, invert<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: A free white-box clone weaponised vs the original!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: anonymous, unlimited API returning logits + full probability vector</span>
+<span class="keyword">from</span> flask <span class="keyword">import</span> Flask, request, jsonify
+<span class="keyword">import</span> numpy <span class="keyword">as</span> np
+
+app = Flask(__name__)
+model = load_model(<span class="string">'model.pt'</span>)
+
+@app.route(<span class="string">'/predict'</span>, methods=[<span class="string">'POST'</span>])
+<span class="keyword">def</span> <span class="function">predict</span>():
+    x = np.array(request.json[<span class="string">'input'</span>])
+    logits = model.forward(x); probs = softmax(logits)
+    <span class="keyword">return</span> jsonify({<span class="string">'logits'</span>: logits.tolist(),          <span class="comment"># perfect distillation oracle</span>
+                    <span class="string">'probabilities'</span>: probs.tolist(),
+                    <span class="string">'label'</span>: CLASSES[int(np.argmax(probs))]})
+
+<span class="comment"># Bad: weights uploaded with a PUBLIC ACL (and committed to the repo)</span>
+<span class="keyword">import</span> boto3
+boto3.client(<span class="string">'s3'</span>).upload_file(
+    <span class="string">'model-final.pt'</span>, <span class="string">'company-models'</span>, <span class="string">'prod/model-final.pt'</span>,
+    ExtraArgs={<span class="string">'ACL'</span>: <span class="string">'public-read'</span>})   <span class="comment">← anyone can download the weights</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: authenticated, rate-limited API returning a coarse, perturbed output</span>
+<span class="keyword">def</span> <span class="function">safe_output</span>(logits):
+    probs = softmax(logits); top = int(np.argmax(probs))
+    conf = float(probs[top]) + np.random.normal(<span class="number">0</span>, <span class="number">0.01</span>)   <span class="comment"># small noise</span>
+    conf = round(min(max(conf, <span class="number">0.0</span>), <span class="number">0.99</span>), <span class="number">2</span>)          <span class="comment"># coarse + capped</span>
+    <span class="keyword">return</span> {<span class="string">'label'</span>: CLASSES[top], <span class="string">'confidence'</span>: conf}   <span class="comment"># NO logits/vector</span>
+
+@app.route(<span class="string">'/predict'</span>, methods=[<span class="string">'POST'</span>])
+@require_client                                    <span class="comment"># per-client auth</span>
+<span class="keyword">def</span> <span class="function">predict</span>():
+    ok, why = enforce_limits(g.client.id)          <span class="comment"># per-client rate + quota</span>
+    <span class="keyword">if</span> <span class="keyword">not</span> ok: <span class="keyword">return</span> jsonify({<span class="string">'error'</span>: why}), <span class="number">429</span>
+    x = np.array(request.json[<span class="string">'input'</span>])
+    monitor(g.client.id, x)                        <span class="comment"># extraction-pattern alert</span>
+    <span class="keyword">return</span> jsonify(safe_output(model.forward(x)))
+
+<span class="comment"># Good: encrypt before upload; private bucket, KMS, no public ACL</span>
+<span class="keyword">from</span> cryptography.fernet <span class="keyword">import</span> Fernet
+enc = Fernet(get_secret(<span class="string">'model-encryption-key'</span>)).encrypt(open(<span class="string">'model-final.pt'</span>,<span class="string">'rb'</span>).read())
+boto3.client(<span class="string">'s3'</span>).upload_file(<span class="string">'model-final.enc'</span>, <span class="string">'company-models-private'</span>,
+    <span class="string">'prod/model-final.enc'</span>, ExtraArgs={<span class="string">'ServerSideEncryption'</span>: <span class="string">'aws:kms'</span>})
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Authenticate and authorise every inference call (no anonymous access)</li>
+                    <li>Enforce per-client rate limits and daily quotas, not just global</li>
+                    <li>Return top-1 or a coarse, rounded, perturbed score — never logits/embeddings</li>
+                    <li>Detect extraction-shaped patterns (volume, boundary-probing, space-filling)</li>
+                    <li>Encrypt weights at rest; private buckets, block all public access, KMS</li>
+                    <li>Keep weights out of source control (.gitignore + gitleaks CI gate)</li>
+                    <li>Authenticate model registries; no anonymous pulls or static model routes</li>
+                    <li>Prefer server-side inference; encrypt/obfuscate on-device models</li>
+                    <li>Apply least privilege and egress monitoring on checkpoints (insiders)</li>
+                    <li>Watermark/fingerprint for attribution; back with ToS and monitoring</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Protection Tooling:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">gitleaks</span>
+                    <span class="tool-tag">AWS KMS / SSE</span>
+                    <span class="tool-tag">Block Public Access</span>
+                    <span class="tool-tag">Model Watermarking</span>
+                    <span class="tool-tag">IBM ART</span>
+                </div>
+
+                <h3>Defensive Techniques:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Output Minimisation</span>
+                    <span class="tool-tag">Per-Client Rate Limits</span>
+                    <span class="tool-tag">Extraction Detection</span>
+                    <span class="tool-tag">Fingerprinting</span>
+                    <span class="tool-tag">Least Privilege</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Attempt distillation against your own API; measure substitute fidelity</li>
+                    <li>Scan for public buckets, open registries, and static model routes</li>
+                    <li>Grep repo history for .pt/.onnx/.h5/.ckpt/.safetensors files</li>
+                    <li>Unpack shipped apps for embedded .tflite/.mlmodel artifacts</li>
+                    <li>Verify watermark triggers survive fine-tuning and distillation</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <ul>
+                    <li><strong>Model-Extraction Research:</strong> Researchers repeatedly showed commercial prediction-as-a-service models can be approximated by training a substitute on the API's own responses — the defensive question is cost, not possibility</li>
+                    <li><strong>Exposed Artifacts in Public Storage/Repos:</strong> Weights placed in object storage, registries, or git repos with over-broad permissions are surfaced by the same scanners that hunt exposed buckets and secrets</li>
+                    <li><strong>Models Extracted from Distributed Apps:</strong> Mobile/edge apps ship an on-device model that anyone can unpack — obscurity is not protection</li>
+                    <li><em>Described as recurring, well-documented incident classes rather than named breaches; extraction query counts and fidelity depend on the model and output granularity and are not invented here.</em></li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> return logits or full probability vectors publicly</li>
+                    <li><span class="badge critical">DO NOT</span> store weights in public buckets or commit them to repos</li>
+                    <li><span class="badge critical">DO NOT</span> assume hiding the weights alone stops extraction</li>
+                    <li><span class="badge high">DO</span> authenticate and per-client rate-limit the API</li>
+                    <li><span class="badge high">DO</span> minimise output granularity (top-1, rounded, perturbed)</li>
+                    <li><span class="badge high">DO</span> encrypt artifacts and apply least privilege</li>
+                    <li><span class="badge medium">DO</span> watermark for attribution and monitor for theft</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Machine Learning Security Top 10 — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/ml/OWASP-ML/ML05-Model-Theft/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

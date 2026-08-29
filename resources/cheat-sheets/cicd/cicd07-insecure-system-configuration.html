@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CICD-SEC-7: Insecure System Configuration - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🛠️ Insecure System Configuration</h1>
+            <p class="subtitle">OWASP Top 10 CI/CD Security Risks - CICD-SEC-7</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Insecure System Configuration</strong> is the risk that arises when the systems that build and ship software — SCM servers, CI servers, orchestrators, artifact registries, and build runners — are themselves run with insecure settings, left at unsafe defaults, exposed on the network, or allowed to fall behind on patches. The flaw is not in the application code moving through the pipeline; it is in the configuration and posture of the pipeline machinery itself. A CI/CD platform is a peculiarly high-value target: it holds credentials to production, executes arbitrary code by design, and can push artifacts straight into production.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">CICD-SEC-7</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Posture</span>
+                        <span class="label">Focus Area</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">RCE</span>
+                        <span class="label">Typical Impact</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Unpatched Server / Plugins:</strong> Known-vulnerable core or plugin matched to a public advisory</li>
+                    <li><strong>Exposed Console:</strong> Jenkins/GitLab/registry management plane open to the internet</li>
+                    <li><strong>Anonymous / Default Auth:</strong> "Anyone can do anything" or unchanged admin login</li>
+                    <li><strong>Open Script Console:</strong> Reachable <code>/script</code> Groovy console = direct RCE</li>
+                    <li><strong>Shared / Over-Privileged Runners:</strong> Long-lived hosts on flat networks with broad cloud roles</li>
+                    <li><strong>Unauthenticated Webhooks:</strong> Forged events trigger builds and deploys</li>
+                    <li><strong>Cleartext Transport:</strong> Plain-HTTP consoles, ignored certificate errors</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Discover exposed console via internet scanners<br>
+   <span class="arrow">↓</span><br>
+2. Fingerprint version banner + plugin list<br>
+   <span class="arrow">↓</span><br>
+3. Enter via anon access, default creds, or vuln plugin<br>
+   <span class="arrow">↓</span><br>
+4. Execute on controller / harvest stored credentials<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Pivot to prod, tamper builds, add persistence!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># jenkins.yaml (JCasC) — dangerous posture</span>
+jenkins:
+  authorizationStrategy: "unsecured"    <span class="comment">← anyone can do anything</span>
+  securityRealm: "none"                 <span class="comment">← no real login</span>
+  slaveAgentPort: 50000                 <span class="comment">← agent port open to the world</span>
+  remotingSecurity:
+    enabled: false                      <span class="comment">← agent protocol not secured</span>
+<span class="comment"># /script console reachable by anyone; plugins never pinned or patched.</span>
+<span class="comment"># Served over plain HTTP on :8080, exposed directly to the internet.</span>
+
+<span class="comment"># nginx — controller open to the world over cleartext</span>
+server {
+    listen 80;                        <span class="comment">← plain HTTP, no TLS</span>
+    server_name ci.example.com;       <span class="comment">← public DNS name</span>
+    location / { proxy_pass http://127.0.0.1:8080; }
+}
+
+<span class="comment"># webhook handler — an unauthenticated pipeline trigger</span>
+@app.route("/github-webhook/", methods=["POST"])
+def hook():
+    event = request.get_json()
+    trigger_build(event)              <span class="comment">← no signature check, no source check</span>
+    return "ok"
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># jenkins.yaml (JCasC) — hardened posture</span>
+jenkins:
+  securityRealm:
+    oic: { clientId: "${JENKINS_OIDC_CLIENT_ID}" }   <span class="comment"># SSO, MFA upstream</span>
+  authorizationStrategy:
+    roleBased:                          <span class="comment"># anonymous has NOTHING</span>
+      roles:
+        global:
+          - name: "developer"
+            permissions: ["Overall/Read", "Job/Build"]
+            assignments: ["oidc-group-developers"]
+  remotingSecurity: { enabled: true }   <span class="comment"># secure controller/agent transport</span>
+<span class="comment"># Behind VPN/allow-list, HTTPS only; /script = break-glass admins; plugins pinned.</span>
+
+<span class="comment"># nginx — TLS-only, allow-listed, private management plane</span>
+server { listen 80; return 301 https://$host$request_uri; }
+server {
+    listen 443 ssl;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    location / {
+        allow 10.0.0.0/8;             <span class="comment">← corporate/VPN range only</span>
+        deny  all;
+        proxy_pass http://127.0.0.1:8080;
+    }
+}
+
+<span class="comment"># webhook handler — verify HMAC signature, constant-time, allowed events only</span>
+expected = "sha256=" + hmac.new(SECRET, raw, hashlib.sha256).hexdigest()
+if not hmac.compare_digest(sent, expected): abort(401)
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Patch CI/SCM cores and plugins promptly and continuously</li>
+                    <li>Keep consoles/APIs behind VPN or IP allow-list, never public</li>
+                    <li>Disable anonymous access; enforce SSO + MFA everywhere</li>
+                    <li>Minimise plugins/integrations; pin and vet what remains</li>
+                    <li>Restrict script console to audited break-glass admins</li>
+                    <li>Turn off debug/verbose modes (e.g. <code>CI_DEBUG_TRACE</code>) in prod</li>
+                    <li>Make runners ephemeral, isolated, least-privilege, non-root</li>
+                    <li>Never run fork/PR workflows on self-hosted runners</li>
+                    <li>Block the cloud metadata endpoint where unused</li>
+                    <li>Enforce TLS everywhere with valid, auto-renewed certs</li>
+                    <li>Verify webhook HMAC signatures; allow-list the source</li>
+                    <li>Harden to a benchmark as config-as-code; detect drift</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Hardening & Config-as-Code:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Jenkins Config-as-Code (JCasC)</span>
+                    <span class="tool-tag">CIS Benchmarks</span>
+                    <span class="tool-tag">Terraform</span>
+                    <span class="tool-tag">OpenSSF Scorecard</span>
+                    <span class="tool-tag">Trivy (misconfig)</span>
+                </div>
+
+                <h3>Exposure & Runner Isolation:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Ephemeral runners</span>
+                    <span class="tool-tag">nginx allow-list / VPN</span>
+                    <span class="tool-tag">Rootless containers</span>
+                    <span class="tool-tag">no-new-privileges / cap_drop</span>
+                    <span class="tool-tag">Audit logging</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Fingerprint version banner: <code>X-Jenkins</code> header on responses</li>
+                    <li>List plugins: <code>/pluginManager/api/json?depth=1</code></li>
+                    <li>Check reachability of <code>/script</code>, <code>/systemInfo</code>, <code>/credentials</code></li>
+                    <li>Confirm console is not internet-reachable (external scan)</li>
+                    <li>Verify anonymous access grants no read/build/configure</li>
+                    <li>Send an unsigned webhook and confirm it is rejected</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Incident Classes</h2>
+                <ul>
+                    <li><strong>CI-server plugin vulnerability chain:</strong> An attacker fingerprints a self-hosted controller's version and outdated plugins, matches a published advisory, and reads files, bypasses auth, or executes code — then harvests stored credentials and pivots. Plugin flaws are one of the most frequently advisory-published classes in the CI ecosystem.</li>
+                    <li><strong>Internet-exposed, unauthenticated build console:</strong> Automated scanners locate an open console; an attacker reaches a script console or triggers a build, leading to cryptomining on the org's compute or theft of stored secrets.</li>
+                    <li><strong>Shared self-hosted runner compromise:</strong> A malicious change or poisoned dependency runs on a non-ephemeral shared runner, persists on the host, captures the next job's secrets, and abuses the runner's cloud role and flat network to move toward production.</li>
+                </ul>
+                <p><em>Note: these are repeatedly-observed patterns, not specific named breaches. Exact rankings and counts vary by report and year — the durable takeaway is that CI/CD systems are common, high-value, easily located targets whose insecure defaults are cheap to exploit.</em></p>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> expose the management plane to the internet</li>
+                    <li><span class="badge critical">DO NOT</span> leave anonymous access or default logins on</li>
+                    <li><span class="badge critical">DO NOT</span> share long-lived runners across untrusted jobs</li>
+                    <li><span class="badge high">DO</span> patch cores and plugins on a cadence</li>
+                    <li><span class="badge high">DO</span> enforce SSO + MFA and least-privilege roles</li>
+                    <li><span class="badge high">DO</span> isolate ephemeral, non-root runners</li>
+                    <li><span class="badge medium">DO</span> codify a benchmark and detect drift</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">CIS</span> Benchmarks (Jenkins, GitLab, Docker)</li>
+                    <li><span class="badge medium">NIST</span> 800-53 CM-6 - Configuration Settings</li>
+                    <li><span class="badge medium">SLSA</span> Build L2/L3 - Hardened build platform</li>
+                    <li><span class="badge medium">ISO 27001</span> A.12.6.1 / A.14.2</li>
+                    <li><span class="badge medium">SOC 2</span> CC7.1</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Top 10 CI/CD Security Risks — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/cicd/OWASP-CICD/CICD07-Insecure-System-Configuration/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

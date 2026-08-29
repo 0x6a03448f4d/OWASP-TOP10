@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C6: Keep Your Components Secure - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>📦 Keep Your Components Secure</h1>
+            <p class="subtitle">OWASP Top 10 Proactive Controls (2024) - C6</p>
+            <span class="category">CORE CONTROL</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is This Control?</h2>
+                <p><strong>Keep Your Components Secure</strong> is the proactive control of managing the security of every first- and third-party component your software depends on, across its entire lifecycle — from the moment you choose it, through every release you ship, to the day you retire it. A modern application is mostly code you did not write: frameworks, libraries, runtimes, base images, and the long tail of <em>transitive</em> dependencies. The governing principle is <strong>you cannot secure what you cannot see</strong>: everything starts with a complete, accurate inventory.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">C6</span>
+                        <span class="label">Proactive Control</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Supply Chain</span>
+                        <span class="label">Focus Area</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">OWASP 2024</span>
+                        <span class="label">Proactive Controls</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- What It Prevents -->
+            <div class="section">
+                <h2>🎯 What It Prevents</h2>
+                <ul>
+                    <li><strong>RCE via known-vulnerable library:</strong> a transitive dependency ships a published remote-code-execution flaw</li>
+                    <li><strong>Exploitation of public CVEs:</strong> scanners weaponize disclosures within hours of publication</li>
+                    <li><strong>Malicious / compromised packages:</strong> hijacked or hostile releases run attacker code at install time</li>
+                    <li><strong>Dependency confusion:</strong> a public look-alike outranks your internal package</li>
+                    <li><strong>Typosquatting:</strong> near-miss package names install malicious code</li>
+                    <li><strong>Compromised build pipelines:</strong> tainted-but-signed artifacts from a trusted vendor</li>
+                    <li><strong>Vulnerable base-image / OS packages</strong> and abandoned EOL components with no fix</li>
+                    <li><strong>Transitive blindness &amp; integrity drift:</strong> unpinned, unhashed, invisible dependency trees</li>
+                </ul>
+            </div>
+
+            <!-- How It Works -->
+            <div class="section">
+                <h2>🧭 How It Works</h2>
+                <div class="attack-flow">
+1. Inventory: generate an SBOM (CycloneDX/SPDX)<br>
+   covering direct AND transitive components<br>
+   <span class="arrow">↓</span><br>
+2. Source &amp; pin: trusted registries, scoped<br>
+   internal packages, committed lockfiles + hashes<br>
+   <span class="arrow">↓</span><br>
+3. Scan: SCA gate in CI fails critical findings<br>
+   <span class="arrow">↓</span><br>
+4. Monitor: Dependabot/Renovate open update PRs;<br>
+   deployed releases re-scanned continuously<br>
+   <span class="arrow">↓</span><br>
+5. <strong>Patch on a cadence + emergency lane; retire unused &amp; EOL</strong>
+                </div>
+            </div>
+
+            <!-- Without This Control -->
+            <div class="section full-width">
+                <h2>❌ Without This Control</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// package.json — floating ranges, no lockfile committed</span>
+{
+  <span class="string">"name"</span>: <span class="string">"billing-service"</span>,
+  <span class="string">"dependencies"</span>: {
+    <span class="string">"express"</span>: <span class="string">"^4"</span>,        <span class="comment">// any 4.x — resolves differently over time</span>
+    <span class="string">"lodash"</span>: <span class="string">"*"</span>,          <span class="comment">// literally any version</span>
+    <span class="string">"left-pad"</span>: <span class="string">"latest"</span>    <span class="comment">// whatever is newest at install time</span>
+  }
+}
+
+<span class="comment">// .gitignore</span>
+package-lock.json           <span class="comment">← lockfile ignored (!) — builds not reproducible</span>
+
+<span class="comment">// .npmrc — internal packages can resolve to the PUBLIC registry</span>
+registry=https://registry.npmjs.org/
+<span class="comment">// internal package published unscoped as "billing-utils"</span>
+<span class="comment">// an attacker publishing public "billing-utils@99.0.0" wins by version!</span>
+
+<span class="comment">// CI — no scanning, no integrity check</span>
+$ npm install               <span class="comment">← may pull newer, unreviewed transitive code</span>
+$ npm run build
+$ deploy                    <span class="comment">← known-vulnerable code ships unnoticed</span>
+                </div>
+            </div>
+
+            <!-- Applying the Control -->
+            <div class="section full-width">
+                <h2>✅ Applying the Control</h2>
+                <div class="code-block secure">
+<span class="comment">// package.json — human-readable, but the lockfile decides</span>
+{
+  <span class="string">"dependencies"</span>: { <span class="string">"express"</span>: <span class="string">"4.19.2"</span>, <span class="string">"lodash"</span>: <span class="string">"4.17.21"</span> }
+}
+<span class="comment">// package-lock.json is COMMITTED and records integrity hashes:</span>
+<span class="comment">//   "lodash": { "version": "4.17.21", "integrity": "sha512-v2kDEe..." }</span>
+
+<span class="comment">// .npmrc — scope internal packages to an internal registry ONLY</span>
+@myorg:registry=https://npm.internal.myorg.com/
+registry=https://registry.npmjs.org/
+<span class="comment">// internal package is "@myorg/billing-utils" — the scope can never</span>
+<span class="comment">// resolve to the public registry, defeating dependency confusion</span>
+
+<span class="comment">// CI — reproducible, hash-verified install + SCA gate + SBOM</span>
+$ npm ci                                   <span class="comment"># fails if lock &amp; manifest disagree</span>
+$ npm audit --audit-level=high             <span class="comment"># native auditor gate</span>
+$ trivy fs --severity HIGH,CRITICAL --exit-code <span class="number">1</span> .   <span class="comment"># SCA gate</span>
+$ npx @cyclonedx/cyclonedx-npm --output-file sbom.json   <span class="comment"># SBOM</span>
+
+<span class="comment"># Python equivalent: pin WITH hashes, reject anything that mismatches</span>
+$ pip install --require-hashes -r requirements.txt
+$ pip-audit --strict
+                </div>
+            </div>
+
+            <!-- Implementation Checklist -->
+            <div class="section">
+                <h2>✓ Implementation Checklist</h2>
+                <ul class="checklist">
+                    <li>SBOM (CycloneDX/SPDX) generated per build, covering transitive components</li>
+                    <li>SCA gate in CI fails builds on high/critical findings</li>
+                    <li>Deployed releases re-scanned continuously against new advisories</li>
+                    <li>Lockfiles committed and enforced (npm ci, hashed requirements, pinned Maven)</li>
+                    <li>Public registries proxied through a controlled internal repository</li>
+                    <li>Internal packages scoped so they cannot resolve to the public registry</li>
+                    <li>Dependabot/Renovate opening scheduled update PRs</li>
+                    <li>Regular patch cadence plus a documented emergency path</li>
+                    <li>Unused dependencies removed; EOL components tracked and replaced</li>
+                    <li>Container base images minimal, scanned, and rebuilt regularly</li>
+                    <li>Build pipeline hardened; artifacts signed with SLSA provenance</li>
+                    <li>Virtual patches tracked as temporary, with a real-fix deadline</li>
+                </ul>
+            </div>
+
+            <!-- Tools & Techniques -->
+            <div class="section">
+                <h2>🔍 Tools &amp; Techniques</h2>
+                <h3>SCA &amp; Scanning:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">OWASP Dependency-Check</span>
+                    <span class="tool-tag">npm audit</span>
+                    <span class="tool-tag">pip-audit</span>
+                    <span class="tool-tag">Snyk</span>
+                    <span class="tool-tag">Trivy</span>
+                    <span class="tool-tag">Grype</span>
+                </div>
+
+                <h3>Inventory &amp; Automation:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Syft (SBOM)</span>
+                    <span class="tool-tag">CycloneDX</span>
+                    <span class="tool-tag">Dependabot</span>
+                    <span class="tool-tag">Renovate</span>
+                    <span class="tool-tag">Sigstore / cosign</span>
+                    <span class="tool-tag">SLSA</span>
+                </div>
+
+                <h3>How to Verify:</h3>
+                <ul>
+                    <li>Confirm an SBOM is produced and stored for every build</li>
+                    <li>Break the build with a known-vulnerable version — CI must fail</li>
+                    <li>Query "which releases ship component X?" — answerable in seconds</li>
+                    <li>Check lockfiles are committed and CI uses <code>npm ci</code> / <code>--require-hashes</code></li>
+                    <li>Verify internal package scopes cannot resolve publicly</li>
+                    <li>Scan container images and confirm bases are rebuilt on a schedule</li>
+                </ul>
+            </div>
+
+            <!-- Why It Matters -->
+            <div class="section full-width">
+                <h2>🌍 Why It Matters</h2>
+                <p>These are recurring <strong>classes</strong> of incident this control is built to prevent — described as patterns, with no invented CVEs or figures.</p>
+                <ul>
+                    <li><strong>Critical flaw in a ubiquitous library (Log4Shell-class):</strong> a widely used logging library disclosed a critical RCE. Because it was buried deep in transitive trees, most organizations could not even answer "are we affected?" for days. Teams with a current SBOM and SCA answered in minutes and patched first.</li>
+                    <li><strong>Dependency confusion:</strong> an attacker publishes a public package matching an internal name with a higher version; misconfigured tooling pulls the attacker's code into the build. Scoped packages and source pinning close it.</li>
+                    <li><strong>Typosquatting &amp; malicious packages:</strong> near-miss names or hijacked maintainer accounts run attacker code at install time.</li>
+                    <li><strong>Compromised build pipeline:</strong> adversaries ship a tainted-but-signed artifact to all of a vendor's customers — the reason provenance (SLSA) and pipeline hardening matter for what you publish too.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Tips -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> track only your manifest — most risk is transitive</li>
+                    <li><span class="badge critical">DO NOT</span> float versions or skip integrity hashes</li>
+                    <li><span class="badge critical">DO NOT</span> treat a WAF virtual patch as the permanent fix</li>
+                    <li><span class="badge high">DO</span> generate an SBOM and scan continuously, not just at release</li>
+                    <li><span class="badge high">DO</span> source from trusted registries and pin with lockfiles</li>
+                    <li><span class="badge high">DO</span> patch on a cadence with a fast emergency lane</li>
+                    <li><span class="badge medium">DO</span> remove unused dependencies and replace EOL components early</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Top 10 Proactive Controls (2024) — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/proactive/OWASP-Proactive-Controls/C06-Keep-Your-Components-Secure/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

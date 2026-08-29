@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CICD-SEC-2: Inadequate Identity and Access Management - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔑 Inadequate Identity & Access Management</h1>
+            <p class="subtitle">OWASP Top 10 CI/CD Security Risks - CICD-SEC-2</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Inadequate Identity and Access Management</strong> is the risk that arises when the many identities — human and machine — spread across the CI/CD ecosystem are too numerous, over-permissioned, stale, or poorly governed. It is not a single misconfigured account; it is the accumulated failure to consistently answer three questions for <em>every</em> identity: who or what is this, exactly what may it do, and should it still exist at all? SCM, CI orchestrators, registries, secrets managers, and cloud accounts each add their own users, tokens, and roles, producing <strong>identity sprawl</strong> with no single place that knows who holds what.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">CICD-SEC-2</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Identity</span>
+                        <span class="label">Focus Area</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Machine</span>
+                        <span class="label">Bigger Risk</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Over-Permissioned CI Tokens:</strong> A job that needs one repo holds org-wide or admin scope</li>
+                    <li><strong>Broad Non-Expiring PATs:</strong> A leaked personal token with every scope and no expiry is a master key</li>
+                    <li><strong>Local Bypass Accounts:</strong> Tool-local admins skip SSO, MFA, and central logging</li>
+                    <li><strong>Shared Bot Accounts:</strong> One "deploy-bot" used by many, unattributable, permission-bloated</li>
+                    <li><strong>Stale Access After Offboarding:</strong> SSO disabled but PATs, keys, and local accounts still valid</li>
+                    <li><strong>Standing External Access:</strong> Contractors and integrations with never-expiring write</li>
+                    <li><strong>Unrotated Deploy Keys:</strong> Robot tokens and SSH keys valid indefinitely</li>
+                    <li><strong>RBAC Sprawl:</strong> "Read-only" in one tool, admin in another</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Obtain an identity (leaked token, stale/shared account)<br>
+   <span class="arrow">↓</span><br>
+2. Enumerate its reach (repos, CI, registry, cloud scopes)<br>
+   <span class="arrow">↓</span><br>
+3. Abuse excess privilege (read secrets, edit pipeline)<br>
+   <span class="arrow">↓</span><br>
+4. Pivot across systems: SCM → CI → registry → cloud<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Mint new tokens to persist — full supply-chain reach!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># .github/workflows/release.yml</span>
+<span class="comment"># A job that only needs to push ONE image, but the token can do everything.</span>
+<span class="keyword">permissions</span>: write-all          <span class="comment"># ← every scope, for every job</span>
+
+<span class="keyword">jobs</span>:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      <span class="comment"># Long-lived static cloud key with AdministratorAccess</span>
+      - run: |
+          aws configure set aws_access_key_id      ${{ secrets.AWS_KEY }}
+          aws configure set aws_secret_access_key  ${{ secrets.AWS_SECRET }}
+          ./push-image.sh                <span class="comment"># job only needs push to one ECR repo</span>
+
+<span class="comment"># Personal access token used as the pipeline credential:</span>
+<span class="comment">#   scopes:     repo, workflow, admin:org, delete_repo, write:packages</span>
+<span class="comment">#   expiration: No expiration</span>
+<span class="comment">#   stored in:  a CI variable, a .env on a laptop, and a wiki page</span>
+
+<span class="comment"># Tool-local accounts outside the IdP:</span>
+<span class="comment">#   jenkins  -> local "admin" account, no MFA, not tied to SSO</span>
+<span class="comment">#   registry -> basic-auth "team-svc" shared over chat</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># .github/workflows/release.yml</span>
+<span class="comment"># Least-privilege token + short-lived OIDC federation, no static cloud keys.</span>
+<span class="keyword">permissions</span>:
+  contents: read                 <span class="comment"># default: read-only</span>
+
+<span class="keyword">jobs</span>:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write            <span class="comment"># mint a short-lived credential per run</span>
+      packages: write            <span class="comment"># exactly the scope this job needs</span>
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          <span class="comment"># role's trust policy limits which repo/branch/env may assume it</span>
+          role-to-assume: arn:aws:iam::123456789012:role/push-one-ecr-repo
+          aws-region: us-east-1
+      - run: ./push-image.sh     <span class="comment"># credential expires when the job ends</span>
+
+<span class="comment"># Governance settings (managed centrally, as code / via API):</span>
+<span class="comment">#   - Every system fronted by the central IdP/SSO with MFA enforced</span>
+<span class="comment">#   - ZERO local bypass accounts; no shared/generic logins</span>
+<span class="comment">#   - PATs: short expiry, named owner, narrow scope, inventoried</span>
+<span class="comment">#   - Deploy keys/robot tokens rotated on a schedule</span>
+<span class="comment">#   - Offboarding revokes tokens + local accounts + cloud keys, not just SSO</span>
+<span class="comment">#   - External collaborator + integration access time-boxed and reviewed</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Maintain one inventory of every human & machine identity</li>
+                    <li>Front every system with central IdP/SSO + enforced MFA</li>
+                    <li>Eliminate local bypass and shared/generic accounts</li>
+                    <li>Scope each token/service account to exactly its task</li>
+                    <li>Give all PATs a short expiry and a named owner</li>
+                    <li>Prefer short-lived OIDC federation over long-lived PATs</li>
+                    <li>Rotate machine credentials and deploy keys on a schedule</li>
+                    <li>Offboard across every plane, not just the IdP login</li>
+                    <li>Time-box external collaborator & integration access</li>
+                    <li>Run periodic access recertification; remove stale identities</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Identity & Federation:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">GitHub OIDC</span>
+                    <span class="tool-tag">GitLab ID Tokens</span>
+                    <span class="tool-tag">AWS IAM Roles</span>
+                    <span class="tool-tag">HashiCorp Vault</span>
+                    <span class="tool-tag">SPIFFE/SPIRE</span>
+                    <span class="tool-tag">Central IdP + MFA</span>
+                </div>
+
+                <h3>Audit & Discovery:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Legitify</span>
+                    <span class="tool-tag">GitHub PAT/token audit</span>
+                    <span class="tool-tag">AWS IAM Access Analyzer</span>
+                    <span class="tool-tag">TruffleHog</span>
+                    <span class="tool-tag">Access recertification</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Enumerate token scopes (e.g. <code>X-OAuth-Scopes</code> header)</li>
+                    <li>Search for local accounts that bypass SSO/MFA</li>
+                    <li>List PATs and deploy keys with no expiry or owner</li>
+                    <li>Verify offboarded users have zero valid credentials</li>
+                    <li>Compare a user's RBAC across SCM, CI, and cloud for gaps</li>
+                    <li>Confirm CI-to-cloud uses OIDC, not static access keys</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World (Incident Classes)</h2>
+                <ul>
+                    <li><strong>Leaked CI Token, Excessive Scope:</strong> A pipeline stored a long-lived token scoped to a whole SCM organisation instead of one repo; exposed via a build log or compromised runner and still valid (no expiry), it exposed private source across many projects — a pattern recurring in supply-chain post-mortems.</li>
+                    <li><strong>Stale Access After Offboarding:</strong> Deprovisioning disabled the IdP login but left the SCM PAT, CI local account, and cloud access key alive, giving a former insider a lasting path into code and infrastructure.</li>
+                    <li><strong>Shared Bot as Single Point of Failure:</strong> One generic automation account, reused by many humans and pipelines with a shared password and no MFA, accumulated the union of every task's permissions — its compromise yielded broad, unattributable access.</li>
+                    <li><strong>Self-Hosted Runner / Robot-Account Abuse:</strong> Over-privileged robot and runner identities reused across projects let a single foothold reach far beyond the workload that owned it.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> issue non-expiring org-wide PATs</li>
+                    <li><span class="badge critical">DO NOT</span> keep local accounts that bypass SSO/MFA</li>
+                    <li><span class="badge critical">DO NOT</span> share one bot account across teams</li>
+                    <li><span class="badge high">DO</span> scope every identity to least privilege</li>
+                    <li><span class="badge high">DO</span> use short-lived OIDC over static keys</li>
+                    <li><span class="badge high">DO</span> offboard across every plane</li>
+                    <li><span class="badge medium">DO</span> recertify access on a schedule</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">SOC 2</span> CC6.1-6.3 - Logical Access</li>
+                    <li><span class="badge medium">ISO 27001</span> A.9 - Access Control</li>
+                    <li><span class="badge medium">NIST</span> 800-53 AC-2 / AC-6 - Least Privilege</li>
+                    <li><span class="badge medium">PCI-DSS</span> Req 7 & 8 - Access & Identity</li>
+                    <li><span class="badge medium">CIS</span> Control 5 & 6 - Account Management</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Top 10 CI/CD Security Risks — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/cicd/OWASP-CICD/CICD02-Inadequate-Identity-and-Access-Management/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

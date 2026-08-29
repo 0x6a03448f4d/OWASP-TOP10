@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SC04: Lack of Input Validation - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🛡️ Lack of Input Validation</h1>
+            <p class="subtitle">OWASP Smart Contract Top 10 (2025) - SC04</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Lack of Input Validation</strong> occurs when a contract trusts caller-supplied parameters — addresses, amounts, arrays, indexes, IDs, fees, deadlines, or raw calldata — and acts on them without checking they are within the values the logic expects. On a public chain <em>anyone</em> can call any function with <em>any</em> ABI-valid argument, so every unvalidated parameter is an open control. A single missing <code>require</code> can send tokens to <code>address(0)</code> (burning them), set a fee above 100%, brick the contract with an unusable owner, or redirect an external call to a malicious target — all permanent once mined.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">SC04</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Boundary</span>
+                        <span class="label">Validate Here</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">1 Line</span>
+                        <span class="label">To Fix</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Zero-Address:</strong> Recipient/owner unchecked → burned funds or bricked contract</li>
+                    <li><strong>Unchecked Amounts:</strong> No <code>&gt; 0</code> or balance/allowance bound</li>
+                    <li><strong>Mismatched Arrays:</strong> Unequal or uncapped parallel arrays in loops</li>
+                    <li><strong>Unbounded Fees:</strong> Percentage set above 100% seizes all value</li>
+                    <li><strong>Bad Index/ID:</strong> Out-of-range read, double-claim, no ownership check</li>
+                    <li><strong>Arbitrary Target:</strong> Caller-supplied token/target → arbitrary external call</li>
+                    <li><strong>Expiry/Signature Bypass:</strong> Stale deadline or unbound signer honoured</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Enumerate external functions and their parameters<br>
+   <span class="arrow">↓</span><br>
+2. Craft calldata directly, bypassing any front-end<br>
+   <span class="arrow">↓</span><br>
+3. Pass a malicious value (0x0, huge fee, fake token)<br>
+   <span class="arrow">↓</span><br>
+4. Contract acts on it with no check<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Funds burned, contract bricked, or state corrupted!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// SPDX-License-Identifier: MIT</span>
+<span class="keyword">pragma</span> solidity ^<span class="number">0.8</span>.<span class="number">20</span>;
+
+<span class="keyword">contract</span> <span class="function">Vault</span> {
+    <span class="keyword">address</span> <span class="keyword">public</span> owner;
+    <span class="keyword">uint256</span> <span class="keyword">public</span> feeBps;
+
+    <span class="comment">// newOwner == address(0) bricks every onlyOwner call forever</span>
+    <span class="keyword">function</span> <span class="function">setOwner</span>(<span class="keyword">address</span> newOwner) <span class="keyword">external</span> {
+        <span class="keyword">require</span>(msg.sender == owner, <span class="string">"not owner"</span>);
+        owner = newOwner;                    <span class="comment">← no zero-address check</span>
+    }
+
+    <span class="comment">// Nothing stops bps = 50_000 (500%) — fee can exceed the amount</span>
+    <span class="keyword">function</span> <span class="function">setFeeBps</span>(<span class="keyword">uint256</span> bps) <span class="keyword">external</span> {
+        feeBps = bps;                        <span class="comment">← no upper bound</span>
+    }
+
+    <span class="comment">// token and to are attacker-chosen → arbitrary external call</span>
+    <span class="keyword">function</span> <span class="function">collect</span>(<span class="keyword">address</span> token, <span class="keyword">address</span> to) <span class="keyword">external</span> {
+        IERC20(token).transferFrom(msg.sender, to, <span class="number">1e18</span>);   <span class="comment">← untrusted</span>
+    }
+
+    <span class="comment">// amt may be shorter than to → revert; to may be huge → gas DoS</span>
+    <span class="keyword">function</span> <span class="function">airdrop</span>(<span class="keyword">address</span>[] <span class="keyword">calldata</span> to, <span class="keyword">uint256</span>[] <span class="keyword">calldata</span> amt) <span class="keyword">external</span> {
+        <span class="keyword">for</span> (<span class="keyword">uint256</span> i; i < to.length; ++i)
+            token.transfer(to[i], amt[i]);   <span class="comment">← no length/cap check</span>
+    }
+}
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// SPDX-License-Identifier: MIT</span>
+<span class="keyword">pragma</span> solidity ^<span class="number">0.8</span>.<span class="number">20</span>;
+
+<span class="keyword">import</span> {SafeERC20, IERC20} <span class="keyword">from</span> <span class="string">"@openzeppelin/.../SafeERC20.sol"</span>;
+
+<span class="keyword">contract</span> <span class="function">Vault</span> {
+    <span class="keyword">using</span> SafeERC20 <span class="keyword">for</span> IERC20;
+    <span class="keyword">address</span> <span class="keyword">public</span> owner;
+    <span class="keyword">uint256</span> <span class="keyword">public</span> feeBps;
+    <span class="keyword">mapping</span>(<span class="keyword">address</span> => <span class="keyword">bool</span>) <span class="keyword">public</span> allowedToken;
+
+    <span class="keyword">uint256</span> <span class="keyword">constant</span> MAX_FEE_BPS = <span class="number">1_000</span>;   <span class="comment">// cap at 10%</span>
+    <span class="keyword">uint256</span> <span class="keyword">constant</span> MAX_BATCH   = <span class="number">200</span>;
+
+    <span class="comment">// Custom errors: cheaper than strings, self-documenting</span>
+    <span class="keyword">error</span> ZeroAddress();
+    <span class="keyword">error</span> FeeTooHigh(<span class="keyword">uint256</span> bps, <span class="keyword">uint256</span> max);
+    <span class="keyword">error</span> TokenNotAllowed(<span class="keyword">address</span> token);
+    <span class="keyword">error</span> LengthMismatch();
+    <span class="keyword">error</span> BatchTooLarge(<span class="keyword">uint256</span> len, <span class="keyword">uint256</span> max);
+
+    <span class="keyword">function</span> <span class="function">setOwner</span>(<span class="keyword">address</span> newOwner) <span class="keyword">external</span> {
+        <span class="keyword">if</span> (newOwner == <span class="keyword">address</span>(<span class="number">0</span>)) <span class="keyword">revert</span> ZeroAddress();   <span class="comment">// validate first</span>
+        owner = newOwner;
+    }
+
+    <span class="keyword">function</span> <span class="function">setFeeBps</span>(<span class="keyword">uint256</span> bps) <span class="keyword">external</span> {
+        <span class="keyword">if</span> (bps > MAX_FEE_BPS) <span class="keyword">revert</span> FeeTooHigh(bps, MAX_FEE_BPS);
+        feeBps = bps;
+    }
+
+    <span class="keyword">function</span> <span class="function">collect</span>(<span class="keyword">address</span> token, <span class="keyword">uint256</span> amount) <span class="keyword">external</span> {
+        <span class="keyword">if</span> (!allowedToken[token]) <span class="keyword">revert</span> TokenNotAllowed(token);   <span class="comment">// allow-list</span>
+        IERC20(token).safeTransferFrom(msg.sender, <span class="keyword">address</span>(<span class="keyword">this</span>), amount);
+    }
+
+    <span class="keyword">function</span> <span class="function">airdrop</span>(<span class="keyword">address</span>[] <span class="keyword">calldata</span> to, <span class="keyword">uint256</span>[] <span class="keyword">calldata</span> amt) <span class="keyword">external</span> {
+        <span class="keyword">if</span> (to.length != amt.length) <span class="keyword">revert</span> LengthMismatch();
+        <span class="keyword">if</span> (to.length > MAX_BATCH) <span class="keyword">revert</span> BatchTooLarge(to.length, MAX_BATCH);
+        <span class="keyword">for</span> (<span class="keyword">uint256</span> i; i < to.length; ++i) {
+            <span class="keyword">if</span> (to[i] == <span class="keyword">address</span>(<span class="number">0</span>)) <span class="keyword">revert</span> ZeroAddress();
+            token.safeTransfer(to[i], amt[i]);
+        }
+    }
+}
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Reject <code>address(0)</code> for owners/recipients/tokens</li>
+                    <li>Require amounts <code>&gt; 0</code> and within balance/allowance</li>
+                    <li>Enforce equal array length and a <code>MAX_BATCH</code> cap</li>
+                    <li>Bounds-check indexes and IDs; verify ownership</li>
+                    <li>Give every fee/percentage an explicit upper bound</li>
+                    <li>Allow-list caller-supplied tokens and call targets</li>
+                    <li>Validate deadlines, signers, and nonces before acting</li>
+                    <li>Check <code>code.length</code> when a contract is required</li>
+                    <li>Wrap token calls with <code>SafeERC20</code></li>
+                    <li>Validate early, before any state change (CEI)</li>
+                    <li>Prefer custom errors over string reverts</li>
+                    <li>Write negative tests proving bad inputs revert</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Analysis Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Slither</span>
+                    <span class="tool-tag">Mythril</span>
+                    <span class="tool-tag">Foundry</span>
+                    <span class="tool-tag">Echidna</span>
+                    <span class="tool-tag">Manticore</span>
+                </div>
+
+                <h3>Libraries:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">OpenZeppelin</span>
+                    <span class="tool-tag">SafeERC20</span>
+                    <span class="tool-tag">ECDSA / EIP-712</span>
+                    <span class="tool-tag">Tenderly</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Fuzz every external function: <code>forge test --fuzz-runs 10000</code></li>
+                    <li>Negative tests: <code>transfer(address(0), x)</code> must revert</li>
+                    <li>Assert <code>setFeeBps(20_000)</code> reverts with the expected error</li>
+                    <li>Feed mismatched/oversized airdrop arrays and confirm revert</li>
+                    <li>Run <code>slither .</code> to flag missing zero-address/bounds checks</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <ul>
+                    <li><strong>Zero-address burns (recurring class):</strong> Transfer, mint, or ownership functions accepted a recipient without checking <code>address(0)</code>; funds sent there are irretrievable, and setting ownership to zero made privileged functions permanently uncallable. OpenZeppelin's ERC-20/721 base contracts add this check for exactly this reason.</li>
+                    <li><strong>Arbitrary token / target abuse:</strong> A function accepted a caller-supplied token or call target with no allow-list; attackers supplied a contract they controlled to force arbitrary external calls, approvals, or fake return values.</li>
+                    <li><strong>Unbounded / mismatched array loops:</strong> Airdrops and multi-sends looped over caller arrays without equal-length or size checks; mismatched lengths paid wrong amounts, and oversized arrays exceeded the block gas limit — a denial of service.</li>
+                    <li><strong>Common thread:</strong> Each traces back to a caller-supplied value acted on without a check — often mislabeled later as access-control or re-entrancy, but a missing <code>require</code> opened the door.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> trust the front-end to validate</li>
+                    <li><span class="badge critical">DO NOT</span> store/send to an unchecked address</li>
+                    <li><span class="badge critical">DO NOT</span> act on a caller-supplied token/target blindly</li>
+                    <li><span class="badge high">DO</span> validate at the top of every function</li>
+                    <li><span class="badge high">DO</span> bound amounts, fees, and array lengths</li>
+                    <li><span class="badge high">DO</span> allow-list critical addresses</li>
+                    <li><span class="badge medium">DO</span> fuzz and write negative tests</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Smart Contract Top 10 (2025) — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/smartcontract/OWASP-SmartContract/SC04-Lack-of-Input-Validation/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

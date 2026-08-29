@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML03: Model Inversion Attack - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔓 Model Inversion Attack</h1>
+            <p class="subtitle">OWASP Machine Learning Security Top 10 - ML03</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Model Inversion</strong> is an attack in which an adversary with <em>query access</em> reconstructs sensitive information about a model's training data—or infers a private attribute of a known individual—by exploiting what the model reveals in its outputs. The attacker runs the model backwards: starting from an output they care about (e.g. the label "Alice"), they search the input space for the input that best produces it. Because the model responds most strongly to inputs resembling its training data, the reconstruction often resembles a real training example. The richer the output (confidence vectors, logits, embeddings, gradients), the more the model leaks.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">ML03</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Privacy</span>
+                        <span class="label">Harm Type</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Confidence</span>
+                        <span class="label">Side Channel</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Confidence-Vector Reconstruction:</strong> Black-box hill-climbing to maximise target-label confidence</li>
+                    <li><strong>Gradient-Based Inversion:</strong> White-box gradient ascent on the input for sharp reconstructions</li>
+                    <li><strong>Attribute Inference:</strong> Recover a hidden sensitive field of a known individual</li>
+                    <li><strong>Class-Representative Synthesis:</strong> Activation maximisation reveals what a class "looks like"</li>
+                    <li><strong>GAN-Assisted Inversion:</strong> Optimise a generator's latent code for realistic reconstructions</li>
+                    <li><strong>Overfit/Rare-Class Targeting:</strong> The least-represented individuals reconstruct most faithfully</li>
+                    <li><strong>Embedding / Logit Exposure:</strong> Raw embeddings and logits leak even more than softmax</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Choose a target label or a hidden attribute<br>
+   <span class="arrow">↓</span><br>
+2. Pick objective: maximise target-class confidence<br>
+   <span class="arrow">↓</span><br>
+3. Optimise input: query hill-climb or gradient ascent<br>
+   <span class="arrow">↓</span><br>
+4. Regularise with priors (natural-image / GAN)<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: A recognisable face or private attribute recovered!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: serving hands back the full per-identity confidence vector + logits</span>
+<span class="keyword">import</span> torch, torch.nn.functional <span class="keyword">as</span> F
+
+@app.route(<span class="string">"/predict"</span>, methods=[<span class="string">"POST"</span>])
+<span class="keyword">def</span> <span class="function">predict</span>():
+    x = decode_image(request.files[<span class="string">"image"</span>])
+    <span class="keyword">with</span> torch.no_grad():
+        logits = model(x)
+        probs  = F.softmax(logits, dim=<span class="number">1</span>)[<span class="number">0</span>]
+    <span class="keyword">return</span> jsonify({
+        <span class="string">"probs"</span>:  probs.tolist(),      <span class="comment"># 512 floats, one per identity</span>
+        <span class="string">"logits"</span>: logits[<span class="number">0</span>].tolist(),  <span class="comment">← the exact signal inversion hill-climbs</span>
+    })
+
+<span class="comment"># Bad: standard SGD on a small sensitive dataset -> individuals memorised</span>
+<span class="keyword">for</span> epoch <span class="keyword">in</span> range(<span class="number">50</span>):        <span class="comment"># trained to very low train loss</span>
+    <span class="keyword">for</span> xb, yb <span class="keyword">in</span> loader:
+        loss = F.cross_entropy(model(xb), yb)
+        loss.backward(); optimizer.step()   <span class="comment"># no bound on record influence</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: return only the decision + a coarse band — no vector to hill-climb</span>
+<span class="keyword">import</span> torch, torch.nn.functional <span class="keyword">as</span> F
+CONF_BANDS = [(<span class="number">0.90</span>, <span class="string">"high"</span>), (<span class="number">0.60</span>, <span class="string">"medium"</span>), (<span class="number">0.0</span>, <span class="string">"low"</span>)]
+
+<span class="keyword">def</span> <span class="function">band</span>(p):
+    <span class="keyword">return</span> next(name <span class="keyword">for</span> thr, name <span class="keyword">in</span> CONF_BANDS <span class="keyword">if</span> p &gt;= thr)
+
+@app.route(<span class="string">"/predict"</span>, methods=[<span class="string">"POST"</span>])
+<span class="keyword">def</span> <span class="function">predict</span>():
+    x = decode_image(request.files[<span class="string">"image"</span>])
+    <span class="keyword">with</span> torch.no_grad():
+        probs = F.softmax(model(x), dim=<span class="number">1</span>)[<span class="number">0</span>]
+    top = int(probs.argmax())
+    <span class="keyword">return</span> jsonify({<span class="string">"label"</span>: id2label[top],
+                    <span class="string">"confidence"</span>: band(float(probs[top]))})  <span class="comment"># no logits</span>
+
+<span class="comment"># Good: DP-SGD (Opacus) bounds any single record's influence</span>
+<span class="keyword">from</span> opacus <span class="keyword">import</span> PrivacyEngine
+privacy_engine = PrivacyEngine()
+model, optimizer, loader = privacy_engine.make_private_with_epsilon(
+    module=model, optimizer=optimizer, data_loader=loader, epochs=<span class="number">50</span>,
+    target_epsilon=<span class="number">8.0</span>, target_delta=<span class="number">1e-5</span>, max_grad_norm=<span class="number">1.0</span>)  <span class="comment"># clip + noise</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Train with differential privacy (DP-SGD / Opacus) — the principled core</li>
+                    <li>Choose a meaningful epsilon and report the spent budget</li>
+                    <li>Return coarse labels or bands, never full vectors, logits, or embeddings</li>
+                    <li>Perturb and round any confidence you must expose</li>
+                    <li>Rate-limit and monitor for near-duplicate probing patterns</li>
+                    <li>Authenticate callers; tie output richness to authorisation</li>
+                    <li>Reduce overfitting (dropout, weight decay, early stopping)</li>
+                    <li>Minimise sensitive data; avoid one-class-per-individual designs</li>
+                    <li>Red-team your own model for reconstruction before shipping</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Privacy Tooling:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Opacus (DP-SGD)</span>
+                    <span class="tool-tag">TensorFlow Privacy</span>
+                    <span class="tool-tag">IBM ART</span>
+                    <span class="tool-tag">Differential Privacy</span>
+                    <span class="tool-tag">Rate Limiting</span>
+                </div>
+
+                <h3>Defensive Techniques:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Output Limiting</span>
+                    <span class="tool-tag">Confidence Perturbation</span>
+                    <span class="tool-tag">Query Monitoring</span>
+                    <span class="tool-tag">Regularisation</span>
+                    <span class="tool-tag">Data Minimisation</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Run an inversion attack against your own model in CI/CD</li>
+                    <li>Measure reconstruction similarity (SSIM / feature match) vs. a threshold</li>
+                    <li>Track the DP budget and inversion score as model metadata</li>
+                    <li>Watch the train/validation gap as an inversion-risk indicator</li>
+                    <li>Alert on high volumes of near-identical probes per client</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <ul>
+                    <li><strong>Facial Reconstruction (Fredrikson et al., 2015):</strong> By optimising an input to maximise a face-recognition model's confidence for a target label, researchers recovered a blurred but recognisable image of the individual — a shipped model acting as a lossy store of faces</li>
+                    <li><strong>Sensitive-Attribute Inference (Fredrikson et al., 2014):</strong> A pharmacogenetic dosing model's responses leaked a sensitive genetic marker for patients whose other features were known</li>
+                    <li><em>These are documented academic research demonstrations that define the threat class — evidence the attack is real and reproducible, not counts of production breaches (which are not reliably published).</em></li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> return full confidence vectors, logits, or embeddings</li>
+                    <li><span class="badge critical">DO NOT</span> assume black-box (API-only) access is safe</li>
+                    <li><span class="badge critical">DO NOT</span> ship weights of a sensitive model without strong DP</li>
+                    <li><span class="badge high">DO</span> train with differential privacy and report epsilon</li>
+                    <li><span class="badge high">DO</span> return coarse labels and rate-limit queries</li>
+                    <li><span class="badge high">DO</span> reduce overfitting and minimise sensitive data</li>
+                    <li><span class="badge medium">DO</span> red-team inversion before each release</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Machine Learning Security Top 10 — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/ml/OWASP-ML/ML03-Model-Inversion-Attack/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

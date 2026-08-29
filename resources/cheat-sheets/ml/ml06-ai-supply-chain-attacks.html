@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML06: AI Supply Chain Attacks - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔗 AI Supply Chain Attacks</h1>
+            <p class="subtitle">OWASP Machine Learning Security Top 10 - ML06</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p>An <strong>AI Supply Chain Attack</strong> compromises any third-party component that flows into an ML system—a pretrained model from a hub, a public dataset, an ML library, or the MLOps tooling that ties them together. Instead of attacking your model directly, the adversary poisons an <em>ingredient</em> you trust and let into your pipeline, so the compromise arrives pre-installed. Because loading a model can execute code, "download this model" often means "run this program."</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">ML06</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Load = Exec</span>
+                        <span class="label">Core Danger</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">RCE</span>
+                        <span class="label">Typical Impact</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Malicious Pickle:</strong> torch.load / joblib / pickle run code on deserialize</li>
+                    <li><strong>Backdoored Weights:</strong> hidden trigger baked into a hub model</li>
+                    <li><strong>trust_remote_code:</strong> repo Python executes on from_pretrained</li>
+                    <li><strong>Typosquatting:</strong> torchvison, tensorfow install a payload</li>
+                    <li><strong>Dependency Confusion:</strong> public package shadows an internal name</li>
+                    <li><strong>Poisoned Dataset:</strong> triggers/label flips in a public corpus</li>
+                    <li><strong>Transit Tampering:</strong> mirror/CDN swaps a "latest" artifact</li>
+                    <li><strong>Keras Lambda Layers:</strong> serialized callables execute on load</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Publish or tamper with an artifact<br>
+   <span class="arrow">↓</span><br>
+2. Get selected (typosquat, SEO, confusion)<br>
+   <span class="arrow">↓</span><br>
+3. Victim downloads & deserializes/installs<br>
+   <span class="arrow">↓</span><br>
+4. Code runs on load OR backdoor ships in weights<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: RCE, cred theft, or silent model sabotage!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: torch.load uses pickle -> arbitrary code on load</span>
+<span class="keyword">import</span> torch
+state = torch.load(<span class="string">"downloaded/model.pt"</span>)   <span class="comment"># RCE if file is malicious</span>
+model.load_state_dict(state)
+
+<span class="comment"># Bad: unknown org, mutable ref, repo code execution</span>
+<span class="keyword">from</span> transformers <span class="keyword">import</span> AutoModel
+model = AutoModel.from_pretrained(
+    <span class="string">"some-org/cool-model"</span>,      <span class="comment"># unknown provenance</span>
+    revision=<span class="string">"main"</span>,             <span class="comment"># mutable: can change under you</span>
+    trust_remote_code=<span class="keyword">True</span>,      <span class="comment"># runs the repo's Python!</span>
+)
+
+<span class="comment"># Bad: scikit-learn via joblib (pickle under the hood)</span>
+<span class="keyword">import</span> joblib
+clf = joblib.load(<span class="string">"vendor/classifier.joblib"</span>)   <span class="comment"># untrusted -> RCE</span>
+
+<span class="comment"># Bad: unpinned deps, typo-prone, public index only</span>
+<span class="comment"># requirements.txt: torch / transformers / torchvison  (TYPO!)</span>
+<span class="comment"># pip install -r requirements.txt   -> no pinning, no hashes</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: verify integrity, then load a DATA-ONLY format</span>
+<span class="keyword">import</span> hashlib
+<span class="keyword">from</span> safetensors.torch <span class="keyword">import</span> load_file
+
+<span class="keyword">def</span> <span class="function">verify_sha256</span>(path, expected):
+    h = hashlib.sha256()
+    <span class="keyword">with</span> open(path, <span class="string">"rb"</span>) <span class="keyword">as</span> f:
+        <span class="keyword">for</span> chunk <span class="keyword">in</span> iter(<span class="keyword">lambda</span>: f.read(<span class="number">8192</span>), <span class="string">b""</span>):
+            h.update(chunk)
+    <span class="keyword">if</span> h.hexdigest() != expected:
+        <span class="keyword">raise</span> ValueError(<span class="string">"Integrity check failed - refusing to load"</span>)
+
+verify_sha256(<span class="string">"model.safetensors"</span>, KNOWN_GOOD_SHA256)
+state = load_file(<span class="string">"model.safetensors"</span>)   <span class="comment"># safetensors: no code path</span>
+model.load_state_dict(state)
+
+<span class="comment"># Good: pin an immutable commit, refuse repo code, prefer safetensors</span>
+<span class="keyword">from</span> transformers <span class="keyword">import</span> AutoModel
+model = AutoModel.from_pretrained(
+    <span class="string">"official-org/model"</span>,
+    revision=<span class="string">"e3b0c44298fc1c149afbf4c8996fb92427ae41e4"</span>,  <span class="comment"># exact commit</span>
+    trust_remote_code=<span class="keyword">False</span>,     <span class="comment"># do NOT execute repo Python</span>
+    use_safetensors=<span class="keyword">True</span>,
+)
+
+<span class="comment"># Good: pin version + hash, trusted mirror, no fallback</span>
+<span class="comment"># pip install --require-hashes \</span>
+<span class="comment">#   --index-url https://pypi.internal.example/simple -r requirements.lock</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Prefer safetensors (data-only) over pickle/torch.load</li>
+                    <li>Use weights_only=True when stuck with .pt files</li>
+                    <li>Verify a hash/signature for every downloaded artifact</li>
+                    <li>Pin models to an immutable commit, not "main"/"latest"</li>
+                    <li>Keep trust_remote_code=False for untrusted repos</li>
+                    <li>Pin dependencies by version AND hash (--require-hashes)</li>
+                    <li>Scope internal package names to a private index</li>
+                    <li>Scan models (picklescan/ModelScan) and deps (pip-audit) in CI</li>
+                    <li>Sandbox model loading: no network, no credentials</li>
+                    <li>Maintain an SBOM / AI-BOM for models, datasets, packages</li>
+                    <li>Proxy public artifacts through a curated mirror</li>
+                    <li>Record provenance: publisher, source URL, model card, hash</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Model & Artifact Scanning:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">picklescan</span>
+                    <span class="tool-tag">ModelScan</span>
+                    <span class="tool-tag">safetensors</span>
+                    <span class="tool-tag">Sigstore / cosign</span>
+                    <span class="tool-tag">Trivy</span>
+                </div>
+
+                <h3>Dependency & Provenance:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">pip-audit</span>
+                    <span class="tool-tag">Safety</span>
+                    <span class="tool-tag">Syft (SBOM)</span>
+                    <span class="tool-tag">CycloneDX AI-BOM</span>
+                    <span class="tool-tag">SLSA / in-toto</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Grep code for torch.load / pickle.load / joblib.load on external files</li>
+                    <li>Run picklescan/ModelScan on every model in CI</li>
+                    <li>Load unvetted models in a no-network, no-creds sandbox</li>
+                    <li>Diff resolved deps against a hash-pinned lockfile</li>
+                    <li>Flag any use of trust_remote_code=True in review</li>
+                    <li>Verify artifact hashes against the AI-BOM baseline</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>Documented <strong>incident classes</strong> (patterns, not fabricated CVEs or statistics):</p>
+                <ul>
+                    <li><strong>Malicious models on public hubs:</strong> researchers repeatedly found Hugging Face models whose pickle files execute code on load—driving hubs to add pickle scanning and promote safetensors</li>
+                    <li><strong>Deserialization RCE research:</strong> published work crafting pickle / torch.load / joblib / Keras Lambda files that run code purely by being loaded (picklescan and ModelScan exist for this reason)</li>
+                    <li><strong>Typosquatted ML packages:</strong> malicious packages published to PyPI impersonating popular libraries, exfiltrating credentials at install/import time</li>
+                    <li><strong>Dependency confusion:</strong> public packages matching internal names that resolvers prefer by higher version</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> torch.load/joblib an untrusted file</li>
+                    <li><span class="badge critical">DO NOT</span> set trust_remote_code=True on unknown repos</li>
+                    <li><span class="badge critical">DO NOT</span> pull models by mutable "main"/"latest"</li>
+                    <li><span class="badge high">DO</span> prefer safetensors and verify hashes</li>
+                    <li><span class="badge high">DO</span> pin deps by version + hash</li>
+                    <li><span class="badge high">DO</span> scan models and dependencies in CI</li>
+                    <li><span class="badge medium">DO</span> sandbox loading and keep an AI-BOM</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Machine Learning Security Top 10 — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/ml/OWASP-ML/ML06-AI-Supply-Chain-Attacks/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

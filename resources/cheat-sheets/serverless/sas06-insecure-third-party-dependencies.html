@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAS-6: Insecure Third-Party Dependencies - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>📦 Insecure Third-Party Dependencies</h1>
+            <p class="subtitle">OWASP Serverless Top 10 - SAS-6</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Insecure Third-Party Dependencies</strong> occur when a serverless function pulls in external code—npm, PyPI, Maven, or Gradle packages plus their transitive dependencies—that is vulnerable, malicious, unmaintained, or simply unaccounted for. A function is glue code: it parses an event, calls a managed service, and returns. To do that it drags in a tree of libraries the author never wrote and often never read. The <strong>serverless twist</strong> is <em>where the dependency runs and what it inherits</em>: a compromised library runs with the function's IAM execution role, its environment variables (often holding secrets), and its network egress—so one bad transitive package can read secrets and pivot across the account.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">SAS-6</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">80%+</span>
+                        <span class="label">Code Is 3rd-Party</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Transitive</span>
+                        <span class="label">Danger Zone</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Known CVE in a Bundled Dep:</strong> Crafted input triggers a public advisory in a parser/deserializer for RCE</li>
+                    <li><strong>Typosquatting:</strong> <code>crossenv</code> vs <code>cross-env</code>, <code>reqeusts</code> vs <code>requests</code></li>
+                    <li><strong>Dependency Confusion:</strong> Attacker publishes your internal package name on the public registry at a higher version</li>
+                    <li><strong>Maintainer/Account Hijack:</strong> Malicious release hidden in a fresh transitive dependency</li>
+                    <li><strong>Install-Time Script:</strong> <code>postinstall</code> runs attacker code on the CI/CD host</li>
+                    <li><strong>Runtime Credential Theft:</strong> An imported module reads env vars + the container credential endpoint</li>
+                    <li><strong>Stale Shared Layer:</strong> One vulnerable library exploits an entire fleet of functions</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Get code into the function<br>
+   <span class="comment">(known CVE, typosquat, hijack, or confusion)</span><br>
+   <span class="arrow">↓</span><br>
+2. Execute in the function's context<br>
+   <span class="comment">(at import, via install script, or vuln path)</span><br>
+   <span class="arrow">↓</span><br>
+3. Harvest ambient credentials<br>
+   <span class="comment">(env vars + container credential endpoint)</span><br>
+   <span class="arrow">↓</span><br>
+4. Pivot with the over-privileged role<br>
+   <span class="comment">(S3, DynamoDB, AssumeRole)</span><br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: One bad dep becomes an account breach!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># package.json — floating ranges + a build-time script that runs anything</span>
+{
+  <span class="string">"name"</span>: <span class="string">"order-fn"</span>,
+  <span class="string">"dependencies"</span>: {
+    <span class="string">"left-pad"</span>: <span class="string">"*"</span>,              <span class="comment">// whatever resolves — no ceiling</span>
+    <span class="string">"some-parser"</span>: <span class="string">"^1.0.0"</span>,      <span class="comment">// silently accepts a hijacked 1.9.9</span>
+    <span class="string">"aws-sdk"</span>: <span class="string">"latest"</span>           <span class="comment">// non-deterministic across builds</span>
+  },
+  <span class="string">"scripts"</span>: {
+    <span class="string">"postinstall"</span>: <span class="string">"node ./setup.js"</span>   <span class="comment">// arbitrary code on every install</span>
+  }
+}
+
+<span class="comment"># requirements.txt — unpinned, no hashes</span>
+requests
+pyyaml>=<span class="number">3</span>
+some-utils            <span class="comment"># name never verified; a typo installs an impostor</span>
+
+<span class="comment"># serverless.yml — the function role is a skeleton key</span>
+provider:
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action: <span class="string">"*"</span>           <span class="comment">← a bad dep can do ANYTHING</span>
+          Resource: <span class="string">"*"</span>
+  environment:
+    DB_PASSWORD: ${env:DB_PASSWORD}   <span class="comment">← plaintext env any module can read</span>
+  runtime: python3.7                  <span class="comment">← deprecated / unpatched runtime</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># package.json — exact versions, no floating "latest", scripts controlled in CI</span>
+{
+  <span class="string">"name"</span>: <span class="string">"order-fn"</span>,
+  <span class="string">"dependencies"</span>: {
+    <span class="string">"some-parser"</span>: <span class="string">"1.4.2"</span>,       <span class="comment">// exact version, chosen deliberately</span>
+    <span class="string">"@aws-sdk/client-dynamodb"</span>: <span class="string">"3.658.1"</span>
+  }
+  <span class="comment">// no lifecycle scripts; CI installs with --ignore-scripts</span>
+}
+
+<span class="comment"># requirements.txt — pinned AND hash-verified (install fails if a hash mismatches)</span>
+requests==<span class="number">2.32.3</span> \
+    --hash=sha256:70761cfe03c773ceb22aa2f671b4757976145175cdfca038c02654d061d6dcc6
+
+<span class="comment"># CI: deterministic install, no lifecycle scripts, scan gates the deploy</span>
+- run: npm ci --ignore-scripts        <span class="comment"># from committed lockfile, hashed</span>
+- run: npm audit --audit-level=high    <span class="comment"># fail build on known CVEs</span>
+- run: npx snyk test --severity-threshold=high
+- run: npx @cyclonedx/cyclonedx-npm --output-file sbom.json
+- run: grype sbom:sbom.json --fail-on high
+- run: npx serverless deploy           <span class="comment"># only if every gate passed</span>
+
+<span class="comment"># serverless.yml — least privilege bounds the blast radius</span>
+provider:
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action: [<span class="string">"dynamodb:GetItem"</span>]           <span class="comment"># only what it needs</span>
+          Resource: <span class="string">"arn:aws:dynamodb:us-east-1:123456789012:table/Orders"</span>
+  runtime: python3.12                            <span class="comment"># current, patched runtime</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Generate an SBOM per function &amp; layer, every build</li>
+                    <li>Gate CI on SCA (npm audit / pip-audit / Snyk / Grype)</li>
+                    <li>Re-scan deployed artifacts on a schedule</li>
+                    <li>Commit lockfiles with integrity hashes</li>
+                    <li>Install with <code>npm ci</code> / <code>pip --require-hashes</code></li>
+                    <li>Minimize the tree; prefer stdlib over micro-packages</li>
+                    <li>Pull from a trusted, scoped registry (stop confusion)</li>
+                    <li>Disable install scripts (<code>--ignore-scripts</code>)</li>
+                    <li>Scan Lambda layers &amp; container images, not just manifests</li>
+                    <li>Keep functions on a supported, patched runtime</li>
+                    <li>Automate update PRs (Dependabot / Renovate)</li>
+                    <li>Least-privilege role + monitored egress</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection &amp; Tools</h2>
+                <h3>SCA &amp; Scanning:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">npm audit</span>
+                    <span class="tool-tag">pip-audit</span>
+                    <span class="tool-tag">Snyk</span>
+                    <span class="tool-tag">OWASP Dependency-Check</span>
+                    <span class="tool-tag">Grype</span>
+                    <span class="tool-tag">Trivy</span>
+                </div>
+
+                <h3>Inventory &amp; Updates:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">CycloneDX</span>
+                    <span class="tool-tag">Syft (SBOM)</span>
+                    <span class="tool-tag">Dependabot</span>
+                    <span class="tool-tag">Renovate</span>
+                    <span class="tool-tag">npm ls / pipdeptree</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Run SCA against the manifest AND the built artifact/layer</li>
+                    <li>Diff SBOMs between releases for new transitive deps</li>
+                    <li>Check for floating ranges (<code>*</code>, <code>latest</code>, <code>^</code>) in manifests</li>
+                    <li>Confirm a lockfile is committed and CI uses <code>npm ci</code></li>
+                    <li>Look for lifecycle scripts (<code>postinstall</code>) and native builds</li>
+                    <li>Verify the runtime version is still supported</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>Described as <strong>incident classes</strong>—repeatedly observed patterns—because the durable lesson is the pattern, not any single advisory:</p>
+                <ul>
+                    <li><strong>Malicious npm Package in the Tree (event-stream class):</strong> A low-attention package changes maintainership; malicious code is buried in a fresh transitive dep and pulled automatically by floating ranges with no lockfile.</li>
+                    <li><strong>Typosquatting &amp; Dependency-Confusion Waves:</strong> Lookalike or internal-name packages on the public registry ship credential-stealing payloads via install scripts—on build hosts and in the artifact.</li>
+                    <li><strong>Unpatched Known-Vulnerable Library in a Shared Layer:</strong> A stale, unscanned layer bundles a parsing library with a public advisory; every function attached inherits the vulnerable version.</li>
+                    <li><strong>Trojanized Update to a Low-Attention Transitive Dep:</strong> A tiny utility three levels down—that nobody named or watches—is hijacked.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> use floating ranges (<code>*</code>, <code>latest</code>) in prod</li>
+                    <li><span class="badge critical">DO NOT</span> run install scripts unreviewed in CI</li>
+                    <li><span class="badge critical">DO NOT</span> ship a wildcard IAM role with your deps</li>
+                    <li><span class="badge high">DO</span> pin + hash-verify from a committed lockfile</li>
+                    <li><span class="badge high">DO</span> gate every build on SCA and an SBOM scan</li>
+                    <li><span class="badge high">DO</span> scan layers and keep runtimes current</li>
+                    <li><span class="badge medium">DO</span> minimize the tree and monitor egress</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">OWASP</span> Top 10 - Vulnerable &amp; Outdated Components</li>
+                    <li><span class="badge medium">NIST</span> SSDF / SBOM (EO 14028)</li>
+                    <li><span class="badge medium">PCI-DSS</span> Requirement 6.3 - Known Vulnerabilities</li>
+                    <li><span class="badge medium">SOC 2</span> CC7.1</li>
+                    <li><span class="badge medium">CycloneDX</span> / SPDX SBOM Standards</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Serverless Top 10 — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/serverless/OWASP-Serverless/SAS06-Insecure-Third-Party-Dependencies/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

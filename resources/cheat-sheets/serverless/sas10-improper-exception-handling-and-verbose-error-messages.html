@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAS-10: Improper Exception Handling &amp; Verbose Error Messages - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🧯 Improper Exception Handling &amp; Verbose Error Messages</h1>
+            <p class="subtitle">OWASP Serverless Top 10 - SAS-10</p>
+            <span class="category">MEDIUM RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Improper Exception Handling &amp; Verbose Error Messages</strong> occurs when a function lets an exception decide its own fate: the error bubbles up unhandled, the platform serialises whatever it can, and the caller receives a response full of internal detail—or the function fails in a way that quietly skips a security check, half-completes a write, or vanishes without an audit record. Serverless magnifies this: the platform <strong>returns unhandled errors to the caller by default</strong> (API Gateway, Function URL, invoke response) and <strong>retries failures automatically</strong> (at-least-once). Both defaults are hostile in production. The fix: a <em>generic</em> message to the caller, <em>rich structured detail</em> to the logs, fail-<em>closed</em> security paths, and idempotent, safe-to-retry side effects.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">SAS-10</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Default</span>
+                        <span class="label">Is Hostile</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">2 Audiences</span>
+                        <span class="label">Caller vs. Logs</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Raw Stack Trace to Caller:</strong> File paths, line numbers, runtime internals disclosed on a bad request</li>
+                    <li><strong>Secrets in the Error Dump:</strong> Handler echoes env/config—DSNs, ARNs, account IDs, passwords</li>
+                    <li><strong>Fail-Open Security Check:</strong> A caught auth error yields empty claims and continues</li>
+                    <li><strong>Duplicate Side Effect:</strong> Error after a charge, before ack → retry charges again</li>
+                    <li><strong>Error-Type Oracle:</strong> 500 vs 404 (or timing) reveals which records exist</li>
+                    <li><strong>Driver Error Leak:</strong> Query text exposes table &amp; column names</li>
+                    <li><strong>Destroyed Audit Trail:</strong> Crash before the log line leaves no record</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Trigger the error<br>
+   <span class="comment">(malformed / oversized / unexpected input)</span><br>
+   <span class="arrow">↓</span><br>
+2. Harvest internals from the response<br>
+   <span class="comment">(stack trace, secrets, ARNs, table names)</span><br>
+   <span class="arrow">↓</span><br>
+3. Build oracles from response differences<br>
+   <span class="comment">(status/message/timing → enumerate records)</span><br>
+   <span class="arrow">↓</span><br>
+4. Exploit fail-open &amp; force duplicates<br>
+   <span class="comment">(make a check throw; fail the tail to retry)</span><br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Recon, secret leak, authz bypass, double-charge!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// No try/catch. Any throw is serialised straight back to the caller with the</span>
+<span class="comment">// full stack trace through the API Gateway proxy integration.</span>
+exports.handler = <span class="keyword">async</span> (event) => {
+  <span class="keyword">const</span> body = JSON.<span class="function">parse</span>(event.body);          <span class="comment">// throws on bad JSON</span>
+  <span class="keyword">const</span> order = <span class="keyword">await</span> db.<span class="function">getOrder</span>(body.orderId); <span class="comment">// throws on DB error</span>
+  <span class="keyword">return</span> { statusCode: <span class="number">200</span>, body: JSON.<span class="function">stringify</span>(order) };
+};
+<span class="comment">// Client receives: errorType, errorMessage, and "trace" with /var/task/... paths</span>
+
+<span class="comment"># Python — dumps the whole event AND environment "to help debugging"</span>
+<span class="keyword">except</span> Exception <span class="keyword">as</span> e:
+    <span class="keyword">return</span> { <span class="string">"statusCode"</span>: <span class="number">500</span>, <span class="string">"body"</span>: json.<span class="function">dumps</span>({
+        <span class="string">"error"</span>: str(e),
+        <span class="string">"event"</span>: event,                 <span class="comment">← tokens, PII in the body</span>
+        <span class="string">"env"</span>: dict(os.environ) }) }      <span class="comment">← DB_PASSWORD, ARNs, account id</span>
+
+<span class="comment"># Fail-OPEN: a verification error yields empty claims, then falls through</span>
+<span class="keyword">try</span>:
+    claims = <span class="function">verify_token</span>(hdr)
+<span class="keyword">except</span> Exception:
+    claims = {}                       <span class="comment">← error -> empty claims, keep going</span>
+<span class="keyword">if</span> claims.<span class="function">get</span>(<span class="string">"role"</span>) == <span class="string">"admin"</span> <span class="keyword">or</span> <span class="keyword">not</span> claims:   <span class="comment">← BUG: `not claims` grants access</span>
+    <span class="keyword">return</span> <span class="function">do_admin_action</span>(event)
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Reusable boundary: caller gets a generic message + correlation id;</span>
+<span class="comment">// full detail goes only to CloudWatch. Apply to every handler.</span>
+<span class="keyword">const</span> withErrorBoundary = (fn) => <span class="keyword">async</span> (event, context) => {
+  <span class="keyword">const</span> correlationId = context.awsRequestId;
+  <span class="keyword">try</span> { <span class="keyword">return</span> <span class="keyword">await</span> <span class="function">fn</span>(event, context); }
+  <span class="keyword">catch</span> (err) {
+    console.<span class="function">error</span>(JSON.<span class="function">stringify</span>({             <span class="comment">// server-side only</span>
+      level: <span class="string">'ERROR'</span>, correlationId, name: err.name,
+      message: err.message, stack: err.stack }));
+    <span class="keyword">return</span> { statusCode: <span class="number">500</span>, headers: { <span class="string">'Content-Type'</span>: <span class="string">'application/json'</span> },
+      body: JSON.<span class="function">stringify</span>({ error: <span class="string">'internal_error'</span>,
+        message: <span class="string">'The request could not be processed.'</span>,
+        correlationId }) };                    <span class="comment">// safe to show, leaks nothing</span>
+  }
+};
+
+<span class="comment"># Fail-CLOSED: any exception in verification is a hard 401 deny (Python)</span>
+<span class="keyword">try</span>:
+    claims = <span class="function">verify_token</span>(hdr)
+<span class="keyword">except</span> Exception <span class="keyword">as</span> e:
+    log.<span class="function">warning</span>({<span class="string">"event"</span>: <span class="string">"auth_error"</span>, <span class="string">"reason"</span>: type(e).__name__})
+    <span class="keyword">return</span> <span class="function">client_error</span>(<span class="number">401</span>, <span class="string">"unauthorized"</span>, <span class="string">"Authentication required."</span>, ctx)
+<span class="keyword">if</span> claims.<span class="function">get</span>(<span class="string">"role"</span>) != <span class="string">"admin"</span>:              <span class="comment"># explicit allow only on success</span>
+    <span class="keyword">return</span> <span class="function">client_error</span>(<span class="number">403</span>, <span class="string">"forbidden"</span>, <span class="string">"Access denied."</span>, ctx)
+
+<span class="comment"># Idempotency key + compensation make at-least-once retries safe</span>
+<span class="keyword">if</span> (<span class="keyword">await</span> <span class="function">alreadyProcessed</span>(record.messageId)) <span class="keyword">continue</span>;   <span class="comment">// dedupe on retry</span>
+<span class="keyword">await</span> <span class="function">chargeCard</span>(id, amt, { idempotencyKey: record.messageId });   <span class="comment">// no-op if repeated</span>
+
+<span class="comment"># API Gateway maps 4xx/5xx to generic bodies so crashes never leak verbatim</span>
+x-amazon-apigateway-gateway-responses:
+  DEFAULT_5XX: { responseTemplates: { application/json: <span class="string">'{"error":"internal_error"}'</span> } }
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Wrap every handler in an outermost error boundary</li>
+                    <li>Generic client message + correlation id — nothing internal</li>
+                    <li>Full structured detail to server-side logs only</li>
+                    <li>Map errors at API Gateway &amp; Function URL layers</li>
+                    <li>Never serialise env/config into an error</li>
+                    <li>Redact sensitive fields before logging</li>
+                    <li>Fail closed on auth/authz/validation/signature paths</li>
+                    <li>Every failure branch ends in a <code>return</code>/deny</li>
+                    <li>Idempotency keys + compensation on side effects</li>
+                    <li>Uniform responses &amp; constant-time checks (no oracles)</li>
+                    <li>Log-before-return so the audit trail survives a crash</li>
+                    <li>Disable verbose/debug output in production</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection &amp; Tools</h2>
+                <h3>Controls &amp; Services:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">API Gateway Gateway Responses</span>
+                    <span class="tool-tag">Lambda Powertools</span>
+                    <span class="tool-tag">CloudWatch Logs</span>
+                    <span class="tool-tag">Structured Logging</span>
+                    <span class="tool-tag">AWS Secrets Manager</span>
+                </div>
+
+                <h3>Testing &amp; Scanning:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Burp Suite</span>
+                    <span class="tool-tag">OWASP ZAP</span>
+                    <span class="tool-tag">Fuzzing (malformed input)</span>
+                    <span class="tool-tag">SAST / code review</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Send malformed JSON / wrong-type fields — read the response</li>
+                    <li>Check responses for stack traces, ARNs, query text, account IDs</li>
+                    <li>Force a DB/timeout error and inspect what leaks</li>
+                    <li>Send a malformed token — does the check fail open?</li>
+                    <li>Compare 500 vs 404 and response timing for enumeration</li>
+                    <li>Verify audit logs survive a crash mid-request</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>Described as <strong>classes of failure</strong> repeatedly documented across the industry, mapping to long-standing CWE entries (improper error handling, sensitive info in an error message):</p>
+                <ul>
+                    <li><strong>Stack Traces as Free Reconnaissance:</strong> Framework debug behaviour left on ships full traces—file paths, library versions, config fragments—to the client; scanners trigger errors specifically to read them and match disclosed versions to known CVEs.</li>
+                    <li><strong>Secrets Surfacing Through Error/Debug Output:</strong> Handlers log or return the full event or environment "to help debugging"; credentials and connection strings land in responses or over-readable log stores, then get reused directly (overlaps SAS-7).</li>
+                    <li><strong>Retries Turning One Action Into Many:</strong> A non-idempotent side effect hits an unhandled error before ack on an at-least-once source; the platform re-runs it—duplicate charges, notifications, or records (overlaps SAS-9).</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> return raw exceptions or stack traces to callers</li>
+                    <li><span class="badge critical">DO NOT</span> serialise the event or environment on error</li>
+                    <li><span class="badge critical">DO NOT</span> let a caught security error fall through to "allow"</li>
+                    <li><span class="badge high">DO</span> return a generic message + correlation id</li>
+                    <li><span class="badge high">DO</span> fail closed and log before you return</li>
+                    <li><span class="badge high">DO</span> make retried side effects idempotent</li>
+                    <li><span class="badge medium">DO</span> keep responses uniform to avoid oracles</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">CWE-209 / CWE-388</span> Info in Error Msg / Error Handling</li>
+                    <li><span class="badge medium">OWASP</span> Top 10 - Security Misconfiguration</li>
+                    <li><span class="badge medium">NIST</span> 800-53 SI-11 - Error Handling</li>
+                    <li><span class="badge medium">PCI-DSS</span> Requirement 6.5 - Secure Coding</li>
+                    <li><span class="badge medium">SOC 2</span> CC7.2 - Monitoring &amp; Response</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Serverless Top 10 — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/serverless/OWASP-Serverless/SAS10-Improper-Exception-Handling-and-Verbose-Error-Messages/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

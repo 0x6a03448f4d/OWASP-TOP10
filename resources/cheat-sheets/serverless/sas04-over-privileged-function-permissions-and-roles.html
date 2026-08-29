@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAS-4: Over-Privileged Function Permissions & Roles - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🎭 Over-Privileged Function Permissions & Roles</h1>
+            <p class="subtitle">OWASP Serverless Top 10 - SAS-4</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Over-Privileged Function Permissions &amp; Roles</strong> occurs when a function is granted far more IAM permission than it needs. Instead of being scoped to the one table it reads or the one bucket it writes, the function carries wildcard actions, wildcard resources, broad <code>*FullAccess</code> managed policies, or a single shared role reused across the whole app. The permission the function <em>holds</em> is much larger than the permission it <em>uses</em>. In serverless there is no host or network to fall back on — the IAM policy <em>is</em> the security perimeter. Over-privilege is rarely the way in; it is the multiplier that turns a contained bug into an account-wide breach.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">SAS-4</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Blast</span>
+                        <span class="label">Radius</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Severe</span>
+                        <span class="label">Impact</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Shared Role:</strong> one broad provider-level role inherited by every function</li>
+                    <li><strong>Wildcard Actions:</strong> <code>"*"</code>, <code>s3:*</code>, <code>dynamodb:*</code> — includes delete and full scans</li>
+                    <li><strong>Wildcard Resource:</strong> <code>Resource: "*"</code> turns a narrow action account-wide</li>
+                    <li><strong>Broad Managed Policies:</strong> <code>*FullAccess</code> attached "to unblock the build"</li>
+                    <li><strong>iam:PassRole:</strong> unscoped — borrow a more privileged role</li>
+                    <li><strong>iam:* Write:</strong> attach admin policy, self-escalate to account admin</li>
+                    <li><strong>Permission Drift:</strong> grants added per feature, never removed</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Get execution inside a function (injection / bad dep / leaked secret)<br>
+   <span class="arrow">↓</span><br>
+2. Harvest the role's credentials from <code>AWS_*</code> env vars<br>
+   <span class="arrow">↓</span><br>
+3. Enumerate what the role can do (List*, Get*, sts:GetCallerIdentity)<br>
+   <span class="arrow">↓</span><br>
+4. Abuse wildcards: read every bucket/table, invoke every function<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: PassRole / iam:* escalate to account-wide admin!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: one broad provider-level role inherited by ALL functions (serverless.yml)</span>
+provider:
+  name: aws
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action: <span class="string">"*"</span>        <span class="comment">← every function can do everything</span>
+          Resource: <span class="string">"*"</span>      <span class="comment">← ...on every resource</span>
+
+functions:
+  createOrder: { handler: src/create.handler }   <span class="comment"># only needs PutItem on Orders</span>
+  healthCheck: { handler: src/health.handler }   <span class="comment">← needs NOTHING, holds account-wide power</span>
+
+<span class="comment">// Bad: service wildcards and privilege-escalation permissions (JSON)</span>
+{ <span class="string">"Effect"</span>: <span class="string">"Allow"</span>,
+  <span class="string">"Action"</span>: [<span class="string">"s3:*"</span>, <span class="string">"dynamodb:*"</span>],   <span class="comment">// includes Delete*, full scans of every table</span>
+  <span class="string">"Resource"</span>: <span class="string">"*"</span> }
+
+{ <span class="string">"Effect"</span>: <span class="string">"Allow"</span>,
+  <span class="string">"Action"</span>: [<span class="string">"iam:PassRole"</span>, <span class="string">"iam:AttachRolePolicy"</span>],  <span class="comment">← rewrite permissions</span>
+  <span class="string">"Resource"</span>: <span class="string">"*"</span> }   <span class="comment">// unscoped PassRole = borrow AdminRole</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: one least-privilege role PER function + a permission boundary ceiling</span>
+plugins:
+  - serverless-iam-roles-per-function
+provider:
+  name: aws
+  iam:
+    role:
+      permissionsBoundary: arn:aws:iam::111122223333:policy/FunctionBoundary  <span class="comment"># ceiling</span>
+
+functions:
+  createOrder:
+    handler: src/create.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action: dynamodb:PutItem              <span class="comment"># write-only</span>
+        Resource: arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Orders
+  getOrder:
+    handler: src/read.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action: dynamodb:GetItem              <span class="comment"># read-only, SEPARATE role</span>
+        Resource: arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Orders
+  healthCheck:
+    handler: src/health.handler              <span class="comment"># no iamRoleStatements → logging only</span>
+
+<span class="comment">// Good: scoped actions, pinned ARN, tightened with a condition (JSON)</span>
+{ <span class="string">"Sid"</span>: <span class="string">"ReadIncomingUploadsOnly"</span>, <span class="string">"Effect"</span>: <span class="string">"Allow"</span>,
+  <span class="string">"Action"</span>: [<span class="string">"s3:GetObject"</span>],
+  <span class="string">"Resource"</span>: <span class="string">"arn:aws:s3:::uploads-prod/incoming/*"</span> }
+
+<span class="comment">// If PassRole is truly needed, pin the role ARN + a service condition:</span>
+{ <span class="string">"Action"</span>: <span class="string">"iam:PassRole"</span>,
+  <span class="string">"Resource"</span>: <span class="string">"arn:aws:iam::111122223333:role/OrdersWorker"</span>,
+  <span class="string">"Condition"</span>: { <span class="string">"StringEquals"</span>: { <span class="string">"iam:PassedToService"</span>: <span class="string">"lambda.amazonaws.com"</span> } } }
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Give every function its own least-privilege role</li>
+                    <li>Never attach a broad shared provider-level role</li>
+                    <li>Replace every <code>*</code> with explicit actions and ARNs</li>
+                    <li>Never use <code>service:*</code> or <code>Resource: "*"</code> for data services</li>
+                    <li>Avoid <code>*FullAccess</code> managed policies</li>
+                    <li>Tighten with conditions (SourceArn, LeadingKeys, encryption)</li>
+                    <li>Scope <code>iam:PassRole</code> to specific role ARNs + service condition</li>
+                    <li>Never grant <code>iam:*</code> or policy-editing actions to a function</li>
+                    <li>Compare granted vs. used and remove the surplus</li>
+                    <li>Apply permission boundaries as a hard ceiling</li>
+                    <li>Separate roles by trust level and data sensitivity</li>
+                    <li>Enforce least privilege in IaC and re-check every deploy</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Least-Privilege Analysis:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">IAM Access Analyzer</span>
+                    <span class="tool-tag">Policy Generator (CloudTrail)</span>
+                    <span class="tool-tag">Checkov</span>
+                    <span class="tool-tag">cfn-nag</span>
+                    <span class="tool-tag">iam-roles-per-function</span>
+                </div>
+
+                <h3>Monitoring & Pivots:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">CloudTrail</span>
+                    <span class="tool-tag">CloudWatch</span>
+                    <span class="tool-tag">Permission Boundaries</span>
+                    <span class="tool-tag">Prisma Cloud</span>
+                    <span class="tool-tag">Prowler</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Inventory roles: is each function's role unique?</li>
+                    <li>Grep IaC for <code>Action: "*"</code>, <code>service:*</code>, <code>Resource: "*"</code></li>
+                    <li>Flag any <code>*FullAccess</code> managed policy on execution roles</li>
+                    <li>Check for unscoped <code>iam:PassRole</code> and <code>iam:*</code></li>
+                    <li>Run Access Analyzer to compare granted vs. used</li>
+                    <li>Simulate: from a function's role, what can you reach?</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>These are documented <strong>incident classes</strong> — recurring patterns, not specific CVEs.</p>
+                <ul>
+                    <li><strong>One compromised function, whole-account reach:</strong> an internet-facing function with <code>s3:*</code> and <code>dynamodb:*</code> on <code>Resource: "*"</code> is exploited; because the role is account-wide, the attacker exfiltrates buckets and tables unrelated to the function.</li>
+                    <li><strong>Privilege escalation via iam:PassRole:</strong> a limited role holds unscoped <code>PassRole</code> plus the ability to create compute; the attacker attaches a far more privileged existing role and operates as it.</li>
+                    <li><strong>*FullAccess as the default:</strong> a managed full-access policy attached in development and never tightened, exposing an entire service to any one weak function.</li>
+                    <li><strong>Shared-role blast radius:</strong> many functions share one role, so compromising the least-defended <code>healthCheck</code> yields the same power as every other function.</li>
+                    <li><strong>Denial-of-wallet via created compute:</strong> permission to spin up instances or functions abused for cryptomining on the victim's bill.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> share one broad role across functions</li>
+                    <li><span class="badge critical">DO NOT</span> use <code>Action: "*"</code> or <code>Resource: "*"</code></li>
+                    <li><span class="badge critical">DO NOT</span> grant unscoped <code>iam:PassRole</code> or <code>iam:*</code></li>
+                    <li><span class="badge high">DO</span> give each function its own least-privilege role</li>
+                    <li><span class="badge high">DO</span> pin specific actions and resource ARNs</li>
+                    <li><span class="badge high">DO</span> cap roles with permission boundaries</li>
+                    <li><span class="badge medium">DO</span> compare granted vs. used continuously</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">OWASP</span> Serverless Top 10 - SAS-4</li>
+                    <li><span class="badge medium">CWE-250</span> Execution with Unnecessary Privileges</li>
+                    <li><span class="badge medium">CWE-269</span> Improper Privilege Management</li>
+                    <li><span class="badge medium">PCI-DSS</span> Requirement 7 - Least Privilege</li>
+                    <li><span class="badge medium">SOC 2</span> / ISO 27001 Access Control</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Serverless Top 10 — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/serverless/OWASP-Serverless/SAS04-Over-Privileged-Function-Permissions-and-Roles/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

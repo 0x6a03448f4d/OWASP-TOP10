@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SC01: Access Control Vulnerabilities - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔑 Access Control Vulnerabilities</h1>
+            <p class="subtitle">OWASP Smart Contract Top 10 (2025) - SC01</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Access control</strong> is the set of rules deciding <em>who</em> may invoke <em>which</em> state-changing operation. An access-control vulnerability exists when a privileged function — one that moves funds, mints tokens, changes ownership, upgrades logic, pauses, or destroys the contract — can be called by an account that should never have been permitted. A deployed contract is <strong>public, immutable, and permissionlessly callable</strong>: there is no firewall and no login to fail. If a treasury-draining function lacks an authorization check, the check simply does not exist, and bots scanning the mempool exploit it within a block.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">SC01</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Critical</span>
+                        <span class="label">Severity</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Direct</span>
+                        <span class="label">Exploit Path</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Missing Modifier:</strong> Sensitive function has no <code>onlyOwner</code>/role check at all</li>
+                    <li><strong>tx.origin Auth:</strong> Phishing contract acts with the owner's authority</li>
+                    <li><strong>Open Initializer:</strong> Unguarded <code>initialize()</code> lets anyone become owner</li>
+                    <li><strong>Unguarded Upgrade:</strong> Public <code>setImplementation</code> / raw <code>delegatecall</code></li>
+                    <li><strong>Unprotected selfdestruct:</strong> Anyone erases the contract and sweeps its balance</li>
+                    <li><strong>Inverted Modifier:</strong> <code>!=</code> instead of <code>==</code> lets everyone but the owner through</li>
+                    <li><strong>Weak Ownership Transfer:</strong> Public or single-step setter enables takeover/lockout</li>
+                    <li><strong>Default Visibility:</strong> Legacy code leaves a helper externally callable</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Read verified source / decompile bytecode<br>
+   <span class="arrow">↓</span><br>
+2. List every external, state-changing function<br>
+   <span class="arrow">↓</span><br>
+3. Spot one with no modifier or a broken guard<br>
+   <span class="arrow">↓</span><br>
+4. Directly call withdraw / mint / seize ownership<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Treasury drained, supply inflated, protocol taken over!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// SPDX-License-Identifier: MIT</span>
+<span class="keyword">pragma</span> solidity ^<span class="number">0.8</span>.<span class="number">24</span>;
+
+<span class="keyword">contract</span> <span class="function">Treasury</span> {
+    <span class="keyword">address</span> <span class="keyword">public</span> owner;
+    <span class="function">constructor</span>() { owner = msg.sender; }
+
+    <span class="comment">// No modifier: ANY account can drain the contract</span>
+    <span class="keyword">function</span> <span class="function">withdraw</span>(<span class="keyword">uint256</span> amount) <span class="keyword">public</span> {
+        payable(msg.sender).transfer(amount);   <span class="comment">← unguarded!</span>
+    }
+
+    <span class="comment">// tx.origin passes even when a malicious contract makes</span>
+    <span class="comment">// the call, as long as the owner started the tx (phishing)</span>
+    <span class="keyword">function</span> <span class="function">transferTo</span>(<span class="keyword">address</span> payable to, <span class="keyword">uint256</span> amt) <span class="keyword">external</span> {
+        <span class="keyword">require</span>(tx.origin == owner, <span class="string">"not owner"</span>);   <span class="comment">← wrong!</span>
+        to.transfer(amt);
+    }
+
+    <span class="comment">// Unguarded initializer: attacker calls it and becomes owner</span>
+    <span class="keyword">function</span> <span class="function">initialize</span>(<span class="keyword">address</span> _owner) <span class="keyword">external</span> {
+        owner = _owner;               <span class="comment">← no `initializer` guard</span>
+    }
+
+    <span class="comment">// Anyone can destroy the contract and take the balance</span>
+    <span class="keyword">function</span> <span class="function">kill</span>() <span class="keyword">public</span> {
+        selfdestruct(payable(msg.sender));   <span class="comment">← no auth</span>
+    }
+
+    receive() <span class="keyword">external</span> payable {}
+}
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// SPDX-License-Identifier: MIT</span>
+<span class="keyword">pragma</span> solidity ^<span class="number">0.8</span>.<span class="number">24</span>;
+
+<span class="keyword">import</span> <span class="string">"@openzeppelin/contracts/access/AccessControl.sol"</span>;
+<span class="keyword">import</span> <span class="string">"@openzeppelin/contracts/access/Ownable2Step.sol"</span>;
+
+<span class="keyword">contract</span> <span class="function">Treasury</span> <span class="keyword">is</span> AccessControl, Ownable2Step {
+    <span class="keyword">bytes32</span> <span class="keyword">public</span> <span class="keyword">constant</span> MINTER_ROLE = keccak256(<span class="string">"MINTER_ROLE"</span>);
+
+    <span class="function">constructor</span>(<span class="keyword">address</span> admin) Ownable(msg.sender) {
+        _grantRole(DEFAULT_ADMIN_ROLE, admin);   <span class="comment">// least privilege</span>
+    }
+
+    <span class="comment">// Guarded, authenticated with msg.sender via audited library</span>
+    <span class="keyword">function</span> <span class="function">withdraw</span>(<span class="keyword">uint256</span> amount) <span class="keyword">external</span> onlyOwner {
+        <span class="keyword">require</span>(amount <= <span class="keyword">address</span>(<span class="keyword">this</span>).balance, <span class="string">"insufficient"</span>);
+        payable(owner()).transfer(amount);
+    }
+
+    <span class="comment">// Only holders of MINTER_ROLE may mint</span>
+    <span class="keyword">function</span> <span class="function">mint</span>(<span class="keyword">address</span> to, <span class="keyword">uint256</span> amt) <span class="keyword">external</span> onlyRole(MINTER_ROLE) {
+        <span class="comment">// _mint(to, amt);</span>
+    }
+
+    <span class="comment">// Ownable2Step: transferOwnership() only PROPOSES; the pending</span>
+    <span class="comment">// owner must call acceptOwnership() — no typo/zero-address lockout.</span>
+    <span class="comment">// No selfdestruct at all; shutdown (if needed) is governance-gated.</span>
+    receive() <span class="keyword">external</span> payable {}
+}
+
+<span class="comment">// Upgradeable? Lock the initializer on the implementation:</span>
+<span class="comment">//   constructor() { _disableInitializers(); }</span>
+<span class="comment">//   function initialize(address o) external initializer { ... }</span>
+<span class="comment">//   function _authorizeUpgrade(address) internal override onlyOwner {}</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Explicit modifier on EVERY privileged function</li>
+                    <li>Authenticate with <code>msg.sender</code>, never <code>tx.origin</code></li>
+                    <li>Use OpenZeppelin <code>Ownable</code>/<code>AccessControl</code></li>
+                    <li>Guard initializers with <code>initializer</code></li>
+                    <li>Call <code>_disableInitializers()</code> on implementations</li>
+                    <li>Restrict upgrades via <code>_authorizeUpgrade</code></li>
+                    <li>Never expose a public <code>delegatecall</code> target</li>
+                    <li>Two-step ownership transfer; reject zero address</li>
+                    <li>Remove or governance-gate <code>selfdestruct</code></li>
+                    <li>Declare explicit function visibility</li>
+                    <li>Least privilege + role separation (multisig/timelock)</li>
+                    <li>Negative tests: unauthorized callers MUST revert</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Analysis Tools:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Slither</span>
+                    <span class="tool-tag">Mythril</span>
+                    <span class="tool-tag">Echidna</span>
+                    <span class="tool-tag">Foundry</span>
+                    <span class="tool-tag">Manticore</span>
+                    <span class="tool-tag">Securify</span>
+                </div>
+
+                <h3>Libraries & Patterns:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">OpenZeppelin</span>
+                    <span class="tool-tag">Ownable2Step</span>
+                    <span class="tool-tag">AccessControl</span>
+                    <span class="tool-tag">Tenderly</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Run <code>slither .</code> — detectors: suicidal, tx-origin, unprotected-upgrade</li>
+                    <li>Run <code>mythril analyze</code> for reachable privileged ops</li>
+                    <li>Enumerate every external function; map its intended caller</li>
+                    <li>Write a reverting test for each function from a stranger address</li>
+                    <li>Confirm the implementation cannot be initialized directly</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <ul>
+                    <li><strong>Parity Multisig Freeze (2017):</strong> An unprotected initialization function on a shared library, reached via <code>delegatecall</code>, let an account take ownership and call <code>selfdestruct</code> — bricking every wallet that depended on the library.</li>
+                    <li><strong>Uninitialized-Proxy Takeover class:</strong> Implementation contracts left uninitialized let an attacker call <code>initialize</code>, seize ownership of the logic, and hijack the upgrade path or destroy it.</li>
+                    <li><strong>Unprotected Privileged Function class:</strong> A <code>mint</code>/<code>withdraw</code>/<code>setOwner</code> shipped without its intended modifier — the most frequently reported access-control finding; searchers detect and exploit it automatically.</li>
+                    <li><strong>tx.origin phishing:</strong> A contract the owner is lured into calling inherits the owner's <code>tx.origin</code> and passes the check.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> leave any privileged function unguarded</li>
+                    <li><span class="badge critical">DO NOT</span> authorize with <code>tx.origin</code></li>
+                    <li><span class="badge critical">DO NOT</span> expose a public <code>selfdestruct</code> or upgrade setter</li>
+                    <li><span class="badge high">DO</span> use audited <code>Ownable</code>/<code>AccessControl</code></li>
+                    <li><span class="badge high">DO</span> lock initializers and disable them on the impl</li>
+                    <li><span class="badge high">DO</span> transfer ownership in two steps</li>
+                    <li><span class="badge medium">DO</span> run Slither/Mythril and negative tests in CI</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Smart Contract Top 10 (2025) — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/smartcontract/OWASP-SmartContract/SC01-Access-Control-Vulnerabilities/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

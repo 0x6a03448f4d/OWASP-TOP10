@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAS-3: Insecure Serverless Deployment Configuration - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>⚙️ Insecure Serverless Deployment Configuration</h1>
+            <p class="subtitle">OWASP Serverless Top 10 - SAS-3</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Insecure Serverless Deployment Configuration</strong> occurs when the many settings that govern functions — and the buckets, queues, topics, tables, roles, and API Gateway routes around them — are left at insecure defaults or actively misconfigured. This weakness lives in the <em>deployment artifact</em>: the <code>serverless.yml</code>, SAM/CloudFormation template, Terraform module, and resource-based policies. When those grant public access, wildcard principals, plaintext secrets, or missing encryption, the vulnerability is baked in before the first request arrives. With no server to harden, the configuration <em>is</em> the security boundary — get it wrong and there is no second wall.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">SAS-3</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">IaC</span>
+                        <span class="label">Where It Lives</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Easy</span>
+                        <span class="label">To Detect</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Public Buckets:</strong> <code>public-read</code>/<code>public-write</code> storage without Block Public Access</li>
+                    <li><strong>Wildcard Policies:</strong> <code>Principal: "*"</code> on Lambda/SNS/SQS/API resource policies</li>
+                    <li><strong>No-Auth Function URLs:</strong> <code>AuthType: NONE</code> exposes anonymous invoke</li>
+                    <li><strong>Plaintext Secrets:</strong> <code>DB_PASSWORD</code> in a cleartext environment variable</li>
+                    <li><strong>Missing Encryption:</strong> no KMS at rest, no <code>aws:SecureTransport</code> deny</li>
+                    <li><strong>Unrestricted CORS:</strong> <code>Access-Control-Allow-Origin: *</code> with credentials</li>
+                    <li><strong>No Throttling:</strong> public endpoints with no quotas — cost and DoS lever</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Enumerate: guess bucket names, Function URLs, API stages, ARNs<br>
+   <span class="arrow">↓</span><br>
+2. Probe policy: test anonymous read/write/invoke<br>
+   <span class="arrow">↓</span><br>
+3. Read the resource policy for <code>Principal: "*"</code><br>
+   <span class="arrow">↓</span><br>
+4. Exploit: pull data, invoke logic, read env-var secrets<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Pivot across the account via over-broad roles!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: over-broad role, plaintext secrets, no-auth URL, public bucket (serverless.yml)</span>
+provider:
+  name: aws
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action: <span class="string">"*"</span>              <span class="comment">← over-broad execution role</span>
+          Resource: <span class="string">"*"</span>
+  environment:
+    DB_PASSWORD: <span class="string">"S3cr3t-Pa55w0rd"</span>  <span class="comment">← plaintext secret in env var</span>
+    STRIPE_KEY: <span class="string">"sk_live_51H..."</span>
+
+functions:
+  process:
+    handler: handler.process
+    url:
+      cors: <span class="keyword">true</span>                  <span class="comment"># reflects any origin</span>
+      <span class="comment"># authorizer omitted → AuthType: NONE (anonymous invoke)</span>
+
+resources:
+  Resources:
+    UploadsBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        AccessControl: PublicRead   <span class="comment">← public bucket, no Block Public Access</span>
+
+<span class="comment">// Bad: resource policy open to the whole world (JSON)</span>
+{ <span class="string">"Effect"</span>: <span class="string">"Allow"</span>, <span class="string">"Principal"</span>: <span class="string">"*"</span>,
+  <span class="string">"Action"</span>: <span class="string">"lambda:InvokeFunction"</span>,
+  <span class="string">"Resource"</span>: <span class="string">"arn:aws:lambda:us-east-1:123:function:process-orders"</span> }
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: least privilege, secret ARNs, IAM-auth URL, private bucket (serverless.yml)</span>
+provider:
+  name: aws
+  environment:
+    DB_SECRET_ARN: ${ssm:/prod/db/secret-arn}   <span class="comment"># reference, resolved at runtime</span>
+plugins:
+  - serverless-iam-roles-per-function
+
+functions:
+  process:
+    handler: handler.process
+    iamRoleStatements:
+      - Effect: Allow
+        Action: [<span class="string">"s3:GetObject"</span>]
+        Resource: <span class="string">"arn:aws:s3:::orders-uploads/incoming/*"</span>
+      - Effect: Allow
+        Action: [<span class="string">"secretsmanager:GetSecretValue"</span>]
+        Resource: ${ssm:/prod/db/secret-arn}
+    url:
+      authorizer: aws_iam         <span class="comment"># AuthType: AWS_IAM, not NONE</span>
+      cors:
+        allowedOrigins: [<span class="string">"https://app.example.com"</span>]  <span class="comment"># explicit allow-list</span>
+        allowCredentials: <span class="keyword">false</span>
+
+resources:
+  Resources:
+    UploadsBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: <span class="keyword">true</span>
+          BlockPublicPolicy: <span class="keyword">true</span>
+          IgnorePublicAcls: <span class="keyword">true</span>
+          RestrictPublicBuckets: <span class="keyword">true</span>
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault: { SSEAlgorithm: aws:kms }
+
+<span class="comment">// Good: named principal + condition, and a TLS deny (JSON)</span>
+{ <span class="string">"Sid"</span>: <span class="string">"DenyInsecureTransport"</span>, <span class="string">"Effect"</span>: <span class="string">"Deny"</span>, <span class="string">"Principal"</span>: <span class="string">"*"</span>,
+  <span class="string">"Action"</span>: <span class="string">"s3:*"</span>, <span class="string">"Resource"</span>: <span class="string">"arn:aws:s3:::orders-uploads/*"</span>,
+  <span class="string">"Condition"</span>: { <span class="string">"Bool"</span>: { <span class="string">"aws:SecureTransport"</span>: <span class="string">"false"</span> } } }
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Enable S3 Block Public Access at account and bucket level</li>
+                    <li>Scope every resource policy to a named principal + condition</li>
+                    <li>Never use <code>Principal: "*"</code> on any resource policy</li>
+                    <li>Require <code>AuthType: AWS_IAM</code> on Function URLs (or none at all)</li>
+                    <li>Move secrets to Secrets Manager / SSM; reference ARNs only</li>
+                    <li>Encrypt env vars and data at rest with a customer-managed KMS key</li>
+                    <li>Enforce TLS with an <code>aws:SecureTransport</code> deny</li>
+                    <li>Set throttling, quotas, and reserved concurrency on public paths</li>
+                    <li>Restrict CORS to an explicit origin allow-list</li>
+                    <li>Remove unnecessary triggers to shrink the invocation surface</li>
+                    <li>Scope both execution and deploy roles to least privilege</li>
+                    <li>Scan IaC on every pull request and fail the build on findings</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>IaC & Policy Scanners:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Checkov</span>
+                    <span class="tool-tag">cfn-nag</span>
+                    <span class="tool-tag">tfsec</span>
+                    <span class="tool-tag">cfn-lint</span>
+                    <span class="tool-tag">IAM Access Analyzer</span>
+                </div>
+
+                <h3>Secrets & Runtime:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Secrets Manager</span>
+                    <span class="tool-tag">SSM Parameter Store</span>
+                    <span class="tool-tag">AWS KMS</span>
+                    <span class="tool-tag">gitleaks</span>
+                    <span class="tool-tag">CloudTrail</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Enumerate buckets by naming scheme; try <code>--no-sign-request</code></li>
+                    <li>Probe Function URLs and API stages for anonymous invoke</li>
+                    <li>Inspect resource policies for wildcard principals</li>
+                    <li>Read <code>get-function-configuration</code> for plaintext secrets</li>
+                    <li>Test CORS with a cross-origin request + credentials</li>
+                    <li>Check for <code>aws:SecureTransport</code> deny and KMS encryption</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>These are documented <strong>incident classes</strong> — recurring patterns, not specific CVEs.</p>
+                <ul>
+                    <li><strong>Public cloud storage buckets:</strong> a long, well-documented class where buckets staging function uploads, exports, and backups allowed public read; providers later added Block Public Access defaults and console warnings in direct response.</li>
+                    <li><strong>Publicly exposed serverless endpoints:</strong> functions fronted by no-auth Function URLs or wildcard-principal policies, invoking business logic anonymously — doubling as DoS and cost-amplification surfaces when throttling was also absent.</li>
+                    <li><strong>Secrets leaked through function configuration:</strong> database passwords and API keys stored as plaintext env vars, readable by any over-broad role or recon tool, enabling lateral movement.</li>
+                    <li><strong>Chained misconfiguration:</strong> a public-write ingest bucket plus an <code>ObjectCreated</code> trigger plus a plaintext env-var credential = a breach with no application code exploit required.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> ship a public bucket or <code>Principal: "*"</code></li>
+                    <li><span class="badge critical">DO NOT</span> leave a Function URL at <code>AuthType: NONE</code></li>
+                    <li><span class="badge critical">DO NOT</span> put secrets in plaintext env vars</li>
+                    <li><span class="badge high">DO</span> make every resource private by default</li>
+                    <li><span class="badge high">DO</span> scan IaC on every change and fail the build</li>
+                    <li><span class="badge high">DO</span> encrypt at rest and enforce TLS in transit</li>
+                    <li><span class="badge medium">DO</span> scope both execution and deploy roles tightly</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">OWASP</span> Serverless Top 10 - SAS-3</li>
+                    <li><span class="badge medium">CWE-16</span> Configuration</li>
+                    <li><span class="badge medium">CWE-732</span> Incorrect Permission Assignment</li>
+                    <li><span class="badge medium">CWE-311</span> Missing Encryption of Sensitive Data</li>
+                    <li><span class="badge medium">CIS</span> AWS Foundations Benchmark</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Serverless Top 10 — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/serverless/OWASP-Serverless/SAS03-Insecure-Serverless-Deployment-Configuration/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

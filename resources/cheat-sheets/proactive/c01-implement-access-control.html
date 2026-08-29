@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C1: Implement Access Control - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔐 Implement Access Control</h1>
+            <p class="subtitle">OWASP Top 10 Proactive Controls (2024) - C1</p>
+            <span class="category">CORE CONTROL</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is This Control?</h2>
+                <p><strong>Implement Access Control</strong> is the proactive practice of deciding, for every attempted operation, whether the <em>authenticated</em> subject is <em>permitted</em> to perform that action on that specific resource. Authentication answers "who are you?"; access control answers "are you allowed to do this?" — and it must run <strong>server-side, on every request, against the specific record</strong>. It operationalizes least privilege and deny-by-default, and it is the primary defense against the Broken Access Control risk (A01).</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">C1</span>
+                        <span class="label">Proactive Control</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Authorization</span>
+                        <span class="label">Focus Area</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">OWASP 2024</span>
+                        <span class="label">Proactive Controls</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- What It Prevents -->
+            <div class="section">
+                <h2>🎯 What It Prevents</h2>
+                <ul>
+                    <li><strong>IDOR / BOLA:</strong> Reading another user's record by swapping an identifier</li>
+                    <li><strong>Function-Level Escalation:</strong> A standard user calling an admin endpoint directly</li>
+                    <li><strong>Horizontal Escalation:</strong> Cross-tenant access via a supplied account_id</li>
+                    <li><strong>Parameter / Metadata Tampering:</strong> Trusting a client-sent <code>role=admin</code></li>
+                    <li><strong>Forced Browsing:</strong> Reaching unlinked, staging, or legacy endpoints</li>
+                    <li><strong>Direct File Access:</strong> Guessing a predictable path to a stored file</li>
+                    <li><strong>Unchecked Write Verbs:</strong> DELETE/PUT on a non-owned resource</li>
+                    <li><strong>Undetected Enumeration:</strong> Probing IDs at scale with no alerting</li>
+                </ul>
+            </div>
+
+            <!-- How It Works -->
+            <div class="section">
+                <h2>🧭 How It Works</h2>
+                <div class="attack-flow">
+1. Authenticate the subject (session/token)<br>
+   <span class="arrow">↓</span><br>
+2. Load the specific target resource<br>
+   <span class="arrow">↓</span><br>
+3. Ask the central policy: may THIS subject do THIS action on THIS resource?<br>
+   <span class="arrow">↓</span><br>
+4. Default answer is DENY — allow only on explicit grant<br>
+   <span class="arrow">↓</span><br>
+5. <strong>Log the decision; the ownership check stops IDOR & escalation</strong>
+                </div>
+            </div>
+
+            <!-- Without This Control -->
+            <div class="section full-width">
+                <h2>❌ Without This Control</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: authenticated, but no ownership check (IDOR)</span>
+app.get(<span class="string">'/api/invoices/:id'</span>, requireAuth, <span class="keyword">async</span> (req, res) => {
+    <span class="keyword">const</span> invoice = <span class="keyword">await</span> db.invoices.findById(req.params.id);
+    res.json(invoice);          <span class="comment">← any logged-in user reads ANY invoice</span>
+});
+<span class="comment">// GET /api/invoices/1044 with user A's token returns user B's invoice</span>
+
+<span class="comment">// Bad: admin function open, link merely hidden in the UI</span>
+@app.route(<span class="string">'/api/admin/users/&lt;uid&gt;/role'</span>, methods=[<span class="string">'POST'</span>])
+@login_required
+<span class="keyword">def</span> <span class="function">set_role</span>(uid):
+    db.users.update(uid, role=request.json[<span class="string">'role'</span>])  <span class="comment">← no server-side role check</span>
+    <span class="keyword">return</span> jsonify(status=<span class="string">'ok'</span>)
+
+<span class="comment">// Bad: authority trusted from the request body (metadata tampering)</span>
+<span class="keyword">const</span> role = req.body.role;   <span class="comment">← attacker sets role=admin</span>
+<span class="keyword">if</span> (role === <span class="string">'admin'</span>) { grantAdmin(); }
+
+<span class="comment">// Bad: static files served straight from a public directory</span>
+app.use(<span class="string">'/uploads'</span>, express.static(<span class="string">'/var/data/uploads'</span>));
+<span class="comment">// GET /uploads/patient-7312-scan.pdf → streamed with no ownership check</span>
+                </div>
+            </div>
+
+            <!-- Applying the Control -->
+            <div class="section full-width">
+                <h2>✅ Applying the Control</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: record-level ownership check, authority from the session</span>
+app.get(<span class="string">'/api/invoices/:id'</span>, requireAuth, <span class="keyword">async</span> (req, res) => {
+    <span class="keyword">const</span> invoice = <span class="keyword">await</span> db.invoices.findById(req.params.id);
+    <span class="keyword">if</span> (!invoice) <span class="keyword">return</span> res.status(<span class="number">404</span>).end();
+    <span class="keyword">const</span> isOwner = invoice.ownerId === req.user.id;
+    <span class="keyword">if</span> (!isOwner &amp;&amp; req.user.role !== <span class="string">'admin'</span>) {
+        log.warn(<span class="string">'authz_denied'</span>, { user: req.user.id, invoice: invoice.id });
+        <span class="keyword">return</span> res.status(<span class="number">403</span>).end();      <span class="comment">← non-owner is refused</span>
+    }
+    res.json(invoice);
+});
+
+<span class="comment"># Good: centralized, server-side function gate (deny by default)</span>
+PERMISSIONS = {<span class="string">'user'</span>: {<span class="string">'profile:edit'</span>}, <span class="string">'admin'</span>: {<span class="string">'profile:edit'</span>, <span class="string">'user:manage'</span>}}
+
+@app.route(<span class="string">'/api/admin/users/&lt;uid&gt;/role'</span>, methods=[<span class="string">'POST'</span>])
+@login_required
+@require_permission(<span class="string">'user:manage'</span>)          <span class="comment"># authority looked up from trusted state</span>
+<span class="keyword">def</span> <span class="function">set_role</span>(uid):
+    db.users.update(uid, role=request.json[<span class="string">'role'</span>])
+    <span class="keyword">return</span> jsonify(status=<span class="string">'ok'</span>)
+
+<span class="comment"># Good: scope the query to the owner — a foreign id yields 404, never data</span>
+<span class="keyword">def</span> <span class="function">get_order</span>(request, order_id):
+    order = get_object_or_404(Order, id=order_id, owner=request.user)
+    <span class="keyword">return</span> JsonResponse(serialize(order))
+
+<span class="comment">// Good: files outside web root, delivered through an authorizing handler</span>
+app.get(<span class="string">'/files/:id'</span>, requireAuth, <span class="keyword">async</span> (req, res) => {
+    <span class="keyword">const</span> file = <span class="keyword">await</span> db.files.findOne({ id: req.params.id, ownerId: req.user.id });
+    <span class="keyword">if</span> (!file) <span class="keyword">return</span> res.status(<span class="number">404</span>).end();     <span class="comment">← not owned ⇒ not found</span>
+    res.sendFile(file.securePath, { root: <span class="string">'/var/data/private'</span> });
+});
+                </div>
+            </div>
+
+            <!-- Implementation Checklist -->
+            <div class="section">
+                <h2>✓ Implementation Checklist</h2>
+                <ul class="checklist">
+                    <li>Default decision is deny; access requires an explicit grant</li>
+                    <li>Every decision is made server-side; no authority from client input</li>
+                    <li>Authorization is centralized in one reviewable component</li>
+                    <li>Every object reference has a record-level ownership/tenant check</li>
+                    <li>The ownership check covers every verb (read, create, update, delete)</li>
+                    <li>Least privilege: new subjects default low; elevation is scoped and revocable</li>
+                    <li>Sensitive functions gated by a server-side check, not the UI</li>
+                    <li>Protected files served through an authorizing handler</li>
+                    <li>Token claims verified; permissions re-checked against server state</li>
+                    <li>Access-control failures are logged and alerted on</li>
+                    <li>Policy is auditable and covered by negative tests</li>
+                </ul>
+            </div>
+
+            <!-- Tools & Techniques -->
+            <div class="section">
+                <h2>🔍 Tools & Techniques</h2>
+                <h3>Authorization Models & Engines:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">RBAC</span>
+                    <span class="tool-tag">ABAC</span>
+                    <span class="tool-tag">ReBAC</span>
+                    <span class="tool-tag">OPA / Rego</span>
+                    <span class="tool-tag">OpenFGA</span>
+                    <span class="tool-tag">Oso</span>
+                    <span class="tool-tag">Spring Security</span>
+                    <span class="tool-tag">Casbin</span>
+                </div>
+
+                <h3>Testing & Review:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Burp Suite (Autorize)</span>
+                    <span class="tool-tag">OWASP ZAP</span>
+                    <span class="tool-tag">OWASP ASVS</span>
+                </div>
+
+                <h3>How to Verify:</h3>
+                <ul>
+                    <li>Test that a non-owner is denied on every protected resource (403/404)</li>
+                    <li>Test that a lower-privilege user cannot call admin endpoints</li>
+                    <li>Confirm a client-supplied role in the body is ignored</li>
+                    <li>Probe for IDOR by incrementing/swapping identifiers</li>
+                    <li>Forced-browse unlinked and staging endpoints</li>
+                    <li>Verify DELETE/PUT are authorized, not just GET</li>
+                </ul>
+            </div>
+
+            <!-- Why It Matters -->
+            <div class="section full-width">
+                <h2>🌍 Why It Matters</h2>
+                <ul>
+                    <li><strong>Broken Object-Level Authorization (IDOR/BOLA):</strong> Serving a record by id with no owner check recurs across banking, healthcare, e-commerce, and social platforms; a record-level ownership check stops it.</li>
+                    <li><strong>Privilege escalation via unprotected function:</strong> An admin action reachable because the UI hid the link — closed by a deny-by-default server-side gate.</li>
+                    <li><strong>Forced browsing to unlinked resources:</strong> When obscurity is the only barrier, discovery equals access; enforced authorization on the resource itself is the fix.</li>
+                    <li><strong>Metadata / parameter tampering:</strong> A request carrying its own authority (<code>role=admin</code>) is defeated by deriving authority solely from server-side state.</li>
+                </ul>
+                <p><em>These are documented vulnerability classes; OWASP ranks Broken Access Control the #1 web application risk. Implementing C1 well drives that risk toward zero.</em></p>
+            </div>
+
+            <!-- Quick Tips -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> read role/account_id from client input for a decision</li>
+                    <li><span class="badge critical">DO NOT</span> rely on hidden UI as a control</li>
+                    <li><span class="badge critical">DO NOT</span> treat an unguessable ID as access control</li>
+                    <li><span class="badge high">DO</span> check record-level ownership on every reference</li>
+                    <li><span class="badge high">DO</span> centralize the authorization decision</li>
+                    <li><span class="badge high">DO</span> apply the check to every verb</li>
+                    <li><span class="badge medium">DO</span> log denials and test the negative cases</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Top 10 Proactive Controls (2024) — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/proactive/OWASP-Proactive-Controls/C01-Implement-Access-Control/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

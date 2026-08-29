@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML09: Output Integrity Attack - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>📤 Output Integrity Attack</h1>
+            <p class="subtitle">OWASP Machine Learning Security Top 10 - ML09</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p>An <strong>Output Integrity Attack</strong> targets the model's <em>result</em> after the model produced it. The attacker tampers with the prediction on the path between the model and whatever consumes it—a service, a database, a queue, a dashboard, or the UI—so the decision the system acts on is <strong>not the decision the model actually made</strong>. This is a failure of integrity, not accuracy: the model can be perfectly correct, and the system still wrong. It is <em>not</em> ML01 (fooling the model with a crafted input).</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">ML09</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">In Transit</span>
+                        <span class="label">Where It Lives</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Silent</span>
+                        <span class="label">Model Looks Fine</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>MITM in Transit:</strong> plain-HTTP inference API rewritten in flight</li>
+                    <li><strong>Gateway/Adapter Tampering:</strong> a compromised hop substitutes a verdict</li>
+                    <li><strong>Client-Trusted Value:</strong> browser/thick client edits the decision</li>
+                    <li><strong>Results-Store Edit:</strong> over-broad write access flips a row at rest</li>
+                    <li><strong>Queue/Cache Poisoning:</strong> replacement message or seeded key</li>
+                    <li><strong>Log Tampering:</strong> mutable, unsigned records corrupt downstream feeds</li>
+                    <li><strong>Replay:</strong> a stale but valid result re-served for the current one</li>
+                    <li><strong>Impostor Producer:</strong> forged "model output" the consumer accepts</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Map every hop a prediction crosses<br>
+   <span class="arrow">↓</span><br>
+2. Find an unprotected hop (plain HTTP, broad write)<br>
+   <span class="arrow">↓</span><br>
+3. Rewrite the result in transit / at rest / at the UI<br>
+   <span class="arrow">↓</span><br>
+4. Consumer acts on the attacker's value<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: fraud/malware/deny flipped to allow — model metrics stay green!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: model serves raw predictions over plain HTTP</span>
+<span class="keyword">import</span> requests
+<span class="keyword">from</span> flask <span class="keyword">import</span> Flask, request, jsonify
+
+app = Flask(__name__)
+
+@app.route(<span class="string">"/predict"</span>)
+<span class="keyword">def</span> <span class="function">predict</span>():
+    tx = request.args[<span class="string">"tx"</span>]
+    verdict, score = model.score(tx)          <span class="comment"># correct output</span>
+    <span class="keyword">return</span> jsonify({<span class="string">"tx"</span>: tx, <span class="string">"verdict"</span>: verdict, <span class="string">"score"</span>: score})
+
+app.run(host=<span class="string">"0.0.0.0"</span>, port=<span class="number">8080</span>)            <span class="comment"># cleartext: no TLS</span>
+
+<span class="comment"># Bad: consumer trusts whatever comes back</span>
+<span class="keyword">def</span> <span class="function">decide</span>(tx):
+    r = requests.get(f<span class="string">"http://model.internal:8080/predict?tx={tx}"</span>)
+    result = r.json()
+    <span class="keyword">if</span> result[<span class="string">"verdict"</span>] == <span class="string">"fraud"</span>:
+        block(tx)
+    <span class="keyword">else</span>:
+        allow(tx)   <span class="comment"># a MITM flips "fraud" -> "legit", consumer never knows</span>
+
+<span class="comment"># Bad: bare verdict stored; any writer edits it at rest</span>
+db.execute(<span class="string">"INSERT INTO scores(tx, verdict) VALUES (%s,%s)"</span>, (tx, verdict))
+<span class="comment"># UPDATE scores SET verdict='legit' WHERE tx=... goes unnoticed</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: producer signs the result; integrity travels WITH the message</span>
+<span class="keyword">import</span> hmac, hashlib, json, time, uuid
+
+<span class="keyword">def</span> <span class="function">sign_result</span>(payload, key):
+    env = {<span class="string">"payload"</span>: payload, <span class="string">"nonce"</span>: uuid.uuid4().hex,
+           <span class="string">"issued_at"</span>: int(time.time())}
+    body = json.dumps({k: env[k] <span class="keyword">for</span> k <span class="keyword">in</span> (<span class="string">"payload"</span>, <span class="string">"nonce"</span>, <span class="string">"issued_at"</span>)},
+                      sort_keys=<span class="keyword">True</span>, separators=(<span class="string">","</span>, <span class="string">":"</span>)).encode()
+    env[<span class="string">"sig"</span>] = hmac.new(key, body, hashlib.sha256).hexdigest()
+    <span class="keyword">return</span> env
+
+<span class="comment"># Good: consumer verifies signature + freshness, then acts (fail closed)</span>
+FRESH_WINDOW = <span class="number">30</span>
+_seen = set()
+
+<span class="keyword">def</span> <span class="function">verify_result</span>(env, key):
+    body = json.dumps({k: env[k] <span class="keyword">for</span> k <span class="keyword">in</span> (<span class="string">"payload"</span>, <span class="string">"nonce"</span>, <span class="string">"issued_at"</span>)},
+                      sort_keys=<span class="keyword">True</span>, separators=(<span class="string">","</span>, <span class="string">":"</span>)).encode()
+    expected = hmac.new(key, body, hashlib.sha256).hexdigest()
+    <span class="keyword">if</span> <span class="keyword">not</span> hmac.compare_digest(expected, env.get(<span class="string">"sig"</span>, <span class="string">""</span>)):
+        <span class="keyword">raise</span> ValueError(<span class="string">"signature invalid"</span>)          <span class="comment"># integrity/authenticity</span>
+    <span class="keyword">if</span> abs(time.time() - env[<span class="string">"issued_at"</span>]) &gt; FRESH_WINDOW:
+        <span class="keyword">raise</span> ValueError(<span class="string">"result stale"</span>)             <span class="comment"># anti-replay (time)</span>
+    <span class="keyword">if</span> env[<span class="string">"nonce"</span>] <span class="keyword">in</span> _seen:
+        <span class="keyword">raise</span> ValueError(<span class="string">"result replayed"</span>)          <span class="comment"># anti-replay (nonce)</span>
+    _seen.add(env[<span class="string">"nonce"</span>])
+    <span class="keyword">return</span> env[<span class="string">"payload"</span>]
+
+<span class="comment"># Serve over TLS/mTLS; store the SIGNED envelope; verify on read.</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Encrypt AND authenticate every hop with TLS / mTLS</li>
+                    <li>Sign or HMAC every result at the producer</li>
+                    <li>Verify the signature at the consumer — fail closed on failure</li>
+                    <li>Sign a canonical serialization so verification is deterministic</li>
+                    <li>Bind freshness with a nonce + timestamp to defeat replay</li>
+                    <li>Store the signed envelope in DBs/queues/caches, verify on read</li>
+                    <li>Keep the authoritative decision server-side, never client-trusted</li>
+                    <li>Bind each result to its request/transaction id</li>
+                    <li>Sanity-check outputs (schema, allowed labels, score range)</li>
+                    <li>Least privilege: only the producer writes results</li>
+                    <li>Use tamper-evident (append-only / hash-chained) logs</li>
+                    <li>Reconcile produced vs. enforced decisions; alert on divergence</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Authenticity & Integrity:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">HMAC-SHA256</span>
+                    <span class="tool-tag">Ed25519 signatures</span>
+                    <span class="tool-tag">TLS / mTLS</span>
+                    <span class="tool-tag">Nonce + timestamp</span>
+                    <span class="tool-tag">hmac.compare_digest</span>
+                </div>
+
+                <h3>Storage & Audit:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Append-only / WORM logs</span>
+                    <span class="tool-tag">Hash-chained audit</span>
+                    <span class="tool-tag">Least-privilege RBAC</span>
+                    <span class="tool-tag">Reconciliation jobs</span>
+                    <span class="tool-tag">Secrets manager / KMS</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Attempt an on-path rewrite of a prediction response</li>
+                    <li>Edit a stored result row and confirm the consumer rejects it</li>
+                    <li>Replay a captured old result and verify freshness blocks it</li>
+                    <li>Forge a result from an impostor source — must fail auth</li>
+                    <li>Tamper a client-supplied verdict; server must re-derive/verify</li>
+                    <li>Alert on spikes in signature/nonce/staleness rejections</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>Public post-mortems rarely name "the model was right but the output was tampered," so these are well-established <strong>weakness classes</strong> applied to ML decisions (no fabricated CVEs or statistics):</p>
+                <ul>
+                    <li><strong>MITM on unauthenticated decision channels:</strong> a result carried over cleartext is rewritten in flight by an on-path attacker—the classic cleartext-tampering weakness, here the tampered value is the decision itself</li>
+                    <li><strong>Tampering at rest in a shared store/queue:</strong> a principal with over-broad write access edits stored results before asynchronous consumers read them</li>
+                    <li><strong>Client-side trust of a decision value:</strong> a front-end trusts a verdict the client can edit, so the acted-on decision is not the model's</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> trust a prediction because the model is accurate</li>
+                    <li><span class="badge critical">DO NOT</span> rely on TLS alone once a result is stored/forwarded</li>
+                    <li><span class="badge critical">DO NOT</span> let a client-supplied verdict drive the decision</li>
+                    <li><span class="badge high">DO</span> sign the result and verify before acting</li>
+                    <li><span class="badge high">DO</span> use TLS/mTLS on every hop</li>
+                    <li><span class="badge high">DO</span> bind freshness with a nonce + timestamp</li>
+                    <li><span class="badge medium">DO</span> use tamper-evident logs and reconciliation</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Machine Learning Security Top 10 — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/ml/OWASP-ML/ML09-Output-Integrity-Attack/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

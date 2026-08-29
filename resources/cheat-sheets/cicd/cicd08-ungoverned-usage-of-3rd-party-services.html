@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CICD-SEC-8: Ungoverned Usage of 3rd Party Services - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔌 Ungoverned Usage of 3rd Party Services</h1>
+            <p class="subtitle">OWASP Top 10 CI/CD Security Risks - CICD-SEC-8</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Ungoverned Usage of 3rd Party Services</strong> is the risk that arises when your CI/CD ecosystem depends on a large number of external services and integrations — third-party SCM Apps, OAuth grants, marketplace CI plugins, reusable Actions authored by strangers, SaaS tools wired in through tokens and webhooks, and bots — granted access to your source, build systems, and secrets with little to no governance. It is not a single vulnerability in your code; it is the accumulated, unmonitored trust you have extended to third parties whose security posture you neither control nor observe. Access is granted quickly and broadly but rarely inventoried, scoped down, reviewed, or revoked.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">CICD-SEC-8</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Trust</span>
+                        <span class="label">Focus Area</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Transitive</span>
+                        <span class="label">Blast Radius</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Over-Scoped App / OAuth:</strong> Org-wide read/write granted "to be safe"</li>
+                    <li><strong>Mutable Action Tags:</strong> <code>@v2</code> / <code>@main</code> repointed to malicious code after adoption</li>
+                    <li><strong>Compromised SaaS in Build:</strong> A trusted uploader/scanner tampered upstream</li>
+                    <li><strong>Stolen Integration Token:</strong> A vendor's OAuth token used to clone your private repos</li>
+                    <li><strong>Typosquat / Takeover:</strong> Lookalike or hijacked marketplace component</li>
+                    <li><strong>Long-Lived Vendor Token:</strong> Broad PAT stored on a third party's servers, no expiry</li>
+                    <li><strong>Stale / Forgotten Grants:</strong> Deploy keys and bots from finished projects still active</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Identify the trust (Apps, tokens, Actions, bots)<br>
+   <span class="arrow">↓</span><br>
+2. Compromise or abuse it (breach vendor, hijack tag)<br>
+   <span class="arrow">↓</span><br>
+3. Execute in runner or call API with its access<br>
+   <span class="arrow">↓</span><br>
+4. Harvest source + secrets, pivot to cloud<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Mass secret harvest across a vendor's customer base!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># .github/workflows/build.yml — ungoverned third-party usage</span>
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: some-user/awesome-action@v2      <span class="comment">← mutable tag, unknown author</span>
+      - uses: another/deploy-step@main         <span class="comment">← HEAD of a repo you don't control</span>
+    env:
+      <span class="comment"># Long-lived broad PAT handed to a SaaS tool and stored on ITS servers</span>
+      COVERAGE_TOKEN: ghp_************************   <span class="comment">← "repo" scope, no expiry</span>
+    <span class="comment"># uploader script fetched fresh each run — tampering upstream runs in YOUR job</span>
+      - run: bash <(curl -s https://cdn.thirdparty.example/uploader.sh)
+
+<span class="comment"># App authorized "to be safe" — one click grants everything, never reviewed</span>
+permissions:
+  repositories: all              <span class="comment">← every repo in the org</span>
+  contents: read-write           <span class="comment">← a read-only scanner asking for write</span>
+  members: read
+  webhooks: read-write           <span class="comment">← can add its own persistence</span>
+
+<span class="comment"># Org settings: any Action in the world may run, anyone may install any App</span>
+allowed_actions: all
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># .github/workflows/build.yml — governed third-party usage</span>
+permissions:
+  id-token: write                <span class="comment"># mint short-lived OIDC per run, no stored PAT</span>
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      <span class="comment"># Pin every third-party step to a full commit SHA (immutable), version in comment</span>
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11   <span class="comment"># v4.1.1</span>
+      - uses: some-user/awesome-action@3f1c0a9d6b2e4f8a1c7d5e2b9f0a4c6d8e1b3a5c  <span class="comment"># v2.3.1</span>
+      - uses: vendor/coverage-uploader@9f8e7d6c5b4a39281706f5e4d3c2b1a0f9e8d7c6  <span class="comment"># v4.2.0</span>
+        with: { use-oidc: true }   <span class="comment"># temporary, upload-only credential</span>
+
+<span class="comment"># App scoped to exactly what the stated feature requires</span>
+permissions:
+  repositories: [web-app]        <span class="comment">← only the repo it serves</span>
+  contents: read                 <span class="comment">← read-only scanner => read only</span>
+  pull_requests: read
+owner: dev-experience-team
+review_by: 2026-07-10            <span class="comment">← access expires unless re-justified</span>
+
+<span class="comment"># Org policy: allow-list of components, deny by default, admin approval to install</span>
+allowed_actions: selected
+allow: ["actions/*@*", "our-org/*@*", "verified-vendor/tool@9f8e7d6..."]
+deny_by_default: true
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Maintain an inventory of every App, OAuth, token, webhook, bot</li>
+                    <li>Give each integration a named owner and reason to exist</li>
+                    <li>Require approval + security review to onboard a new integration</li>
+                    <li>Grant least-privilege scopes: specific repos, read-only where possible</li>
+                    <li>Prefer short-lived OIDC credentials over stored PATs</li>
+                    <li>Pin all third-party Actions/plugins to a full commit SHA</li>
+                    <li>Restrict which Actions/apps may run via org allow-list</li>
+                    <li>Verify inbound webhook signatures; minimize outbound data</li>
+                    <li>Review access on a schedule; revoke stale/unused grants</li>
+                    <li>Tie integration ownership to the offboarding process</li>
+                    <li>Log and alert on third-party activity</li>
+                    <li>Assume the third party is breached; limit blast radius</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Governance & Pinning:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Dependabot / Renovate (SHA pins)</span>
+                    <span class="tool-tag">StepSecurity Harden-Runner</span>
+                    <span class="tool-tag">OpenSSF Scorecard</span>
+                    <span class="tool-tag">Org allowed-actions policy</span>
+                    <span class="tool-tag">pinact / ratchet</span>
+                </div>
+
+                <h3>Identity & Monitoring:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">OIDC short-lived tokens</span>
+                    <span class="tool-tag">SCM audit logs</span>
+                    <span class="tool-tag">HMAC webhook verification</span>
+                    <span class="tool-tag">OAuth-app / installed-app review</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>List all authorized OAuth apps, Apps, deploy keys, and webhooks</li>
+                    <li>Reconcile that list against a documented inventory</li>
+                    <li>Grep workflows for mutable refs (<code>@v1</code>, <code>@main</code>, <code>@master</code>)</li>
+                    <li>Check for stored long-lived PATs vs. OIDC federation</li>
+                    <li>Confirm the org restricts which Actions/apps may run</li>
+                    <li>Verify unsigned inbound webhooks are rejected</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World Incident Classes</h2>
+                <ul>
+                    <li><strong>Compromised CI/CD SaaS uploader (Codecov-class):</strong> A widely used tool that runs inside customers' pipelines had a distribution mechanism tampered with; because customers handed it access to the build environment, it could read env vars and secrets — a single third party became a mass secret-harvesting event across its customer base.</li>
+                    <li><strong>OAuth token abuse against SCM repos:</strong> Attackers obtained tokens issued to popular third-party integrations and used them to clone the private repositories of organizations that had authorized those integrations — the token became a skeleton key.</li>
+                    <li><strong>Malicious or hijacked marketplace component:</strong> A component is malicious from the start (a name resembling a trusted one) or a legitimate one whose maintainer account is taken over and whose tag is repointed to malicious code; pipelines referencing a moving tag executed it on their next run.</li>
+                </ul>
+                <p><em>Note: these are documented, repeatedly-observed classes; vendor names are used only where the pattern is publicly and widely associated with them. No invented figures are presented — the durable takeaway is that at least one third party you trust will eventually be breached.</em></p>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> reference Actions by mutable tag or branch</li>
+                    <li><span class="badge critical">DO NOT</span> grant org-wide read/write "to be safe"</li>
+                    <li><span class="badge critical">DO NOT</span> store long-lived broad PATs with vendors</li>
+                    <li><span class="badge high">DO</span> pin components to full commit SHAs</li>
+                    <li><span class="badge high">DO</span> inventory and own every integration</li>
+                    <li><span class="badge high">DO</span> allow-list which components may run</li>
+                    <li><span class="badge medium">DO</span> review and revoke stale grants on a schedule</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">SLSA</span> Supply-chain integrity levels</li>
+                    <li><span class="badge medium">NIST</span> SSDF / 800-161 Supply Chain</li>
+                    <li><span class="badge medium">SOC 2</span> CC9.2 - Vendor & third-party risk</li>
+                    <li><span class="badge medium">ISO 27001</span> A.15 - Supplier Relationships</li>
+                    <li><span class="badge medium">OpenSSF</span> Secure Supply Chain (S2C2F)</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Top 10 CI/CD Security Risks — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/cicd/OWASP-CICD/CICD08-Ungoverned-Usage-of-3rd-Party-Services/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K04: Lack of Centralized Policy Enforcement - Quick Reference</title>
+    <link rel="stylesheet" href="../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="../index.html" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🛡️ Lack of Centralized Policy Enforcement</h1>
+            <p class="subtitle">OWASP Kubernetes Top 10 - K04</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Lack of Centralized Policy Enforcement</strong> is the absence of a consistent, automated control point that validates every workload against your security rules <em>before</em> it runs — and keeps validating as the cluster changes. A default Kubernetes cluster admits a privileged, root, host-mounting pod pulling an unsigned image without complaint. This is the <em>meta</em>-failure: the reason individual mistakes (K01, K03) reach production is that no engine sits in the admission path saying "no." When enforcement is missing, inconsistent, or stuck in audit-only mode, security depends on every developer remembering every rule on every manifest.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">K04</span>
+                        <span class="label">OWASP Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Admission</span>
+                        <span class="label">Focus Area</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Medium</span>
+                        <span class="label">To Prevent</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Canary Privileged Pod:</strong> Submitting one <code>privileged: true</code> pod confirms whether the cluster enforces anything at all</li>
+                    <li><strong>Read the Config:</strong> Listing webhook configs and namespace PSA labels reveals unguarded namespaces directly</li>
+                    <li><strong>Unlabeled Namespace:</strong> <code>prod</code> is locked down but <code>default</code>/<code>sandbox</code>/<code>legacy</code> are wide open</li>
+                    <li><strong>Audit/Warn-Only:</strong> Policies that only log or warn admit the pod anyway — the warning is noise, not a control</li>
+                    <li><strong>Fail-Open Webhook:</strong> <code>failurePolicy: Ignore</code> turns a policy-engine outage into an enforcement bypass</li>
+                    <li><strong>Untrusted Image:</strong> With no registry/signature policy, provenance is never checked and poisoned images run</li>
+                    <li><strong>Bypass Review:</strong> Direct <code>kubectl apply</code>, Helm, and operators sail past pull-request checks</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Probe: try to create a trivial privileged pod<br>
+   <span class="arrow">↓</span><br>
+2. Map gaps: unguarded? audit-only? fail-open?<br>
+   <span class="arrow">↓</span><br>
+3. Deploy the workload that should have been blocked<br>
+   <span class="arrow">↓</span><br>
+4. Escape: chroot to node, read kubelet kubeconfig<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Node to cluster-admin, no CVE needed!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: a fresh cluster with no PSA labels and no policy engine</span>
+<span class="comment"># admits this dangerous manifest without evaluating it at all</span>
+<span class="keyword">apiVersion</span>: v1
+<span class="keyword">kind</span>: Pod
+<span class="keyword">metadata</span>:
+  <span class="keyword">name</span>: builder
+  <span class="keyword">namespace</span>: default          <span class="comment"># no pod-security.kubernetes.io/enforce label</span>
+<span class="keyword">spec</span>:
+  <span class="keyword">hostPID</span>: <span class="keyword">true</span>               <span class="comment"># host process namespace</span>
+  <span class="keyword">containers</span>:
+  - <span class="keyword">name</span>: c
+    <span class="keyword">image</span>: <span class="string">anon-registry.io/tools:latest</span>   <span class="comment"># unapproved, unsigned image</span>
+    <span class="keyword">securityContext</span>:
+      <span class="keyword">privileged</span>: <span class="keyword">true</span>         <span class="comment"># full host capabilities</span>
+    <span class="keyword">volumeMounts</span>:
+    - { <span class="keyword">name</span>: host, <span class="keyword">mountPath</span>: /host }
+  <span class="keyword">volumes</span>:
+  - <span class="keyword">name</span>: host
+    <span class="keyword">hostPath</span>: { <span class="keyword">path</span>: / }       <span class="comment"># entire node filesystem</span>
+
+<span class="comment"># $ kubectl apply -f builder.yaml</span>
+<span class="comment"># pod/builder created            <- admitted; nothing evaluated it</span>
+
+<span class="comment"># Bad: namespace labeled warn-only -> a K04 trap, still ADMITS</span>
+<span class="keyword">labels</span>:
+  pod-security.kubernetes.io/warn: restricted
+  pod-security.kubernetes.io/audit: restricted
+  <span class="comment"># No 'enforce' label == no blocking</span>
+
+<span class="comment"># Bad: webhook fails open</span>
+<span class="keyword">failurePolicy</span>: Ignore          <span class="comment"># engine down == workloads admitted unchecked</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: enforce restricted PSA, plus a cluster-wide default for new namespaces</span>
+<span class="keyword">apiVersion</span>: v1
+<span class="keyword">kind</span>: Namespace
+<span class="keyword">metadata</span>:
+  <span class="keyword">name</span>: payments
+  <span class="keyword">labels</span>:
+    pod-security.kubernetes.io/enforce: restricted     <span class="comment"># actually BLOCKS</span>
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted
+
+<span class="comment"># Good: Kyverno ClusterPolicy in Enforce mode (deny, not audit)</span>
+<span class="keyword">apiVersion</span>: kyverno.io/v1
+<span class="keyword">kind</span>: ClusterPolicy
+<span class="keyword">metadata</span>:
+  <span class="keyword">name</span>: pod-security-guardrails
+<span class="keyword">spec</span>:
+  <span class="keyword">validationFailureAction</span>: Enforce     <span class="comment"># Enforce = deny (NOT Audit)</span>
+  <span class="keyword">background</span>: <span class="keyword">true</span>                      <span class="comment"># also flags pre-existing violations</span>
+  <span class="keyword">rules</span>:
+  - <span class="keyword">name</span>: disallow-privileged
+    <span class="keyword">match</span>: { any: [{ resources: { kinds: [Pod] } }] }
+    <span class="keyword">validate</span>:
+      <span class="keyword">message</span>: <span class="string">"Privileged containers are not allowed."</span>
+      <span class="keyword">pattern</span>:
+        <span class="keyword">spec</span>:
+          <span class="keyword">containers</span>:
+          - =(securityContext):
+              =(privileged): <span class="string">"false"</span>
+
+<span class="comment"># Good: webhook fails closed so an outage cannot disable policy</span>
+<span class="keyword">failurePolicy</span>: Fail            <span class="comment"># if policy cannot be consulted, DENY</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Set Pod Security Admission to <code>enforce</code> (restricted floor) on every namespace</li>
+                    <li>Apply a cluster-wide PSA default so new namespaces aren't born unguarded</li>
+                    <li>Deploy a policy engine (Kyverno / OPA Gatekeeper) in enforce/deny mode</li>
+                    <li>Use mutating policy to inject safe defaults (secure <code>securityContext</code>)</li>
+                    <li>Enforce image provenance — approved registries and signature verification</li>
+                    <li>Require resource limits and standard labels at admission</li>
+                    <li>Configure sensitive webhooks to fail closed (<code>failurePolicy: Fail</code>)</li>
+                    <li>Source all policy from Git and reconcile to all clusters (GitOps)</li>
+                    <li>Validate policies in CI before merge (<code>kyverno apply</code>, <code>conftest</code>)</li>
+                    <li>Run continuous conformance scanning (kube-bench, Polaris, kubescape)</li>
+                    <li>Adopt PSA/policy engine <em>before</em> upgrading past 1.25 (PSP removed)</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Policy Engines &amp; Baseline:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Kyverno</span>
+                    <span class="tool-tag">OPA/Gatekeeper</span>
+                    <span class="tool-tag">Pod Security Admission</span>
+                    <span class="tool-tag">conftest</span>
+                </div>
+
+                <h3>Conformance Scanning:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">kube-bench</span>
+                    <span class="tool-tag">Polaris</span>
+                    <span class="tool-tag">kubescape</span>
+                    <span class="tool-tag">Trivy</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Deploy a canary privileged pod — is it denied or created?</li>
+                    <li>Check for webhooks: <code>kubectl get validatingwebhookconfigurations</code></li>
+                    <li>Audit which namespaces have a <code>pod-security.kubernetes.io/enforce</code> label</li>
+                    <li>Confirm policies are <code>Enforce</code>/<code>deny</code>, not <code>Audit</code>/<code>warn</code></li>
+                    <li>Check <code>failurePolicy</code> on sensitive webhooks (must be <code>Fail</code>)</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <ul>
+                    <li><strong>Exposed management plane leading to cryptojacking:</strong> An unauthenticated dashboard/kubelet/API endpoint plus no admission policy lets an attacker or botnet deploy a cryptominer — the management-plane-plus-no-guardrails shape of the well-publicised cloud Kubernetes console cases.</li>
+                    <li><strong>Container escape via a workload that should never have been admitted:</strong> A <code>privileged</code>, <code>hostPath</code>, or <code>hostPID</code> pod breaks out to the node; a restricted PSA profile or Kyverno/Gatekeeper rule would have rejected the manifest at admission.</li>
+                    <li><strong>Silent drift after PSP removal:</strong> A cluster upgraded to 1.25+ loses PodSecurityPolicy with no PSA or policy engine adopted first; previously-blocked workloads are admitted freely for weeks until an audit surfaces it.</li>
+                    <li><strong>Note:</strong> These are documented incident <em>classes</em>, described generically. The default cluster ships without centralized enforcement, so the vulnerable state is the one you get unless you deliberately build the guardrails.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> assume Kubernetes blocks dangerous pods by default</li>
+                    <li><span class="badge critical">DO NOT</span> leave policies in audit/warn mode</li>
+                    <li><span class="badge critical">DO NOT</span> configure sensitive webhooks to fail open</li>
+                    <li><span class="badge high">DO</span> enforce PSA restricted on every namespace</li>
+                    <li><span class="badge high">DO</span> run a policy engine in enforce mode</li>
+                    <li><span class="badge high">DO</span> source policy from Git and apply it everywhere</li>
+                    <li><span class="badge medium">DO</span> scan continuously for drift</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">CIS</span> Kubernetes Benchmark - Policies</li>
+                    <li><span class="badge medium">NSA/CISA</span> Kubernetes Hardening - Admission Control</li>
+                    <li><span class="badge medium">Pod Security Standards</span> baseline / restricted</li>
+                    <li><span class="badge medium">SOC 2</span> CC7.1 - Detection of Deviations</li>
+                    <li><span class="badge medium">PCI-DSS</span> Requirement 2.2 - Secure Configuration</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Kubernetes Top 10 — Educational Platform</strong> | <a href="../index.html">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/kubernetes/OWASP-Kubernetes/K04-Lack-of-Centralized-Policy-Enforcement/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>
