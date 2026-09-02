@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API10:2019 Insufficient Logging & Monitoring - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--primary-color);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="/cheatsheets" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>📊 Insufficient Logging &amp; Monitoring<span class="year-badge">API 2019</span></h1>
+            <p class="subtitle">OWASP API Security Top 10 2019 - API10</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Insufficient Logging &amp; Monitoring</strong> is not a flaw an attacker exploits — it is the flaw that lets every <em>other</em> attack proceed undetected. When an API fails to record security-relevant events, fails to centralise and watch those records, and fails to alert and respond, an intruder can probe, enumerate, brute-force and exfiltrate for weeks with nobody noticing.</p>
+                <p>Three linked failures define the category, and any one of them is enough to be blind: <strong>logging</strong> (events never written, or written without context), <strong>monitoring</strong> (records scattered, never centralised, never watched), and <strong>alerting &amp; response</strong> (no threshold fires, no human is paged). The measure of the problem is <em>dwell time</em> — how long an attack runs before it is seen.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">API10</span>
+                        <span class="label">OWASP Rank 2019</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Dwell</span>
+                        <span class="label">Time Multiplier</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">3rd&nbsp;party</span>
+                        <span class="label">Usually Tells You</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Silent Failures:</strong> failed logins and 403s never recorded — brute force is invisible</li>
+                    <li><strong>No Context:</strong> free-text lines with no client id, object id, or source</li>
+                    <li><strong>Local-Only Logs:</strong> never shipped, rotated away, deletable by the intruder</li>
+                    <li><strong>No Thresholds:</strong> a 10,000-request scrape triggers nothing</li>
+                    <li><strong>Unusable Format:</strong> unparseable text that no query can aggregate</li>
+                    <li><strong>Clock Drift:</strong> unsynchronised timestamps make correlation impossible</li>
+                    <li><strong>Over-Logging Secrets:</strong> tokens and PII written into logs, creating a new breach target</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Probe quietly and watch for any defensive reaction<br>
+   <span class="arrow">↓</span><br>
+2. Note that failures return errors but produce no lockout, no challenge, no contact<br>
+   <span class="arrow">↓</span><br>
+3. Escalate volume — enumerate objects, stuff credentials, scrape data<br>
+   <span class="arrow">↓</span><br>
+4. Persist: nothing correlates the activity, nothing pages a human<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Months of undetected access — the breach is reported by an outsider!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: the security event disappears</span>
+<span class="keyword">if</span> <span class="keyword">not</span> <span class="function">check_password</span>(user, pw):
+    <span class="keyword">return</span> {<span class="string">'error'</span>: <span class="string">'Invalid credentials'</span>}, <span class="number">401</span>   <span class="comment">← nothing logged at all</span>
+
+<span class="comment">// Bad: unstructured, contextless, and unparseable</span>
+console.<span class="function">log</span>(<span class="string">'error in handler'</span>);                     <span class="comment">← who? what object? from where?</span>
+
+<span class="comment"># Bad: authorization denials swallowed</span>
+<span class="keyword">except</span> PermissionError:
+    <span class="keyword">pass</span>                                            <span class="comment">← BOLA enumeration leaves no trace</span>
+
+<span class="comment">// Bad: secrets written into the log — a new breach target</span>
+logger.<span class="function">info</span>(<span class="string">`login ${email} token=${accessToken} card=${pan}`</span>);
+
+<span class="comment"># Bad: logs stay on the box, world-writable, rotated after a day</span>
+<span class="comment"># /var/log/api.log  → never shipped, never read, deletable by the intruder</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: structured, contextual, machine-parseable security events</span>
+log.<span class="function">warning</span>(<span class="string">'auth.login.failed'</span>, extra={
+    <span class="string">'event'</span>: <span class="string">'auth.login.failed'</span>,
+    <span class="string">'subject'</span>: <span class="function">hash_id</span>(email),          <span class="comment"># identify without storing the raw value</span>
+    <span class="string">'source_ip'</span>: request.remote_addr,
+    <span class="string">'user_agent'</span>: request.user_agent.string,
+    <span class="string">'request_id'</span>: g.request_id,
+    <span class="string">'ts'</span>: datetime.<span class="function">now</span>(timezone.utc).<span class="function">isoformat</span>(),
+})
+
+<span class="comment">// Good: log the authorization denial that enumeration depends on</span>
+<span class="keyword">if</span> (!<span class="function">canAccess</span>(user, obj)) {
+    logger.<span class="function">warn</span>({ event: <span class="string">'authz.denied'</span>, subject: user.sub, objectId: obj.id, requestId: req.id });
+    <span class="keyword">return</span> res.<span class="function">sendStatus</span>(<span class="number">404</span>);
+}
+
+<span class="comment"># Good: redact before the record leaves the process</span>
+logger.<span class="function">addFilter</span>(<span class="function">RedactFilter</span>(fields=[<span class="string">'password'</span>, <span class="string">'token'</span>, <span class="string">'authorization'</span>, <span class="string">'pan'</span>]))
+
+<span class="comment"># Good: centralise, protect, synchronise, and alert</span>
+<span class="comment"># ship to SIEM (append-only, retained 12m), NTP-synced clocks</span>
+<span class="comment"># alert: >20 auth.login.failed per account / 5m, or >100 authz.denied per token / 5m</span>
+<span class="comment"># each alert maps to a runbook with a named owner and an escalation path</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Log every security-relevant event: authn, authz, validation, rate-limit, admin action</li>
+                    <li>Use structured logs (JSON) with a stable event taxonomy</li>
+                    <li>Include who, what object, from where, when, and a request id</li>
+                    <li>Never log credentials, tokens, or raw PII — redact at the source</li>
+                    <li>Ship logs off the host to append-only, access-controlled storage</li>
+                    <li>Synchronise clocks (NTP/UTC) so events correlate across services</li>
+                    <li>Set tuned thresholds on 401/403/429 spikes and enumeration patterns</li>
+                    <li>Route alerts to a named owner with a runbook, not to a mailbox</li>
+                    <li>Define retention that outlives realistic dwell time</li>
+                    <li>Rehearse: run an attack simulation and confirm the alert actually fires</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Pipeline:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">ELK / OpenSearch</span>
+                    <span class="tool-tag">Loki + Grafana</span>
+                    <span class="tool-tag">Splunk</span>
+                    <span class="tool-tag">Fluent Bit</span>
+                    <span class="tool-tag">OpenTelemetry</span>
+                </div>
+
+                <h3>Detection &amp; Response:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Sigma rules</span>
+                    <span class="tool-tag">Wazuh</span>
+                    <span class="tool-tag">Falco</span>
+                    <span class="tool-tag">PagerDuty runbooks</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Run 100 failed logins — does an alert fire, and how fast?</li>
+                    <li>Enumerate object ids and check the 403/404s are recorded and correlated</li>
+                    <li>Grep the log store for tokens, passwords, and PII that should be redacted</li>
+                    <li>Confirm logs survive host loss and cannot be edited in place</li>
+                    <li>Compare timestamps across services for clock drift</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>These are documented <strong>incident classes</strong> — recurring patterns rather than single CVEs.</p>
+                <ul>
+                    <li><strong>Breach found by a third party:</strong> the victim learns of months-old access from a researcher, a customer, or data appearing for sale.</li>
+                    <li><strong>Invisible enumeration:</strong> hundreds of thousands of object-id probes that produced 403s nobody recorded or counted.</li>
+                    <li><strong>Logs destroyed with the host:</strong> local-only logs lost when the compromised instance was terminated, leaving no forensic trail.</li>
+                    <li><strong>Alert fatigue:</strong> thresholds so noisy that the real signal was muted months before the incident.</li>
+                    <li><strong>Logs as the breach:</strong> tokens and card data written to a log store with far broader access than the database it came from.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> swallow authorization failures</li>
+                    <li><span class="badge critical">DO NOT</span> log secrets or raw PII</li>
+                    <li><span class="badge high">DO</span> emit structured events with full context</li>
+                    <li><span class="badge high">DO</span> centralise, protect, and retain them</li>
+                    <li><span class="badge high">DO</span> alert on thresholds and page a real owner</li>
+                    <li><span class="badge medium">DO</span> test detection the way you test features</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">OWASP</span> API Security Top 10 2019 - API10</li>
+                    <li><span class="badge medium">2023 note</span> Folded into API9/API10 guidance and general operational security</li>
+                    <li><span class="badge medium">CWE-778</span> Insufficient Logging</li>
+                    <li><span class="badge medium">CWE-223</span> Omission of Security-relevant Information</li>
+                    <li><span class="badge medium">CWE-532</span> Insertion of Sensitive Information into Log File</li>
+                    <li><span class="badge medium">NIST</span> SP 800-92 Log Management</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP API Security Top 10 (2019) — Educational Platform</strong> | <a href="/cheatsheets">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/api/OWASP-API/API-2019-Insufficient-Logging-Monitoring/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M8:2016 Code Tampering - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--primary-color);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="/cheatsheets" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔨 Code Tampering<span class="year-badge">Mobile 2016</span></h1>
+            <p class="subtitle">OWASP Mobile Top 10 2016 - M8</p>
+            <span class="category">MEDIUM RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Code Tampering</strong> is an attacker modifying a mobile application's binary, its resources, or its behaviour <em>in memory</em> on a device they control — then running the altered app to make it do something the developer never intended. The app executes on hardware the attacker fully owns, so every byte of code and every value in RAM is reachable and rewritable.</p>
+                <p>It covers <strong>repackaging</strong> (decompile, patch, resign, redistribute a trojanized app), <strong>binary patching</strong> (flip one licence, root, or "premium" check), <strong>resource modification</strong>, and <strong>runtime manipulation</strong> (hooking methods, editing memory, rewriting return values). The unifying idea: <em>the shipped artifact is not the artifact that runs</em>.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">M8</span>
+                        <span class="label">OWASP Rank 2016</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Attacker</span>
+                        <span class="label">Owns The Runtime</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Server</span>
+                        <span class="label">Is The Only Referee</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Repackaging:</strong> decompile → patch smali → resign → distribute a lookalike</li>
+                    <li><strong>Check Removal:</strong> licence, root, or subscription tests NOP-ed out</li>
+                    <li><strong>Runtime Hooking:</strong> Frida/Xposed rewriting method return values</li>
+                    <li><strong>Memory Editing:</strong> in-game currency, balances, and flags changed live</li>
+                    <li><strong>Resource Swaps:</strong> endpoints, certificates, or assets replaced</li>
+                    <li><strong>Anti-Tamper Bypass:</strong> the integrity check itself patched out first</li>
+                    <li><strong>Response Rewriting:</strong> server answers modified in transit or in RAM</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Pull the APK/IPA from the device or a mirror<br>
+   <span class="arrow">↓</span><br>
+2. Decompile and locate the check to defeat<br>
+   <span class="arrow">↓</span><br>
+3. Patch the bytecode, or hook the method at runtime<br>
+   <span class="arrow">↓</span><br>
+4. Resign and reinstall, or run the hook against the stock app<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Paid features unlocked, controls bypassed, trojanized builds shipped!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: the business decision lives entirely on the client</span>
+<span class="keyword">fun</span> <span class="function">isPremium</span>(): Boolean = prefs.<span class="function">getBoolean</span>(<span class="string">"premium"</span>, <span class="keyword">false</span>)
+<span class="keyword">if</span> (<span class="function">isPremium</span>()) <span class="function">unlockAllContent</span>()      <span class="comment">← one hook returns true, forever</span>
+
+<span class="comment">// Bad: licence validated offline, result trusted</span>
+<span class="keyword">if</span> (<span class="function">checkLicenseLocally</span>(key)) <span class="function">enableApp</span>()   <span class="comment">← patch the branch, done</span>
+
+<span class="comment">// Bad: security state kept in an editable in-memory field</span>
+<span class="keyword">var</span> isRooted = <span class="function">detectRoot</span>()               <span class="comment">← flip the value in memory</span>
+
+<span class="comment">// Bad: integrity check that reports only to itself</span>
+<span class="keyword">if</span> (<span class="function">signatureHash</span>() != EXPECTED) Toast.<span class="function">makeText</span>(…).<span class="function">show</span>()   <span class="comment">← cosmetic, removable</span>
+
+<span class="comment">// Bad: server accepts whatever the client claims</span>
+api.<span class="function">post</span>(<span class="string">"/purchase/complete"</span>, mapOf(<span class="string">"verified"</span> <span class="keyword">to</span> <span class="keyword">true</span>))   <span class="comment">← client-asserted truth</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: entitlement is a server fact, re-checked on every privileged call</span>
+<span class="keyword">val</span> entitlements = api.<span class="function">entitlements</span>()        <span class="comment">// short-lived, signed by the server</span>
+<span class="comment">// content is delivered only after the server authorises it — patching the UI gains nothing</span>
+<span class="keyword">val</span> content = api.<span class="function">fetchPremiumContent</span>()     <span class="comment">// 403 unless genuinely entitled</span>
+
+<span class="comment">// Good: purchases verified server-to-server with the store</span>
+<span class="comment">// client sends the receipt; the SERVER validates it with Apple/Google and grants access</span>
+api.<span class="function">post</span>(<span class="string">"/purchase/verify"</span>, mapOf(<span class="string">"receipt"</span> <span class="keyword">to</span> receipt))
+
+<span class="comment">// Good: platform attestation, evaluated server-side</span>
+<span class="keyword">val</span> token = <span class="function">playIntegrityToken</span>()            <span class="comment">// or DeviceCheck / App Attest on iOS</span>
+api.<span class="function">post</span>(<span class="string">"/session"</span>, mapOf(<span class="string">"integrity"</span> <span class="keyword">to</span> token))
+<span class="comment">// the server decides what an untrusted verdict means: step-up auth, limits, or refusal</span>
+
+<span class="comment">// Good: layered client hardening — cost, not a guarantee</span>
+<span class="comment">// R8/ProGuard + native obfuscation, checksum critical native code,</span>
+<span class="comment">// detect debuggers/hooks and report the signal to the server, then let the SERVER react</span>
+<span class="function">reportTelemetry</span>(<span class="string">"integrity.suspect"</span>, signals)   <span class="comment">// server throttles or blocks the account</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Keep every security and business decision on the server</li>
+                    <li>Never trust a client-asserted entitlement, price, score, or verification flag</li>
+                    <li>Verify in-app purchases server-to-server with the store</li>
+                    <li>Use platform attestation (Play Integrity, App Attest/DeviceCheck) and judge it server-side</li>
+                    <li>Report tamper signals to the server rather than acting only locally</li>
+                    <li>Apply code shrinking and obfuscation to raise the cost of analysis</li>
+                    <li>Add integrity checks in native code, in several places, that fail quietly</li>
+                    <li>Ship release builds with debugging disabled and symbols stripped</li>
+                    <li>Monitor app stores and mirrors for repackaged clones</li>
+                    <li>Rate-limit and anomaly-detect on the server: tampered clients behave differently</li>
+                    <li>Accept the premise — client hardening delays an attacker, it never stops one</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Attacker Toolkit (know it):</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">apktool</span>
+                    <span class="tool-tag">jadx</span>
+                    <span class="tool-tag">Frida</span>
+                    <span class="tool-tag">Xposed / LSPosed</span>
+                    <span class="tool-tag">Ghidra</span>
+                </div>
+
+                <h3>Defence:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Play Integrity API</span>
+                    <span class="tool-tag">App Attest / DeviceCheck</span>
+                    <span class="tool-tag">R8 / ProGuard</span>
+                    <span class="tool-tag">Server-side anomaly detection</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Repackage the app with a flipped premium or licence check and run it</li>
+                    <li>Hook the relevant methods with Frida and force the return values</li>
+                    <li>Confirm the server still refuses the privileged action</li>
+                    <li>Verify integrity/attestation failures are acted on server-side, not just logged</li>
+                    <li>Check that release builds are not debuggable and are stripped</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>These are documented <strong>incident classes</strong> — recurring patterns rather than single CVEs.</p>
+                <ul>
+                    <li><strong>Modded apps on third-party stores:</strong> popular apps repackaged with premium unlocked, ads stripped, and additional code added.</li>
+                    <li><strong>Trojanized clones:</strong> a legitimate app rebuilt with credential-stealing code and distributed through sideloading.</li>
+                    <li><strong>Game economy manipulation:</strong> memory editing and hooks that mint currency or items when the server trusts client-reported state.</li>
+                    <li><strong>Root/jailbreak detection defeated:</strong> the check hooked to return false before any of its consequences run.</li>
+                    <li><strong>Receipt forgery:</strong> purchase confirmations faked on the client where the server never validates with the store.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> keep security decisions on the client</li>
+                    <li><span class="badge critical">DO NOT</span> trust client-reported purchases or state</li>
+                    <li><span class="badge critical">DO NOT</span> rely on obfuscation as a control</li>
+                    <li><span class="badge high">DO</span> verify entitlements and receipts server-side</li>
+                    <li><span class="badge high">DO</span> use attestation and judge it on the server</li>
+                    <li><span class="badge medium">DO</span> watch for repackaged clones in the wild</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">OWASP</span> Mobile Top 10 2016 - M8</li>
+                    <li><span class="badge medium">Maps to</span> M7:2024 Insufficient Binary Protections</li>
+                    <li><span class="badge medium">OWASP MASVS</span> RESILIENCE-1 … RESILIENCE-4</li>
+                    <li><span class="badge medium">CWE-494</span> Download of Code Without Integrity Check</li>
+                    <li><span class="badge medium">CWE-693</span> Protection Mechanism Failure</li>
+                    <li><span class="badge medium">CWE-602</span> Client-Side Enforcement of Server-Side Security</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Mobile Top 10 (2016) — Educational Platform</strong> | <a href="/cheatsheets">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/mobile/OWASP-Mobile/M-2016-Code-Tampering/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>

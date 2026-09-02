@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M6:2016 Insecure Authorization - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--primary-color);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="/cheatsheets" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🚧 Insecure Authorization<span class="year-badge">Mobile 2016</span></h1>
+            <p class="subtitle">OWASP Mobile Top 10 2016 - M6</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Insecure Authorization</strong> covers failures in the decision about <em>what an already-identified user is allowed to do</em>. The category exists because mobile apps repeatedly make or enforce that decision in the wrong place: inside the client, where the user controls everything, instead of on the server, where the attacker controls nothing.</p>
+                <p>A mobile app is not a trust boundary. It can be decompiled, hooked, and its local storage rewritten — and, most importantly, it can be ignored entirely while the attacker talks straight to the back end. <strong>Any permission check that lives only in the app is advisory.</strong> If the server does not re-derive the caller's identity and re-check their entitlements on every request, it is relying on the honesty of a component the attacker owns.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">M6</span>
+                        <span class="label">OWASP Rank 2016</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Client</span>
+                        <span class="label">Is Not A Boundary</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Every</span>
+                        <span class="label">Request Re-checked</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Hidden UI as Control:</strong> the admin button is not rendered, the endpoint is unprotected</li>
+                    <li><strong>Client-Supplied Role:</strong> server trusts <code>role</code>/<code>is_admin</code> from the request</li>
+                    <li><strong>IDOR:</strong> <code>/api/accounts/{id}</code> returns any id to any valid token</li>
+                    <li><strong>Unprotected Admin Routes:</strong> no role check because "only staff have the screen"</li>
+                    <li><strong>Local Entitlements:</strong> premium/feature flags stored on device and edited</li>
+                    <li><strong>Trusted Device Identifiers:</strong> access decided by a spoofable device id</li>
+                    <li><strong>Stale Permissions:</strong> entitlements cached on device long after revocation</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Log in as an ordinary user and capture the app's API traffic<br>
+   <span class="arrow">↓</span><br>
+2. Decompile to find endpoints the UI never shows your role<br>
+   <span class="arrow">↓</span><br>
+3. Call those endpoints directly with your own valid token<br>
+   <span class="arrow">↓</span><br>
+4. Swap object ids and role fields; edit local entitlement flags<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Other users' data and privileged operations from a basic account!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad (client): hiding the control is the only "check"</span>
+<span class="keyword">if</span> (user.isAdmin) adminButton.visibility = View.VISIBLE   <span class="comment">← cosmetic</span>
+
+<span class="comment">// Bad (client): entitlement stored locally and trusted</span>
+<span class="keyword">if</span> (prefs.<span class="function">getBoolean</span>(<span class="string">"is_premium"</span>, <span class="keyword">false</span>)) <span class="function">unlockAllFeatures</span>()
+
+<span class="comment">// Bad (client): the app tells the server who it is</span>
+api.<span class="function">get</span>(<span class="string">"/api/accounts?user_id="</span> + userId + <span class="string">"&role="</span> + role)
+
+<span class="comment"># Bad (server): identity and role taken from the request</span>
+@app.route(<span class="string">'/api/accounts'</span>)
+<span class="keyword">def</span> <span class="function">accounts</span>():
+    uid = request.args[<span class="string">'user_id'</span>]                  <span class="comment">← attacker picks any user</span>
+    <span class="keyword">return</span> jsonify(<span class="function">list_accounts</span>(uid))
+
+<span class="comment"># Bad (server): admin route with no role check at all</span>
+@app.route(<span class="string">'/api/admin/refund'</span>, methods=[<span class="string">'POST'</span>])
+@requires_auth                                       <span class="comment">← authenticated ≠ authorised</span>
+<span class="keyword">def</span> <span class="function">refund</span>(): ...
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good (server): identity from the verified token, never the request</span>
+@app.route(<span class="string">'/api/accounts'</span>)
+@requires_auth
+<span class="keyword">def</span> <span class="function">accounts</span>():
+    <span class="keyword">return</span> jsonify(<span class="function">list_accounts</span>(g.current_user.id))     <span class="comment"># caller's own data only</span>
+
+<span class="comment"># Good (server): per-object ownership check on every access</span>
+@app.route(<span class="string">'/api/accounts/&lt;int:acc_id&gt;'</span>)
+@requires_auth
+<span class="keyword">def</span> <span class="function">account</span>(acc_id):
+    acc = Account.query.<span class="function">filter_by</span>(id=acc_id, owner_id=g.current_user.id).<span class="function">first</span>()
+    <span class="keyword">return</span> jsonify(acc.to_dict()) <span class="keyword">if</span> acc <span class="keyword">else</span> (jsonify(error=<span class="string">'Not found'</span>), <span class="number">404</span>)
+
+<span class="comment"># Good (server): role comes from the server-side store, checked per operation</span>
+@app.route(<span class="string">'/api/admin/refund'</span>, methods=[<span class="string">'POST'</span>])
+@requires_permission(<span class="string">'payments:refund'</span>)
+<span class="keyword">def</span> <span class="function">refund</span>(): ...
+
+<span class="comment">// Good (client): the UI mirrors server-issued permissions, it does not decide</span>
+<span class="keyword">val</span> perms = api.<span class="function">permissions</span>()                       <span class="comment">// fetched, short-lived, never edited locally</span>
+adminButton.isVisible = perms.<span class="function">contains</span>(<span class="string">"payments:refund"</span>)
+<span class="comment">// entitlement is re-validated server-side on every privileged call</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Make every authorization decision on the server, on every request</li>
+                    <li>Derive identity only from the verified session or token</li>
+                    <li>Never accept role, tenant, entitlement, or user id from the client</li>
+                    <li>Check per-object ownership, not just "is authenticated"</li>
+                    <li>Protect every privileged endpoint, whether or not the UI exposes it</li>
+                    <li>Treat client-side UI gating as convenience only</li>
+                    <li>Keep permissions server-side; refresh them and honour revocation quickly</li>
+                    <li>Deny by default; require an explicit grant to proceed</li>
+                    <li>Return 404 rather than 403 for objects the caller may not see</li>
+                    <li>Log authorization denials and alert on enumeration patterns</li>
+                    <li>Test the API without the app — it is how an attacker will</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Testing:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Burp Suite (Autorize)</span>
+                    <span class="tool-tag">objection / Frida</span>
+                    <span class="tool-tag">jadx</span>
+                    <span class="tool-tag">Postman</span>
+                </div>
+
+                <h3>Server Policy:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">OPA / Cedar</span>
+                    <span class="tool-tag">Casbin</span>
+                    <span class="tool-tag">API gateway authz</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Replay an admin request with a normal user's token</li>
+                    <li>Change object ids in requests and look for successful responses</li>
+                    <li>Add <code>role</code>/<code>is_admin</code> fields and see whether the server believes them</li>
+                    <li>Edit local entitlement flags and check whether the server re-validates</li>
+                    <li>Revoke a permission server-side and confirm the app loses access promptly</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>These are documented <strong>incident classes</strong> — recurring patterns rather than single CVEs.</p>
+                <ul>
+                    <li><strong>Account enumeration through the mobile API:</strong> an endpoint returning any account id to any authenticated caller exposes balances and statements across the customer base.</li>
+                    <li><strong>Hidden admin functions called directly:</strong> staff-only operations reachable by any user because the check lived in the app.</li>
+                    <li><strong>Local premium flags:</strong> paid features unlocked by editing a preference file on a rooted device.</li>
+                    <li><strong>Client-declared roles:</strong> back ends that accept a role field from the request and act on it.</li>
+                    <li><strong>Stale entitlements:</strong> access that persists on device long after it was revoked server-side.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> let the app decide what the user may do</li>
+                    <li><span class="badge critical">DO NOT</span> trust ids, roles, or flags from the client</li>
+                    <li><span class="badge high">DO</span> re-check identity and entitlement per request</li>
+                    <li><span class="badge high">DO</span> verify per-object ownership</li>
+                    <li><span class="badge medium">DO</span> deny by default and log denials</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">OWASP</span> Mobile Top 10 2016 - M6</li>
+                    <li><span class="badge medium">Merged into</span> M3:2024 Insecure Authentication/Authorization</li>
+                    <li><span class="badge medium">OWASP MASVS</span> AUTH-2, AUTH-3</li>
+                    <li><span class="badge medium">CWE-285</span> Improper Authorization</li>
+                    <li><span class="badge medium">CWE-639</span> Authorization Bypass Through User-Controlled Key</li>
+                    <li><span class="badge medium">CWE-862</span> Missing Authorization</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Mobile Top 10 (2016) — Educational Platform</strong> | <a href="/cheatsheets">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/mobile/OWASP-Mobile/M-2016-Insecure-Authorization/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>

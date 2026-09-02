@@ -4,9 +4,9 @@
  *
  * Output: app/data/owasp.json  (consumed by the Next.js pages)
  *
- * Only editions that ACTUALLY have lesson content are included (honest nav):
- *   Web 2025/2021/2017 · API 2023 · Mobile 2024 · LLM 2025/2023
- * (year-config's API-2019 / Mobile-2016 snapshots have no content — excluded.)
+ * Every edition listed here has lesson content AND a cheat sheet per entry:
+ *   Web 2025/2021/2017 · API 2023/2019 · Mobile 2024/2016 · LLM 2025/2023 ·
+ *   Kubernetes · CI/CD · ML · Smart Contract · Serverless · Proactive Controls
  */
 import { existsSync, readdirSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -78,7 +78,7 @@ const EDITIONS = {
         V('API09', 9, 'Improper Inventory Management', 'improper-inventory-management'),
         V('API10', 10, 'Unsafe Consumption of APIs', 'unsafe-consumption-of-apis'),
       ]},
-      { year: '2019', cheatDir: null, alias: {
+      { year: '2019', cheatDir: 'resources/cheat-sheets/2019/api', alias: {
         'broken-object-level-authorization': 'API01-Broken-Object-Level-Authorization',
         'broken-user-authentication': 'API02-Broken-Authentication',
         'excessive-data-exposure': 'API-2019-Excessive-Data-Exposure',
@@ -120,7 +120,7 @@ const EDITIONS = {
         V('M09', 9, 'Insecure Data Storage', 'insecure-data-storage'),
         V('M10', 10, 'Insufficient Cryptography', 'insufficient-cryptography'),
       ]},
-      { year: '2016', cheatDir: null, alias: {
+      { year: '2016', cheatDir: 'resources/cheat-sheets/2016/mobile', alias: {
         'improper-platform-usage': 'M-2016-Improper-Platform-Usage',
         'insecure-data-storage': 'M09-Insecure-Data-Storage',
         'insecure-communication': 'M05-Insecure-Communication',

@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M4:2016 Insecure Authentication - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--primary-color);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="/cheatsheets" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔐 Insecure Authentication<span class="year-badge">Mobile 2016</span></h1>
+            <p class="subtitle">OWASP Mobile Top 10 2016 - M4</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Insecure Authentication</strong> is the failure to establish <em>who</em> the user is in a way the client cannot fake. In mobile the temptation is structural: the app is right there, it has a login screen, and it feels natural to let it decide whether the user is authenticated. But the app runs on hardware the attacker owns — they can hook the check, edit local storage, or skip the app entirely and call the back end directly.</p>
+                <p>The category also covers the shortcuts mobile UX invites: 4-digit offline PINs, "remember me" tokens that never expire, device identifiers used as credentials, and biometric prompts whose result is a boolean rather than the unlock of a cryptographic key.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">M4</span>
+                        <span class="label">OWASP Rank 2016</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Server</span>
+                        <span class="label">Must Decide</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Bypass</span>
+                        <span class="label">Via Direct API Calls</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Client-Side Login:</strong> credentials compared inside the app</li>
+                    <li><strong>Local Flag Flip:</strong> <code>isLoggedIn=true</code> written to preferences</li>
+                    <li><strong>Boolean Biometrics:</strong> success callback hooked with Frida</li>
+                    <li><strong>Offline PIN Only:</strong> a 4-digit code checked on device, unlimited attempts</li>
+                    <li><strong>Device ID as Credential:</strong> IMEI/UUID treated as proof of identity</li>
+                    <li><strong>Immortal Sessions:</strong> tokens that never expire or cannot be revoked</li>
+                    <li><strong>Weak Password Policy:</strong> mobile-friendly rules that permit trivial secrets</li>
+                    <li><strong>Skip the App:</strong> the API is called directly, bypassing every screen</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Decompile the app and locate the authentication logic<br>
+   <span class="arrow">↓</span><br>
+2. Look for checks that never leave the device<br>
+   <span class="arrow">↓</span><br>
+3. Hook the method or edit local state to declare yourself logged in<br>
+   <span class="arrow">↓</span><br>
+4. Or drop the app entirely and call the API with a crafted request<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Authenticated access without ever presenting a valid credential!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: the decision is made on the device</span>
+<span class="keyword">fun</span> <span class="function">login</span>(user: String, pass: String): Boolean {
+    <span class="keyword">val</span> stored = prefs.<span class="function">getString</span>(<span class="string">"pass_$user"</span>, <span class="keyword">null</span>)   <span class="comment">← credential lives locally</span>
+    <span class="keyword">return</span> stored == pass                              <span class="comment">← hook this and return true</span>
+}
+
+<span class="comment">// Bad: a local flag is the whole session</span>
+prefs.<span class="function">edit</span>().<span class="function">putBoolean</span>(<span class="string">"isLoggedIn"</span>, <span class="keyword">true</span>).<span class="function">apply</span>()
+
+<span class="comment">// Bad: biometrics that gate UI, not data</span>
+biometricPrompt.<span class="function">authenticate</span>(info)      <span class="comment">// onAuthenticationSucceeded → showAccounts()</span>
+
+<span class="comment">// Bad: the device identifier is the credential</span>
+api.<span class="function">get</span>(<span class="string">"/api/profile?device_id="</span> + deviceId)   <span class="comment">← spoofable, guessable, permanent</span>
+
+<span class="comment">// Bad: PIN checked offline, unlimited attempts, no server involvement</span>
+<span class="keyword">if</span> (enteredPin == prefs.<span class="function">getString</span>(<span class="string">"pin"</span>, <span class="string">""</span>)) <span class="function">unlock</span>()
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: the server authenticates; the app just carries the result</span>
+<span class="keyword">val</span> res = api.<span class="function">login</span>(<span class="function">LoginRequest</span>(user, pass))     <span class="comment">// over TLS, rate-limited server-side</span>
+secureStore.<span class="function">put</span>(<span class="string">"refresh_token"</span>, res.refreshToken)  <span class="comment">// Keystore/Keychain, encrypted</span>
+<span class="comment">// access token is short-lived; every request is re-authorised by the server</span>
+
+<span class="comment">// Good: biometrics unlock a key, so bypassing the UI yields nothing</span>
+<span class="keyword">val</span> spec = KeyGenParameterSpec.<span class="function">Builder</span>(<span class="string">"session_key"</span>, PURPOSE_DECRYPT)
+    .<span class="function">setUserAuthenticationRequired</span>(<span class="keyword">true</span>)
+    .<span class="function">setInvalidatedByBiometricEnrollment</span>(<span class="keyword">true</span>)
+    .<span class="function">build</span>()
+biometricPrompt.<span class="function">authenticate</span>(info, BiometricPrompt.<span class="function">CryptoObject</span>(cipher))
+<span class="comment">// the token only decrypts after a genuine biometric unlock</span>
+
+<span class="comment">// Good: a PIN is a local convenience that unwraps a server-issued token</span>
+<span class="keyword">val</span> key = <span class="function">deriveKey</span>(pin, salt, iterations = <span class="number">210_000</span>)   <span class="comment">// PBKDF2/Argon2, device-bound</span>
+<span class="keyword">val</span> token = <span class="function">decrypt</span>(storedToken, key)                   <span class="comment">// wrong PIN → useless bytes</span>
+<span class="function">enforceLocalAttemptLimit</span>(max = <span class="number">5</span>, thenWipe = <span class="keyword">true</span>)
+
+<span class="comment"># Good: server side — throttle, MFA, revoke, and never trust device ids</span>
+<span class="comment"># identity comes only from a verified token; device_id is telemetry, not auth</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Authenticate on the server; the app only presents credentials and carries tokens</li>
+                    <li>Assume every client-side check can be bypassed — never make it the control</li>
+                    <li>Store tokens in the Keychain/Keystore, never a plain flag or file</li>
+                    <li>Bind biometric authentication to a cryptographic key (CryptoObject / LAContext)</li>
+                    <li>Treat a local PIN as convenience: it should unwrap a server-issued token</li>
+                    <li>Keep access tokens short-lived; rotate refresh tokens and support revocation</li>
+                    <li>Never use device identifiers, phone numbers, or IMEI as credentials</li>
+                    <li>Rate-limit and lock out on the server, including OTP verification</li>
+                    <li>Offer MFA and require re-authentication for sensitive operations</li>
+                    <li>Invalidate sessions server-side on logout, password change, and device loss</li>
+                    <li>Test the API directly, without the app, to see what it accepts</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Dynamic:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Frida</span>
+                    <span class="tool-tag">objection</span>
+                    <span class="tool-tag">Burp Suite</span>
+                </div>
+
+                <h3>Static &amp; Identity:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">jadx / MobSF</span>
+                    <span class="tool-tag">OAuth 2.0 + PKCE</span>
+                    <span class="tool-tag">AppAuth</span>
+                    <span class="tool-tag">Keystore / Keychain</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Hook the login and biometric callbacks — does the app unlock anyway?</li>
+                    <li>Flip local flags in preferences and relaunch</li>
+                    <li>Call the API directly with no app and see what is accepted</li>
+                    <li>Replay an old token after logout and after a password change</li>
+                    <li>Brute-force the PIN/OTP path and check for server-side limits</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>These are documented <strong>incident classes</strong> — recurring patterns rather than single CVEs.</p>
+                <ul>
+                    <li><strong>Offline credential checks:</strong> apps that validate a password or PIN locally are unlocked with a one-line runtime hook.</li>
+                    <li><strong>Biometric UI gating:</strong> "Face ID protected" screens that reveal data as soon as the success callback is forced true, because no key was involved.</li>
+                    <li><strong>Device identifiers as credentials:</strong> back ends that trust a supplied device id return another user's data when the value is changed.</li>
+                    <li><strong>Never-expiring "remember me" tokens:</strong> a token from a resold or stolen phone still authenticates months later.</li>
+                    <li><strong>API-only bypass:</strong> flows enforced entirely in the UI are skipped by calling the endpoints directly.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> authenticate on the device</li>
+                    <li><span class="badge critical">DO NOT</span> gate access with a local boolean</li>
+                    <li><span class="badge critical">DO NOT</span> use a device id as identity</li>
+                    <li><span class="badge high">DO</span> bind biometrics to a real key</li>
+                    <li><span class="badge high">DO</span> keep tokens short-lived and revocable</li>
+                    <li><span class="badge medium">DO</span> test the API with the app removed</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">OWASP</span> Mobile Top 10 2016 - M4</li>
+                    <li><span class="badge medium">Maps to</span> M3:2024 Insecure Authentication/Authorization</li>
+                    <li><span class="badge medium">OWASP MASVS</span> AUTH-1, AUTH-2, AUTH-3</li>
+                    <li><span class="badge medium">CWE-287</span> Improper Authentication</li>
+                    <li><span class="badge medium">CWE-306</span> Missing Authentication for Critical Function</li>
+                    <li><span class="badge medium">NIST</span> SP 800-63B Digital Identity Guidelines</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Mobile Top 10 (2016) — Educational Platform</strong> | <a href="/cheatsheets">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/mobile/OWASP-Mobile/M03-Insecure-Authentication-Authorization/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>

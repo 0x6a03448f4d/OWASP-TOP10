@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API2:2019 Broken User Authentication - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--primary-color);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="/cheatsheets" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔑 Broken User Authentication<span class="year-badge">API 2019</span></h1>
+            <p class="subtitle">OWASP API Security Top 10 2019 - API2</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Broken User Authentication</strong> covers every way an API fails to establish, protect, or invalidate the caller's identity. Authentication in APIs is harder than in classic web apps: there is no browser session to lean on, credentials and tokens travel in headers on every request, and endpoints such as <code>/login</code>, <code>/register</code>, <code>/token/refresh</code> and <code>/password/reset</code> are <em>publicly reachable by design</em> — so they are attacked directly, at machine speed, with no rate limit from a human clicking a form.</p>
+                <p>Once authentication breaks, every other control downstream is decorative: the attacker <em>is</em> a legitimate user as far as the system is concerned.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">API2</span>
+                        <span class="label">OWASP Rank 2019</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Public</span>
+                        <span class="label">Attack Surface</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Account</span>
+                        <span class="label">Takeover Impact</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Credential Stuffing:</strong> breached password lists replayed against <code>/login</code> with no throttle</li>
+                    <li><strong>Brute Force:</strong> unlimited attempts on passwords, PINs, and OTPs</li>
+                    <li><strong>alg:none / Weak Secret JWT:</strong> tokens forged because the signature is not properly verified</li>
+                    <li><strong>Token in URL:</strong> access tokens in query strings leak via logs, referrers, and history</li>
+                    <li><strong>No Expiry / No Revocation:</strong> a stolen token is valid forever</li>
+                    <li><strong>Weak Password Reset:</strong> guessable tokens, no expiry, reusable links</li>
+                    <li><strong>API Key as Identity:</strong> a single shared key treated as proof of a user</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Enumerate auth endpoints: login, register, refresh, reset, OTP verify<br>
+   <span class="arrow">↓</span><br>
+2. Probe for rate limiting, lockout, and user enumeration in responses<br>
+   <span class="arrow">↓</span><br>
+3. Stuff credentials / brute-force OTPs at high volume<br>
+   <span class="arrow">↓</span><br>
+4. Or capture a token and test <code>alg:none</code>, weak secrets, missing expiry<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Full account takeover — and the logs show a "valid" login!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: signature never verified — decode is not verify</span>
+<span class="keyword">const</span> claims = jwt.<span class="function">decode</span>(token);          <span class="comment">← accepts any token, forged or not</span>
+<span class="keyword">if</span> (claims.role === <span class="string">'admin'</span>) allowAdmin();
+
+<span class="comment">// Bad: algorithm chosen by the attacker's own header</span>
+jwt.<span class="function">verify</span>(token, secret);                   <span class="comment">← no algorithms: [...] → alg:none / HS-vs-RS confusion</span>
+
+<span class="comment"># Bad: unlimited attempts, and the error tells the attacker who exists</span>
+@app.route(<span class="string">'/api/login'</span>, methods=[<span class="string">'POST'</span>])
+<span class="keyword">def</span> <span class="function">login</span>():
+    user = User.query.<span class="function">filter_by</span>(email=request.json[<span class="string">'email'</span>]).<span class="function">first</span>()
+    <span class="keyword">if</span> <span class="keyword">not</span> user:
+        <span class="keyword">return</span> {<span class="string">'error'</span>: <span class="string">'No such user'</span>}, <span class="number">404</span>      <span class="comment">← user enumeration</span>
+    <span class="keyword">if</span> user.password == request.json[<span class="string">'password'</span>]:  <span class="comment">← plaintext compare</span>
+        <span class="keyword">return</span> {<span class="string">'token'</span>: <span class="function">make_token</span>(user)}        <span class="comment"># no expiry, no lockout, no MFA</span>
+
+<span class="comment"># Bad: guessable, non-expiring reset token</span>
+reset_token = str(user.id) + str(int(time.<span class="function">time</span>()))
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: verify with a pinned algorithm, issuer, and audience</span>
+<span class="keyword">const</span> claims = jwt.<span class="function">verify</span>(token, publicKey, {
+    algorithms: [<span class="string">'RS256'</span>],                  <span class="comment">// never trust the token's own alg header</span>
+    issuer: process.env.EXPECTED_ISSUER,
+    audience: process.env.EXPECTED_AUDIENCE,   <span class="comment">// exp is enforced by default</span>
+});
+
+<span class="comment"># Good: uniform errors, hashing, throttling, lockout, MFA</span>
+@app.route(<span class="string">'/api/login'</span>, methods=[<span class="string">'POST'</span>])
+@limiter.<span class="function">limit</span>(<span class="string">'5 per minute; 20 per hour'</span>)      <span class="comment"># per IP AND per account</span>
+<span class="keyword">def</span> <span class="function">login</span>():
+    user = User.query.<span class="function">filter_by</span>(email=request.json[<span class="string">'email'</span>]).<span class="function">first</span>()
+    ok = user <span class="keyword">and</span> argon2.<span class="function">verify</span>(request.json[<span class="string">'password'</span>], user.pw_hash)
+    <span class="keyword">if</span> <span class="keyword">not</span> ok:
+        <span class="function">record_failure</span>(request.json[<span class="string">'email'</span>], request.remote_addr)
+        <span class="keyword">return</span> {<span class="string">'error'</span>: <span class="string">'Invalid credentials'</span>}, <span class="number">401</span>   <span class="comment"># identical for both cases</span>
+    <span class="keyword">if</span> user.mfa_enabled <span class="keyword">and</span> <span class="keyword">not</span> <span class="function">verify_totp</span>(user, request.json.<span class="function">get</span>(<span class="string">'otp'</span>)):
+        <span class="keyword">return</span> {<span class="string">'error'</span>: <span class="string">'Invalid credentials'</span>}, <span class="number">401</span>
+    <span class="keyword">return</span> {<span class="string">'access_token'</span>: <span class="function">issue</span>(user, ttl=<span class="number">900</span>),        <span class="comment"># short-lived</span>
+            <span class="string">'refresh_token'</span>: <span class="function">issue_refresh</span>(user)}          <span class="comment"># rotating, revocable</span>
+
+<span class="comment"># Good: high-entropy, single-use, expiring reset token</span>
+reset_token = secrets.<span class="function">token_urlsafe</span>(<span class="number">32</span>)   <span class="comment"># store only its hash; expire in 15 min</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Inventory every authentication flow, including refresh and reset</li>
+                    <li>Use a proven identity provider rather than hand-rolled auth</li>
+                    <li>Hash passwords with Argon2id/bcrypt/scrypt; never encrypt or store plaintext</li>
+                    <li>Verify JWTs with a pinned algorithm, issuer, audience, and expiry</li>
+                    <li>Keep access tokens short-lived; rotate and allow revocation of refresh tokens</li>
+                    <li>Send tokens in headers — never in URLs or query strings</li>
+                    <li>Rate-limit and lock out per account <em>and</em> per source, including OTP endpoints</li>
+                    <li>Return identical responses for unknown user and wrong password</li>
+                    <li>Offer MFA and enforce it for privileged accounts</li>
+                    <li>Make reset tokens random, hashed at rest, single-use, and short-lived</li>
+                    <li>Re-authenticate before sensitive changes (email, password, payout details)</li>
+                    <li>Log authentication events and alert on credential-stuffing patterns</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Identity & Libraries:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Auth0 / Okta / Cognito</span>
+                    <span class="tool-tag">Keycloak</span>
+                    <span class="tool-tag">jose / pyjwt</span>
+                    <span class="tool-tag">Argon2</span>
+                </div>
+
+                <h3>Testing:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">jwt_tool</span>
+                    <span class="tool-tag">Burp Intruder</span>
+                    <span class="tool-tag">hashcat</span>
+                    <span class="tool-tag">OWASP ZAP</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Send 100 bad logins — is there any throttle or lockout?</li>
+                    <li>Compare responses for unknown user vs wrong password</li>
+                    <li>Re-sign a token with <code>alg:none</code> and with a guessed HMAC secret</li>
+                    <li>Strip or extend <code>exp</code>; check the token is rejected</li>
+                    <li>Reuse a password-reset link twice, and after an hour</li>
+                    <li>Log out, then replay the old token — is it revoked?</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>These are documented <strong>incident classes</strong> — recurring patterns rather than single CVEs.</p>
+                <ul>
+                    <li><strong>Credential stuffing at scale:</strong> unthrottled mobile login APIs let attackers replay breached password lists until thousands of accounts open.</li>
+                    <li><strong>OTP brute force:</strong> a 4–6 digit code with no attempt limit is exhausted in minutes, defeating "MFA" entirely.</li>
+                    <li><strong>Forged JWTs:</strong> services that decode instead of verify, or accept <code>alg:none</code>, hand admin access to anyone who edits a claim.</li>
+                    <li><strong>Tokens leaked in URLs:</strong> access tokens in query strings end up in proxy logs, analytics, and browser history, then get replayed.</li>
+                    <li><strong>Never-expiring sessions:</strong> tokens with no expiry or revocation stay usable long after a device is lost or an employee leaves.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> use <code>jwt.decode()</code> as an auth check</li>
+                    <li><span class="badge critical">DO NOT</span> reveal whether an account exists</li>
+                    <li><span class="badge critical">DO NOT</span> put tokens in URLs</li>
+                    <li><span class="badge high">DO</span> pin the algorithm and validate iss/aud/exp</li>
+                    <li><span class="badge high">DO</span> throttle every auth endpoint, OTP included</li>
+                    <li><span class="badge medium">DO</span> re-authenticate before sensitive changes</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">OWASP</span> API Security Top 10 2019 - API2</li>
+                    <li><span class="badge medium">Maps to</span> API2:2023 Broken Authentication</li>
+                    <li><span class="badge medium">CWE-287</span> Improper Authentication</li>
+                    <li><span class="badge medium">CWE-307</span> Improper Restriction of Excessive Authentication Attempts</li>
+                    <li><span class="badge medium">CWE-345</span> Insufficient Verification of Data Authenticity</li>
+                    <li><span class="badge medium">NIST</span> SP 800-63B Digital Identity Guidelines</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP API Security Top 10 (2019) — Educational Platform</strong> | <a href="/cheatsheets">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/api/OWASP-API/API02-Broken-Authentication/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>

@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M5:2016 Insufficient Cryptography - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--primary-color);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="/cheatsheets" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔏 Insufficient Cryptography<span class="year-badge">Mobile 2016</span></h1>
+            <p class="subtitle">OWASP Mobile Top 10 2016 - M5</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Insufficient Cryptography</strong> is cryptography that is <em>present but ineffective</em>. The app encrypts — it simply does it in a way that an attacker can undo: a broken algorithm, an unauthenticated mode, a hardcoded key, a fixed IV, a home-made cipher, or a correct algorithm whose key sits in the same binary as the data it protects.</p>
+                <p>On mobile the killer detail is <strong>key management</strong>. The device belongs to the attacker, so any key compiled into the app, derived from a constant, or stored beside the ciphertext is recoverable. Encryption only moves the problem: the security of the data becomes exactly the security of the key.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">M5</span>
+                        <span class="label">OWASP Rank 2016</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Keys</span>
+                        <span class="label">The Real Problem</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">False</span>
+                        <span class="label">Sense Of Safety</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Hardcoded Keys:</strong> the key extracted from strings or bytecode in minutes</li>
+                    <li><strong>Broken Primitives:</strong> MD5, SHA-1, DES, RC4 still in use</li>
+                    <li><strong>ECB Mode:</strong> identical plaintext blocks produce identical ciphertext</li>
+                    <li><strong>Static or Zero IV:</strong> reuse destroys the security of CBC and CTR modes</li>
+                    <li><strong>No Authentication:</strong> unauthenticated ciphertext can be tampered with</li>
+                    <li><strong>Bad Randomness:</strong> <code>Random</code> or a timestamp seeding key material</li>
+                    <li><strong>Home-Made Crypto:</strong> XOR, Base64, or custom "obfuscation" mistaken for encryption</li>
+                    <li><strong>Weak Password Hashing:</strong> unsalted or single-round hashes for local secrets</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Decompile the app and locate the crypto calls<br>
+   <span class="arrow">↓</span><br>
+2. Identify algorithm, mode, IV handling, and where the key comes from<br>
+   <span class="arrow">↓</span><br>
+3. Recover the key from constants, resources, or a runtime hook<br>
+   <span class="arrow">↓</span><br>
+4. Decrypt the stored data — or forge ciphertext where nothing is authenticated<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: "Encrypted" data read and modified at will!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: hardcoded key, ECB mode, no authentication</span>
+<span class="keyword">val</span> key = <span class="function">SecretKeySpec</span>(<span class="string">"MySuperSecretKey"</span>.<span class="function">toByteArray</span>(), <span class="string">"AES"</span>)   <span class="comment">← in the binary</span>
+<span class="keyword">val</span> cipher = Cipher.<span class="function">getInstance</span>(<span class="string">"AES/ECB/PKCS5Padding"</span>)      <span class="comment">← patterns survive</span>
+cipher.<span class="function">init</span>(Cipher.ENCRYPT_MODE, key)
+
+<span class="comment">// Bad: fixed IV — reuse leaks relationships between messages</span>
+<span class="keyword">val</span> iv = <span class="function">IvParameterSpec</span>(<span class="function">ByteArray</span>(<span class="number">16</span>))                    <span class="comment">← all zeroes, every time</span>
+
+<span class="comment">// Bad: obsolete primitives</span>
+MessageDigest.<span class="function">getInstance</span>(<span class="string">"MD5"</span>)                          <span class="comment">← collisions are practical</span>
+Cipher.<span class="function">getInstance</span>(<span class="string">"DES/CBC/PKCS5Padding"</span>)                <span class="comment">← 56-bit key</span>
+
+<span class="comment">// Bad: predictable "randomness" for key material</span>
+<span class="keyword">val</span> token = Random(System.<span class="function">currentTimeMillis</span>()).<span class="function">nextLong</span>()
+
+<span class="comment">// Bad: encoding is not encryption</span>
+<span class="keyword">fun</span> <span class="function">protect</span>(s: String) = Base64.<span class="function">encode</span>(s.<span class="function">toByteArray</span>())      <span class="comment">← reversible by anyone</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: hardware-backed key that never leaves the Keystore</span>
+<span class="keyword">val</span> kg = KeyGenerator.<span class="function">getInstance</span>(KeyProperties.KEY_ALGORITHM_AES, <span class="string">"AndroidKeyStore"</span>)
+kg.<span class="function">init</span>(KeyGenParameterSpec.<span class="function">Builder</span>(<span class="string">"data_key"</span>, PURPOSE_ENCRYPT <span class="keyword">or</span> PURPOSE_DECRYPT)
+    .<span class="function">setBlockModes</span>(KeyProperties.BLOCK_MODE_GCM)
+    .<span class="function">setEncryptionPaddings</span>(KeyProperties.ENCRYPTION_PADDING_NONE)
+    .<span class="function">setUserAuthenticationRequired</span>(<span class="keyword">true</span>)
+    .<span class="function">build</span>())
+
+<span class="comment">// Good: authenticated encryption with a fresh random IV per message</span>
+<span class="keyword">val</span> cipher = Cipher.<span class="function">getInstance</span>(<span class="string">"AES/GCM/NoPadding"</span>)
+cipher.<span class="function">init</span>(Cipher.ENCRYPT_MODE, kg.<span class="function">generateKey</span>())        <span class="comment">// GCM IV generated by the provider</span>
+<span class="keyword">val</span> iv = cipher.iv                                       <span class="comment">// store alongside the ciphertext</span>
+
+<span class="comment">// Good: CSPRNG for anything security-relevant</span>
+<span class="keyword">val</span> nonce = <span class="function">ByteArray</span>(<span class="number">32</span>).<span class="function">also</span> { SecureRandom().<span class="function">nextBytes</span>(it) }
+
+<span class="comment">// Good: modern hashing and key derivation</span>
+MessageDigest.<span class="function">getInstance</span>(<span class="string">"SHA-256"</span>)
+<span class="keyword">val</span> spec = <span class="function">PBEKeySpec</span>(pin, salt, <span class="number">210_000</span>, <span class="number">256</span>)          <span class="comment">// or Argon2id</span>
+
+<span class="comment">// Good (iOS): CryptoKit AES-GCM with a Secure Enclave key</span>
+<span class="keyword">let</span> sealed = <span class="keyword">try</span> AES.GCM.<span class="function">seal</span>(plaintext, using: key)
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Use platform crypto libraries — never write your own primitive</li>
+                    <li>Prefer authenticated encryption: AES-GCM or ChaCha20-Poly1305</li>
+                    <li>Generate and store keys in the Keystore/Keychain or Secure Enclave</li>
+                    <li>Never hardcode a key, IV, or salt in code, resources, or config</li>
+                    <li>Use a fresh random IV/nonce for every message; never reuse one with a key</li>
+                    <li>Use a CSPRNG (<code>SecureRandom</code>) for all key and nonce material</li>
+                    <li>Use SHA-256+ for hashing and Argon2id/PBKDF2 with high iteration counts for passwords</li>
+                    <li>Retire MD5, SHA-1, DES, 3DES, RC4, and ECB mode</li>
+                    <li>Bind keys to user authentication where the data warrants it</li>
+                    <li>Plan key rotation and invalidation (logout, biometric re-enrolment, device loss)</li>
+                    <li>Remember: encryption on a device the attacker owns is only as strong as the key store</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Analysis:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">MobSF</span>
+                    <span class="tool-tag">jadx / Ghidra</span>
+                    <span class="tool-tag">Frida (crypto hooks)</span>
+                    <span class="tool-tag">semgrep crypto rules</span>
+                </div>
+
+                <h3>Libraries:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Tink</span>
+                    <span class="tool-tag">Jetpack Security</span>
+                    <span class="tool-tag">CryptoKit</span>
+                    <span class="tool-tag">libsodium</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Grep the decompiled app for <code>ECB</code>, <code>MD5</code>, <code>DES</code>, and key-like constants</li>
+                    <li>Hook <code>Cipher.init</code> at runtime and print the key and IV</li>
+                    <li>Encrypt the same plaintext twice — identical ciphertext means ECB or a fixed IV</li>
+                    <li>Flip a ciphertext byte; if it still decrypts, there is no authentication</li>
+                    <li>Confirm keys are Keystore-resident and non-exportable</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>These are documented <strong>incident classes</strong> — recurring patterns rather than single CVEs.</p>
+                <ul>
+                    <li><strong>Hardcoded AES keys:</strong> extracted from the binary, turning "encrypted" local databases into plaintext for anyone with the app.</li>
+                    <li><strong>ECB-encrypted content:</strong> structure visible through the ciphertext, and repeated blocks that reveal or allow reordering of data.</li>
+                    <li><strong>Unauthenticated ciphertext:</strong> attackers flip bits to alter decrypted values, changing prices, roles, or flags.</li>
+                    <li><strong>Predictable tokens:</strong> session or reset values seeded from the clock, reproduced offline by an attacker.</li>
+                    <li><strong>Base64 as "encryption":</strong> data marked confidential that is simply encoded and trivially readable.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> hardcode keys, IVs, or salts</li>
+                    <li><span class="badge critical">DO NOT</span> use ECB, MD5, SHA-1, DES, or RC4</li>
+                    <li><span class="badge critical">DO NOT</span> invent your own cipher</li>
+                    <li><span class="badge high">DO</span> use AES-GCM with Keystore-held keys</li>
+                    <li><span class="badge high">DO</span> use a fresh random IV per message</li>
+                    <li><span class="badge medium">DO</span> derive local keys with Argon2id/PBKDF2</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">OWASP</span> Mobile Top 10 2016 - M5</li>
+                    <li><span class="badge medium">Maps to</span> M10:2024 Insufficient Cryptography</li>
+                    <li><span class="badge medium">OWASP MASVS</span> CRYPTO-1 … CRYPTO-4</li>
+                    <li><span class="badge medium">CWE-327</span> Use of a Broken or Risky Cryptographic Algorithm</li>
+                    <li><span class="badge medium">CWE-321</span> Use of Hard-coded Cryptographic Key</li>
+                    <li><span class="badge medium">CWE-330</span> Use of Insufficiently Random Values</li>
+                    <li><span class="badge medium">NIST</span> SP 800-175B / FIPS 140-3</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Mobile Top 10 (2016) — Educational Platform</strong> | <a href="/cheatsheets">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/mobile/OWASP-Mobile/M10-Insufficient-Cryptography/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M2:2016 Insecure Data Storage - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--primary-color);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="/cheatsheets" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>💾 Insecure Data Storage<span class="year-badge">Mobile 2016</span></h1>
+            <p class="subtitle">OWASP Mobile Top 10 2016 - M2</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Insecure Data Storage</strong> is sensitive data written to the device in a form that survives the moment it was needed and can be read by someone who is not the app. Credentials, tokens, personal data, and cached responses end up in preferences, plists, SQLite databases, JSON files, logs, screenshots, and clipboard history — all readable on a rooted or jailbroken device, through a backup, or by malware with the right access.</p>
+                <p>The mobile twist is that a great deal of storage is <em>unintentional</em>: the OS caches screenshots when the app backgrounds, keyboards remember typed text, WebViews cache pages, and crash reporters attach state. The app never "decided" to store any of it.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">M2</span>
+                        <span class="label">OWASP Rank 2016</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Device</span>
+                        <span class="label">Attacker Owns It</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Accidental</span>
+                        <span class="label">Much Of The Data</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Plaintext Preferences/Plists:</strong> tokens and passwords in key-value stores</li>
+                    <li><strong>Unencrypted Databases:</strong> SQLite/Realm files copied straight off the device</li>
+                    <li><strong>Logs:</strong> PII, tokens, and full request bodies in logcat or the console</li>
+                    <li><strong>Backups:</strong> app data synced to cloud or ADB backups unencrypted</li>
+                    <li><strong>Screenshot Cache:</strong> the OS snapshots a screen showing balances or codes</li>
+                    <li><strong>Clipboard:</strong> copied passwords readable by any app</li>
+                    <li><strong>WebView &amp; HTTP Cache:</strong> authenticated responses persisted to disk</li>
+                    <li><strong>Hardcoded Secrets:</strong> keys in strings, assets, or config files</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Obtain the device, a backup, or root/jailbreak access<br>
+   <span class="arrow">↓</span><br>
+2. Pull the app sandbox: preferences, databases, caches, logs<br>
+   <span class="arrow">↓</span><br>
+3. Grep for tokens, passwords, PII, and key material<br>
+   <span class="arrow">↓</span><br>
+4. Replay a recovered token or decrypt with a recovered key<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Account takeover from a lost phone or a stolen backup!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: credentials in plaintext key-value storage</span>
+prefs.<span class="function">edit</span>()
+     .<span class="function">putString</span>(<span class="string">"password"</span>, password)
+     .<span class="function">putString</span>(<span class="string">"auth_token"</span>, token)
+     .<span class="function">apply</span>();                       <span class="comment">← /data/data/pkg/shared_prefs/*.xml</span>
+
+<span class="comment">// Bad (iOS): sensitive values in UserDefaults → readable plist</span>
+UserDefaults.standard.<span class="function">set</span>(token, forKey: <span class="string">"authToken"</span>)
+
+<span class="comment">// Bad: unencrypted database on disk</span>
+db.<span class="function">execSQL</span>(<span class="string">"INSERT INTO cards(pan, cvv) VALUES(?,?)"</span>, arrayOf(pan, cvv))
+
+<span class="comment">// Bad: secrets in logs and crash reports</span>
+Log.<span class="function">d</span>(<span class="string">"api"</span>, <span class="string">"login response: "</span> + body);     <span class="comment">← logcat, bug reports, vendors</span>
+
+<span class="comment">&lt;!-- Bad: everything backed up, key compiled into the app --&gt;</span>
+&lt;application android:allowBackup=<span class="string">"true"</span> /&gt;
+&lt;string name=<span class="string">"api_key"</span>&gt;sk_live_51H…&lt;/string&gt;     <span class="comment">← strings.xml is not a vault</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: keys live in hardware-backed storage; store the minimum</span>
+<span class="keyword">val</span> masterKey = MasterKey.<span class="function">Builder</span>(context)
+    .<span class="function">setKeyScheme</span>(MasterKey.KeyScheme.AES256_GCM)
+    .<span class="function">setUserAuthenticationRequired</span>(<span class="keyword">true</span>)
+    .<span class="function">build</span>()
+<span class="keyword">val</span> secure = EncryptedSharedPreferences.<span class="function">create</span>(context, <span class="string">"secure"</span>, masterKey, …)
+secure.<span class="function">edit</span>().<span class="function">putString</span>(<span class="string">"refresh_token"</span>, token).<span class="function">apply</span>()
+<span class="comment">// …and never store the password at all — only a short-lived token</span>
+
+<span class="comment">// Good (iOS): Keychain, device-only, requires unlock</span>
+<span class="keyword">let</span> query: [String: Any] = [
+    kSecClass <span class="keyword">as</span> String: kSecClassGenericPassword,
+    kSecAttrAccessible <span class="keyword">as</span> String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+    kSecValueData <span class="keyword">as</span> String: tokenData,
+]
+
+<span class="comment">// Good: encrypted database with a Keystore-held key</span>
+<span class="keyword">val</span> db = SQLiteDatabase.<span class="function">openOrCreateDatabase</span>(file, <span class="function">keyFromKeystore</span>(), <span class="keyword">null</span>)
+
+<span class="comment">// Good: never log sensitive payloads; strip in release builds</span>
+<span class="keyword">if</span> (BuildConfig.DEBUG) Log.<span class="function">d</span>(<span class="string">"api"</span>, <span class="string">"login ok"</span>)      <span class="comment">// no bodies, no tokens</span>
+
+<span class="comment">&lt;!-- Good: exclude sensitive data from backup; hide the task snapshot --&gt;</span>
+&lt;application android:allowBackup=<span class="string">"false"</span> /&gt;
+window.<span class="function">setFlags</span>(WindowManager.LayoutParams.FLAG_SECURE, FLAG_SECURE)
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Store the least data possible, for the shortest time possible</li>
+                    <li>Never persist passwords; keep only short-lived, revocable tokens</li>
+                    <li>Use the Keychain/Keystore for keys, and encrypt files and databases with them</li>
+                    <li>Pick the strictest workable accessibility/authentication class for stored keys</li>
+                    <li>Exclude sensitive data from cloud and local backups</li>
+                    <li>Keep secrets out of logs, crash reports, and analytics payloads</li>
+                    <li>Set <code>FLAG_SECURE</code> / hide sensitive screens on backgrounding</li>
+                    <li>Disable autocorrect caching on sensitive fields and clear the clipboard</li>
+                    <li>Disable WebView and HTTP caching for authenticated content</li>
+                    <li>Never ship API keys in the binary; fetch scoped, revocable credentials</li>
+                    <li>Wipe local data on logout, on token revocation, and on tamper detection</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Inspection:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">MobSF</span>
+                    <span class="tool-tag">objection</span>
+                    <span class="tool-tag">Frida</span>
+                    <span class="tool-tag">adb backup / iMazing</span>
+                    <span class="tool-tag">sqlite3</span>
+                </div>
+
+                <h3>Secret Scanning:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">gitleaks</span>
+                    <span class="tool-tag">trufflehog</span>
+                    <span class="tool-tag">apktool + grep</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Use the app fully, then dump the sandbox and grep for secrets</li>
+                    <li>Take a backup and inspect what it contains</li>
+                    <li>Watch logcat/console during login and payment flows</li>
+                    <li>Background the app on a sensitive screen and inspect the snapshot cache</li>
+                    <li>Log out, then check whether local data actually disappeared</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>These are documented <strong>incident classes</strong> — recurring patterns rather than single CVEs.</p>
+                <ul>
+                    <li><strong>Session tokens in plaintext preferences:</strong> recovered from a backup or a resold device and replayed for full account access.</li>
+                    <li><strong>Unencrypted local databases:</strong> messages, health data, or card details copied off a rooted device in seconds.</li>
+                    <li><strong>Secrets in logs:</strong> tokens and PII written to system logs and swept up by other apps, log collectors, or crash-reporting vendors.</li>
+                    <li><strong>Screenshot leakage:</strong> the OS task-switcher snapshot preserves balances, one-time codes, or documents.</li>
+                    <li><strong>Hardcoded API keys:</strong> extracted from the binary and used to call back-end services directly, outside the app.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> store passwords or long-lived secrets on device</li>
+                    <li><span class="badge critical">DO NOT</span> treat preferences or plists as secure</li>
+                    <li><span class="badge critical">DO NOT</span> log request bodies or tokens</li>
+                    <li><span class="badge high">DO</span> encrypt with Keystore/Keychain-held keys</li>
+                    <li><span class="badge high">DO</span> exclude sensitive data from backups</li>
+                    <li><span class="badge medium">DO</span> wipe local state on logout</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">OWASP</span> Mobile Top 10 2016 - M2</li>
+                    <li><span class="badge medium">Maps to</span> M9:2024 Insecure Data Storage</li>
+                    <li><span class="badge medium">OWASP MASVS</span> STORAGE-1, STORAGE-2</li>
+                    <li><span class="badge medium">CWE-312</span> Cleartext Storage of Sensitive Information</li>
+                    <li><span class="badge medium">CWE-532</span> Insertion of Sensitive Information into Log File</li>
+                    <li><span class="badge medium">CWE-798</span> Use of Hard-coded Credentials</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Mobile Top 10 (2016) — Educational Platform</strong> | <a href="/cheatsheets">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/mobile/OWASP-Mobile/M09-Insecure-Data-Storage/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>

@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API1:2019 Broken Object Level Authorization - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--primary-color);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="/cheatsheets" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔓 Broken Object Level Authorization<span class="year-badge">API 2019</span></h1>
+            <p class="subtitle">OWASP API Security Top 10 2019 - API1</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Broken Object Level Authorization (BOLA)</strong> is the failure to check that the <em>authenticated</em> caller is actually entitled to the <em>specific object</em> they asked for. The endpoint takes an identifier from the request — a path segment, a query parameter, a body field — and loads that record without ever asking "does this object belong to this caller?". Authentication answers <em>who you are</em>; object level authorization answers <em>which rows you may touch</em>. BOLA is what happens when an API only does the first.</p>
+                <p>It ranked <strong>#1 in 2019</strong> and stayed <strong>#1 in 2023</strong>, because it is both the easiest flaw to exploit — change a number in a URL — and the hardest to catch with scanners, which cannot know whose data <code>/orders/1043</code> should be.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">API1</span>
+                        <span class="label">OWASP Rank 2019</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Every</span>
+                        <span class="label">Object-Bearing Route</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Trivial</span>
+                        <span class="label">Exploitability</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>ID Enumeration:</strong> <code>GET /api/orders/1042</code> → <code>1043</code>, sequential walk of every record</li>
+                    <li><strong>Client-Supplied Identity:</strong> server trusts <code>user_id</code> from the body or query instead of the token</li>
+                    <li><strong>Nested Objects:</strong> parent checked, child (<code>/accounts/9/cards/77</code>) is not</li>
+                    <li><strong>Write Paths Forgotten:</strong> <code>GET</code> is guarded, <code>PUT</code>/<code>DELETE</code> on the same id is not</li>
+                    <li><strong>Second Channel:</strong> the web route checks ownership, the mobile or partner route does not</li>
+                    <li><strong>Export & Batch Endpoints:</strong> report/bulk routes accept arbitrary id lists</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Register a legitimate account and capture normal traffic<br>
+   <span class="arrow">↓</span><br>
+2. Identify every request carrying an object id<br>
+   <span class="arrow">↓</span><br>
+3. Replace the id with another user's (increment, or harvest from a listing)<br>
+   <span class="arrow">↓</span><br>
+4. Observe a 200 with someone else's data — the check was never made<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Script the range and exfiltrate every record in the table!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: authenticated, but the object is never tied to the caller</span>
+@app.route(<span class="string">'/api/orders/&lt;int:order_id&gt;'</span>)
+@requires_auth                                  <span class="comment"># ← proves WHO, not WHAT</span>
+<span class="keyword">def</span> <span class="function">get_order</span>(order_id):
+    order = Order.query.get(order_id)           <span class="comment">← any id, any caller</span>
+    <span class="keyword">return</span> jsonify(order.to_dict())
+
+<span class="comment">// Bad: identity taken from the request body</span>
+app.<span class="function">post</span>(<span class="string">'/api/transfer'</span>, <span class="keyword">async</span> (req, res) => {
+    <span class="keyword">const</span> { fromAccountId, amount } = req.body;   <span class="comment">← attacker picks the source account</span>
+    <span class="keyword">await</span> <span class="function">debit</span>(fromAccountId, amount);
+});
+
+<span class="comment">// Bad: parent checked, nested child is not</span>
+app.<span class="function">get</span>(<span class="string">'/api/accounts/:accId/cards/:cardId'</span>, <span class="keyword">async</span> (req, res) => {
+    <span class="keyword">await</span> <span class="function">assertOwnsAccount</span>(req.user, req.params.accId);
+    res.<span class="function">json</span>(<span class="keyword">await</span> Card.<span class="function">findById</span>(req.params.cardId));  <span class="comment">← card may belong elsewhere</span>
+});
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: the ownership predicate is part of the query itself</span>
+@app.route(<span class="string">'/api/orders/&lt;int:order_id&gt;'</span>)
+@requires_auth
+<span class="keyword">def</span> <span class="function">get_order</span>(order_id):
+    order = Order.query.<span class="function">filter_by</span>(id=order_id, user_id=g.current_user.id).<span class="function">first</span>()
+    <span class="keyword">if</span> order <span class="keyword">is</span> <span class="keyword">None</span>:
+        <span class="keyword">return</span> jsonify(error=<span class="string">'Not found'</span>), <span class="number">404</span>   <span class="comment"># 404, not 403 — do not confirm existence</span>
+    <span class="keyword">return</span> jsonify(order.to_dict())
+
+<span class="comment">// Good: identity comes only from the verified token</span>
+app.<span class="function">post</span>(<span class="string">'/api/transfer'</span>, <span class="keyword">async</span> (req, res) => {
+    <span class="keyword">const</span> account = <span class="keyword">await</span> Account.<span class="function">findOne</span>({ id: req.body.fromAccountId, ownerId: req.user.sub });
+    <span class="keyword">if</span> (!account) <span class="keyword">return</span> res.<span class="function">sendStatus</span>(<span class="number">404</span>);
+    <span class="keyword">await</span> <span class="function">debit</span>(account.id, req.body.amount);
+});
+
+<span class="comment">// Good: one central check, applied to every object at every depth</span>
+<span class="keyword">const</span> authorize = (user, action, obj) => policy.<span class="function">can</span>(user, action, obj) || <span class="function">notFound</span>();
+authorize(req.user, <span class="string">'read'</span>, card);
+authorize(req.user, <span class="string">'read'</span>, card.account);
+
+<span class="comment"># Good: unguessable identifiers reduce the blast radius (defence in depth, not the control)</span>
+id = uuid.<span class="function">uuid4</span>()
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Derive the caller's identity <em>only</em> from the verified session or token</li>
+                    <li>Check ownership/entitlement on every object, on every request</li>
+                    <li>Push the check into the data-access layer so it cannot be forgotten</li>
+                    <li>Use a single, central authorization policy — never per-handler ad hoc code</li>
+                    <li>Validate nested and related objects, not just the top-level one</li>
+                    <li>Cover write and delete paths, not only reads</li>
+                    <li>Return 404 rather than 403 to avoid confirming an object exists</li>
+                    <li>Prefer random UUIDs over sequential integers (defence in depth)</li>
+                    <li>Apply the same rules to bulk, export, and GraphQL resolvers</li>
+                    <li>Write automated tests that fetch another tenant's object and expect 404</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Testing:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Burp Suite (Autorize)</span>
+                    <span class="tool-tag">OWASP ZAP</span>
+                    <span class="tool-tag">Postman/Newman</span>
+                    <span class="tool-tag">ffuf</span>
+                    <span class="tool-tag">Schemathesis</span>
+                </div>
+
+                <h3>Monitoring:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">API gateway logs</span>
+                    <span class="tool-tag">SIEM 403/404 spikes</span>
+                    <span class="tool-tag">Rate anomaly rules</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Create two accounts; replay user A's requests with user B's token</li>
+                    <li>A 200 means BOLA; a 404/403 means the check exists</li>
+                    <li>Walk sequential ids and watch for successful responses</li>
+                    <li>Repeat for <code>PUT</code>, <code>PATCH</code>, <code>DELETE</code>, and bulk endpoints</li>
+                    <li>Try nested resources whose parent you legitimately own</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>These are documented <strong>incident classes</strong> — recurring patterns rather than single CVEs.</p>
+                <ul>
+                    <li><strong>Sequential id scraping:</strong> a mobile back end exposes <code>/api/v1/users/{id}</code>; a script walking the range harvests names, emails and phone numbers for the whole user base in hours.</li>
+                    <li><strong>Client-supplied account identifiers:</strong> a fintech endpoint accepts the source account in the request body, letting an attacker move funds from accounts they do not own.</li>
+                    <li><strong>Documents by direct reference:</strong> an e-signature or invoicing API returns any document id to any authenticated user, exposing contracts across tenants.</li>
+                    <li><strong>Second-channel gaps:</strong> a hardened web API sits alongside a legacy partner API on the same data with no per-object checks at all.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> trust an id, tenant, or role sent by the client</li>
+                    <li><span class="badge critical">DO NOT</span> assume authentication implies authorization</li>
+                    <li><span class="badge critical">DO NOT</span> rely on unguessable ids as the control</li>
+                    <li><span class="badge high">DO</span> scope every query by the caller's identity</li>
+                    <li><span class="badge high">DO</span> centralise the policy and reuse it everywhere</li>
+                    <li><span class="badge medium">DO</span> test cross-tenant access in CI on every build</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">OWASP</span> API Security Top 10 2019 - API1</li>
+                    <li><span class="badge medium">Maps to</span> API1:2023 (unchanged, still #1)</li>
+                    <li><span class="badge medium">CWE-639</span> Authorization Bypass Through User-Controlled Key</li>
+                    <li><span class="badge medium">CWE-284</span> Improper Access Control</li>
+                    <li><span class="badge medium">CWE-566</span> Authorization Bypass Through User-Controlled SQL Primary Key</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP API Security Top 10 (2019) — Educational Platform</strong> | <a href="/cheatsheets">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/api/OWASP-API/API01-Broken-Object-Level-Authorization/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>

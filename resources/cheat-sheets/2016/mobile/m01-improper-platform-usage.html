@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M1:2016 Improper Platform Usage - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--primary-color);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="/cheatsheets" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>📱 Improper Platform Usage<span class="year-badge">Mobile 2016</span></h1>
+            <p class="subtitle">OWASP Mobile Top 10 2016 - M1</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Improper Platform Usage</strong> covers every case where an app <em>misuses a mobile operating-system feature</em> or <em>fails to use a platform security control correctly</em>. The OS ships permission models, the Keychain and Keystore, secure IPC, App Transport Security, biometric APIs and WebView sandboxing — and this category is what happens when the app fights, ignores, or misapplies them.</p>
+                <p>The distinguishing idea is <strong>direction</strong>: the platform already offers the secure way to do the thing, and the app takes a weaker path. A secret in <code>SharedPreferences</code> instead of the Keystore. An exported Activity that should have stayed private. ATS disabled to make one cleartext call work. A biometric prompt whose callback returns a boolean instead of unlocking a real key.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">M1</span>
+                        <span class="label">OWASP Rank 2016</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">OS</span>
+                        <span class="label">Guardrails Bypassed</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Config</span>
+                        <span class="label">Usual Root Cause</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Exported IPC:</strong> Activities, Services, Receivers, Providers reachable by any installed app</li>
+                    <li><strong>Wrong Secret Store:</strong> tokens in <code>SharedPreferences</code>/<code>UserDefaults</code>/plist</li>
+                    <li><strong>ATS / Cleartext Enabled:</strong> <code>usesCleartextTraffic=true</code>, global ATS exceptions</li>
+                    <li><strong>Boolean Biometrics:</strong> auth result not bound to a cryptographic key</li>
+                    <li><strong>WebView Bridges:</strong> <code>addJavascriptInterface</code> plus file access and untrusted URLs</li>
+                    <li><strong>Backup Leakage:</strong> sensitive files included in cloud or ADB backups</li>
+                    <li><strong>Over-Requested Permissions:</strong> broad grants that widen the blast radius</li>
+                    <li><strong>Weak Custom Permissions:</strong> <code>signature</code> downgraded to <code>normal</code></li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Pull the APK/IPA and read the manifest / Info.plist<br>
+   <span class="arrow">↓</span><br>
+2. List exported components, permissions, ATS and backup settings<br>
+   <span class="arrow">↓</span><br>
+3. Invoke exported components from a malicious app<br>
+   <span class="arrow">↓</span><br>
+4. Read secrets from preferences, plists, or a device backup<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Data theft or privileged actions from a zero-permission app!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">&lt;!-- Bad: exported to every app on the device, no permission --&gt;</span>
+&lt;activity android:name=<span class="string">".TransferActivity"</span> android:exported=<span class="string">"true"</span> /&gt;
+&lt;provider android:name=<span class="string">".NotesProvider"</span> android:exported=<span class="string">"true"</span>
+          android:grantUriPermissions=<span class="string">"true"</span> /&gt;
+
+<span class="comment">&lt;!-- Bad: cleartext allowed, everything backed up --&gt;</span>
+&lt;application android:usesCleartextTraffic=<span class="string">"true"</span>
+             android:allowBackup=<span class="string">"true"</span> /&gt;
+
+<span class="comment">// Bad: a bearer token in plaintext preferences</span>
+prefs.<span class="function">edit</span>().<span class="function">putString</span>(<span class="string">"auth_token"</span>, token).<span class="function">apply</span>();
+
+<span class="comment">// Bad: biometric result is just a boolean the attacker can hook</span>
+biometricPrompt.<span class="function">authenticate</span>(info)   <span class="comment">// onSuccess → unlockUi(); no key involved</span>
+
+<span class="comment">// Bad: native bridge on untrusted content</span>
+webView.<span class="function">addJavascriptInterface</span>(<span class="keyword">new</span> <span class="function">Bridge</span>(), <span class="string">"android"</span>);
+webView.settings.javaScriptEnabled = <span class="keyword">true</span>;
+webView.settings.allowFileAccess = <span class="keyword">true</span>;
+webView.<span class="function">loadUrl</span>(intent.<span class="function">getStringExtra</span>(<span class="string">"url"</span>));   <span class="comment">← attacker-controlled</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">&lt;!-- Good: private by default; export only with a signature permission --&gt;</span>
+&lt;activity android:name=<span class="string">".TransferActivity"</span> android:exported=<span class="string">"false"</span> /&gt;
+&lt;service  android:name=<span class="string">".SyncService"</span> android:exported=<span class="string">"true"</span>
+          android:permission=<span class="string">"com.example.permission.SYNC"</span> /&gt;
+&lt;permission android:name=<span class="string">"com.example.permission.SYNC"</span>
+            android:protectionLevel=<span class="string">"signature"</span> /&gt;
+
+<span class="comment">&lt;!-- Good: no cleartext, no blanket backup --&gt;</span>
+&lt;application android:usesCleartextTraffic=<span class="string">"false"</span>
+             android:allowBackup=<span class="string">"false"</span>
+             android:networkSecurityConfig=<span class="string">"@xml/network_security_config"</span> /&gt;
+
+<span class="comment">// Good: hardware-backed key store, unlocked by biometrics</span>
+<span class="keyword">val</span> spec = KeyGenParameterSpec.<span class="function">Builder</span>(<span class="string">"auth_key"</span>, PURPOSE_ENCRYPT <span class="keyword">or</span> PURPOSE_DECRYPT)
+    .<span class="function">setUserAuthenticationRequired</span>(<span class="keyword">true</span>)          <span class="comment">// biometrics unlock the KEY…</span>
+    .<span class="function">setInvalidatedByBiometricEnrollment</span>(<span class="keyword">true</span>)
+    .<span class="function">build</span>()
+biometricPrompt.<span class="function">authenticate</span>(info, BiometricPrompt.<span class="function">CryptoObject</span>(cipher))
+<span class="comment">// …and the token is only decryptable after a real authentication</span>
+
+<span class="comment">// Good: locked-down WebView on trusted content only</span>
+webView.settings.javaScriptEnabled = <span class="keyword">false</span>
+webView.settings.allowFileAccess = <span class="keyword">false</span>
+webView.<span class="function">loadUrl</span>(<span class="string">"https://app.example.com/help"</span>)     <span class="comment">// fixed, validated origin</span>
+
+<span class="comment">// Good (iOS): Keychain with the strictest workable accessibility</span>
+kSecAttrAccessible: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Export components only when required, and protect them with signature permissions</li>
+                    <li>Store secrets in the Keystore/Keychain — never in preferences, plists, or files</li>
+                    <li>Choose the strictest workable Keychain accessibility class</li>
+                    <li>Keep ATS on; disallow cleartext traffic app-wide</li>
+                    <li>Bind biometric authentication to a cryptographic key, not a boolean</li>
+                    <li>Disable JavaScript, file access, and native bridges in WebViews unless required</li>
+                    <li>Load only fixed, validated origins into a WebView</li>
+                    <li>Exclude sensitive data from backups</li>
+                    <li>Request the minimum permissions, at the moment of use</li>
+                    <li>Validate every input arriving over IPC and deep links</li>
+                    <li>Re-review the manifest / Info.plist on every release</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Static:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">MobSF</span>
+                    <span class="tool-tag">apktool</span>
+                    <span class="tool-tag">jadx</span>
+                    <span class="tool-tag">semgrep-mobile</span>
+                </div>
+
+                <h3>Dynamic:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Frida</span>
+                    <span class="tool-tag">objection</span>
+                    <span class="tool-tag">drozer</span>
+                    <span class="tool-tag">adb / Android Studio</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Enumerate exported components and invoke each from a test app</li>
+                    <li>Dump <code>shared_prefs</code>, plists, and the app sandbox for secrets</li>
+                    <li>Check ATS/cleartext, backup, and debuggable flags in the built artifact</li>
+                    <li>Hook the biometric callback and see whether data still decrypts</li>
+                    <li>Feed hostile deep links and IPC extras to every entry point</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>These are documented <strong>incident classes</strong> — recurring patterns rather than single CVEs.</p>
+                <ul>
+                    <li><strong>Exported content providers:</strong> another installed app queries private notes, messages, or account rows with no permission at all.</li>
+                    <li><strong>Tokens in plaintext preferences:</strong> a device backup or a rooted-device dump yields long-lived session tokens.</li>
+                    <li><strong>Global ATS exceptions:</strong> disabling transport security "for one legacy endpoint" downgrades the entire app to interceptable traffic.</li>
+                    <li><strong>Boolean biometrics bypassed:</strong> a runtime hook flips the success callback and the app unlocks without any real authentication.</li>
+                    <li><strong>WebView bridges reached from untrusted pages:</strong> a JavaScript interface exposed to attacker-controlled content leads to file or account access.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> export components you do not need to</li>
+                    <li><span class="badge critical">DO NOT</span> keep secrets outside the Keystore/Keychain</li>
+                    <li><span class="badge critical">DO NOT</span> disable ATS or allow cleartext globally</li>
+                    <li><span class="badge high">DO</span> tie biometrics to a real cryptographic key</li>
+                    <li><span class="badge high">DO</span> lock WebViews down and pin their origins</li>
+                    <li><span class="badge medium">DO</span> audit the manifest every release</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">OWASP</span> Mobile Top 10 2016 - M1</li>
+                    <li><span class="badge medium">Maps to</span> M8:2024 Security Misconfiguration</li>
+                    <li><span class="badge medium">OWASP MASVS</span> PLATFORM-1 … PLATFORM-3</li>
+                    <li><span class="badge medium">CWE-926</span> Improper Export of Android Application Components</li>
+                    <li><span class="badge medium">CWE-276</span> Incorrect Default Permissions</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Mobile Top 10 (2016) — Educational Platform</strong> | <a href="/cheatsheets">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/mobile/OWASP-Mobile/M-2016-Improper-Platform-Usage/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>

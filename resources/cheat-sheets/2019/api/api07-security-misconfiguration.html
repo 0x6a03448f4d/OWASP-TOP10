@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API7:2019 Security Misconfiguration - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--primary-color);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="/cheatsheets" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>⚙️ Security Misconfiguration<span class="year-badge">API 2019</span></h1>
+            <p class="subtitle">OWASP API Security Top 10 2019 - API7</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Security Misconfiguration</strong> is the category for everything that is insecure because of how the API and its infrastructure are <em>set up</em>, rather than how the business logic is written. Insecure defaults left in place, debug modes shipped to production, permissive CORS, missing TLS or security headers, verbose errors, open cloud storage, unnecessary HTTP methods, and unpatched components all live here.</p>
+                <p>It is the broadest and most common category because it spans every layer — application framework, web server, container, orchestrator, cloud account — and because a configuration that was safe last quarter drifts silently as environments change.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">API7</span>
+                        <span class="label">OWASP Rank 2019</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Every</span>
+                        <span class="label">Layer Of The Stack</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Automated</span>
+                        <span class="label">Discovery</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Debug Mode in Production:</strong> stack traces, config dumps, interactive consoles</li>
+                    <li><strong>Permissive CORS:</strong> <code>Access-Control-Allow-Origin: *</code> with credentials</li>
+                    <li><strong>Default Credentials:</strong> shipped admin accounts on consoles and databases</li>
+                    <li><strong>Verbose Errors:</strong> SQL text, file paths, framework and version banners</li>
+                    <li><strong>Missing TLS / Weak Ciphers:</strong> cleartext endpoints, no HSTS</li>
+                    <li><strong>Unnecessary Methods:</strong> <code>TRACE</code>, <code>PUT</code>, <code>OPTIONS</code> left enabled</li>
+                    <li><strong>Exposed Infrastructure:</strong> open buckets, unauthenticated dashboards, metrics endpoints</li>
+                    <li><strong>Unpatched Components:</strong> known-vulnerable framework or server versions</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Fingerprint the stack from headers, error pages, and banners<br>
+   <span class="arrow">↓</span><br>
+2. Probe for debug endpoints, docs, metrics, and admin consoles<br>
+   <span class="arrow">↓</span><br>
+3. Test CORS, TLS, methods, and default credentials<br>
+   <span class="arrow">↓</span><br>
+4. Trigger errors deliberately and read what leaks<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Config disclosure, data access, or a foothold — no exploit code needed!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: debug shipped to production</span>
+app.<span class="function">run</span>(host=<span class="string">'0.0.0.0'</span>, debug=<span class="keyword">True</span>)      <span class="comment">← traceback console = remote code execution</span>
+DEBUG = <span class="keyword">True</span>
+ALLOWED_HOSTS = [<span class="string">'*'</span>]
+
+<span class="comment">// Bad: CORS wide open, with credentials</span>
+app.<span class="function">use</span>(<span class="function">cors</span>({ origin: <span class="string">'*'</span>, credentials: <span class="keyword">true</span> }));   <span class="comment">← any site reads authenticated responses</span>
+
+<span class="comment">// Bad: raw error handed to the client</span>
+} <span class="keyword">catch</span> (err) {
+    res.<span class="function">status</span>(<span class="number">500</span>).<span class="function">json</span>({ error: err.stack });      <span class="comment">← paths, queries, versions</span>
+}
+
+<span class="comment"># Bad: cleartext, default creds, everything exposed</span>
+services:
+  api:
+    ports: [<span class="string">'80:8080'</span>]                             <span class="comment"># no TLS</span>
+  db:
+    environment:
+      POSTGRES_PASSWORD: postgres                    <span class="comment">← default credential</span>
+    ports: [<span class="string">'5432:5432'</span>]                           <span class="comment">← database on the public internet</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: production defaults, driven by config not by hope</span>
+DEBUG = os.environ.<span class="function">get</span>(<span class="string">'DEBUG'</span>, <span class="string">'false'</span>).<span class="function">lower</span>() == <span class="string">'true'</span>   <span class="comment"># false unless set</span>
+ALLOWED_HOSTS = os.environ[<span class="string">'ALLOWED_HOSTS'</span>].<span class="function">split</span>(<span class="string">','</span>)          <span class="comment"># explicit, required</span>
+
+<span class="comment">// Good: an explicit origin allow-list</span>
+app.<span class="function">use</span>(<span class="function">cors</span>({
+    origin: [<span class="string">'https://app.example.com'</span>],
+    credentials: <span class="keyword">true</span>,
+    methods: [<span class="string">'GET'</span>, <span class="string">'POST'</span>],
+}));
+
+<span class="comment">// Good: log the detail, return a reference</span>
+} <span class="keyword">catch</span> (err) {
+    logger.<span class="function">error</span>({ err, requestId: req.id });
+    res.<span class="function">status</span>(<span class="number">500</span>).<span class="function">json</span>({ error: <span class="string">'Internal error'</span>, requestId: req.id });
+}
+
+<span class="comment">// Good: security headers and transport hardening</span>
+app.<span class="function">use</span>(<span class="function">helmet</span>({ hsts: { maxAge: <span class="number">31536000</span>, includeSubDomains: <span class="keyword">true</span> } }));
+app.<span class="function">disable</span>(<span class="string">'x-powered-by'</span>);
+
+<span class="comment"># Good: least-privilege runtime, secrets from a manager, no default creds</span>
+services:
+  api:
+    read_only: <span class="keyword">true</span>
+    user: <span class="string">"10001:10001"</span>
+    cap_drop: [ALL]
+    environment:
+      DB_PASSWORD_FILE: /run/secrets/db_password
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Harden by default; make production the safe path, not the exception</li>
+                    <li>Disable debug modes, consoles, and directory listings in production</li>
+                    <li>Return generic errors with a correlation id; log detail server-side</li>
+                    <li>Configure CORS with an explicit origin allow-list</li>
+                    <li>Enforce TLS everywhere, with HSTS and modern cipher suites</li>
+                    <li>Set security headers and remove version banners</li>
+                    <li>Allow only the HTTP methods each route needs</li>
+                    <li>Replace every default credential; store secrets in a manager</li>
+                    <li>Keep infrastructure as code and scan it in CI</li>
+                    <li>Patch frameworks, servers, and images on a schedule</li>
+                    <li>Re-scan configuration continuously — drift is the norm</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Scanning:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">nmap</span>
+                    <span class="tool-tag">testssl.sh</span>
+                    <span class="tool-tag">Nikto</span>
+                    <span class="tool-tag">OWASP ZAP</span>
+                    <span class="tool-tag">Trivy</span>
+                </div>
+
+                <h3>Config &amp; Cloud:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Checkov</span>
+                    <span class="tool-tag">tfsec</span>
+                    <span class="tool-tag">Prowler / ScoutSuite</span>
+                    <span class="tool-tag">CIS Benchmarks</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Request a bad route and read the error body and headers</li>
+                    <li>Send an <code>Origin</code> header from an unrelated site and inspect CORS response</li>
+                    <li>Enumerate <code>/debug</code>, <code>/actuator</code>, <code>/metrics</code>, <code>/swagger</code>, <code>/.env</code></li>
+                    <li>Run a TLS scan; check HSTS and cipher suites</li>
+                    <li>Try <code>OPTIONS</code>/<code>TRACE</code> and unexpected methods</li>
+                    <li>Attempt documented default credentials on every console</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>These are documented <strong>incident classes</strong> — recurring patterns rather than single CVEs.</p>
+                <ul>
+                    <li><strong>Debug consoles exposed:</strong> a framework's interactive traceback page reachable in production turns any error into arbitrary code execution.</li>
+                    <li><strong>Wildcard CORS with credentials:</strong> any origin can read authenticated API responses from a victim's browser.</li>
+                    <li><strong>Open storage and dashboards:</strong> unauthenticated buckets, search clusters, and metrics endpoints found by internet-wide scanners within hours of exposure.</li>
+                    <li><strong>Default credentials:</strong> shipped admin accounts on message queues, databases, and admin panels used directly by automated bots.</li>
+                    <li><strong>Verbose errors:</strong> SQL statements and file paths in responses hand an attacker the map for the next stage.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> ship debug mode or raw stack traces</li>
+                    <li><span class="badge critical">DO NOT</span> combine <code>origin: *</code> with credentials</li>
+                    <li><span class="badge critical">DO NOT</span> leave default credentials anywhere</li>
+                    <li><span class="badge high">DO</span> codify configuration and scan it in CI</li>
+                    <li><span class="badge high">DO</span> enforce TLS, HSTS, and security headers</li>
+                    <li><span class="badge medium">DO</span> re-check for drift on a schedule</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">OWASP</span> API Security Top 10 2019 - API7</li>
+                    <li><span class="badge medium">Maps to</span> API8:2023 Security Misconfiguration</li>
+                    <li><span class="badge medium">CWE-16</span> Configuration</li>
+                    <li><span class="badge medium">CWE-209</span> Generation of Error Message Containing Sensitive Information</li>
+                    <li><span class="badge medium">CWE-756</span> Missing Custom Error Page</li>
+                    <li><span class="badge medium">CIS</span> Benchmarks (OS, container, cloud)</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP API Security Top 10 (2019) — Educational Platform</strong> | <a href="/cheatsheets">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/api/OWASP-API/API08-Security-Misconfiguration/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>

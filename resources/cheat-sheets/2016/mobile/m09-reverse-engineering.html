@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M9:2016 Reverse Engineering - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--primary-color);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="/cheatsheets" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔬 Reverse Engineering<span class="year-badge">Mobile 2016</span></h1>
+            <p class="subtitle">OWASP Mobile Top 10 2016 - M9</p>
+            <span class="category">MEDIUM RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Reverse Engineering</strong> is the analysis of a shipped application binary to understand how it works from the inside. An attacker who never saw your source takes the <code>.apk</code>, <code>.aab</code>, or <code>.ipa</code> you published and recovers source-equivalent code, strings, resources, algorithms, keys, endpoints, and business logic. <strong>The app you distribute is the documentation of how it works</strong> — reverse engineering is just reading it.</p>
+                <p>This is not an exotic exploit; it is the default state of any binary shipped to a device you do not control. The core truth of M9: any secret, key, algorithm, or logic inside the client can be recovered. Obfuscation raises the cost and time of that recovery — it never makes it impossible. The only reliable protection for a secret is not putting it in the client at all.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">M9</span>
+                        <span class="label">OWASP Rank 2016</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Always</span>
+                        <span class="label">Possible</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Cost</span>
+                        <span class="label">Is The Only Lever</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Decompilation:</strong> Dalvik/ART bytecode back to readable Java/Kotlin</li>
+                    <li><strong>Native Disassembly:</strong> <code>.so</code>/dylib decompiled to C-like pseudo-code</li>
+                    <li><strong>String Mining:</strong> API keys, URLs, feature flags, and messages pulled from resources</li>
+                    <li><strong>Endpoint Mapping:</strong> the full back-end attack surface, including "hidden" routes</li>
+                    <li><strong>Algorithm Recovery:</strong> signing, DRM, and anti-fraud logic understood then reimplemented</li>
+                    <li><strong>Runtime Introspection:</strong> hooking to read values that are only assembled in memory</li>
+                    <li><strong>Clone Building:</strong> a functional third-party client that speaks your API</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Download the app package from the store or the device<br>
+   <span class="arrow">↓</span><br>
+2. Unpack resources and decompile bytecode; disassemble native libraries<br>
+   <span class="arrow">↓</span><br>
+3. Grep for keys, endpoints, and interesting identifiers<br>
+   <span class="arrow">↓</span><br>
+4. Hook the running app to fill in whatever static analysis missed<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Secrets recovered, logic understood, API abused directly!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: secrets compiled into the app — recoverable in minutes</span>
+<span class="keyword">const</span> <span class="keyword">val</span> API_KEY = <span class="string">"sk_live_51H8xQ2eZvKYlo2C…"</span>
+<span class="keyword">const</span> <span class="keyword">val</span> HMAC_SECRET = <span class="string">"prod-signing-secret-2024"</span>
+
+<span class="comment">&lt;!-- Bad: same problem, different file --&gt;</span>
+&lt;string name=<span class="string">"maps_key"</span>&gt;AIzaSy…&lt;/string&gt;
+
+<span class="comment">// Bad: "hidden" endpoints documented by the binary itself</span>
+<span class="keyword">val</span> ADMIN_URL = <span class="string">"https://internal-admin.example.com/api/v1"</span>
+
+<span class="comment">// Bad: proprietary logic assumed to be private because it is compiled</span>
+<span class="keyword">fun</span> <span class="function">calculateFraudScore</span>(tx: Tx): Double { <span class="comment">/* full model, in the client */</span> }
+
+<span class="comment">// Bad: obfuscation treated as the security control</span>
+<span class="comment">// proguard-rules.pro: -dontobfuscate   ← and even with it on, secrets remain extractable</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: the client holds no long-lived secret</span>
+<span class="keyword">val</span> token = auth.<span class="function">accessToken</span>()          <span class="comment">// short-lived, user-scoped, server-issued, revocable</span>
+api.<span class="function">call</span>(token)
+
+<span class="comment">// Good: signing and scoring happen where the code is not published</span>
+<span class="comment">// client sends the transaction; the SERVER computes the score and decides</span>
+<span class="keyword">val</span> decision = api.<span class="function">evaluate</span>(tx)
+
+<span class="comment">// Good: third-party keys are proxied, scoped, and restricted</span>
+<span class="comment">// app → your backend → vendor API   (key never ships; usage is attributable and revocable)</span>
+<span class="comment">// where a key must ship, restrict it by package name + signing certificate + referrer</span>
+
+<span class="comment">// Good: raise the cost — as defence in depth, not as the control</span>
+<span class="comment">// build.gradle</span>
+buildTypes {
+    release {
+        isMinifyEnabled = <span class="keyword">true</span>          <span class="comment">// R8: shrink + obfuscate</span>
+        isDebuggable = <span class="keyword">false</span>
+        <span class="function">proguardFiles</span>(<span class="function">getDefaultProguardFile</span>(<span class="string">"proguard-android-optimize.txt"</span>))
+    }
+}
+<span class="comment">// strip native symbols; keep sensitive routines server-side rather than "hidden" in C</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Assume the binary is fully readable — design as if the source were published</li>
+                    <li>Ship no API keys, signing secrets, or credentials in the app</li>
+                    <li>Keep proprietary algorithms and risk logic on the server</li>
+                    <li>Issue short-lived, user-scoped, revocable tokens instead of static keys</li>
+                    <li>Proxy third-party APIs through your own back end</li>
+                    <li>Restrict any key that must ship (package name, signing certificate, referrer, scope)</li>
+                    <li>Enable R8/ProGuard shrinking and obfuscation on release builds</li>
+                    <li>Strip symbols and disable debugging in release artifacts</li>
+                    <li>Scan built artifacts for secrets in CI, before publishing</li>
+                    <li>Rotate any credential that ever shipped in a client</li>
+                    <li>Assume every endpoint the app can reach will be called directly — secure it accordingly</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Analysis (use it on yourself):</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">jadx</span>
+                    <span class="tool-tag">apktool</span>
+                    <span class="tool-tag">Ghidra / IDA</span>
+                    <span class="tool-tag">class-dump</span>
+                    <span class="tool-tag">Frida</span>
+                </div>
+
+                <h3>Hardening &amp; Scanning:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">R8 / ProGuard</span>
+                    <span class="tool-tag">MobSF</span>
+                    <span class="tool-tag">gitleaks / trufflehog</span>
+                    <span class="tool-tag">Play Integrity</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Decompile your own release build and read it as an attacker would</li>
+                    <li>Grep strings and resources for keys, tokens, and internal hostnames</li>
+                    <li>Check whether class and method names survived obfuscation</li>
+                    <li>Hook the app and dump values assembled at runtime</li>
+                    <li>Call every discovered endpoint directly, without the app</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>These are documented <strong>incident classes</strong> — recurring patterns rather than single CVEs.</p>
+                <ul>
+                    <li><strong>Cloud keys extracted from apps:</strong> long-lived provider credentials found in shipped binaries and used to access back-end storage directly.</li>
+                    <li><strong>Internal endpoints discovered:</strong> "hidden" admin or partner hosts named in the client and then attacked directly.</li>
+                    <li><strong>Anti-fraud logic reimplemented:</strong> client-side scoring recovered and replicated so an attacker can predict and avoid detection.</li>
+                    <li><strong>Third-party clients:</strong> unofficial apps built by reverse-engineering the private API, bypassing rate limits and terms.</li>
+                    <li><strong>Signing secrets recovered:</strong> HMAC keys in the binary let attackers forge requests that look authentic.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> ship secrets in a mobile app</li>
+                    <li><span class="badge critical">DO NOT</span> treat obfuscation as protection</li>
+                    <li><span class="badge critical">DO NOT</span> assume compiled means private</li>
+                    <li><span class="badge high">DO</span> keep valuable logic on the server</li>
+                    <li><span class="badge high">DO</span> use short-lived, revocable tokens</li>
+                    <li><span class="badge medium">DO</span> decompile your own build before shipping</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">OWASP</span> Mobile Top 10 2016 - M9</li>
+                    <li><span class="badge medium">Maps to</span> M7:2024 Insufficient Binary Protections</li>
+                    <li><span class="badge medium">OWASP MASVS</span> RESILIENCE-1, RESILIENCE-3</li>
+                    <li><span class="badge medium">CWE-798</span> Use of Hard-coded Credentials</li>
+                    <li><span class="badge medium">CWE-656</span> Reliance on Security Through Obscurity</li>
+                    <li><span class="badge medium">CWE-1300</span> Improper Protection of Physical Side Channels (related resilience concerns)</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Mobile Top 10 (2016) — Educational Platform</strong> | <a href="/cheatsheets">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/mobile/OWASP-Mobile/M-2016-Reverse-Engineering/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>

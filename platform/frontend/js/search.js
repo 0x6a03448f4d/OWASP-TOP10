@@ -70,7 +70,7 @@ class OWASPSearch {
             { title: "Compliance Mappings", type: "Compliance", url: "compliance-mappings/index.html", keywords: "compliance GDPR ISO NIST PCI" },
             { title: "Attack Flow Diagrams", type: "Diagrams", url: "diagrams/index.html", keywords: "diagrams attack flow visual" },
             { title: "Security Quiz", type: "Quiz", url: "quiz-platform/index.html", keywords: "quiz test knowledge assessment" },
-            { title: "Cheat Sheets Collection", type: "Cheatsheets", url: "cheat-sheets/index.html", keywords: "cheatsheet reference quick" }
+            { title: "Cheat Sheets Collection", type: "Cheatsheets", url: "/cheatsheets", keywords: "cheatsheet reference quick" }
         ];
     }
 

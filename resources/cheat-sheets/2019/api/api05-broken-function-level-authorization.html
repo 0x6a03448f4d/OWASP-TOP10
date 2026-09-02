@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API5:2019 Broken Function Level Authorization - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--primary-color);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="/cheatsheets" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🚪 Broken Function Level Authorization<span class="year-badge">API 2019</span></h1>
+            <p class="subtitle">OWASP API Security Top 10 2019 - API5</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Broken Function Level Authorization (BFLA)</strong> is the failure to check whether the caller is allowed to invoke a particular <em>operation</em>. Where BOLA is about <em>which records</em> you may touch, BFLA is about <em>which actions</em> you may perform: promoting a user, deleting a tenant, exporting billing, calling <code>/admin/*</code>, or using a method (<code>DELETE</code>) the UI never offers you.</p>
+                <p>The classic cause is <strong>hiding instead of enforcing</strong>: the front end simply doesn't render the admin button, and the endpoint behind it assumes nobody will ever call it. Attackers read the JavaScript bundle, the OpenAPI spec, or just guess — and call it directly.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">API5</span>
+                        <span class="label">OWASP Rank 2019</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Admin</span>
+                        <span class="label">Typical Target</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Privilege</span>
+                        <span class="label">Escalation Impact</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Guessed Admin Routes:</strong> <code>/api/admin/users</code>, <code>/api/v1/internal/*</code></li>
+                    <li><strong>Method Swap:</strong> <code>GET</code> is allowed for all, <code>DELETE</code> on the same path is unguarded</li>
+                    <li><strong>UI-Only Controls:</strong> the button is hidden; the endpoint is not protected</li>
+                    <li><strong>Role from the Client:</strong> server trusts <code>role</code> in the body, header, or an unverified token</li>
+                    <li><strong>Version Drift:</strong> <code>/v1</code> still live and unguarded while <code>/v2</code> is hardened</li>
+                    <li><strong>Spec Leakage:</strong> Swagger/GraphQL introspection publishes every privileged operation</li>
+                    <li><strong>Default-Allow Routing:</strong> new handlers ship without the authorization decorator</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Log in as an ordinary user and map the API (JS bundle, spec, traffic)<br>
+   <span class="arrow">↓</span><br>
+2. Look for privileged verbs and paths the UI never calls for you<br>
+   <span class="arrow">↓</span><br>
+3. Call them with your own valid token<br>
+   <span class="arrow">↓</span><br>
+4. Vary the method and the version prefix where blocked<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Privilege escalation — administrative actions from a basic account!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: authenticated is not the same as authorised</span>
+@app.route(<span class="string">'/api/admin/users/&lt;int:uid&gt;'</span>, methods=[<span class="string">'DELETE'</span>])
+@requires_auth                                   <span class="comment">← any logged-in user reaches this</span>
+<span class="keyword">def</span> <span class="function">delete_user</span>(uid):
+    User.query.<span class="function">get</span>(uid).<span class="function">delete</span>()
+
+<span class="comment">// Bad: the control lives in the front end</span>
+{user.isAdmin &amp;&amp; &lt;button onClick={() =&gt; api.<span class="function">post</span>(<span class="string">'/api/users/promote'</span>)}&gt;Promote&lt;/button&gt;}
+<span class="comment">// …and the endpoint itself checks nothing</span>
+
+<span class="comment">// Bad: role taken from the request</span>
+<span class="keyword">if</span> (req.headers[<span class="string">'x-user-role'</span>] === <span class="string">'admin'</span>) { <span class="comment">/* … */</span> }   <span class="comment">← attacker sets the header</span>
+
+<span class="comment"># Bad: only the new version was hardened</span>
+<span class="comment"># /api/v2/reports  → @requires_role('admin')</span>
+<span class="comment"># /api/v1/reports  → still deployed, no checks at all</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: deny by default, then grant explicitly</span>
+@app.before_request
+<span class="keyword">def</span> <span class="function">enforce</span>():
+    rule = <span class="function">policy_for</span>(request.endpoint)
+    <span class="keyword">if</span> rule <span class="keyword">is</span> <span class="keyword">None</span>:
+        <span class="function">abort</span>(<span class="number">403</span>)                    <span class="comment"># an unlisted route is forbidden, not open</span>
+    <span class="keyword">if</span> <span class="keyword">not</span> rule.<span class="function">allows</span>(g.current_user):
+        <span class="function">abort</span>(<span class="number">404</span>)                    <span class="comment"># do not confirm the route exists</span>
+
+@app.route(<span class="string">'/api/admin/users/&lt;int:uid&gt;'</span>, methods=[<span class="string">'DELETE'</span>])
+@requires_role(<span class="string">'admin'</span>)                <span class="comment"># explicit, server-side, per operation</span>
+<span class="keyword">def</span> <span class="function">delete_user</span>(uid): ...
+
+<span class="comment">// Good: roles and permissions come from the verified token / server store</span>
+<span class="keyword">const</span> can = (user, action) => rbac.<span class="function">permissions</span>(user.sub).<span class="function">includes</span>(action);
+<span class="keyword">if</span> (!<span class="function">can</span>(req.user, <span class="string">'user:promote'</span>)) <span class="keyword">return</span> res.<span class="function">sendStatus</span>(<span class="number">404</span>);
+
+<span class="comment">// Good: the UI mirrors the policy, it does not implement it</span>
+{permissions.<span class="function">includes</span>(<span class="string">'user:promote'</span>) &amp;&amp; &lt;PromoteButton /&gt;}   <span class="comment">// convenience only</span>
+
+<span class="comment"># Good: retire old versions; test every method on every route</span>
+<span class="comment"># CI: for each route × each method × each role → assert the expected status</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Deny by default — an unmapped route or method must be forbidden</li>
+                    <li>Enforce authorization server-side on every operation, never in the UI</li>
+                    <li>Derive roles and permissions from the server, not from client input</li>
+                    <li>Cover every HTTP method on every path, not just the ones the app uses</li>
+                    <li>Separate administrative APIs and gate them by role and network</li>
+                    <li>Keep one central policy (RBAC/ABAC) rather than per-handler checks</li>
+                    <li>Decommission old API versions; do not leave <code>/v1</code> unguarded</li>
+                    <li>Restrict Swagger/GraphQL introspection in production</li>
+                    <li>Return 404 for unauthorised privileged routes</li>
+                    <li>Add CI tests asserting a normal user gets 403/404 on every admin route</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Testing:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Burp Suite (Autorize)</span>
+                    <span class="tool-tag">OWASP ZAP</span>
+                    <span class="tool-tag">ffuf / kiterunner</span>
+                    <span class="tool-tag">Schemathesis</span>
+                </div>
+
+                <h3>Policy:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">OPA / Cedar</span>
+                    <span class="tool-tag">Casbin</span>
+                    <span class="tool-tag">API gateway authz</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Replay every admin request with a low-privilege token</li>
+                    <li>Fuzz for <code>/admin</code>, <code>/internal</code>, <code>/debug</code>, <code>/v1</code> paths</li>
+                    <li>Try each method (<code>PUT</code>, <code>PATCH</code>, <code>DELETE</code>) on known paths</li>
+                    <li>Read the front-end bundle for endpoints your role never calls</li>
+                    <li>Check that older API versions enforce the same policy</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>These are documented <strong>incident classes</strong> — recurring patterns rather than single CVEs.</p>
+                <ul>
+                    <li><strong>Admin endpoints reachable by any user:</strong> the SPA hides the admin panel, but <code>POST /api/admin/*</code> answers to any valid token.</li>
+                    <li><strong>Self-promotion to admin:</strong> a role-change operation intended for staff is callable by the account whose role it changes.</li>
+                    <li><strong>Method gaps:</strong> read is authorised, but the matching <code>DELETE</code> handler was added later without the decorator.</li>
+                    <li><strong>Forgotten API versions:</strong> a deprecated <code>/v1</code> kept alive for one legacy client bypasses every control added in <code>/v2</code>.</li>
+                    <li><strong>Client-supplied roles:</strong> a header or body field naming the caller's role is trusted by the server.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> treat a hidden UI control as a security control</li>
+                    <li><span class="badge critical">DO NOT</span> read the caller's role from the request</li>
+                    <li><span class="badge high">DO</span> deny by default and grant per operation</li>
+                    <li><span class="badge high">DO</span> test every method × route × role in CI</li>
+                    <li><span class="badge medium">DO</span> retire old versions and internal routes</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">OWASP</span> API Security Top 10 2019 - API5</li>
+                    <li><span class="badge medium">Maps to</span> API5:2023 (unchanged)</li>
+                    <li><span class="badge medium">CWE-285</span> Improper Authorization</li>
+                    <li><span class="badge medium">CWE-862</span> Missing Authorization</li>
+                    <li><span class="badge medium">CWE-863</span> Incorrect Authorization</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP API Security Top 10 (2019) — Educational Platform</strong> | <a href="/cheatsheets">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/api/OWASP-API/API05-Broken-Function-Level-Authorization/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>

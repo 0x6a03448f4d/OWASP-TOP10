@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API4:2019 Lack of Resources & Rate Limiting - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--primary-color);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="/cheatsheets" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>⏱️ Lack of Resources &amp; Rate Limiting<span class="year-badge">API 2019</span></h1>
+            <p class="subtitle">OWASP API Security Top 10 2019 - API4</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Lack of Resources &amp; Rate Limiting</strong> is the absence of limits on <em>how often</em> an API can be called and <em>how much work</em> a single call may cost. Every request consumes something finite — CPU, memory, disk, database connections, third-party quota, money — and an API that never caps request rate, page size, payload size, upload size, or query depth lets one client consume everything.</p>
+                <p>The result is two distinct harms: <strong>availability loss</strong> (the service degrades or falls over for everyone) and <strong>attack amplification</strong> (unlimited attempts make brute force, credential stuffing, enumeration, and scraping practical at scale).</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">API4</span>
+                        <span class="label">OWASP Rank 2019</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">DoS</span>
+                        <span class="label">Primary Impact</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Enabler</span>
+                        <span class="label">For Brute Force</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Unbounded Pagination:</strong> <code>?limit=1000000</code> pulls the whole table into memory</li>
+                    <li><strong>Request Flooding:</strong> no per-client throttle on expensive endpoints</li>
+                    <li><strong>Huge Payloads &amp; Uploads:</strong> no body-size cap; zip/image bombs</li>
+                    <li><strong>Expensive Queries:</strong> deep GraphQL nesting, unbounded search, N+1 explosions</li>
+                    <li><strong>ReDoS:</strong> catastrophic backtracking in a validation regex</li>
+                    <li><strong>Third-Party Cost Burn:</strong> unlimited SMS/e-mail/AI calls billed per request</li>
+                    <li><strong>Missing Timeouts:</strong> slow-loris style connections held open indefinitely</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Measure response cost per endpoint (time, payload size)<br>
+   <span class="arrow">↓</span><br>
+2. Find the parameter that scales that cost: limit, depth, size, page<br>
+   <span class="arrow">↓</span><br>
+3. Confirm no 429 arrives however fast requests are sent<br>
+   <span class="arrow">↓</span><br>
+4. Multiply — concurrency × the most expensive call<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Service degradation, runaway cloud bill, or unlimited brute force!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: client-controlled page size, no ceiling</span>
+@app.route(<span class="string">'/api/products'</span>)
+<span class="keyword">def</span> <span class="function">products</span>():
+    limit = int(request.args.<span class="function">get</span>(<span class="string">'limit'</span>, <span class="number">50</span>))     <span class="comment">← ?limit=1000000</span>
+    <span class="keyword">return</span> jsonify([p.to_dict() <span class="keyword">for</span> p <span class="keyword">in</span> Product.query.<span class="function">limit</span>(limit)])
+
+<span class="comment">// Bad: no body limit, no timeout, no throttle</span>
+app.<span class="function">use</span>(express.<span class="function">json</span>());                  <span class="comment">← default is generous; uploads unbounded</span>
+app.<span class="function">post</span>(<span class="string">'/api/report'</span>, <span class="keyword">async</span> (req, res) => {
+    res.<span class="function">json</span>(<span class="keyword">await</span> <span class="function">buildHeavyReport</span>(req.body));  <span class="comment">// 30s of CPU per call, callable in a loop</span>
+});
+
+<span class="comment"># Bad: catastrophic backtracking on attacker-controlled input</span>
+<span class="keyword">if</span> re.<span class="function">match</span>(<span class="string">r'^(a+)+$'</span>, user_input):        <span class="comment">← ReDoS: one request pins a core</span>
+    ...
+
+<span class="comment"># Bad: unlimited third-party spend</span>
+sms.<span class="function">send</span>(request.json[<span class="string">'phone'</span>], code)         <span class="comment">← each call costs real money</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: clamp the page size server-side</span>
+MAX_LIMIT = <span class="number">100</span>
+limit = <span class="function">min</span>(int(request.args.<span class="function">get</span>(<span class="string">'limit'</span>, <span class="number">50</span>)), MAX_LIMIT)
+
+<span class="comment">// Good: body caps, timeouts, and tiered rate limits</span>
+app.<span class="function">use</span>(express.<span class="function">json</span>({ limit: <span class="string">'100kb'</span> }));
+app.<span class="function">use</span>(<span class="function">rateLimit</span>({ windowMs: <span class="number">60_000</span>, max: <span class="number">100</span>, keyGenerator: (r) => r.user?.sub ?? r.ip }));
+app.<span class="function">use</span>(<span class="string">'/api/report'</span>, <span class="function">rateLimit</span>({ windowMs: <span class="number">60_000</span>, max: <span class="number">5</span> }));   <span class="comment">// expensive route, tighter cap</span>
+server.requestTimeout = <span class="number">15_000</span>;
+server.headersTimeout = <span class="number">10_000</span>;
+
+<span class="comment">// Good: bound query cost, not just request count</span>
+<span class="keyword">const</span> schema = <span class="function">applyMiddleware</span>(base, <span class="function">depthLimit</span>(<span class="number">7</span>), <span class="function">costAnalysis</span>({ maximumCost: <span class="number">1000</span> }));
+
+<span class="comment"># Good: safe validation + per-account spend budget</span>
+<span class="keyword">if</span> <span class="keyword">not</span> EMAIL_RE.<span class="function">fullmatch</span>(value, timeout=<span class="number">0.05</span>):   <span class="comment"># linear-time pattern, bounded</span>
+    <span class="keyword">raise</span> <span class="function">Invalid</span>()
+<span class="function">enforce_quota</span>(user, <span class="string">'sms'</span>, per_hour=<span class="number">5</span>, per_day=<span class="number">20</span>)          <span class="comment"># cap third-party cost</span>
+
+<span class="comment"># Good: tell the client what the limits are</span>
+response.headers[<span class="string">'RateLimit-Limit'</span>] = <span class="string">'100'</span>
+response.headers[<span class="string">'Retry-After'</span>] = <span class="string">'60'</span>       <span class="comment"># return 429, not a silent drop</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Rate-limit per authenticated identity and per source, not per IP alone</li>
+                    <li>Set tighter limits on expensive and security-sensitive endpoints</li>
+                    <li>Clamp <code>limit</code>/<code>page</code>/<code>size</code> parameters to a server-side maximum</li>
+                    <li>Cap request body and upload sizes at the gateway and in the app</li>
+                    <li>Bound query cost: GraphQL depth/complexity limits, pagination everywhere</li>
+                    <li>Set connection, read, and execution timeouts on every hop</li>
+                    <li>Constrain container CPU/memory so one service cannot starve the host</li>
+                    <li>Use linear-time validation patterns; avoid catastrophic regex backtracking</li>
+                    <li>Apply spend quotas to paid third-party calls (SMS, e-mail, AI, storage)</li>
+                    <li>Return <code>429</code> with <code>Retry-After</code> and publish the limits</li>
+                    <li>Alert on sustained 429s and on cost/latency anomalies</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Enforcement:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">API gateways (Kong, APIM)</span>
+                    <span class="tool-tag">nginx limit_req</span>
+                    <span class="tool-tag">express-rate-limit</span>
+                    <span class="tool-tag">Cloudflare / WAF</span>
+                </div>
+
+                <h3>Testing & Monitoring:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">k6 / Locust</span>
+                    <span class="tool-tag">Artillery</span>
+                    <span class="tool-tag">Prometheus + Grafana</span>
+                    <span class="tool-tag">Cloud cost alerts</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Send bursts and sustained load — does a 429 ever appear?</li>
+                    <li>Push <code>limit</code>, <code>depth</code>, and body size far past sane values</li>
+                    <li>Upload an oversized or highly compressible file</li>
+                    <li>Time the slowest endpoint and estimate cost per concurrent client</li>
+                    <li>Check limits apply per account, not just per IP (rotate IPs)</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>These are documented <strong>incident classes</strong> — recurring patterns rather than single CVEs.</p>
+                <ul>
+                    <li><strong>Unlimited OTP attempts:</strong> no throttle on a verification endpoint turns a 6-digit code into a few minutes of scripted guessing.</li>
+                    <li><strong>Scraping through pagination:</strong> an unclamped <code>limit</code> parameter lets a competitor pull an entire catalogue or user directory in a handful of calls.</li>
+                    <li><strong>Cost-amplification attacks:</strong> unmetered SMS, e-mail, or model-inference endpoints turned into a bill the victim pays.</li>
+                    <li><strong>ReDoS outages:</strong> a single crafted string against a backtracking regex pins CPU and takes an API offline.</li>
+                    <li><strong>Zip/image bombs:</strong> small uploads that expand to gigabytes in memory during processing.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> let the client choose how much work you do</li>
+                    <li><span class="badge critical">DO NOT</span> rate-limit by IP alone</li>
+                    <li><span class="badge high">DO</span> clamp page size, body size, and query depth</li>
+                    <li><span class="badge high">DO</span> set timeouts on every external call</li>
+                    <li><span class="badge medium">DO</span> budget spend on paid downstream services</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">OWASP</span> API Security Top 10 2019 - API4</li>
+                    <li><span class="badge medium">Renamed to</span> API4:2023 Unrestricted Resource Consumption</li>
+                    <li><span class="badge medium">CWE-770</span> Allocation of Resources Without Limits or Throttling</li>
+                    <li><span class="badge medium">CWE-400</span> Uncontrolled Resource Consumption</li>
+                    <li><span class="badge medium">CWE-1333</span> Inefficient Regular Expression Complexity</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP API Security Top 10 (2019) — Educational Platform</strong> | <a href="/cheatsheets">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/api/OWASP-API/API04-Unrestricted-Resource-Consumption/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>

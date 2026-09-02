@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M3:2016 Insecure Communication - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--primary-color);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="/cheatsheets" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>📡 Insecure Communication<span class="year-badge">Mobile 2016</span></h1>
+            <p class="subtitle">OWASP Mobile Top 10 2016 - M3</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Insecure Communication</strong> is any failure to protect data <em>in transit</em> between the app and the outside world. Mobile devices roam across networks their owner does not control — cafés, airports, hotels, captive portals, rogue hotspots — so every request travels through infrastructure an attacker may own. The category covers cleartext traffic, broken or disabled certificate validation, weak TLS configuration, and sensitive data leaving over non-HTTP channels such as SMS, Bluetooth, or NFC.</p>
+                <p>The most damaging pattern is <strong>validation disabled during development and never re-enabled</strong>: a trust-all manager that made a self-signed staging certificate work ships to production and quietly turns every network into a wiretap.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">M3</span>
+                        <span class="label">OWASP Rank 2016</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Hostile</span>
+                        <span class="label">Networks By Default</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">MITM</span>
+                        <span class="label">Primary Attack</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Cleartext HTTP:</strong> analytics, images, updates, or "non-sensitive" calls over <code>http://</code></li>
+                    <li><strong>Trust-All Managers:</strong> empty <code>checkServerTrusted</code>, <code>ALLOW_ALL_HOSTNAME_VERIFIER</code></li>
+                    <li><strong>Ignored TLS Errors:</strong> WebView <code>onReceivedSslError → proceed()</code></li>
+                    <li><strong>No Pinning:</strong> any CA-issued certificate is accepted, including a user-installed one</li>
+                    <li><strong>Weak TLS:</strong> obsolete protocol versions and cipher suites</li>
+                    <li><strong>Downgrade &amp; Redirect:</strong> HTTPS endpoint redirects through cleartext</li>
+                    <li><strong>Side Channels:</strong> secrets sent via SMS, push payloads, Bluetooth, or NFC</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Put the device on an attacker-controlled network or proxy<br>
+   <span class="arrow">↓</span><br>
+2. Present a proxy certificate and observe whether the app complains<br>
+   <span class="arrow">↓</span><br>
+3. If it does not, read and rewrite every request and response<br>
+   <span class="arrow">↓</span><br>
+4. Harvest credentials and tokens; inject modified responses<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Full interception — credentials stolen, content controlled!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: trust every certificate ever presented</span>
+<span class="keyword">val</span> trustAll = <span class="function">object</span> : X509TrustManager {
+    <span class="keyword">override</span> <span class="keyword">fun</span> <span class="function">checkServerTrusted</span>(c: Array&lt;X509Certificate&gt;, a: String) {}  <span class="comment">← accepts anything</span>
+    <span class="keyword">override</span> <span class="keyword">fun</span> <span class="function">checkClientTrusted</span>(c: Array&lt;X509Certificate&gt;, a: String) {}
+    <span class="keyword">override</span> <span class="keyword">fun</span> <span class="function">getAcceptedIssuers</span>() = <span class="function">arrayOf</span>&lt;X509Certificate&gt;()
+}
+builder.<span class="function">hostnameVerifier</span> { _, _ -&gt; <span class="keyword">true</span> }          <span class="comment">← hostname never checked</span>
+
+<span class="comment">// Bad: WebView told to continue past a TLS error</span>
+<span class="keyword">override</span> <span class="keyword">fun</span> <span class="function">onReceivedSslError</span>(v: WebView, h: SslErrorHandler, e: SslError) {
+    h.<span class="function">proceed</span>()                                     <span class="comment">← ignores the warning entirely</span>
+}
+
+<span class="comment">// Bad: cleartext endpoints</span>
+<span class="keyword">val</span> url = <span class="string">"http://api.example.com/v1/login"</span>        <span class="comment">← credentials over the air</span>
+
+<span class="comment">&lt;!-- Bad: cleartext permitted app-wide --&gt;</span>
+&lt;application android:usesCleartextTraffic=<span class="string">"true"</span> /&gt;
+<span class="comment">&lt;!-- Bad (iOS): NSAllowsArbitraryLoads = true --&gt;</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: default validation plus certificate/public-key pinning</span>
+<span class="keyword">val</span> pinner = CertificatePinner.<span class="function">Builder</span>()
+    .<span class="function">add</span>(<span class="string">"api.example.com"</span>, <span class="string">"sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="</span>)
+    .<span class="function">add</span>(<span class="string">"api.example.com"</span>, <span class="string">"sha256/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB="</span>)  <span class="comment">// backup pin</span>
+    .<span class="function">build</span>()
+<span class="keyword">val</span> client = OkHttpClient.<span class="function">Builder</span>().<span class="function">certificatePinner</span>(pinner).<span class="function">build</span>()
+
+<span class="comment">&lt;!-- Good: network security config — HTTPS only, pinned, no user CAs --&gt;</span>
+&lt;network-security-config&gt;
+  &lt;base-config cleartextTrafficPermitted=<span class="string">"false"</span>&gt;
+    &lt;trust-anchors&gt;&lt;certificates src=<span class="string">"system"</span> /&gt;&lt;/trust-anchors&gt;
+  &lt;/base-config&gt;
+  &lt;domain-config&gt;
+    &lt;domain includeSubdomains=<span class="string">"true"</span>&gt;api.example.com&lt;/domain&gt;
+    &lt;pin-set expiration=<span class="string">"2026-12-31"</span>&gt;
+      &lt;pin digest=<span class="string">"SHA-256"</span>&gt;AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=&lt;/pin&gt;
+      &lt;pin digest=<span class="string">"SHA-256"</span>&gt;BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=&lt;/pin&gt;
+    &lt;/pin-set&gt;
+  &lt;/domain-config&gt;
+&lt;/network-security-config&gt;
+
+<span class="comment">// Good: never override the TLS error handler</span>
+<span class="keyword">override</span> <span class="keyword">fun</span> <span class="function">onReceivedSslError</span>(v: WebView, h: SslErrorHandler, e: SslError) {
+    h.<span class="function">cancel</span>()                                     <span class="comment">// fail closed, tell the user</span>
+}
+
+<span class="comment"># Good (iOS): keep ATS on, TLS 1.2+, forward secrecy, and pin</span>
+NSAppTransportSecurity: { NSAllowsArbitraryLoads: <span class="keyword">false</span> }
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Use HTTPS for every request — including images, analytics, and updates</li>
+                    <li>Disallow cleartext traffic at the platform level, with no blanket exceptions</li>
+                    <li>Never ship a trust-all manager or a permissive hostname verifier</li>
+                    <li>Fail closed on TLS errors; never call <code>proceed()</code></li>
+                    <li>Pin certificates or public keys, with a backup pin and a rotation plan</li>
+                    <li>Require TLS 1.2 or newer with forward-secret cipher suites</li>
+                    <li>Reject user-installed CAs for your own API domains</li>
+                    <li>Keep secrets out of URLs, push payloads, SMS, and Bluetooth/NFC channels</li>
+                    <li>Guard debug-only network settings with build flags that cannot reach release</li>
+                    <li>Verify with an intercepting proxy before every release</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Interception:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Burp Suite</span>
+                    <span class="tool-tag">mitmproxy</span>
+                    <span class="tool-tag">Charles Proxy</span>
+                    <span class="tool-tag">Wireshark</span>
+                </div>
+
+                <h3>Analysis:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">MobSF</span>
+                    <span class="tool-tag">objection</span>
+                    <span class="tool-tag">testssl.sh</span>
+                    <span class="tool-tag">nscurl (iOS ATS)</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Proxy the device with a user-installed CA — does the app still work?</li>
+                    <li>Capture traffic and look for any <code>http://</code> request</li>
+                    <li>Present an invalid or expired certificate and confirm the app fails closed</li>
+                    <li>Check the network security config / ATS settings in the built artifact</li>
+                    <li>Try to bypass pinning with objection to confirm it is actually enforced</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>These are documented <strong>incident classes</strong> — recurring patterns rather than single CVEs.</p>
+                <ul>
+                    <li><strong>Trust-all managers shipped to production:</strong> validation disabled for a staging certificate makes every public Wi-Fi a wiretap.</li>
+                    <li><strong>Cleartext side channels:</strong> the login call is HTTPS but analytics, images, or update checks travel in the clear and leak identifiers and session data.</li>
+                    <li><strong>WebView TLS errors auto-proceeded:</strong> a single <code>proceed()</code> defeats transport security for all in-app web content.</li>
+                    <li><strong>No pinning on high-value flows:</strong> a user-installed or fraudulent CA certificate is enough to read and rewrite banking traffic.</li>
+                    <li><strong>Secrets over SMS or push:</strong> one-time codes and tokens delivered through channels other apps or carriers can observe.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> disable certificate or hostname validation, ever</li>
+                    <li><span class="badge critical">DO NOT</span> call <code>proceed()</code> on a TLS error</li>
+                    <li><span class="badge critical">DO NOT</span> allow cleartext "just for one endpoint"</li>
+                    <li><span class="badge high">DO</span> pin keys with a backup pin and a rotation plan</li>
+                    <li><span class="badge high">DO</span> require TLS 1.2+ with forward secrecy</li>
+                    <li><span class="badge medium">DO</span> proxy-test the app before each release</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">OWASP</span> Mobile Top 10 2016 - M3</li>
+                    <li><span class="badge medium">Maps to</span> M5:2024 Insecure Communication</li>
+                    <li><span class="badge medium">OWASP MASVS</span> NETWORK-1, NETWORK-2</li>
+                    <li><span class="badge medium">CWE-319</span> Cleartext Transmission of Sensitive Information</li>
+                    <li><span class="badge medium">CWE-295</span> Improper Certificate Validation</li>
+                    <li><span class="badge medium">CWE-757</span> Selection of Less-Secure Algorithm During Negotiation</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Mobile Top 10 (2016) — Educational Platform</strong> | <a href="/cheatsheets">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/mobile/OWASP-Mobile/M05-Insecure-Communication/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>

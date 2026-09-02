@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API9:2019 Improper Assets Management - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--primary-color);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="/cheatsheets" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🗂️ Improper Assets Management<span class="year-badge">API 2019</span></h1>
+            <p class="subtitle">OWASP API Security Top 10 2019 - API9</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Improper Assets Management</strong> is not knowing what you are running. APIs multiply faster than the documentation that describes them: old versions stay deployed "for one legacy client", staging and beta hosts sit on the public internet, an acquired team's service is never inventoried, and the specification drifts away from what the code actually serves. Every endpoint you cannot list is an endpoint nobody is patching, monitoring, or reviewing.</p>
+                <p>The attacker's advantage here is asymmetric: they enumerate hosts and paths automatically, while the defender relies on memory and stale wiki pages. <strong>The oldest version is usually the weakest</strong> — and it reaches the same production data.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">API9</span>
+                        <span class="label">OWASP Rank 2019</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Shadow</span>
+                        <span class="label">&amp; Zombie APIs</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Same</span>
+                        <span class="label">Production Data</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Zombie Versions:</strong> <code>/api/v1</code> still live, missing every fix added in <code>/v2</code></li>
+                    <li><strong>Shadow APIs:</strong> endpoints in production that no inventory or spec records</li>
+                    <li><strong>Exposed Non-Production:</strong> <code>staging.</code>, <code>dev.</code>, <code>uat.</code> hosts reachable, often with real data</li>
+                    <li><strong>Deprecated-But-Deployed:</strong> announced end-of-life, never actually switched off</li>
+                    <li><strong>Undocumented Debug Routes:</strong> internal tooling left in the released build</li>
+                    <li><strong>Spec Drift:</strong> OpenAPI describes fewer routes and fields than the service serves</li>
+                    <li><strong>Third-Party Sprawl:</strong> forgotten integrations holding valid credentials</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Enumerate subdomains and hosts (certificate logs, DNS, search engines)<br>
+   <span class="arrow">↓</span><br>
+2. Brute-force version prefixes and path patterns: v1, v2, beta, internal<br>
+   <span class="arrow">↓</span><br>
+3. Compare behaviour between versions — which lacks the newest checks?<br>
+   <span class="arrow">↓</span><br>
+4. Attack the weakest surviving version or environment<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Production data through a door nobody remembered was open!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: every version ever shipped is still mounted</span>
+app.<span class="function">register_blueprint</span>(v1, url_prefix=<span class="string">'/api/v1'</span>)   <span class="comment">← 2019 code, no rate limit, no BOLA checks</span>
+app.<span class="function">register_blueprint</span>(v2, url_prefix=<span class="string">'/api/v2'</span>)
+app.<span class="function">register_blueprint</span>(beta, url_prefix=<span class="string">'/api/beta'</span>) <span class="comment">← undocumented, unmonitored</span>
+
+<span class="comment"># Bad: non-production exposed to the world, with a copy of live data</span>
+<span class="comment"># staging.example.com  → public DNS, no auth gateway, prod database snapshot</span>
+
+<span class="comment">// Bad: docs and reality diverge</span>
+<span class="comment">// openapi.yaml lists 12 paths; the service actually answers on 31</span>
+
+<span class="comment">// Bad: introspection and docs open in production</span>
+app.<span class="function">use</span>(<span class="string">'/graphql'</span>, <span class="function">graphqlHTTP</span>({ schema, graphiql: <span class="keyword">true</span> }));   <span class="comment">← full schema published</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: one supported version, with a dated sunset for the previous one</span>
+app.<span class="function">register_blueprint</span>(v2, url_prefix=<span class="string">'/api/v2'</span>)
+
+@app.route(<span class="string">'/api/v1/&lt;path:_&gt;'</span>)
+<span class="keyword">def</span> <span class="function">v1_gone</span>(_):
+    <span class="keyword">return</span> {<span class="string">'error'</span>: <span class="string">'API v1 was retired on 2025-06-30. Use /api/v2.'</span>}, <span class="number">410</span>
+
+<span class="comment"># Good: the spec is generated from the code and enforced in CI</span>
+<span class="comment"># CI: diff live routes against openapi.yaml → fail the build on any drift</span>
+<span class="function">assert</span> <span class="function">discovered_routes</span>() == <span class="function">spec_routes</span>()
+
+<span class="comment">// Good: environments separated and gated</span>
+<span class="comment">// staging: private DNS + SSO/VPN + synthetic data only, never a prod snapshot</span>
+
+<span class="comment">// Good: no schema publication in production</span>
+app.<span class="function">use</span>(<span class="string">'/graphql'</span>, <span class="function">graphqlHTTP</span>({
+    schema,
+    graphiql: process.env.NODE_ENV !== <span class="string">'production'</span>,
+    validationRules: [<span class="function">NoSchemaIntrospectionCustomRule</span>],
+}));
+
+<span class="comment"># Good: every route registers itself in the inventory with an owner</span>
+<span class="function">register_asset</span>(path=<span class="string">'/api/v2/orders'</span>, owner=<span class="string">'payments-team'</span>, data_class=<span class="string">'PII'</span>)
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Maintain a live inventory of every API, version, host, and environment</li>
+                    <li>Give each API an owner, a data classification, and a lifecycle state</li>
+                    <li>Generate the specification from code and fail CI on drift</li>
+                    <li>Publish deprecation and sunset dates — then actually switch versions off</li>
+                    <li>Return <code>410 Gone</code> for retired versions instead of leaving them live</li>
+                    <li>Keep non-production environments private and free of real data</li>
+                    <li>Run continuous external discovery (subdomains, certificate transparency, scans)</li>
+                    <li>Route all traffic through a gateway so nothing is unmonitored</li>
+                    <li>Disable docs, introspection, and debug routes in production</li>
+                    <li>Review third-party integrations and revoke unused credentials</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Discovery:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">amass / subfinder</span>
+                    <span class="tool-tag">crt.sh</span>
+                    <span class="tool-tag">httpx</span>
+                    <span class="tool-tag">kiterunner</span>
+                    <span class="tool-tag">Shodan</span>
+                </div>
+
+                <h3>Inventory &amp; Governance:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">API gateway catalogue</span>
+                    <span class="tool-tag">OpenAPI diff</span>
+                    <span class="tool-tag">Service catalogues</span>
+                    <span class="tool-tag">CMDB</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Enumerate subdomains and probe each for API paths</li>
+                    <li>Swap the version prefix on known routes: <code>v1</code>, <code>v0</code>, <code>beta</code>, <code>internal</code></li>
+                    <li>Compare responses between versions for missing controls</li>
+                    <li>Diff live routes against the published specification</li>
+                    <li>Check whether staging hosts answer from the internet and with what data</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>These are documented <strong>incident classes</strong> — recurring patterns rather than single CVEs.</p>
+                <ul>
+                    <li><strong>Breach through an old version:</strong> a retired-in-name-only <code>/v1</code> lacking the authorization fixes added in <code>/v2</code>, still connected to production data.</li>
+                    <li><strong>Public staging environments:</strong> a "test" host with a copy of the production database and no authentication in front of it.</li>
+                    <li><strong>Shadow APIs after acquisitions or migrations:</strong> services nobody owns, unpatched for years, discovered first by an attacker's scanner.</li>
+                    <li><strong>Undocumented internal endpoints:</strong> debug and admin routes that never appeared in the spec and were therefore never reviewed.</li>
+                    <li><strong>Forgotten integrations:</strong> long-lived credentials issued to a partner integration that was switched off years ago but never revoked.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> leave old versions running "just in case"</li>
+                    <li><span class="badge critical">DO NOT</span> put production data in staging</li>
+                    <li><span class="badge high">DO</span> inventory every API with an owner and a sunset date</li>
+                    <li><span class="badge high">DO</span> generate the spec from code and gate CI on drift</li>
+                    <li><span class="badge medium">DO</span> scan your own perimeter the way an attacker does</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">OWASP</span> API Security Top 10 2019 - API9</li>
+                    <li><span class="badge medium">Renamed to</span> API9:2023 Improper Inventory Management</li>
+                    <li><span class="badge medium">CWE-1059</span> Insufficient Documentation</li>
+                    <li><span class="badge medium">CWE-1104</span> Use of Unmaintained Third Party Components</li>
+                    <li><span class="badge medium">CIS</span> Control 1 &amp; 2 — Inventory of Enterprise Assets and Software</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP API Security Top 10 (2019) — Educational Platform</strong> | <a href="/cheatsheets">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/api/OWASP-API/API09-Improper-Inventory-Management/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>

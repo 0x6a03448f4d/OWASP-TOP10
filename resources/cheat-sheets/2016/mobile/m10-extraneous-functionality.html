@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M10:2016 Extraneous Functionality - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--primary-color);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="/cheatsheets" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🚪 Extraneous Functionality<span class="year-badge">Mobile 2016</span></h1>
+            <p class="subtitle">OWASP Mobile Top 10 2016 - M10</p>
+            <span class="category">MEDIUM RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Extraneous Functionality</strong> covers <em>hidden backdoors and internal or development-only functionality that was never meant for end users but ships inside the released app anyway</em>. The code did its job during development — a test shortcut, a debug menu, a staging endpoint, a verbose log line — and nobody removed it before the build went to the store.</p>
+                <p>The defining characteristic is intent: this is not a logic mistake and not an attacker's injection. It is <strong>legitimate developer functionality that outlived its purpose and leaked into production</strong>. Because the app is a binary running on a device the attacker controls, anything compiled into it can be recovered, read, and exercised — and there is no server to quietly patch it out of reach.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">M10</span>
+                        <span class="label">OWASP Rank 2016</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Dev</span>
+                        <span class="label">Code In Production</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Easy</span>
+                        <span class="label">To Find In A Binary</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Debug Menus:</strong> hidden settings screens reachable by a gesture or code</li>
+                    <li><strong>Test Credentials:</strong> <code>qa_admin</code> / <code>Test1234</code> compiled into a constant</li>
+                    <li><strong>Developer Backdoors:</strong> a magic value that skips a licence or auth check</li>
+                    <li><strong>Staging Endpoints:</strong> base URL pointing at, or switchable to, staging</li>
+                    <li><strong>Verbose Logging:</strong> full request/response bodies, tokens, and PII in logcat</li>
+                    <li><strong>Debuggable Releases:</strong> <code>android:debuggable="true"</code> in a shipped APK</li>
+                    <li><strong>Disabled-But-Present Features:</strong> gated only by a boolean the attacker can flip</li>
+                    <li><strong>Revealing Comments:</strong> internal architecture and TODOs describing weaknesses</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Decompile the release build and read strings, resources, and the manifest<br>
+   <span class="arrow">↓</span><br>
+2. Search for "debug", "test", "staging", "internal", and credential-shaped constants<br>
+   <span class="arrow">↓</span><br>
+3. Reach the hidden entry point — deep link, gesture, exported component, or flag<br>
+   <span class="arrow">↓</span><br>
+4. Use the leftover functionality or the endpoint it points to<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Privileged features, internal systems, or credentials handed over!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad: a backdoor that survived to release</span>
+<span class="keyword">if</span> (username == <span class="string">"qa_admin"</span> &amp;&amp; password == <span class="string">"Test1234"</span>) {
+    <span class="function">grantAdminAccess</span>()                       <span class="comment">← works in production too</span>
+}
+
+<span class="comment">// Bad: hidden debug menu, one gesture away</span>
+<span class="keyword">if</span> (tapCount == <span class="number">7</span>) <span class="function">startActivity</span>(<span class="function">Intent</span>(<span class="keyword">this</span>, DebugMenuActivity::<span class="keyword">class</span>.java))
+<span class="comment">// exposes feature toggles, raw API console, and account switching</span>
+
+<span class="comment">// Bad: environment switch shipped to users</span>
+<span class="keyword">val</span> BASE_URL = <span class="keyword">if</span> (prefs.<span class="function">getBoolean</span>(<span class="string">"use_staging"</span>, <span class="keyword">false</span>))
+    <span class="string">"https://staging-api.example.com"</span> <span class="keyword">else</span> <span class="string">"https://api.example.com"</span>
+
+<span class="comment">&lt;!-- Bad: debuggable release --&gt;</span>
+&lt;application android:debuggable=<span class="string">"true"</span> /&gt;
+
+<span class="comment">// Bad: verbose logging left on</span>
+Log.<span class="function">d</span>(<span class="string">"NET"</span>, <span class="string">"req="</span> + body + <span class="string">" auth="</span> + token)     <span class="comment">← readable by tooling</span>
+
+<span class="comment">// TODO: remove before release — apiKey = "sk_live_…"   ← still in the source, still shipped</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good: development code cannot exist in a release build</span>
+<span class="keyword">if</span> (BuildConfig.DEBUG) {
+    <span class="function">installDebugMenu</span>()                       <span class="comment">// R8 strips this branch entirely from release</span>
+}
+
+<span class="comment">// Good: no environment switching in the shipped app</span>
+<span class="keyword">val</span> BASE_URL = BuildConfig.API_BASE_URL       <span class="comment">// compiled per flavour; release = production</span>
+
+<span class="comment">// Good: debug-only source set — the code is not in the release artifact at all</span>
+<span class="comment">// src/debug/java/…/DebugMenuActivity.kt      (never compiled into release)</span>
+
+<span class="comment">&lt;!-- Good: release manifest --&gt;</span>
+&lt;application android:debuggable=<span class="string">"false"</span> /&gt;
+
+<span class="comment">// Good: logging disabled in release, secrets never logged at all</span>
+<span class="keyword">if</span> (BuildConfig.DEBUG) Log.<span class="function">d</span>(<span class="string">"NET"</span>, <span class="string">"request ok"</span>)
+<span class="comment">// proguard-rules.pro: -assumenosideeffects class android.util.Log { public static *** d(...); }</span>
+
+<span class="comment"># Good: CI gates that make this un-shippable</span>
+<span class="comment"># - grep the built artifact for debug/test/staging markers and credential patterns</span>
+<span class="comment"># - fail the build on any hit; scan with gitleaks/MobSF before publishing</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Keep debug and test code in debug-only source sets and build flavours</li>
+                    <li>Never ship test accounts, magic values, or bypass logic</li>
+                    <li>Compile environment URLs per flavour; no runtime environment switch for users</li>
+                    <li>Set <code>debuggable=false</code> and strip verbose logging from releases</li>
+                    <li>Remove hidden menus, gestures, and internal tooling from production builds</li>
+                    <li>Do not gate a shipped feature with a client-side boolean alone</li>
+                    <li>Scan the built artifact — not just the source — for debug and secret markers</li>
+                    <li>Fail CI on any hit; make the release pipeline the enforcement point</li>
+                    <li>Review the manifest, resources, and strings before every release</li>
+                    <li>Rotate any credential that ever appeared in a shipped build</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Artifact Inspection:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">jadx / apktool</span>
+                    <span class="tool-tag">MobSF</span>
+                    <span class="tool-tag">strings</span>
+                    <span class="tool-tag">aapt dump</span>
+                </div>
+
+                <h3>CI Gates:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">gitleaks</span>
+                    <span class="tool-tag">trufflehog</span>
+                    <span class="tool-tag">Semgrep</span>
+                    <span class="tool-tag">Custom release checks</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Decompile the release build and grep for <code>debug</code>, <code>test</code>, <code>staging</code>, <code>internal</code></li>
+                    <li>Enumerate exported components and deep links for hidden screens</li>
+                    <li>Look for credential-shaped constants and internal hostnames</li>
+                    <li>Check the manifest for <code>debuggable</code> and unnecessary permissions</li>
+                    <li>Watch logs during normal use for verbose output that should not be there</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>These are documented <strong>incident classes</strong> — recurring patterns rather than single CVEs.</p>
+                <ul>
+                    <li><strong>Hidden debug menus in shipped apps:</strong> a gesture or code opens internal tooling with feature toggles and account switching.</li>
+                    <li><strong>Test accounts in production:</strong> hardcoded QA credentials that still authenticate against live systems.</li>
+                    <li><strong>Staging endpoints exposed:</strong> a switch, or a leftover default, sends users' apps at less-protected internal environments.</li>
+                    <li><strong>Debuggable release builds:</strong> published apps that allow a debugger to attach and inspect or modify runtime state.</li>
+                    <li><strong>Verbose logging left on:</strong> tokens and PII written to system logs where other tooling can collect them.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> ship test credentials or bypass logic</li>
+                    <li><span class="badge critical">DO NOT</span> leave debug menus or debuggable flags in a release</li>
+                    <li><span class="badge critical">DO NOT</span> offer users an environment switch</li>
+                    <li><span class="badge high">DO</span> isolate debug code in debug-only source sets</li>
+                    <li><span class="badge high">DO</span> scan the built artifact in CI and fail on hits</li>
+                    <li><span class="badge medium">DO</span> rotate anything that ever shipped as a secret</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">OWASP</span> Mobile Top 10 2016 - M10</li>
+                    <li><span class="badge medium">Maps to</span> M8:2024 Security Misconfiguration</li>
+                    <li><span class="badge medium">OWASP MASVS</span> RESILIENCE-2, CODE-2</li>
+                    <li><span class="badge medium">CWE-489</span> Active Debug Code</li>
+                    <li><span class="badge medium">CWE-798</span> Use of Hard-coded Credentials</li>
+                    <li><span class="badge medium">CWE-1244</span> Internal Asset Exposed to Unsafe Debug Access Level</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Mobile Top 10 (2016) — Educational Platform</strong> | <a href="/cheatsheets">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/mobile/OWASP-Mobile/M-2016-Extraneous-Functionality/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>

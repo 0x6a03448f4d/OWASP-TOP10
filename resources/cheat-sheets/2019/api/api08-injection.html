@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API8:2019 Injection - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--primary-color);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="/cheatsheets" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>💉 Injection<span class="year-badge">API 2019</span></h1>
+            <p class="subtitle">OWASP API Security Top 10 2019 - API8</p>
+            <span class="category">CRITICAL RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Injection</strong> occurs when untrusted data from an API request is sent to a downstream interpreter as part of a command or query, and the interpreter cannot tell the attacker's data apart from the developer's instructions. The root cause is always the same shape: <strong>a string or object built from request input is interpreted rather than treated as inert data</strong>. The interpreter changes — SQL engine, MongoDB query planner, OS shell, LDAP directory, XPath parser, log sink — but the mechanism does not.</p>
+                <p>APIs sharpen the problem: they accept <em>structured</em> input, so an attacker can inject whole objects (<code>{"$ne": null}</code>), they expose client-driven <code>sort</code>/<code>filter</code>/<code>fields</code> semantics, they are machine-to-machine so hostile input is never filtered by a browser, and a single endpoint may chain to several interpreters at once.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">API8</span>
+                        <span class="label">OWASP Rank 2019</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Many</span>
+                        <span class="label">Interpreters Per Route</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">RCE</span>
+                        <span class="label">Worst Case</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>SQL Injection:</strong> concatenated <code>WHERE</code> clauses, dynamic <code>ORDER BY</code></li>
+                    <li><strong>NoSQL Injection:</strong> a string field arriving as an operator object</li>
+                    <li><strong>Command Injection:</strong> request values spliced into a shell string</li>
+                    <li><strong>LDAP / XPath Injection:</strong> filters built by concatenation</li>
+                    <li><strong>Template &amp; Expression Injection:</strong> user text rendered as a template</li>
+                    <li><strong>Header &amp; Log Injection:</strong> CRLF and forged log lines</li>
+                    <li><strong>ORM Escape Hatches:</strong> raw-SQL helpers reached with unbound input</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Map every parameter: path, query, headers, JSON/XML body fields<br>
+   <span class="arrow">↓</span><br>
+2. Probe with metacharacters and operator objects (<code>'</code>, <code>;</code>, <code>{"$ne":null}</code>)<br>
+   <span class="arrow">↓</span><br>
+3. Watch for errors, timing changes, or altered result sets<br>
+   <span class="arrow">↓</span><br>
+4. Shape a payload for the interpreter that answered<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Auth bypass, whole-table exfiltration, or command execution!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: SQL built by concatenation</span>
+q = <span class="string">f"SELECT * FROM users WHERE name = '{request.args['name']}'"</span>
+db.<span class="function">execute</span>(q)      <span class="comment">← ' OR '1'='1  → every row</span>
+
+<span class="comment">// Bad: NoSQL — the field is typed as a string but an object arrives</span>
+db.users.<span class="function">findOne</span>({ email: req.body.email, password: req.body.password });
+<span class="comment">// {"password": {"$ne": null}} authenticates as the first matching user</span>
+
+<span class="comment"># Bad: shell string built from input</span>
+subprocess.<span class="function">run</span>(<span class="string">f"convert {filename} out.png"</span>, shell=<span class="keyword">True</span>)   <span class="comment">← "a.png; curl …|sh"</span>
+
+<span class="comment">// Bad: client-driven sort spliced into the query</span>
+<span class="keyword">const</span> rows = <span class="keyword">await</span> db.<span class="function">query</span>(<span class="string">`SELECT * FROM items ORDER BY ${req.query.sort}`</span>);
+
+<span class="comment">// Bad: user text rendered as a template</span>
+res.<span class="function">send</span>(ejs.<span class="function">render</span>(req.body.template, ctx));      <span class="comment">← server-side template injection</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: parameter binding — data can never become code</span>
+db.<span class="function">execute</span>(<span class="string">'SELECT * FROM users WHERE name = %s'</span>, (request.args[<span class="string">'name'</span>],))
+
+<span class="comment">// Good: force the expected type before it reaches the query</span>
+<span class="keyword">const</span> { email, password } = CredentialsSchema.<span class="function">parse</span>(req.body);   <span class="comment">// strings only</span>
+<span class="keyword">const</span> user = <span class="keyword">await</span> db.users.<span class="function">findOne</span>({ email });
+<span class="keyword">if</span> (!user || !(<span class="keyword">await</span> argon2.<span class="function">verify</span>(user.hash, password))) <span class="keyword">return</span> res.<span class="function">sendStatus</span>(<span class="number">401</span>);
+
+<span class="comment"># Good: no shell, arguments passed as a list</span>
+subprocess.<span class="function">run</span>([<span class="string">'convert'</span>, filename, <span class="string">'out.png'</span>], shell=<span class="keyword">False</span>, check=<span class="keyword">True</span>)
+
+<span class="comment">// Good: identifiers come from an allow-list, never from input</span>
+<span class="keyword">const</span> SORTABLE = { name: <span class="string">'name'</span>, created: <span class="string">'created_at'</span> };
+<span class="keyword">const</span> col = SORTABLE[req.query.sort] ?? <span class="string">'created_at'</span>;
+<span class="keyword">const</span> rows = <span class="keyword">await</span> db.<span class="function">query</span>(<span class="string">`SELECT * FROM items ORDER BY ${col}`</span>);
+
+<span class="comment"># Good: least privilege at the data layer limits the blast radius</span>
+<span class="comment"># GRANT SELECT, INSERT ON app.* TO 'api_user'@'%';  -- no DROP, no FILE</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Use parameterised queries or a safe ORM binding for every interpreter</li>
+                    <li>Validate input against a strict schema — type, shape, length, and range</li>
+                    <li>Reject objects where a scalar is expected (the NoSQL operator trick)</li>
+                    <li>Allow-list identifiers: table, column, sort field, file path, command</li>
+                    <li>Never build shell strings; pass argument arrays with <code>shell=False</code></li>
+                    <li>Escape or avoid concatenation in LDAP, XPath, and template contexts</li>
+                    <li>Encode output for the sink it is heading into</li>
+                    <li>Grant the database account the least privilege it needs</li>
+                    <li>Audit ORM raw-query escape hatches in code review and with SAST</li>
+                    <li>Log and alert on rejected input patterns rather than silently dropping them</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Testing:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">sqlmap</span>
+                    <span class="tool-tag">NoSQLMap</span>
+                    <span class="tool-tag">Burp Suite</span>
+                    <span class="tool-tag">OWASP ZAP</span>
+                    <span class="tool-tag">commix</span>
+                </div>
+
+                <h3>Code &amp; Runtime:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Semgrep</span>
+                    <span class="tool-tag">CodeQL</span>
+                    <span class="tool-tag">Pydantic / Zod</span>
+                    <span class="tool-tag">WAF (defence in depth)</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Fuzz every parameter with quotes, semicolons, and comment markers</li>
+                    <li>Send an operator object where a string is expected</li>
+                    <li>Look for timing differences (<code>SLEEP</code>, <code>pg_sleep</code>) on blind paths</li>
+                    <li>Test <code>sort</code>, <code>filter</code>, and <code>fields</code> parameters specifically</li>
+                    <li>Grep the codebase for string-built queries and <code>shell=True</code></li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>These are documented <strong>incident classes</strong> — recurring patterns rather than single CVEs.</p>
+                <ul>
+                    <li><strong>Login bypass via NoSQL operators:</strong> a JSON body sends <code>{"$ne": null}</code> where a password string was expected and authenticates without a credential.</li>
+                    <li><strong>Mass exfiltration through SQLi:</strong> one concatenated filter parameter dumps entire tables via <code>UNION</code> or blind extraction.</li>
+                    <li><strong>Command injection in media pipelines:</strong> filenames or conversion options passed to a shell allow arbitrary commands on the worker.</li>
+                    <li><strong>Template injection in "customisable" APIs:</strong> user-supplied templates rendered server-side lead to remote code execution.</li>
+                    <li><strong>ORM escape hatches:</strong> a single <code>raw()</code>/<code>literal()</code> call with unbound input reintroduces SQLi into an otherwise safe codebase.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> concatenate input into any query or command</li>
+                    <li><span class="badge critical">DO NOT</span> assume a JSON field is the type you declared</li>
+                    <li><span class="badge high">DO</span> bind parameters and validate with a schema</li>
+                    <li><span class="badge high">DO</span> allow-list identifiers and sort fields</li>
+                    <li><span class="badge medium">DO</span> run the database as a least-privilege user</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">OWASP</span> API Security Top 10 2019 - API8</li>
+                    <li><span class="badge medium">2023 note</span> Injection was folded into API8:2023 Security Misconfiguration &amp; general secure-coding guidance</li>
+                    <li><span class="badge medium">CWE-89</span> SQL Injection</li>
+                    <li><span class="badge medium">CWE-943</span> Improper Neutralization in Data Query Logic (NoSQL)</li>
+                    <li><span class="badge medium">CWE-78</span> OS Command Injection</li>
+                    <li><span class="badge medium">CWE-1336</span> Server-Side Template Injection</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP API Security Top 10 (2019) — Educational Platform</strong> | <a href="/cheatsheets">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/api/OWASP-API/API-2019-Injection/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>

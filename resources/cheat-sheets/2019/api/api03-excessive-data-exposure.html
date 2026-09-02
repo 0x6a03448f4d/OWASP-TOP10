@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API3:2019 Excessive Data Exposure - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--primary-color);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="/cheatsheets" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>📤 Excessive Data Exposure<span class="year-badge">API 2019</span></h1>
+            <p class="subtitle">OWASP API Security Top 10 2019 - API3</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Excessive Data Exposure</strong> is what happens when an API returns <em>more</em> data than the client needs and trusts the client to hide the surplus. The server serialises a whole internal object — every column of a row, every attribute of a model — and the UI displays only a handful of fields. On screen everything looks fine; in the raw JSON the hidden fields are right there for anyone with dev tools, a proxy, or <code>curl</code>.</p>
+                <p>The defining characteristic is that <strong>the filtering happens in the wrong place</strong>. The endpoint is authorised — the caller may call it — but the <em>response</em> is over-shared, leaking properties this consumer was never meant to see.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">API3</span>
+                        <span class="label">OWASP Rank 2019</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Response</span>
+                        <span class="label">Where It Leaks</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">PII</span>
+                        <span class="label">Typical Payload</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Whole-Model Serialisation:</strong> <code>to_dict()</code> / <code>toJSON()</code> ships every column</li>
+                    <li><strong>Secrets in Responses:</strong> password hashes, MFA seeds, reset tokens, internal keys</li>
+                    <li><strong>Hidden-in-the-UI Fields:</strong> email, phone, DOB, exact coordinates behind a "2 mi away" label</li>
+                    <li><strong>Internal Flags:</strong> <code>isAdmin</code>, risk scores, feature toggles, billing identifiers</li>
+                    <li><strong>Over-Eager Relations:</strong> nested objects pulled in by ORM eager loading</li>
+                    <li><strong>Verbose Errors & Debug:</strong> stack traces and full objects in error bodies</li>
+                    <li><strong>GraphQL Over-Fetch:</strong> the schema exposes fields the resolver never filters</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Use the app normally with an intercepting proxy attached<br>
+   <span class="arrow">↓</span><br>
+2. Compare what the UI renders with the raw JSON it received<br>
+   <span class="arrow">↓</span><br>
+3. Spot fields the interface never shows<br>
+   <span class="arrow">↓</span><br>
+4. Call the endpoint directly and keep everything the client discards<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Harvest PII and secrets at scale — from an "authorised" call!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: the whole model goes out the door</span>
+@app.route(<span class="string">'/api/users/&lt;int:uid&gt;'</span>)
+<span class="keyword">def</span> <span class="function">get_user</span>(uid):
+    user = User.query.<span class="function">get</span>(uid)
+    <span class="keyword">return</span> jsonify(user.__dict__)      <span class="comment">← password_hash, mfa_secret, is_admin, …</span>
+
+<span class="comment">// Bad: "the app only shows the name" — the wire says otherwise</span>
+res.<span class="function">json</span>({
+    id: user.id, displayName: user.displayName, avatarUrl: user.avatarUrl,
+    email: user.email, phone: user.phone, dateOfBirth: user.dob,   <span class="comment">← PII, never rendered</span>
+    passwordHash: user.passwordHash, mfaSecret: user.mfaSecret,     <span class="comment">← must never leave the server</span>
+    isAdmin: user.isAdmin, internalRiskScore: user.risk,            <span class="comment">← internal logic</span>
+    preciseLat: user.lat, preciseLng: user.lng                      <span class="comment">← UI shows "2 mi away"</span>
+});
+
+<span class="comment">// Bad: filtering delegated to the front end</span>
+<span class="keyword">const</span> visible = (<span class="keyword">await</span> api.<span class="function">get</span>(<span class="string">'/users/42'</span>)).data;
+render(visible.displayName);        <span class="comment">← the rest is still in the browser, and in the response</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: explicit allow-list per consumer, defined once</span>
+PUBLIC_FIELDS = (<span class="string">'id'</span>, <span class="string">'display_name'</span>, <span class="string">'avatar_url'</span>)
+OWNER_FIELDS  = PUBLIC_FIELDS + (<span class="string">'email'</span>, <span class="string">'phone'</span>)
+
+@app.route(<span class="string">'/api/users/&lt;int:uid&gt;'</span>)
+@requires_auth
+<span class="keyword">def</span> <span class="function">get_user</span>(uid):
+    user = User.query.<span class="function">get_or_404</span>(uid)
+    fields = OWNER_FIELDS <span class="keyword">if</span> uid == g.current_user.id <span class="keyword">else</span> PUBLIC_FIELDS
+    <span class="keyword">return</span> jsonify({f: <span class="function">getattr</span>(user, f) <span class="keyword">for</span> f <span class="keyword">in</span> fields})
+
+<span class="comment">// Good: a typed response DTO — new columns are not auto-exposed</span>
+<span class="keyword">function</span> <span class="function">toPublicUser</span>(u) {
+    <span class="keyword">return</span> { id: u.id, displayName: u.displayName, avatarUrl: u.avatarUrl };
+}
+res.<span class="function">json</span>(<span class="function">toPublicUser</span>(user));
+
+<span class="comment"># Good: reduce precision instead of shipping raw values</span>
+resp[<span class="string">'distance_band'</span>] = <span class="function">band</span>(<span class="function">haversine</span>(me, them))   <span class="comment"># "2 mi", not lat/lng</span>
+
+<span class="comment">// Good: schema-enforced responses (OpenAPI response validation)</span>
+app.<span class="function">use</span>(<span class="function">validateResponses</span>({ removeAdditional: <span class="string">'all'</span> }));  <span class="comment">// undeclared fields stripped</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Never serialise a database model straight to the response</li>
+                    <li>Define an explicit allow-list (DTO/schema) per endpoint and per audience</li>
+                    <li>Classify data — PII, secrets, internal flags — and gate each class</li>
+                    <li>Validate responses against an OpenAPI/JSON schema and strip extras</li>
+                    <li>Return the least precision that satisfies the use case</li>
+                    <li>Review generic "toJSON" helpers, ORM eager loading, and GraphQL resolvers</li>
+                    <li>Keep debug output and stack traces out of production responses</li>
+                    <li>Treat every new column as opt-in, not opt-out</li>
+                    <li>Test the raw response, not the rendered screen</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Inspection:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Burp Suite</span>
+                    <span class="tool-tag">mitmproxy</span>
+                    <span class="tool-tag">curl / httpie</span>
+                    <span class="tool-tag">Browser dev tools</span>
+                </div>
+
+                <h3>Enforcement:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">OpenAPI validators</span>
+                    <span class="tool-tag">Marshmallow / Pydantic</span>
+                    <span class="tool-tag">DTO mappers</span>
+                    <span class="tool-tag">DLP response scanners</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Diff every rendered field against the raw JSON body</li>
+                    <li>Grep responses for <code>password</code>, <code>secret</code>, <code>token</code>, <code>ssn</code>, <code>lat</code></li>
+                    <li>Call endpoints as an anonymous, a normal, and a privileged user and diff</li>
+                    <li>Query GraphQL introspection for fields the UI never requests</li>
+                    <li>Trigger errors and read what the error body contains</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>These are documented <strong>incident classes</strong> — recurring patterns rather than single CVEs.</p>
+                <ul>
+                    <li><strong>Dating and social apps leaking coordinates:</strong> the UI shows a distance band while the API returns exact latitude and longitude, enabling trilateration to a doorstep.</li>
+                    <li><strong>Profile endpoints returning credentials material:</strong> password hashes and MFA seeds included in a user object because the model was serialised wholesale.</li>
+                    <li><strong>Internal flags exposed:</strong> risk scores, tiers, and <code>isAdmin</code> booleans revealed in ordinary responses, mapping the app's authorization model for an attacker.</li>
+                    <li><strong>Partner integrations over-sharing:</strong> a single "user" payload reused for a third-party integration ships fields the partner should never receive.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> rely on the client to hide fields</li>
+                    <li><span class="badge critical">DO NOT</span> return model objects directly</li>
+                    <li><span class="badge high">DO</span> allow-list fields per endpoint and per role</li>
+                    <li><span class="badge high">DO</span> validate responses against a schema</li>
+                    <li><span class="badge medium">DO</span> lower precision on sensitive values</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">OWASP</span> API Security Top 10 2019 - API3</li>
+                    <li><span class="badge medium">Merged into</span> API3:2023 Broken Object Property Level Authorization</li>
+                    <li><span class="badge medium">CWE-213</span> Exposure of Sensitive Information Due to Incompatible Policies</li>
+                    <li><span class="badge medium">CWE-359</span> Exposure of Private Personal Information</li>
+                    <li><span class="badge medium">GDPR</span> Art. 5(1)(c) Data Minimisation</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP API Security Top 10 (2019) — Educational Platform</strong> | <a href="/cheatsheets">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/api/OWASP-API/API-2019-Excessive-Data-Exposure/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>

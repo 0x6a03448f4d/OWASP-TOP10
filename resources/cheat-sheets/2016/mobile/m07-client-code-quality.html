@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M7:2016 Client Code Quality - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--primary-color);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="/cheatsheets" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>🐛 Client Code Quality<span class="year-badge">Mobile 2016</span></h1>
+            <p class="subtitle">OWASP Mobile Top 10 2016 - M7</p>
+            <span class="category">MEDIUM RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Client Code Quality</strong> is the category for <em>code-level implementation defects inside the mobile client itself</em> that turn into security problems — memory-safety bugs, unchecked input handling, misuse of dangerous APIs, and sloppy error handling in the app you ship to the device.</p>
+                <p>The distinction matters. Most mobile risks are about <em>what</em> the app does with data; M7 is about <em>how the code is written</em>. Two apps can implement the same feature — one parses a deep link with a bounds-checked, type-safe routine, the other copies attacker-controlled bytes into a fixed native buffer with <code>strcpy</code>. Same feature, same data flow, but only the second crashes, corrupts memory, or executes attacker code when fed a hostile input.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">M7</span>
+                        <span class="label">OWASP Rank 2016</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Client</span>
+                        <span class="label">Side Only</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Native</span>
+                        <span class="label">Where It Bites Hardest</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Buffer Overflows:</strong> <code>strcpy</code>/<code>sprintf</code>/<code>memcpy</code> with an attacker-controlled length</li>
+                    <li><strong>Format String Bugs:</strong> user data passed as the format argument</li>
+                    <li><strong>Use-After-Free / Double-Free:</strong> lifetime errors in native code</li>
+                    <li><strong>Unsafe Deserialization:</strong> arbitrary object graphs decoded from untrusted bytes</li>
+                    <li><strong>Unvalidated Deep Links &amp; IPC:</strong> intent extras and URLs trusted as-is</li>
+                    <li><strong>Integer Overflow:</strong> a size calculation wraps and under-allocates</li>
+                    <li><strong>Unhandled Errors:</strong> null dereference or uncaught exception → crash-to-DoS</li>
+                    <li><strong>Dangerous WebView APIs:</strong> <code>addJavascriptInterface</code> on legacy targets</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Map every input the client parses: deep links, IPC, files, QR, BLE/NFC, server responses<br>
+   <span class="arrow">↓</span><br>
+2. Fuzz each with oversized, malformed, and unexpected-type values<br>
+   <span class="arrow">↓</span><br>
+3. Watch for crashes, tombstones, and memory-corruption signatures<br>
+   <span class="arrow">↓</span><br>
+4. Triage a crash into a controllable primitive in native code<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Denial of service — or code execution inside the app's sandbox!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment">// Bad (JNI): fixed buffer, unbounded copy</span>
+<span class="keyword">void</span> <span class="function">handle</span>(<span class="keyword">const</span> <span class="keyword">char</span> *input) {
+    <span class="keyword">char</span> buf[<span class="number">64</span>];
+    <span class="function">strcpy</span>(buf, input);            <span class="comment">← overflow whenever input &gt; 63 bytes</span>
+    <span class="function">printf</span>(input);                 <span class="comment">← format string: attacker controls %n/%x</span>
+}
+
+<span class="comment">// Bad: size arithmetic that can wrap</span>
+<span class="keyword">int</span> total = count * size;          <span class="comment">← overflow → tiny allocation, big copy</span>
+<span class="keyword">char</span> *p = <span class="function">malloc</span>(total);
+<span class="function">memcpy</span>(p, src, count * size);
+
+<span class="comment">// Bad: untrusted deep link consumed without validation</span>
+<span class="keyword">val</span> url = intent.<span class="function">getStringExtra</span>(<span class="string">"url"</span>)!!
+webView.<span class="function">loadUrl</span>(url)               <span class="comment">← javascript:, file://, attacker origin</span>
+
+<span class="comment">// Bad: arbitrary deserialization from an untrusted source</span>
+<span class="keyword">val</span> obj = ObjectInputStream(input).<span class="function">readObject</span>()   <span class="comment">← gadget chains</span>
+
+<span class="comment">// Bad: failures swallowed, state left inconsistent</span>
+<span class="keyword">try</span> { <span class="function">verifySignature</span>(payload) } <span class="keyword">catch</span> (e: Exception) { }   <span class="comment">← fails open</span>
+                </div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment">// Good (JNI): length-limited copy, literal format string</span>
+<span class="keyword">void</span> <span class="function">handle</span>(<span class="keyword">const</span> <span class="keyword">char</span> *input, size_t len) {
+    <span class="keyword">char</span> buf[<span class="number">64</span>];
+    <span class="keyword">if</span> (len &gt;= <span class="keyword">sizeof</span>(buf)) <span class="keyword">return</span>;      <span class="comment">// reject rather than truncate silently</span>
+    <span class="function">memcpy</span>(buf, input, len);
+    buf[len] = <span class="string">'\0'</span>;
+    <span class="function">printf</span>(<span class="string">"%s"</span>, buf);                    <span class="comment">// data is never the format</span>
+}
+
+<span class="comment">// Good: checked arithmetic before allocating</span>
+size_t total;
+<span class="keyword">if</span> (<span class="function">__builtin_mul_overflow</span>(count, size, &amp;total)) <span class="keyword">return</span> ERR;
+
+<span class="comment">// Good: validate every deep link against an allow-list</span>
+<span class="keyword">val</span> uri = Uri.<span class="function">parse</span>(intent.<span class="function">getStringExtra</span>(<span class="string">"url"</span>) ?: <span class="keyword">return</span>)
+<span class="keyword">require</span>(uri.scheme == <span class="string">"https"</span> &amp;&amp; uri.host <span class="keyword">in</span> ALLOWED_HOSTS)
+webView.<span class="function">loadUrl</span>(uri.<span class="function">toString</span>())
+
+<span class="comment">// Good: parse into known types only</span>
+<span class="keyword">val</span> dto = json.<span class="function">decodeFromString</span>&lt;ProfileDto&gt;(body)     <span class="comment">// no arbitrary classes</span>
+
+<span class="comment">// Good: fail closed, and prefer memory-safe languages for parsers</span>
+<span class="keyword">try</span> { <span class="function">verifySignature</span>(payload) } <span class="keyword">catch</span> (e: Exception) { <span class="function">abortAndReport</span>(e); <span class="keyword">return</span> }
+<span class="comment">// build with -fstack-protector-strong, _FORTIFY_SOURCE=2, PIE, and run sanitizers in CI</span>
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Validate every untrusted input at the client boundary: type, length, range, format</li>
+                    <li>Treat deep links, IPC extras, files, and server responses as hostile</li>
+                    <li>Avoid <code>strcpy</code>, <code>sprintf</code>, <code>gets</code>; use length-limited APIs</li>
+                    <li>Check arithmetic for overflow before allocating or copying</li>
+                    <li>Deserialize into known types only; never decode arbitrary object graphs</li>
+                    <li>Prefer memory-safe languages (Kotlin/Swift/Rust) for parsing untrusted data</li>
+                    <li>Handle errors explicitly and fail closed — never swallow an exception</li>
+                    <li>Enable compiler and linker hardening; run ASan/UBSan in CI</li>
+                    <li>Fuzz every input parser as part of the build</li>
+                    <li>Zero secrets in memory once used; avoid leaving them in long-lived buffers</li>
+                    <li>Enforce static analysis and code review on all native code</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Static &amp; Build:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">clang-tidy</span>
+                    <span class="tool-tag">Infer</span>
+                    <span class="tool-tag">Semgrep</span>
+                    <span class="tool-tag">Android Lint</span>
+                    <span class="tool-tag">MobSF</span>
+                </div>
+
+                <h3>Dynamic:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">AddressSanitizer</span>
+                    <span class="tool-tag">libFuzzer / AFL++</span>
+                    <span class="tool-tag">Frida</span>
+                    <span class="tool-tag">drozer</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Fuzz deep links, intent extras, and file imports with oversized inputs</li>
+                    <li>Send malformed server responses to the app's parsers</li>
+                    <li>Run debug builds with ASan/UBSan and exercise every input path</li>
+                    <li>Review all JNI/native code for unbounded copies and format strings</li>
+                    <li>Check crash logs for repeatable, attacker-triggerable faults</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>These are documented <strong>incident classes</strong> — recurring patterns rather than single CVEs.</p>
+                <ul>
+                    <li><strong>Media and image parsers:</strong> memory-corruption bugs in native decoding libraries reached by a crafted file or message attachment.</li>
+                    <li><strong>Deep-link handlers:</strong> unvalidated URLs loaded into WebViews leading to local file access or script execution in the app's context.</li>
+                    <li><strong>Deserialization gadgets:</strong> untrusted serialized data decoded into arbitrary classes, giving code execution.</li>
+                    <li><strong>Crash-to-DoS:</strong> a malformed push payload or IPC message that reliably kills the app on receipt.</li>
+                    <li><strong>Legacy WebView bridges:</strong> <code>addJavascriptInterface</code> on old API levels exposing reflection to remote pages.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> copy untrusted bytes into fixed buffers</li>
+                    <li><span class="badge critical">DO NOT</span> pass user data as a format string</li>
+                    <li><span class="badge critical">DO NOT</span> deserialize arbitrary types</li>
+                    <li><span class="badge high">DO</span> validate every client-side input boundary</li>
+                    <li><span class="badge high">DO</span> fuzz parsers and run sanitizers in CI</li>
+                    <li><span class="badge medium">DO</span> prefer memory-safe languages for parsing</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">OWASP</span> Mobile Top 10 2016 - M7</li>
+                    <li><span class="badge medium">Maps to</span> M4:2024 Insufficient Input/Output Validation</li>
+                    <li><span class="badge medium">OWASP MASVS</span> CODE-1 … CODE-4</li>
+                    <li><span class="badge medium">CWE-120</span> Buffer Copy without Checking Size of Input</li>
+                    <li><span class="badge medium">CWE-134</span> Uncontrolled Format String</li>
+                    <li><span class="badge medium">CWE-416</span> Use After Free</li>
+                    <li><span class="badge medium">CWE-502</span> Deserialization of Untrusted Data</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP Mobile Top 10 (2016) — Educational Platform</strong> | <a href="/cheatsheets">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/mobile/OWASP-Mobile/M-2016-Client-Code-Quality/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>

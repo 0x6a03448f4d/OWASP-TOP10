@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API6:2019 Mass Assignment - Quick Reference</title>
+    <link rel="stylesheet" href="../../assets/cheat-sheet-style.css">
+    <style>
+        .back-nav {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--darker-color);
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid var(--primary-color);
+            box-shadow: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: none;
+        }
+
+        .year-badge {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--primary-color);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+
+        @media print {
+            .back-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="back-nav">
+        <a href="/cheatsheets" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Cheat Sheets
+        </a>
+    </div>
+
+    <div class="cheat-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>📝 Mass Assignment<span class="year-badge">API 2019</span></h1>
+            <p class="subtitle">OWASP API Security Top 10 2019 - API6</p>
+            <span class="category">HIGH RISK</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Overview Section -->
+            <div class="section full-width">
+                <h2>📋 What Is It?</h2>
+                <p><strong>Mass Assignment</strong> occurs when an API binds client-supplied input directly to the properties of an internal object — a database model, a domain entity, a configuration record — <em>without an allow-list</em> of the fields a client may actually set. The framework convenience that makes modern code pleasant (map the whole body onto an object in one line) becomes a vulnerability the moment that object holds server-controlled fields.</p>
+                <p>The attack is disarmingly simple: look at a legitimate request, guess the names of extra properties, and add them to the body. If binding is blind, the attacker has just written a field the UI never exposed — <code>role=admin</code>, <code>isVerified=true</code>, an inflated <code>balance</code>, or a re-pointed <code>user_id</code>.</p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="value">API6</span>
+                        <span class="label">OWASP Rank 2019</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">Write</span>
+                        <span class="label">Side of BOPLA</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="value">One field</span>
+                        <span class="label">To Privilege</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Exploit Patterns -->
+            <div class="section">
+                <h2>⚠️ Common Exploits</h2>
+                <ul>
+                    <li><strong>Privilege Fields:</strong> appending <code>"role":"admin"</code> or <code>"isAdmin":true</code></li>
+                    <li><strong>Verification Bypass:</strong> <code>"isVerified":true</code>, <code>"emailConfirmed":true</code></li>
+                    <li><strong>Financial Fields:</strong> <code>"balance"</code>, <code>"discount"</code>, <code>"credits"</code>, <code>"price"</code></li>
+                    <li><strong>Ownership Re-pointing:</strong> <code>"user_id"</code>/<code>"tenant_id"</code> set to someone else</li>
+                    <li><strong>Nested Objects:</strong> deep binding through related models</li>
+                    <li><strong>Timestamps &amp; State:</strong> <code>createdAt</code>, <code>status</code>, <code>approvedBy</code></li>
+                    <li><strong>Prototype Pollution:</strong> <code>__proto__</code> / <code>constructor</code> keys in JS merges</li>
+                </ul>
+            </div>
+
+            <!-- Attack Flow -->
+            <div class="section">
+                <h2>🔴 Attack Flow</h2>
+                <div class="attack-flow">
+1. Capture a legitimate create/update request<br>
+   <span class="arrow">↓</span><br>
+2. Learn the object's real field names — GET responses, docs, spec, errors<br>
+   <span class="arrow">↓</span><br>
+3. Append the sensitive fields to the request body<br>
+   <span class="arrow">↓</span><br>
+4. Re-read the object to see which extras were persisted<br>
+   <span class="arrow">↓</span><br>
+5. <strong>IMPACT: Self-granted privileges, altered balances, hijacked ownership!</strong>
+                </div>
+            </div>
+
+            <!-- Vulnerable Code Example -->
+            <div class="section full-width">
+                <h2>❌ Vulnerable Code</h2>
+                <div class="code-block vulnerable">
+<span class="comment"># Bad: every key in the body becomes a column</span>
+@app.route(<span class="string">'/api/users'</span>, methods=[<span class="string">'POST'</span>])
+<span class="keyword">def</span> <span class="function">create_user</span>():
+    user = <span class="function">User</span>(**request.json)      <span class="comment">← role, is_verified, balance all bindable</span>
+    db.session.<span class="function">add</span>(user); db.session.<span class="function">commit</span>()
+
+<span class="comment">// Bad: blanket merge of the request body onto the entity</span>
+app.<span class="function">patch</span>(<span class="string">'/api/profile'</span>, <span class="keyword">async</span> (req, res) => {
+    Object.<span class="function">assign</span>(user, req.body);      <span class="comment">← also reachable: __proto__, isAdmin</span>
+    <span class="keyword">await</span> user.<span class="function">save</span>();
+});
+
+<span class="comment"># Bad: ownership taken from the payload</span>
+order = <span class="function">Order</span>(**request.json)         <span class="comment">← "user_id": 41 → order created for someone else</span>
+
+<span class="comment">// Bad: an allow-list that drifts — new columns are exposed by default</span>
+<span class="keyword">const</span> DENY = [<span class="string">'password'</span>];               <span class="comment">← deny-lists always miss the next field added</span>
+</div>
+            </div>
+
+            <!-- Secure Code Example -->
+            <div class="section full-width">
+                <h2>✅ Secure Code</h2>
+                <div class="code-block secure">
+<span class="comment"># Good: explicit allow-list — anything else is ignored or rejected</span>
+ALLOWED = (<span class="string">'username'</span>, <span class="string">'email'</span>, <span class="string">'password'</span>)
+
+@app.route(<span class="string">'/api/users'</span>, methods=[<span class="string">'POST'</span>])
+<span class="keyword">def</span> <span class="function">create_user</span>():
+    data = {k: v <span class="keyword">for</span> k, v <span class="keyword">in</span> request.json.<span class="function">items</span>() <span class="keyword">if</span> k <span class="keyword">in</span> ALLOWED}
+    user = <span class="function">User</span>(**data)
+    user.role = <span class="string">'user'</span>                 <span class="comment"># server-controlled fields set by the server</span>
+    user.is_verified = <span class="keyword">False</span>
+
+<span class="comment"># Good: a schema that refuses unknown keys outright</span>
+<span class="keyword">class</span> <span class="function">CreateUser</span>(BaseModel):
+    model_config = <span class="function">ConfigDict</span>(extra=<span class="string">'forbid'</span>)   <span class="comment"># 422 on any extra field</span>
+    username: str
+    email: EmailStr
+    password: SecretStr
+
+<span class="comment">// Good: pick the fields; never spread the body</span>
+<span class="keyword">const</span> { displayName, avatarUrl } = req.body;
+<span class="keyword">await</span> User.<span class="function">update</span>({ displayName, avatarUrl }, { where: { id: req.user.sub } });
+
+<span class="comment">// Good: ownership always from the token, never from the payload</span>
+<span class="keyword">const</span> order = <span class="keyword">await</span> Order.<span class="function">create</span>({ ...safeFields, userId: req.user.sub });
+
+<span class="comment">// Good: separate read and write shapes per role</span>
+<span class="keyword">const</span> writable = req.user.isAdmin ? ADMIN_WRITABLE : USER_WRITABLE;
+                </div>
+            </div>
+
+            <!-- Prevention Checklist -->
+            <div class="section">
+                <h2>✓ Prevention Checklist</h2>
+                <ul class="checklist">
+                    <li>Bind an explicit allow-list of writable fields — never the whole body</li>
+                    <li>Prefer schemas that reject unknown keys (<code>extra=forbid</code>, <code>additionalProperties: false</code>)</li>
+                    <li>Use dedicated request DTOs instead of database models</li>
+                    <li>Set identity, ownership, role, status, and timestamps on the server</li>
+                    <li>Define writable sets per role and per operation (create vs update)</li>
+                    <li>Avoid <code>Object.assign</code>/deep-merge on untrusted input; block <code>__proto__</code></li>
+                    <li>Never trust a deny-list — new columns default to exposed</li>
+                    <li>Validate nested objects with the same rigour as the top level</li>
+                    <li>Log and alert when unexpected fields arrive</li>
+                    <li>Test by appending sensitive fields and asserting they are not persisted</li>
+                </ul>
+            </div>
+
+            <!-- Detection & Tools -->
+            <div class="section">
+                <h2>🔍 Detection & Tools</h2>
+                <h3>Validation:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Pydantic</span>
+                    <span class="tool-tag">Marshmallow</span>
+                    <span class="tool-tag">Zod / Joi</span>
+                    <span class="tool-tag">JSON Schema</span>
+                </div>
+
+                <h3>Testing:</h3>
+                <div class="tools-list">
+                    <span class="tool-tag">Burp Suite</span>
+                    <span class="tool-tag">Postman/Newman</span>
+                    <span class="tool-tag">Schemathesis</span>
+                    <span class="tool-tag">Semgrep rules</span>
+                </div>
+
+                <h3>How to Test:</h3>
+                <ul>
+                    <li>Add <code>role</code>, <code>isAdmin</code>, <code>balance</code>, <code>user_id</code> to create/update bodies</li>
+                    <li>Re-read the object — did anything extra stick?</li>
+                    <li>Harvest field names from GET responses, errors, and the OpenAPI spec</li>
+                    <li>Try nested paths (<code>"profile": {"tier": "gold"}</code>)</li>
+                    <li>Send <code>__proto__</code>/<code>constructor</code> keys against JS merge code</li>
+                </ul>
+            </div>
+
+            <!-- Real-World Examples -->
+            <div class="section full-width">
+                <h2>🌍 Real-World</h2>
+                <p>These are documented <strong>incident classes</strong> — recurring patterns rather than single CVEs.</p>
+                <ul>
+                    <li><strong>Self-granted administrator:</strong> a registration or profile-update endpoint binds a <code>role</code> field the UI never sends, and the account comes back as admin.</li>
+                    <li><strong>Verification bypass:</strong> setting <code>isVerified</code>/<code>emailConfirmed</code> in the body skips the whole confirmation flow.</li>
+                    <li><strong>Ownership hijack:</strong> passing another user's identifier on create re-points a record — invoice, ticket, or device — at the victim.</li>
+                    <li><strong>Commerce manipulation:</strong> price, discount, or loyalty-point fields accepted from the client at checkout.</li>
+                    <li><strong>Prototype pollution:</strong> deep-merge helpers on untrusted JSON corrupt object prototypes and change downstream behaviour.</li>
+                </ul>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="section">
+                <h2>📌 Quick Tips</h2>
+                <ul>
+                    <li><span class="badge critical">DO NOT</span> pass the request body into a model constructor</li>
+                    <li><span class="badge critical">DO NOT</span> rely on a deny-list of "dangerous" fields</li>
+                    <li><span class="badge high">DO</span> allow-list writable fields per role and operation</li>
+                    <li><span class="badge high">DO</span> set ownership and privilege server-side</li>
+                    <li><span class="badge medium">DO</span> reject unknown keys with a 4xx</li>
+                </ul>
+            </div>
+
+            <!-- Compliance -->
+            <div class="section">
+                <h2>📜 Compliance</h2>
+                <p><strong>Related Standards:</strong></p>
+                <ul>
+                    <li><span class="badge medium">OWASP</span> API Security Top 10 2019 - API6</li>
+                    <li><span class="badge medium">Merged into</span> API3:2023 Broken Object Property Level Authorization</li>
+                    <li><span class="badge medium">CWE-915</span> Improperly Controlled Modification of Dynamically-Determined Object Attributes</li>
+                    <li><span class="badge medium">CWE-1321</span> Prototype Pollution</li>
+                    <li><span class="badge medium">CWE-639</span> Authorization Bypass Through User-Controlled Key</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>OWASP API Security Top 10 (2019) — Educational Platform</strong> | <a href="/cheatsheets">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p>Full lesson: <a href="/labs/api/OWASP-API/API-2019-Mass-Assignment/overview.html">Read the deep dive →</a></p>
+            <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
+</html>
