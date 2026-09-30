@@ -14,7 +14,7 @@ The cure for Excessive Data Exposure is a single principle applied everywhere: *
 
 - **Filter on the server, always**: the client is a display, not a security boundary.
 - **Allow-list, never deny-list**: name the fields that may leave; everything unnamed is withheld by default.
-- **Data minimisation**: return the least each consumer needs to do its job—nothing "just in case."
+- **Data minimisation**: return the least each consumer needs to do its job-nothing "just in case."
 - **Least astonishment for new fields**: adding a column to a model must never silently add it to a response.
 
 ## 1. Explicit Response DTOs / Schemas (Allow-List)
@@ -45,7 +45,7 @@ function toUserDto(u: UserEntity): UserDto {
 
 ## 2. Schema-Based Response Validation
 
-Do not just *build* a safe response—*enforce* it. Validate every outgoing body against a strict schema that forbids unknown properties, so a stray field is dropped or the response fails loudly in tests.
+Do not just *build* a safe response-*enforce* it. Validate every outgoing body against a strict schema that forbids unknown properties, so a stray field is dropped or the response fails loudly in tests.
 
 ```javascript
 // Express + Zod: strict output schema strips/blocks extra keys
@@ -85,7 +85,7 @@ Wire `additionalProperties: false` into contract tests (e.g. Dredd, Schemathesis
 The same object often needs different shapes for different callers. Choose the serializer from the caller's role or client, on the server.
 
 ```python
-# Choose the output contract by role — server-side decision
+# Choose the output contract by role - server-side decision
 def serialize_user(user, requester):
     if requester.is_admin:
         return AdminUserSerializer(user).data   # e.g. adds status, flags (still explicit)
@@ -94,7 +94,7 @@ def serialize_user(user, requester):
     return PublicUserSerializer(user).data       # display_name, avatar only
 ```
 
-Notice that even the admin and "self" views are explicit allow-lists—more fields, but still enumerated. Secrets (hashes, MFA seeds) appear in *none* of them.
+Notice that even the admin and "self" views are explicit allow-lists-more fields, but still enumerated. Secrets (hashes, MFA seeds) appear in *none* of them.
 
 ## 4. Select Only What You Return at the Data Layer
 
@@ -173,7 +173,7 @@ The allow-list is the primary control; the sensitive-field strip is a defence-in
 
 ## 8. GraphQL: Field-Level Authorization
 
-In GraphQL the client picks fields, so authorization must live on the field—never assume clients won't ask.
+In GraphQL the client picks fields, so authorization must live on the field-never assume clients won't ask.
 
 ```javascript
 const resolvers = {
@@ -222,11 +222,11 @@ Complement automated checks with a manual response review during design and pen-
 
 ## Key Takeaways
 
-1. **Server-side allow-list, every time**—name the fields that ship; withhold everything else by default.
-2. **DTOs are not the model**—map entities to explicit response objects; never spread or auto-dump the model.
-3. **Validate the response contract**—`additionalProperties: false` and strict schemas make new fields fail closed.
-4. **Shape by role and consumer**—different callers get different, still-explicit, views; secrets go to none.
-5. **Test the bytes**—assert exact response keys and grep for whole-model serialization in CI.
+1. **Server-side allow-list, every time**-name the fields that ship; withhold everything else by default.
+2. **DTOs are not the model**-map entities to explicit response objects; never spread or auto-dump the model.
+3. **Validate the response contract**-`additionalProperties: false` and strict schemas make new fields fail closed.
+4. **Shape by role and consumer**-different callers get different, still-explicit, views; secrets go to none.
+5. **Test the bytes**-assert exact response keys and grep for whole-model serialization in CI.
 
 ## Next Steps
 

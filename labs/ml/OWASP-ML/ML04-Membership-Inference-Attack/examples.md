@@ -2,7 +2,7 @@
 
 Each pair below shows an **insecure** pattern that leaks training-set membership and the **secure** version that closes it. The examples use scikit-learn, PyTorch, and Opacus, and target the causes that dominate real membership leakage: overfitting, rich outputs, unbounded queries, and training without a privacy budget.
 
-> **⚠ EDUCATIONAL PURPOSE ONLY** — the attack snippets are shown so you can audit and harden models you own or are authorised to test.
+> **⚠ EDUCATIONAL PURPOSE ONLY** - the attack snippets are shown so you can audit and harden models you own or are authorised to test.
 
 ## 1. Overfitting: the Root Signal (scikit-learn)
 
@@ -208,7 +208,7 @@ assert auc < 0.6, "Membership leak too high -> add DP / regularisation before re
 
 ## 6. Confidence-Threshold Attack (what you are defending against)
 
-For completeness, this is the attacker's side—the simple black-box test the defences above are designed to defeat.
+For completeness, this is the attacker's side-the simple black-box test the defences above are designed to defeat.
 
 ```python
 import numpy as np
@@ -236,11 +236,11 @@ def membership_guess(target_predict_proba, x, y_true, tau):
 
 ## Key Takeaways
 
-1. **Fix overfitting at the source** — capacity limits and a tracked train/test gap remove the primary signal.
-2. **Return the least you can** — coarse labels and clipped, temperature-scaled confidences beat raw logits.
-3. **Bound queries** — authentication, rate limits, and probing alerts make attacks slow and visible.
-4. **Train with a budget** — DP-SGD with a meaningful epsilon is the only defence with a formal guarantee.
-5. **Prove it before release** — run the attack yourself and gate on the AUC.
+1. **Fix overfitting at the source** - capacity limits and a tracked train/test gap remove the primary signal.
+2. **Return the least you can** - coarse labels and clipped, temperature-scaled confidences beat raw logits.
+3. **Bound queries** - authentication, rate limits, and probing alerts make attacks slow and visible.
+4. **Train with a budget** - DP-SGD with a meaningful epsilon is the only defence with a formal guarantee.
+5. **Prove it before release** - run the attack yourself and gate on the AUC.
 
 ## Next Steps
 

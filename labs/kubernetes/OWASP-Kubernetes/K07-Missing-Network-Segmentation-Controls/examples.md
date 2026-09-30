@@ -4,7 +4,7 @@ Each pair below shows an **insecure** (default-allow / flat) configuration and t
 
 ## 1. Default-Allow vs. Default-Deny Baseline
 
-### Insecure — No Policy (Flat Network)
+### Insecure - No Policy (Flat Network)
 ```
 # There is simply no NetworkPolicy in the namespace.
 $ kubectl get networkpolicy -n app-prod
@@ -14,7 +14,7 @@ No resources found in app-prod namespace.
 # endpoint, and the internet. A single compromised pod reaches everything.
 ```
 
-### Secure — Default-Deny Ingress and Egress
+### Secure - Default-Deny Ingress and Egress
 ```yaml
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -50,14 +50,14 @@ spec:
 
 ## 2. Exposed Datastore vs. Scoped Ingress
 
-### Insecure — Database Reachable From Any Pod
+### Insecure - Database Reachable From Any Pod
 ```
 # No policy protects the database. Any pod in any namespace can connect:
 #   psql postgres://app:pw@orders-db.app-prod.svc:5432/prod
 # A compromised frontend pod talks straight to the DB.
 ```
 
-### Secure — Only the API Tier May Reach the DB
+### Secure - Only the API Tier May Reach the DB
 ```yaml
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -81,15 +81,15 @@ spec:
 
 ## 3. Flat Namespaces vs. Namespace Isolation
 
-### Insecure — Namespaces Freely Reachable
+### Insecure - Namespaces Freely Reachable
 ```
 # team-a and team-b share a cluster with no policy between them.
 # From a pod in team-a:
 #   curl http://orders-api.team-b.svc.cluster.local/internal/dump
-# succeeds — namespaces are a naming boundary, not a network boundary.
+# succeeds - namespaces are a naming boundary, not a network boundary.
 ```
 
-### Secure — Same-Namespace-Only Ingress
+### Secure - Same-Namespace-Only Ingress
 ```yaml
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -125,7 +125,7 @@ spec:
 
 ## 4. Unrestricted Egress vs. Egress Control (Metadata Blocked)
 
-### Insecure — Pods Can Reach Anything Outbound
+### Insecure - Pods Can Reach Anything Outbound
 ```
 # No egress policy. From any pod:
 #   curl http://169.254.169.254/latest/meta-data/iam/security-credentials/
@@ -135,7 +135,7 @@ spec:
 # SSRF or any in-pod foothold becomes cloud-credential theft.
 ```
 
-### Secure — Allow External but Exclude Metadata and Internal Ranges
+### Secure - Allow External but Exclude Metadata and Internal Ranges
 ```yaml
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -151,7 +151,7 @@ spec:
         - ipBlock:
             cidr: 0.0.0.0/0
             except:
-              - 169.254.169.254/32    # cloud metadata / IMDS — always block
+              - 169.254.169.254/32    # cloud metadata / IMDS - always block
               - 169.254.0.0/16        # link-local
               - 10.0.0.0/8            # private ranges
               - 172.16.0.0/12
@@ -181,14 +181,14 @@ spec:
 
 ## 5. No Identity vs. Service Mesh mTLS (Cilium / Istio)
 
-### Insecure — Network Position Treated as Trust
+### Insecure - Network Position Treated as Trust
 ```
-# orders trusts anything that can route to it — no authentication of the caller:
+# orders trusts anything that can route to it - no authentication of the caller:
 #   curl http://orders.app-prod.svc/internal/refund -H "X-Internal-Caller: billing"
 # Any compromised pod can impersonate "billing".
 ```
 
-### Secure — Identity-Aware Policy (Cilium L7)
+### Secure - Identity-Aware Policy (Cilium L7)
 ```yaml
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
@@ -210,7 +210,7 @@ spec:
                 path: /internal/refund       # restrict even the HTTP path
 ```
 
-### Secure — Enforce mTLS Everywhere (Istio)
+### Secure - Enforce mTLS Everywhere (Istio)
 ```yaml
 apiVersion: security.istio.io/v1
 kind: PeerAuthentication
@@ -251,9 +251,9 @@ spec:
 ## A Note on CNI Choice
 
 None of the secure examples above do anything unless the CNI enforces policy. Confirm enforcement before relying on these manifests:
-- **Calico** — enforces `NetworkPolicy` and adds `GlobalNetworkPolicy` and ordered tiers for cluster-wide rules (e.g. the metadata deny above).
-- **Cilium** — eBPF-based; enforces `NetworkPolicy` and adds identity-aware, L7-capable `CiliumNetworkPolicy` plus Hubble flow visibility.
-- **Verify** — apply a deny-all, then confirm a previously working connection is now refused. If it still succeeds, the CNI is not enforcing policy and the cluster remains flat.
+- **Calico** - enforces `NetworkPolicy` and adds `GlobalNetworkPolicy` and ordered tiers for cluster-wide rules (e.g. the metadata deny above).
+- **Cilium** - eBPF-based; enforces `NetworkPolicy` and adds identity-aware, L7-capable `CiliumNetworkPolicy` plus Hubble flow visibility.
+- **Verify** - apply a deny-all, then confirm a previously working connection is now refused. If it still succeeds, the CNI is not enforcing policy and the cluster remains flat.
 
 ## Next Steps
 

@@ -8,12 +8,12 @@
 
 ## Understanding Segmentation Attack Vectors
 
-> **⚠ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in clusters you own or are authorised to test.
+> **⚠ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in clusters you own or are authorised to test.
 
-Missing segmentation is not exploited with an exotic payload. It is exploited by **reachability**: once an attacker has code running in any pod, the flat network lets ordinary connections do the rest. The initial foothold might come from a vulnerable web app, an SSRF, a poisoned dependency, or a compromised image — K07 is what happens *next*. On a segmented cluster, that foothold is boxed in. On a flat one, it inherits the reachability of the entire cluster.
+Missing segmentation is not exploited with an exotic payload. It is exploited by **reachability**: once an attacker has code running in any pod, the flat network lets ordinary connections do the rest. The initial foothold might come from a vulnerable web app, an SSRF, a poisoned dependency, or a compromised image - K07 is what happens *next*. On a segmented cluster, that foothold is boxed in. On a flat one, it inherits the reachability of the entire cluster.
 
 The attacker's goals in this category are:
-- Map the internal network — which pods, services, and datastores are reachable.
+- Map the internal network - which pods, services, and datastores are reachable.
 - Pivot east-west to higher-value targets (databases, admin APIs, other namespaces/tenants).
 - Reach the control plane surface (API server, kubelet) and the cloud metadata endpoint.
 - Establish egress for command-and-control and data exfiltration.
@@ -55,7 +55,7 @@ for ip in 10.0.0.{1..254}; do
 done
 ```
 
-**Payoff**: a full inventory of reachable services — databases, caches, brokers, admin APIs — none of which should be reachable from this pod.
+**Payoff**: a full inventory of reachable services - databases, caches, brokers, admin APIs - none of which should be reachable from this pod.
 
 ### 2. Direct Datastore Access After a Foothold
 
@@ -68,7 +68,7 @@ redis-cli -h cache.default.svc -p 6379 KEYS '*'
 mongosh "mongodb://reports-db.analytics.svc:27017/prod" --eval "db.users.find()"
 ```
 
-**Payoff**: bulk read, tamper, or wipe of data with no application bug — just reachability plus weak/default datastore auth.
+**Payoff**: bulk read, tamper, or wipe of data with no application bug - just reachability plus weak/default datastore auth.
 
 ### 3. Cross-Namespace / Cross-Tenant Pivot
 
@@ -80,7 +80,7 @@ curl http://orders-api.team-b.svc.cluster.local/internal/dump
 curl http://secrets-proxy.prod.svc.cluster.local/v1/creds
 ```
 
-**Payoff**: one tenant's or environment's compromise reaches another's data — exactly the isolation customers assume they have.
+**Payoff**: one tenant's or environment's compromise reaches another's data - exactly the isolation customers assume they have.
 
 ### 4. SSRF-to-Metadata Cloud Credential Theft
 
@@ -97,7 +97,7 @@ curl http://169.254.169.254/latest/meta-data/iam/security-credentials/node-insta
 aws s3 ls   # with the exfiltrated temporary credentials
 ```
 
-**Payoff**: escalation from "one container" to the node's cloud identity — often far more privileged than the workload. Any in-app SSRF becomes cloud credential theft on a flat-egress cluster.
+**Payoff**: escalation from "one container" to the node's cloud identity - often far more privileged than the workload. Any in-app SSRF becomes cloud credential theft on a flat-egress cluster.
 
 ### 5. Reaching the Control Plane (API Server & Kubelet)
 
@@ -143,7 +143,7 @@ for host in $(discover_reachable_pods); do
 done
 ```
 
-**Payoff**: cluster-wide compromise and resource hijacking (cryptomining) from a single entry point — the classic Kubernetes worm pattern that a flat network enables.
+**Payoff**: cluster-wide compromise and resource hijacking (cryptomining) from a single entry point - the classic Kubernetes worm pattern that a flat network enables.
 
 ### 8. Impersonation Without mTLS
 
@@ -194,11 +194,11 @@ These signals are only visible if you collect flow logs (CNI flow logs, mesh tel
 
 ## Key Takeaways
 
-1. **K07 is exploited by reachability, not payloads** — the foothold comes from elsewhere; the flat network is what makes it catastrophic.
-2. **Discovery is free on a flat cluster** — cluster DNS and the pod CIDR map every reachable target.
-3. **Egress is the escalation path** — the metadata endpoint and open internet turn a pod foothold into cloud-account theft and exfiltration.
-4. **The control plane is in reach** — API server and kubelet are often just another pod-to-service connection away.
-5. **No identity means impersonation** — without mTLS, network position is treated as authentication, and attackers have that position.
+1. **K07 is exploited by reachability, not payloads** - the foothold comes from elsewhere; the flat network is what makes it catastrophic.
+2. **Discovery is free on a flat cluster** - cluster DNS and the pod CIDR map every reachable target.
+3. **Egress is the escalation path** - the metadata endpoint and open internet turn a pod foothold into cloud-account theft and exfiltration.
+4. **The control plane is in reach** - API server and kubelet are often just another pod-to-service connection away.
+5. **No identity means impersonation** - without mTLS, network position is treated as authentication, and attackers have that position.
 
 ## Next Steps
 

@@ -8,11 +8,11 @@
 
 ## Understanding Design-Level Threats
 
-> **⚠ EDUCATIONAL PURPOSE ONLY** — the abuse scenarios below are shown so you can recognise and design out these weaknesses in systems you own or are authorised to test.
+> **⚠ EDUCATIONAL PURPOSE ONLY** - the abuse scenarios below are shown so you can recognise and design out these weaknesses in systems you own or are authorised to test.
 
-Unlike an implementation bug—where code does something its author did not intend—a **design-level threat** exploits code doing exactly what it was told to do, toward a goal that was never safe. The attacker does not need a clever payload; they need only to use the system in a way the designer never considered but never forbade.
+Unlike an implementation bug-where code does something its author did not intend-a **design-level threat** exploits code doing exactly what it was told to do, toward a goal that was never safe. The attacker does not need a clever payload; they need only to use the system in a way the designer never considered but never forbade.
 
-Addressing security from the start neutralises these threats at the source: the missing control is added to the design, the abuse case is written as a requirement, and the trust boundary is drawn before a single line of code exists. This page catalogs the threat classes C4 is meant to prevent—each is a symptom of security that was *not* addressed from the start.
+Addressing security from the start neutralises these threats at the source: the missing control is added to the design, the abuse case is written as a requirement, and the trust boundary is drawn before a single line of code exists. This page catalogs the threat classes C4 is meant to prevent-each is a symptom of security that was *not* addressed from the start.
 
 ## Why Design Flaws Are Invisible to Tools
 
@@ -27,7 +27,7 @@ Design flaw (tools CANNOT find it):
    Nothing is "wrong" with the code. The REQUIREMENT is missing.
 ```
 
-A scanner has no oracle for "this business rule should exist." That gap is exactly what threat modeling and design review fill—and why the following threats survive even a clean SAST/DAST report.
+A scanner has no oracle for "this business rule should exist." That gap is exactly what threat modeling and design review fill-and why the following threats survive even a clean SAST/DAST report.
 
 ## The Threats This Control Addresses
 
@@ -49,7 +49,7 @@ Content-Type: application/json
 
 ### 2. Missing or Insufficient Security Controls
 
-A needed control—authorization tier, rate limit, ownership check, approval step—was simply never part of the design, so there is nothing to bypass.
+A needed control-authorization tier, rate limit, ownership check, approval step-was simply never part of the design, so there is nothing to bypass.
 
 ```http
 GET /api/invoices/84213 HTTP/1.1
@@ -81,7 +81,7 @@ HTTP/1.1 200 OK   # never proved identity; sequence not enforced
 
 ### 4. Implicit Trust Across Boundaries
 
-Components—services, tiers, or third parties—are designed to trust each other because of where they sit, not because trust was verified.
+Components-services, tiers, or third parties-are designed to trust each other because of where they sit, not because trust was verified.
 
 ```
 # Internal service call, no auth because "it's on the private network":
@@ -110,7 +110,7 @@ POST /api/giftcard/redeem   { "code": "GC-0003" }
 
 ### 6. Trusting Client-Supplied State and Identity
 
-The design lets the client assert facts about itself—role, price, user id, entitlement—that the server accepts without independent proof.
+The design lets the client assert facts about itself-role, price, user id, entitlement-that the server accepts without independent proof.
 
 ```http
 POST /api/order HTTP/1.1
@@ -149,7 +149,7 @@ PATCH /api/users/me HTTP/1.1
 
 ### 9. Ignoring Failure and Abuse Modes
 
-The "happy path" is designed thoroughly while error, retry, race, and partial-failure paths are left to chance—where attackers live.
+The "happy path" is designed thoroughly while error, retry, race, and partial-failure paths are left to chance-where attackers live.
 
 ```
 # Two concurrent redeem requests for a one-time coupon:
@@ -184,15 +184,15 @@ Skippable workflow step (#3)   -> reach fulfillment without payment
         =  inventory drained, revenue lost, zero code-level "bugs"
 ```
 
-Every link in these chains is a decision that was never made—which is precisely what addressing security from the start prevents.
+Every link in these chains is a decision that was never made-which is precisely what addressing security from the start prevents.
 
 ## Key Takeaways
 
-1. **Design threats exploit missing decisions, not broken code**—the system works as built, toward an unsafe goal.
-2. **Scanners are blind to absent controls**—there is no error to detect when a requirement simply does not exist.
-3. **Business logic and trust boundaries are the prime targets**—abuse the sequence, the values, or the implicit trust.
-4. **Client-supplied security state is never trustworthy**—identity and entitlements must be derived server-side.
-5. **Design flaws chain**—several small omissions combine into full compromise, so each must be closed in the design.
+1. **Design threats exploit missing decisions, not broken code**-the system works as built, toward an unsafe goal.
+2. **Scanners are blind to absent controls**-there is no error to detect when a requirement simply does not exist.
+3. **Business logic and trust boundaries are the prime targets**-abuse the sequence, the values, or the implicit trust.
+4. **Client-supplied security state is never trustworthy**-identity and entitlements must be derived server-side.
+5. **Design flaws chain**-several small omissions combine into full compromise, so each must be closed in the design.
 
 ## Next Steps
 

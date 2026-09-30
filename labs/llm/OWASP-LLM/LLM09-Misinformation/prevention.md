@@ -2,14 +2,14 @@
 
 ## Table of Contents
 - [Defense Strategy: Ground, Verify, Oversee](#defense-strategy-ground-verify-oversee)
-- [Layer 1 — Retrieval-Augmented Grounding](#layer-1--retrieval-augmented-grounding)
-- [Layer 2 — Citation & Source Verification](#layer-2--citation--source-verification)
-- [Layer 3 — Cross-Verification & Self-Consistency](#layer-3--cross-verification--self-consistency)
-- [Layer 4 — Output Constraint & Validation](#layer-4--output-constraint--validation)
-- [Layer 5 — Generated Code & Dependency Validation](#layer-5--generated-code--dependency-validation)
-- [Layer 6 — Human Oversight for High-Stakes Domains](#layer-6--human-oversight-for-high-stakes-domains)
-- [Layer 7 — UX, Uncertainty & User Training](#layer-7--ux-uncertainty--user-training)
-- [Layer 8 — Monitoring & Feedback](#layer-8--monitoring--feedback)
+- [Layer 1 - Retrieval-Augmented Grounding](#layer-1--retrieval-augmented-grounding)
+- [Layer 2 - Citation & Source Verification](#layer-2--citation--source-verification)
+- [Layer 3 - Cross-Verification & Self-Consistency](#layer-3--cross-verification--self-consistency)
+- [Layer 4 - Output Constraint & Validation](#layer-4--output-constraint--validation)
+- [Layer 5 - Generated Code & Dependency Validation](#layer-5--generated-code--dependency-validation)
+- [Layer 6 - Human Oversight for High-Stakes Domains](#layer-6--human-oversight-for-high-stakes-domains)
+- [Layer 7 - UX, Uncertainty & User Training](#layer-7--ux-uncertainty--user-training)
+- [Layer 8 - Monitoring & Feedback](#layer-8--monitoring--feedback)
 - [Defense Checklist](#defense-checklist)
 - [Next Steps](#next-steps)
 
@@ -18,7 +18,7 @@
 Because misinformation cannot be eliminated at the model level, prevention is about **containment through layers**. No single control is sufficient; each layer catches what the previous one missed. The layers fall into three jobs:
 
 - **Ground** the generation in trusted data so the model has less reason to fabricate (Layers 1–2).
-- **Verify** outputs against reality before they are used — citations, consistency, schemas, dependencies (Layers 3–5).
+- **Verify** outputs against reality before they are used - citations, consistency, schemas, dependencies (Layers 3–5).
 - **Oversee** with humans and honest UX so that whatever slips through meets a skeptical, informed consumer (Layers 6–8).
 
 ```
@@ -36,9 +36,9 @@ Untrusted free-form generation
    Trustworthy, contained output
 ```
 
-## Layer 1 — Retrieval-Augmented Grounding
+## Layer 1 - Retrieval-Augmented Grounding
 
-The single most effective control. Instead of answering from parametric memory, retrieve relevant passages from a **trusted, curated source** and instruct the model to answer *only* from that context — and to refuse when the context does not contain the answer.
+The single most effective control. Instead of answering from parametric memory, retrieve relevant passages from a **trusted, curated source** and instruct the model to answer *only* from that context - and to refuse when the context does not contain the answer.
 
 ```python
 SYSTEM_PROMPT = """You answer strictly from the CONTEXT provided.
@@ -64,9 +64,9 @@ def answer(question: str) -> dict:
     return {"answer": resp.text, "sources": [c.id for c in chunks]}
 ```
 
-**Key points**: enforce a *relevance floor* (`min_score`) so weak retrieval triggers a refusal rather than a guess; keep `temperature=0` for factual tasks; and make "I don't know" an explicit, rewarded output. Grounding is a strong control, not a cure — combine it with the verification layers below.
+**Key points**: enforce a *relevance floor* (`min_score`) so weak retrieval triggers a refusal rather than a guess; keep `temperature=0` for factual tasks; and make "I don't know" an explicit, rewarded output. Grounding is a strong control, not a cure - combine it with the verification layers below.
 
-## Layer 2 — Citation & Source Verification
+## Layer 2 - Citation & Source Verification
 
 Never let a model-produced citation reach the user unverified. Require the model to cite **source IDs from the retrieved context** (which you control), then programmatically confirm each cited ID exists and actually supports the claim.
 
@@ -91,7 +91,7 @@ def citation_resolves(url: str) -> bool:
 
 The principle: a citation is only evidence if *you* retrieved and checked it. Resolving DOIs/URLs and matching claims to source text turns "looks cited" into "is supported."
 
-## Layer 3 — Cross-Verification & Self-Consistency
+## Layer 3 - Cross-Verification & Self-Consistency
 
 For high-value factual outputs, sample the model multiple times (or with multiple models) and keep only claims that are stable across runs. Divergence is a strong signal of fabrication.
 
@@ -109,9 +109,9 @@ def self_consistent_answer(question: str, n: int = 5) -> dict:
     return {"answer": samples[key.index(winner)], "confidence": confidence}
 ```
 
-A second pattern is an **LLM verifier**: a separate call asks "Is every claim in this answer supported by this context? List unsupported claims." Treat any unsupported claim as blocking. (Remember the verifier can also err — use it to *flag*, not to bless.)
+A second pattern is an **LLM verifier**: a separate call asks "Is every claim in this answer supported by this context? List unsupported claims." Treat any unsupported claim as blocking. (Remember the verifier can also err - use it to *flag*, not to bless.)
 
-## Layer 4 — Output Constraint & Validation
+## Layer 4 - Output Constraint & Validation
 
 The less free-form the output, the less room to fabricate. Where the valid answers are knowable, constrain the model to them and validate before use.
 
@@ -142,9 +142,9 @@ class OrderAnswer(BaseModel):
 answer = OrderAnswer.model_validate_json(model_output)
 ```
 
-Techniques: JSON-schema / structured-output modes, allow-lists and enumerations, grammar-constrained decoding, and — critically — checking IDs and entities against the *real* system of record rather than trusting the model's word that they exist.
+Techniques: JSON-schema / structured-output modes, allow-lists and enumerations, grammar-constrained decoding, and - critically - checking IDs and entities against the *real* system of record rather than trusting the model's word that they exist.
 
-## Layer 5 — Generated Code & Dependency Validation
+## Layer 5 - Generated Code & Dependency Validation
 
 This is where misinformation becomes a supply-chain security control. **Before any AI-suggested dependency is installed, confirm it exists, is not a look-alike, and is the intended project.** This directly defeats slopsquatting and connects to LLM05 (validate generated output before downstream use).
 
@@ -166,7 +166,7 @@ def vet_pypi_package(name: str) -> None:
     age_days = (datetime.now(timezone.utc) - first).days
     if age_days < 90:
         raise DependencyError(f"Package {name} is very new ({age_days}d) "
-                              "— verify before use (possible slopsquat)")
+                              "- verify before use (possible slopsquat)")
 
     # 3. Must be on the approved allow-list / private index for prod use.
     if name not in APPROVED_DEPENDENCIES:
@@ -183,7 +183,7 @@ Operational rules that make this robust:
 - **Run SCA / provenance checks** (e.g. signature or attestation verification) in CI, and diff new dependencies in review.
 - **Validate the code itself**: lint, type-check, run SAST, and confirm that any security-relevant API/flag the model used actually exists and does what was claimed.
 
-## Layer 6 — Human Oversight for High-Stakes Domains
+## Layer 6 - Human Oversight for High-Stakes Domains
 
 In legal, medical, financial, and safety contexts, no automated control substitutes for a qualified human. Route high-stakes outputs to **mandatory expert review** and make the AI's role explicitly advisory.
 
@@ -199,19 +199,19 @@ def deliver(answer: dict, domain: str, confidence: float) -> dict:
     if needs_review:
         review_queue.enqueue(answer)           # human-in-the-loop gate
         return {"status": "pending_expert_review",
-                "note": "AI draft — not yet verified by a professional"}
+                "note": "AI draft - not yet verified by a professional"}
     return {"status": "delivered", **answer}
 ```
 
 Design the workflow so the human is a *reviewer of evidence*, not a rubber stamp: show the sources, highlight unsupported claims, and make "reject" as easy as "approve" to counter automation bias.
 
-## Layer 7 — UX, Uncertainty & User Training
+## Layer 7 - UX, Uncertainty & User Training
 
 Overreliance is defeated in the interface. The UI must actively discourage blind trust rather than reinforce it with a confident tone.
 
 - **Communicate limitations**: a persistent, honest notice that answers may be wrong and should be verified for important decisions.
 - **Surface sources inline**: link the exact passage each claim rests on, so verification is one click away.
-- **Show uncertainty**: when confidence or retrieval score is low, say so — "I'm not sure" beats a confident guess.
+- **Show uncertainty**: when confidence or retrieval score is low, say so - "I'm not sure" beats a confident guess.
 - **Avoid false-authority styling**: don't dress unverified output in the visual language of certified fact.
 - **Provide friction for high-stakes actions**: require explicit acknowledgement before AI output drives a consequential step.
 
@@ -228,11 +228,11 @@ def render(answer: dict) -> dict:
 
 **User training** is the human complement: teach staff that models hallucinate, that fluency is not accuracy, and that citations, code, and dependencies must be checked. A trained, skeptical user is the last and often best line of defense.
 
-## Layer 8 — Monitoring & Feedback
+## Layer 8 - Monitoring & Feedback
 
 Treat misinformation as an ongoing quality-and-security signal, not a one-time fix.
 
-- **Log** question, retrieved sources, answer, cited IDs, confidence, and whether it was human-reviewed — so failures are reproducible and auditable.
+- **Log** question, retrieved sources, answer, cited IDs, confidence, and whether it was human-reviewed - so failures are reproducible and auditable.
 - **Track** refusal rate, citation-validation failures, and dependency-vetting rejections as leading indicators.
 - **Collect user feedback** ("was this accurate?") and route corrections back into the trusted corpus and evals.
 - **Red-team regularly** with prompts designed to elicit fabrication (recent events, obscure facts, "cite sources," "which package should I install") and measure the hallucination rate over time.

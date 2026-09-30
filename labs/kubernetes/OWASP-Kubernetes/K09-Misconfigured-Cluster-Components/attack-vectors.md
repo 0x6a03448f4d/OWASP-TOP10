@@ -8,9 +8,9 @@
 
 ## Understanding Component Attack Vectors
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in clusters you own or are authorised to test. Probing someone else's control plane is an intrusion.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in clusters you own or are authorised to test. Probing someone else's control plane is an intrusion.
 
-Attacking misconfigured components is rarely about a crafted exploit. It is about **reaching a control surface and asking it politely**. Because Kubernetes components authenticate and authorize *themselves*, a single knob left at an insecure value—anonymous auth, `AlwaysAllow`, a plaintext etcd port—means the surface answers to anyone who can route a packet to it. The attacker's whole job becomes discovery plus a well-formed request.
+Attacking misconfigured components is rarely about a crafted exploit. It is about **reaching a control surface and asking it politely**. Because Kubernetes components authenticate and authorize *themselves*, a single knob left at an insecure value-anonymous auth, `AlwaysAllow`, a plaintext etcd port-means the surface answers to anyone who can route a packet to it. The attacker's whole job becomes discovery plus a well-formed request.
 
 The attacker's goal in this category is usually one of:
 - Reach an API server, kubelet, or etcd that does not require real authentication or authorization.
@@ -55,7 +55,7 @@ HTTP/1.1 200 OK        # pods listed with no credentials
 curl http://TARGET:8080/api/v1/secrets   # no TLS, no auth, no authz
 ```
 
-**Payoff**: with `--insecure-port` or `AlwaysAllow`, the anonymous caller is effectively cluster-admin—read Secrets, create workloads, done.
+**Payoff**: with `--insecure-port` or `AlwaysAllow`, the anonymous caller is effectively cluster-admin-read Secrets, create workloads, done.
 
 ### 2. Unauthenticated Kubelet Code Execution (port 10250)
 
@@ -72,7 +72,7 @@ curl -sk -X POST \
 # -> uid=0(root) ... command runs inside the container
 ```
 
-**Payoff**: direct remote code execution on the node's workloads—then read every mounted Secret and service-account token from inside.
+**Payoff**: direct remote code execution on the node's workloads-then read every mounted Secret and service-account token from inside.
 
 ### 3. Read-Only Kubelet Port Disclosure (port 10255)
 
@@ -87,7 +87,7 @@ GET http://NODE:10255/spec     # node/cAdvisor spec
 # tokens, connection strings, and injected secrets.
 ```
 
-**Payoff**: no code execution needed—secrets and internal topology leak straight out of the pod specs.
+**Payoff**: no code execution needed-secrets and internal topology leak straight out of the pod specs.
 
 ### 4. Exposed etcd Dumping All Secrets
 
@@ -105,11 +105,11 @@ etcdctl --endpoints=http://TARGET:2379 \
 etcdctl --endpoints=http://TARGET:2379 snapshot save cluster.db
 ```
 
-**Payoff**: every Secret in the cluster—database passwords, TLS keys, tokens—especially where encryption-at-rest is not configured.
+**Payoff**: every Secret in the cluster-database passwords, TLS keys, tokens-especially where encryption-at-rest is not configured.
 
 ### 5. Scheduling a Malicious Pod via a Reachable API Server
 
-If the reachable API server authorizes pod creation, the attacker schedules their own workload—typically a privileged pod that mounts the host.
+If the reachable API server authorizes pod creation, the attacker schedules their own workload-typically a privileged pod that mounts the host.
 
 ```
 POST /api/v1/namespaces/default/pods
@@ -127,7 +127,7 @@ POST /api/v1/namespaces/default/pods
 # chroot /host  ->  full node compromise
 ```
 
-**Payoff**: node takeover via a host-mounting privileged pod—the API server did the scheduling for them.
+**Payoff**: node takeover via a host-mounting privileged pod-the API server did the scheduling for them.
 
 ### 6. Exposed Component Metrics and Debug Endpoints
 
@@ -177,7 +177,7 @@ With no audit policy, none of the requests above are recorded.
 #   defenders cannot scope the breach; attacker operates unseen
 ```
 
-**Payoff**: not an entry point but a force multiplier—the attacker's actions leave no trail, so detection and response fail.
+**Payoff**: not an entry point but a force multiplier-the attacker's actions leave no trail, so detection and response fail.
 
 ## Chaining Component Misconfigurations
 
@@ -221,11 +221,11 @@ Audit disabled
 
 ## Key Takeaways
 
-1. **Components authenticate themselves**—a single insecure knob (anonymous auth, `AlwaysAllow`, plaintext etcd) opens the door with no exploit.
-2. **The kubelet is a direct RCE surface**—an open `10250` means running commands inside your containers.
-3. **etcd is one command from every Secret**—without mTLS and encryption-at-rest, the whole cluster's credentials leak at once.
-4. **Small foothold + missing admission plugins = lateral movement**—`NodeRestriction` and `PodSecurity` are the guardrails that contain a single-node compromise.
-5. **Disabled audit blinds the defender**—it turns an incident into an invisible one.
+1. **Components authenticate themselves**-a single insecure knob (anonymous auth, `AlwaysAllow`, plaintext etcd) opens the door with no exploit.
+2. **The kubelet is a direct RCE surface**-an open `10250` means running commands inside your containers.
+3. **etcd is one command from every Secret**-without mTLS and encryption-at-rest, the whole cluster's credentials leak at once.
+4. **Small foothold + missing admission plugins = lateral movement**-`NodeRestriction` and `PodSecurity` are the guardrails that contain a single-node compromise.
+5. **Disabled audit blinds the defender**-it turns an incident into an invisible one.
 
 ## Next Steps
 

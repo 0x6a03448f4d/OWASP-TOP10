@@ -4,17 +4,17 @@
 
 Preventing this risk is less about any single control and more about **replacing frictionless, permanent trust with a governed lifecycle**:
 
-1. Know what you have—maintain an inventory of every third-party integration.
-2. Gate what gets added—require approval and security review to onboard.
-3. Grant the minimum—least-privilege scopes, short-lived where possible.
-4. Pin and allow-list executable components—immutable references, org policy.
-5. Review and revoke continuously—access has an expiry, not a lifetime.
-6. Monitor and contain—log third-party activity and limit blast radius.
+1. Know what you have-maintain an inventory of every third-party integration.
+2. Gate what gets added-require approval and security review to onboard.
+3. Grant the minimum-least-privilege scopes, short-lived where possible.
+4. Pin and allow-list executable components-immutable references, org policy.
+5. Review and revoke continuously-access has an expiry, not a lifetime.
+6. Monitor and contain-log third-party activity and limit blast radius.
 
 ### Core Principles
 
-- **Govern the lifecycle, not the moment**: onboarding, scoping, review, and offboarding are all required—authorizing once is not governance.
-- **Least privilege by default**: every scope, repo, and permission a third party holds is attack surface—grant the minimum and read-only where possible.
+- **Govern the lifecycle, not the moment**: onboarding, scoping, review, and offboarding are all required-authorizing once is not governance.
+- **Least privilege by default**: every scope, repo, and permission a third party holds is attack surface-grant the minimum and read-only where possible.
 - **Immutable and allow-listed**: anything that executes in your pipeline is pinned to a commit and permitted by explicit policy.
 - **Assume breach**: design so that a compromise of any single third party is contained, detected, and recoverable.
 
@@ -23,7 +23,7 @@ Preventing this risk is less about any single control and more about **replacing
 You cannot govern what you cannot see. Enumerate every external identity with access and give each a named owner and a reason to exist.
 
 ```yaml
-# third-party-inventory.yaml (excerpt) — reviewed, versioned, owned
+# third-party-inventory.yaml (excerpt) - reviewed, versioned, owned
 integrations:
   - name: coverage-uploader
     type: saas-token
@@ -62,7 +62,7 @@ Restrict who can authorize third-party Apps/OAuth in the org so approval cannot 
 
 ## 3. Least-Privilege Scopes for Apps, OAuth, and Tokens
 
-Grant the narrowest access that works—specific repositories, minimal permissions, read-only wherever the feature allows.
+Grant the narrowest access that works-specific repositories, minimal permissions, read-only wherever the feature allows.
 
 ```yaml
 # WRONG: org-wide, read/write, "to be safe"
@@ -83,7 +83,7 @@ Prefer short-lived, workload-scoped credentials over long-lived personal access 
 
 ## 4. Pin Third-Party Actions and Plugins by Commit SHA
 
-A tag or branch is mutable and can be repointed to malicious code. A full commit SHA is immutable—pin to it.
+A tag or branch is mutable and can be repointed to malicious code. A full commit SHA is immutable-pin to it.
 
 ```yaml
 # WRONG: mutable references you do not control
@@ -135,7 +135,7 @@ def review_integrations(inventory, platform_grants, activity_log):
             flag(grant, "REVIEW OVERDUE")
 ```
 
-Tie integration ownership to the offboarding process so that when a person or project goes away, their grants, tokens, and bots are revoked—not left behind.
+Tie integration ownership to the offboarding process so that when a person or project goes away, their grants, tokens, and bots are revoked-not left behind.
 
 ## 7. Govern Webhooks and Data Flows
 
@@ -185,7 +185,7 @@ Also alert on: a token used from a new IP/geography, an integration suddenly tou
 
 ## 10. Prefer First-Party and Verified, Minimize Count
 
-- Every integration is standing risk—periodically ask whether each is still worth it, and remove marginal ones.
+- Every integration is standing risk-periodically ask whether each is still worth it, and remove marginal ones.
 - Prefer first-party/official components and verified publishers over anonymous marketplace entries.
 - Consolidate overlapping tools so you govern a small, well-understood set rather than a sprawling long tail.
 
@@ -202,11 +202,11 @@ Also alert on: a token used from a new IP/geography, an integration suddenly tou
 
 ## Key Takeaways
 
-1. **Inventory first** — a complete, owned list of who-has-access is the foundation of every other control.
-2. **Gate onboarding** — approval and security review stop over-scoped, unvetted integrations before they exist.
-3. **Least privilege and short-lived** — narrow scopes and OIDC credentials shrink what any grant is worth.
-4. **Pin and allow-list** — immutable SHAs and org policy keep malicious or hijacked components out of your runners.
-5. **Review, monitor, and assume breach** — revoke the stale, watch the active, and contain the blast radius of the inevitable vendor compromise.
+1. **Inventory first** - a complete, owned list of who-has-access is the foundation of every other control.
+2. **Gate onboarding** - approval and security review stop over-scoped, unvetted integrations before they exist.
+3. **Least privilege and short-lived** - narrow scopes and OIDC credentials shrink what any grant is worth.
+4. **Pin and allow-list** - immutable SHAs and org policy keep malicious or hijacked components out of your runners.
+5. **Review, monitor, and assume breach** - revoke the stale, watch the active, and contain the blast radius of the inevitable vendor compromise.
 
 ## Next Steps
 

@@ -14,7 +14,7 @@ Preventing misconfiguration is less about a single control and more about **maki
 
 - **Secure by default**: the deployed default must be the safe one; opting *out* of a control should be explicit and rare.
 - **Repeatable, not hand-tuned**: codify configuration so it is identical everywhere and reviewable in version control.
-- **Least functionality**: every enabled feature, method, port, and account is attack surface—remove what you don't need.
+- **Least functionality**: every enabled feature, method, port, and account is attack surface-remove what you don't need.
 - **Fail closed and quiet**: on error, deny access and return a generic message; log the detail server-side only.
 
 ## 1. Repeatable Hardening Baseline
@@ -22,7 +22,7 @@ Preventing misconfiguration is less about a single control and more about **maki
 Treat configuration as code. Capture the intended secure state and apply it identically to every environment.
 
 ```yaml
-# hardening-baseline.yaml (excerpt) — reviewed, versioned, applied by CI/CD
+# hardening-baseline.yaml (excerpt) - reviewed, versioned, applied by CI/CD
 app:
   debug: false
   detailed_errors: false
@@ -98,7 +98,7 @@ Remove sample apps, seeded accounts, unused packages from base images, and any s
 
 ## 4. Security Headers on Every Response
 
-Set headers centrally (middleware or the edge proxy) so they apply uniformly—including on error and redirect responses.
+Set headers centrally (middleware or the edge proxy) so they apply uniformly-including on error and redirect responses.
 
 ```http
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
@@ -205,7 +205,7 @@ Automate certificate issuance and renewal (ACME/Let's Encrypt) so certificates n
 
 - Remove every default and sample account before go-live.
 - Generate strong, unique credentials per environment; never commit them.
-- Store secrets in a manager (Vault, AWS Secrets Manager, cloud KMS) and inject at runtime—never bake them into images or config files.
+- Store secrets in a manager (Vault, AWS Secrets Manager, cloud KMS) and inject at runtime-never bake them into images or config files.
 
 ```bash
 # Reject secrets in the repo at commit time
@@ -262,7 +262,7 @@ app.disable('x-powered-by');              // remove the Express banner
 app.use(helmet());
 app.use(express.json({ limit: '100kb' })); // bound request size
 
-// Central error handler — no stack traces to the client
+// Central error handler - no stack traces to the client
 app.use((err, req, res, next) => {
   console.error(err);                      // server log only
   res.status(500).json({ error: 'Internal server error' });
@@ -271,11 +271,11 @@ app.use((err, req, res, next) => {
 
 ## Key Takeaways
 
-1. **Codify the baseline** — configuration as code applied identically everywhere beats hand-tuning.
-2. **Automate the gate** — scan IaC, images, headers, and TLS on every deploy so drift fails fast.
-3. **Disable by default** — unused methods, endpoints, accounts, and packages are pure attack surface.
-4. **Be deliberate about the big four** — errors, headers, CORS, and TLS are where most API08 findings live.
-5. **Patch and watch** — keep components current and alert on recon and configuration drift.
+1. **Codify the baseline** - configuration as code applied identically everywhere beats hand-tuning.
+2. **Automate the gate** - scan IaC, images, headers, and TLS on every deploy so drift fails fast.
+3. **Disable by default** - unused methods, endpoints, accounts, and packages are pure attack surface.
+4. **Be deliberate about the big four** - errors, headers, CORS, and TLS are where most API08 findings live.
+5. **Patch and watch** - keep components current and alert on recon and configuration drift.
 
 ## Next Steps
 

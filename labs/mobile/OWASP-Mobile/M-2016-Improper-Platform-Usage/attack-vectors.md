@@ -8,9 +8,9 @@
 
 ## Understanding Platform-Misuse Attack Vectors
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in apps you own or are authorised to test.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in apps you own or are authorised to test.
 
-Improper Platform Usage is rarely exploited by a remote payload. It is exploited by an attacker who **already has a foothold on the device**—a malicious app installed alongside yours, a rooted/jailbroken handset, a lost or stolen phone, or a backup pulled off a laptop. From that position the attacker simply uses the doors the app left open: an exported component, a plaintext token file, a biometric callback with nothing behind it.
+Improper Platform Usage is rarely exploited by a remote payload. It is exploited by an attacker who **already has a foothold on the device**-a malicious app installed alongside yours, a rooted/jailbroken handset, a lost or stolen phone, or a backup pulled off a laptop. From that position the attacker simply uses the doors the app left open: an exported component, a plaintext token file, a biometric callback with nothing behind it.
 
 The attacker's goal in this category is usually one of:
 
@@ -70,7 +70,7 @@ outer.putExtra("next", inner)
 startActivity(outer)
 ```
 
-**Payoff**: access to non-exported, protected components via the vulnerable app—the classic confused-deputy escalation.
+**Payoff**: access to non-exported, protected components via the vulnerable app-the classic confused-deputy escalation.
 
 ### 3. Reading Secrets from Insecure Storage
 
@@ -86,11 +86,11 @@ adb shell run-as com.victim.app cat \
 plutil -p ~/Library/.../com.victim.app/Library/Preferences/com.victim.app.plist
 ```
 
-**Payoff**: session tokens, API keys, and PII recovered with a file read—no exploit, no network.
+**Payoff**: session tokens, API keys, and PII recovered with a file read-no exploit, no network.
 
 ### 4. Extracting Data via Backups
 
-If backup flags are permissive, the attacker never needs root—just the device unlocked once, or an existing backup.
+If backup flags are permissive, the attacker never needs root-just the device unlocked once, or an existing backup.
 
 ```bash
 # Android: allowBackup=true lets adb pull an app backup
@@ -146,7 +146,7 @@ tcpdump -i any -A 'tcp port 80'
 # weak TLS / self-signed certs the platform would normally reject.
 ```
 
-**Payoff**: credential and data interception, response tampering, and downgrade—because the platform's transport guardrail was switched off.
+**Payoff**: credential and data interception, response tampering, and downgrade-because the platform's transport guardrail was switched off.
 
 ### 8. Harvesting the Clipboard / Pasteboard
 
@@ -185,7 +185,7 @@ A malicious overlay draws on top of the victim app so the user's taps land on hi
 // "Confirm transfer" / "Grant permission" button underneath.
 ```
 
-**Payoff**: the user is tricked into confirming privileged actions—mitigated by `filterTouchesWhenObscured`, which the vulnerable app did not set.
+**Payoff**: the user is tricked into confirming privileged actions-mitigated by `filterTouchesWhenObscured`, which the vulnerable app did not set.
 
 ## Chaining Platform Misuse
 
@@ -211,11 +211,11 @@ Exported Router Activity          -> accept an attacker-supplied Intent
 
 ## Key Takeaways
 
-1. **The attacker starts on the device**—co-located apps, root, theft, and backups are the threat model, not a remote payload.
-2. **Exported components and forwarded Intents are prime targets**—anything reachable by other apps must assume a hostile caller.
-3. **Insecure storage and permissive backups are free loot**—plaintext secrets are read directly, no exploit needed.
-4. **Controls built against the platform fall to a hook**—a biometric gate with no key, or a WebView bridge, is bypassed with one line of instrumentation.
-5. **Small issues chain**—a backup flag plus a plaintext token plus a replayable session equals account takeover.
+1. **The attacker starts on the device**-co-located apps, root, theft, and backups are the threat model, not a remote payload.
+2. **Exported components and forwarded Intents are prime targets**-anything reachable by other apps must assume a hostile caller.
+3. **Insecure storage and permissive backups are free loot**-plaintext secrets are read directly, no exploit needed.
+4. **Controls built against the platform fall to a hook**-a biometric gate with no key, or a WebView bridge, is bypassed with one line of instrumentation.
+5. **Small issues chain**-a backup flag plus a plaintext token plus a replayable session equals account takeover.
 
 ## Next Steps
 

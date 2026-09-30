@@ -10,9 +10,9 @@
 
 ## What is Broken Authentication in Serverless?
 
-**Broken Authentication** in a serverless application is the failure to consistently and correctly verify *who* (or *what*) is invoking a function, across *every* way that function can be reached. It is not a single missing login form—it is the gap that opens when a highly distributed, stateless collection of functions is protected in some places and left open in others.
+**Broken Authentication** in a serverless application is the failure to consistently and correctly verify *who* (or *what*) is invoking a function, across *every* way that function can be reached. It is not a single missing login form-it is the gap that opens when a highly distributed, stateless collection of functions is protected in some places and left open in others.
 
-Traditional applications have a small number of entry points, usually funnelled through one web server and one authentication layer. Serverless flips that model: an application is a **fleet of small, independently deployable functions**, and each function can be triggered by many different event sources—an API Gateway request, a public Function URL, an S3 object-created event, an SNS or SQS message, an EventBridge rule, a DynamoDB stream, a scheduled timer, or a direct SDK `Invoke` call. Authentication that is enforced at the front-door API Gateway does *nothing* for a function reached through any of the other doors.
+Traditional applications have a small number of entry points, usually funnelled through one web server and one authentication layer. Serverless flips that model: an application is a **fleet of small, independently deployable functions**, and each function can be triggered by many different event sources-an API Gateway request, a public Function URL, an S3 object-created event, an SNS or SQS message, an EventBridge rule, a DynamoDB stream, a scheduled timer, or a direct SDK `Invoke` call. Authentication that is enforced at the front-door API Gateway does *nothing* for a function reached through any of the other doors.
 
 ### Core Concept
 
@@ -38,7 +38,7 @@ Broken Authentication:
 
 Serverless architecture concentrates several conditions that make authentication uniquely hard to get right:
 
-- It is **many-entry-point by design**. Every function is an independently reachable unit, and a single application can expose dozens of them through a mix of trigger types—so "we put auth on the API" covers only a fraction of the attack surface.
+- It is **many-entry-point by design**. Every function is an independently reachable unit, and a single application can expose dozens of them through a mix of trigger types-so "we put auth on the API" covers only a fraction of the attack surface.
 - It is **stateless**. There is no long-lived server session to lean on; identity must be re-established on every invocation, and any function that skips that step is unprotected.
 - It **blurs the trust boundary**. Functions triggered by S3, SNS, SQS, or EventBridge feel "internal," but those event sources can be influenced by attacker-controlled input (an uploaded object, a crafted message, a forwarded event), so "internal" is not the same as "authenticated."
 - It is **ephemeral and fragmented**. Functions are deployed, renamed, and duplicated rapidly. It is easy for one function in a large fleet to ship with `AuthType: NONE`, an unfinished authorizer, or a copy-pasted weak token check that never gets reviewed.
@@ -47,7 +47,7 @@ Serverless architecture concentrates several conditions that make authentication
 
 ### Business Impact
 
-- **Unauthorized Privileged Actions**: An attacker who reaches a function through an unauthenticated trigger can invoke privileged business logic—issue refunds, change roles, export data—without ever logging in.
+- **Unauthorized Privileged Actions**: An attacker who reaches a function through an unauthenticated trigger can invoke privileged business logic-issue refunds, change roles, export data-without ever logging in.
 - **Data Exposure**: Functions that read from databases or object storage, if reachable without authentication, become open data endpoints.
 - **Account Takeover**: Weak custom auth and broken token validation let attackers forge or replay identity and act as other users.
 - **Regulatory and Contractual Fallout**: Unauthenticated access to personal data triggers GDPR, HIPAA, and PCI-DSS obligations, fines, and breach notification duties.
@@ -68,12 +68,12 @@ Serverless architecture concentrates several conditions that make authentication
 #### 1. Public Function URL with No Auth
 
 ```yaml
-# serverless.yml — a Lambda exposed directly to the internet
+# serverless.yml - a Lambda exposed directly to the internet
 functions:
   adminReport:
     handler: handler.adminReport
     url:
-      authorizer: none        # AuthType: NONE — anyone with the URL invokes it
+      authorizer: none        # AuthType: NONE - anyone with the URL invokes it
 ```
 
 The function is now a public HTTPS endpoint. It never passes through API Gateway, so any authorizer configured there is irrelevant.
@@ -139,7 +139,7 @@ https://abc123def456.lambda-url.us-east-1.on.aws/
 
 **Broken Authentication**:
 - Lambda Function URLs (and equivalent direct HTTP triggers on other clouds) are created with the auth type set to none, often for quick testing, and then left that way.
-- The function performs privileged work—reading records, generating reports, mutating state—on the assumption it sits behind the gateway.
+- The function performs privileged work-reading records, generating reports, mutating state-on the assumption it sits behind the gateway.
 
 **Impact**:
 - Anyone who discovers or guesses the URL invokes the function directly, with no credentials, bypassing every gateway control.
@@ -153,7 +153,7 @@ https://abc123def456.lambda-url.us-east-1.on.aws/
 - The underlying source (an upload bucket, a topic a partner can publish to, a queue fed by another system) is influenced by untrusted actors.
 
 **Impact**:
-- Attacker-controlled content flows into privileged logic—processing malicious files, acting on forged message fields, or amplifying downstream calls—without any authenticated identity behind it.
+- Attacker-controlled content flows into privileged logic-processing malicious files, acting on forged message fields, or amplifying downstream calls-without any authenticated identity behind it.
 
 **Root Cause**: Conflating "the trigger is an AWS service" with "the actor is authenticated and authorized." The event source is transport, not identity.
 
@@ -174,11 +174,11 @@ Broken Authentication sits at the top of the OWASP Serverless concerns precisely
 
 Rather than cite precise counts (which vary by source), the defensible picture is:
 
-- The failure is characterised as **common and easy to introduce**—a single function shipped with `AuthType: NONE` or a decode-only token check is enough.
+- The failure is characterised as **common and easy to introduce**-a single function shipped with `AuthType: NONE` or a decode-only token check is enough.
 - The most commonly observed sub-issues are **entry points that bypass the gateway, event triggers trusted as "internal," inconsistent enforcement across the fleet, and incomplete token validation**.
 - The impact is rated **high**: it ranges from unauthorized data access to full impersonation and privileged action with no login.
 
-> Note: exact percentages differ between reports and years. The durable takeaway is that in serverless the hard part is not *having* authentication—it is enforcing it *consistently at every one of many entry points*.
+> Note: exact percentages differ between reports and years. The durable takeaway is that in serverless the hard part is not *having* authentication-it is enforcing it *consistently at every one of many entry points*.
 
 ## Common Misunderstandings
 
@@ -217,19 +217,19 @@ Rather than cite precise counts (which vary by source), the defensible picture i
 
 ## Key Takeaways
 
-1. **Authentication must hold at every entry point**—the gateway is one door of many; Function URLs, direct invokes, and event triggers are the others.
-2. **"Internal" is not "authenticated"**—event sources carry untrusted input and prove nothing about the actor.
-3. **Centralise identity**—one provider and a consistently applied authorizer beat per-function improvisation.
-4. **Verify tokens fully**—signature, expiry, audience, and issuer, every time; decoding is not verifying.
-5. **Assume each function is directly reachable**—and authenticate it as if it is, backed by least-privilege roles so an unauthenticated call can do little.
+1. **Authentication must hold at every entry point**-the gateway is one door of many; Function URLs, direct invokes, and event triggers are the others.
+2. **"Internal" is not "authenticated"**-event sources carry untrusted input and prove nothing about the actor.
+3. **Centralise identity**-one provider and a consistently applied authorizer beat per-function improvisation.
+4. **Verify tokens fully**-signature, expiry, audience, and issuer, every time; decoding is not verifying.
+5. **Assume each function is directly reachable**-and authenticate it as if it is, backed by least-privilege roles so an unauthenticated call can do little.
 
 ## How to Identify if You're Vulnerable
 
 - [ ] Have you enumerated *every* trigger for *every* function (gateway, URL, S3, SNS, SQS, EventBridge, streams, schedules, direct invoke)?
-- [ ] Is authentication enforced on each of those entry points—not just the API Gateway?
+- [ ] Is authentication enforced on each of those entry points-not just the API Gateway?
 - [ ] Are there any Function URLs with `AuthType: NONE` that reach privileged logic?
 - [ ] Do event-triggered functions treat their input as untrusted rather than "internal"?
-- [ ] Are tokens verified for signature, expiry, audience, and issuer—not merely decoded?
+- [ ] Are tokens verified for signature, expiry, audience, and issuer-not merely decoded?
 - [ ] Do you rely on a central identity provider (e.g. Cognito) instead of per-function custom checks?
 - [ ] Are service-to-service calls signed (IAM/SigV4) with least-privilege roles?
 - [ ] Are tokens short-lived and rotated, with no long-lived shared secrets baked in?

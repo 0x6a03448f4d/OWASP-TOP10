@@ -7,7 +7,7 @@
 
 ## What This Control Defends Against
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can understand what *Secure Digital Identities* mitigates and verify it in systems you own or are authorised to test.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can understand what *Secure Digital Identities* mitigates and verify it in systems you own or are authorised to test.
 
 This control exists to close a specific family of weaknesses that OWASP groups under **A07:2021 – Identification and Authentication Failures**. Each threat below is paired with the part of the control that neutralises it. Read this page as "here is the attack, and here is why the defense removes it."
 
@@ -15,7 +15,7 @@ This control exists to close a specific family of weaknesses that OWASP groups u
 
 ### 1. Credential Stuffing
 
-Attackers replay username/password pairs harvested from other breaches, exploiting password reuse. It needs no cleverness — only volume and a login endpoint that answers unlimited attempts.
+Attackers replay username/password pairs harvested from other breaches, exploiting password reuse. It needs no cleverness - only volume and a login endpoint that answers unlimited attempts.
 
 ```python
 # Automated replay of leaked pairs against the login API
@@ -29,7 +29,7 @@ for user, pw in leaked_pairs:            # millions of pairs
 
 ### 2. Brute Force / Password Guessing
 
-Where stuffing reuses known passwords, brute force generates them — against a single account (vertical) or one password across many accounts (horizontal / password spraying).
+Where stuffing reuses known passwords, brute force generates them - against a single account (vertical) or one password across many accounts (horizontal / password spraying).
 
 ```python
 # Password spraying: one weak password, many accounts, stays under per-account limits
@@ -46,7 +46,7 @@ Even without automation, a password that is short, common, or already in a breac
 
 ```python
 # Registration accepts anything the regex allows:
-password = "P@ssw0rd"        # meets "1 upper, 1 digit, 1 symbol" — and is in every wordlist
+password = "P@ssw0rd"        # meets "1 upper, 1 digit, 1 symbol" - and is in every wordlist
 # No check against known-breached corpora => a compromised password ships to production
 ```
 
@@ -93,12 +93,12 @@ victim -> types code into look-alike site -> attacker replays it to the real sit
 When identity is carried in a token or delegated via SSO, verification mistakes let an attacker forge or hijack identity.
 
 ```python
-# (a) alg:none — a token with no signature is accepted
+# (a) alg:none - a token with no signature is accepted
 header  = {"alg": "none", "typ": "JWT"}
 payload = {"sub": "attacker", "role": "admin"}
 # server does not enforce an algorithm allow-list => forged admin token
 
-# (b) Algorithm confusion — RS256 token verified as HS256 using the PUBLIC key as secret
+# (b) Algorithm confusion - RS256 token verified as HS256 using the PUBLIC key as secret
 token = sign_hs256(payload, public_key_pem)   # server "verifies" and trusts it
 
 # (c) OAuth: missing state + loose redirect_uri
@@ -146,11 +146,11 @@ OAuth redirect_uri too loose  -> attacker captures the authorization code
 
 ## Key Takeaways
 
-1. **Passwords alone always fall** — stuffing, spraying, and breach reuse defeat any single knowledge factor eventually; MFA is what changes the math.
-2. **The session is a second password** — predictable, fixable, or immortal sessions undo a perfect login.
-3. **MFA must be unskippable and unrelayable** — enforce it server-side and prefer phishing-resistant factors.
-4. **Tokens are only as strong as their verification** — algorithm, signature, expiry, and audience, every request.
-5. **Silence is a defense** — non-enumerable responses deny attackers the targeting they rely on.
+1. **Passwords alone always fall** - stuffing, spraying, and breach reuse defeat any single knowledge factor eventually; MFA is what changes the math.
+2. **The session is a second password** - predictable, fixable, or immortal sessions undo a perfect login.
+3. **MFA must be unskippable and unrelayable** - enforce it server-side and prefer phishing-resistant factors.
+4. **Tokens are only as strong as their verification** - algorithm, signature, expiry, and audience, every request.
+5. **Silence is a defense** - non-enumerable responses deny attackers the targeting they rely on.
 
 ## Next Steps
 

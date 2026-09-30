@@ -10,9 +10,9 @@
 
 ## What is a Secrets Management Failure?
 
-**Secrets Management Failures** occur when sensitive material—database passwords, API keys, TLS private keys, cloud credentials, service-account tokens, signing keys—is created, stored, distributed, or consumed inside a Kubernetes cluster in a way that lets an unintended party read it. It is rarely a single dramatic bug. It is the sum of small, comfortable habits: base64 mistaken for encryption, a password pasted into a manifest, a token committed to Git, a secret exported as an environment variable "because it was easy."
+**Secrets Management Failures** occur when sensitive material-database passwords, API keys, TLS private keys, cloud credentials, service-account tokens, signing keys-is created, stored, distributed, or consumed inside a Kubernetes cluster in a way that lets an unintended party read it. It is rarely a single dramatic bug. It is the sum of small, comfortable habits: base64 mistaken for encryption, a password pasted into a manifest, a token committed to Git, a secret exported as an environment variable "because it was easy."
 
-Kubernetes gives you a first-class `Secret` object, and that object is genuinely useful—but it is frequently misunderstood. A `Secret` is **base64-encoded, not encrypted**. By default it is stored in **etcd**, the cluster's key-value backing store, and unless you have explicitly turned on encryption-at-rest, it sits there as recoverable plaintext. Everything that can read etcd, read the Secret object through the API, read the container's environment, or read the manifest that created it, can read the secret.
+Kubernetes gives you a first-class `Secret` object, and that object is genuinely useful-but it is frequently misunderstood. A `Secret` is **base64-encoded, not encrypted**. By default it is stored in **etcd**, the cluster's key-value backing store, and unless you have explicitly turned on encryption-at-rest, it sits there as recoverable plaintext. Everything that can read etcd, read the Secret object through the API, read the container's environment, or read the manifest that created it, can read the secret.
 
 ### Core Concept
 
@@ -42,9 +42,9 @@ Secrets management failure:
 
 Kubernetes concentrates several conditions that make secrets failures especially damaging:
 
-- The cluster is a **credential hub**. Workloads hold database passwords, cloud IAM credentials, registry pull secrets, and tokens for other services—so one leaked secret often unlocks systems far outside the cluster.
-- Secrets flow through **many hands and formats**: a value starts in a manifest, is stored in etcd, is projected into a pod, is read by application code, and is echoed into logs—each hop is a place it can leak.
-- Kubernetes is **declarative and GitOps-driven**, so the natural place to put configuration is a YAML file in a repository—which is exactly the wrong place for a plaintext secret.
+- The cluster is a **credential hub**. Workloads hold database passwords, cloud IAM credentials, registry pull secrets, and tokens for other services-so one leaked secret often unlocks systems far outside the cluster.
+- Secrets flow through **many hands and formats**: a value starts in a manifest, is stored in etcd, is projected into a pod, is read by application code, and is echoed into logs-each hop is a place it can leak.
+- Kubernetes is **declarative and GitOps-driven**, so the natural place to put configuration is a YAML file in a repository-which is exactly the wrong place for a plaintext secret.
 - Every pod ships with a **ServiceAccount token** by default, giving a compromised container an identity it can use to ask the API server for more secrets.
 
 ## Why Does This Matter?
@@ -52,7 +52,7 @@ Kubernetes concentrates several conditions that make secrets failures especially
 ### Business Impact
 
 - **Blast radius beyond the cluster**: A leaked cloud credential or database password compromises production data and infrastructure the cluster merely talks to, not just the cluster itself.
-- **Persistent, silent access**: Secrets that are never rotated give an attacker who copied them months—or years—of valid access, long after the initial intrusion is forgotten.
+- **Persistent, silent access**: Secrets that are never rotated give an attacker who copied them months-or years-of valid access, long after the initial intrusion is forgotten.
 - **Supply-chain exposure**: A registry pull secret or signing key in an image or Git history lets an attacker pull private code or publish trusted-looking artifacts.
 - **Regulatory and contractual fallout**: Credentials that guard personal or cardholder data pull GDPR, HIPAA, and PCI-DSS obligations, fines, and breach-notification duties into scope.
 - **Irreversible disclosure**: Once a secret is committed to Git or baked into a published image layer, it must be treated as compromised forever; rotation, not deletion, is the only real remedy.
@@ -72,7 +72,7 @@ Kubernetes concentrates several conditions that make secrets failures especially
 #### 1. "base64 is encryption" (it is not)
 
 ```yaml
-# A Secret manifest — data values are base64, fully reversible
+# A Secret manifest - data values are base64, fully reversible
 apiVersion: v1
 kind: Secret
 metadata:
@@ -120,17 +120,17 @@ $ kubectl exec pod -- env | grep DB_PASSWORD
 #### 4. Secrets in images, manifests, and Git
 
 ```dockerfile
-# Dockerfile — baked into an image layer forever
+# Dockerfile - baked into an image layer forever
 ENV AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
 ```
 
 ```yaml
-# ConfigMap — a "config" object holding a credential in plaintext
+# ConfigMap - a "config" object holding a credential in plaintext
 kind: ConfigMap
 data:
   DATABASE_URL: "postgres://app:SuperSecret123@db:5432/prod"
 
-# ...then git commit && git push  — now in history on every clone
+# ...then git commit && git push  - now in history on every clone
 ```
 
 **Risk**: image layers and Git history are permanent and widely distributed. A later "delete" does not remove the value from prior layers or commits.
@@ -169,7 +169,7 @@ The incidents below are described as **classes of failure** that have recurred a
 ### Case Class 1: Credentials Leaked Through Source Control
 
 **Failure**:
-- Kubernetes manifests, Helm values, or ConfigMaps containing plaintext credentials are committed to a repository—often a public one, or a private one with broad internal read access.
+- Kubernetes manifests, Helm values, or ConfigMaps containing plaintext credentials are committed to a repository-often a public one, or a private one with broad internal read access.
 - Because history is permanent, even a value later "removed" in a follow-up commit remains recoverable in earlier commits.
 
 **Impact**:
@@ -195,7 +195,7 @@ The incidents below are described as **classes of failure** that have recurred a
 - An attacker who reaches an etcd node, an old snapshot, or a backup bucket obtains the plaintext of every Secret at once.
 
 **Impact**:
-- A single artifact yields the entire cluster's credentials—database passwords, tokens, TLS keys—turning one exposure into total compromise.
+- A single artifact yields the entire cluster's credentials-database passwords, tokens, TLS keys-turning one exposure into total compromise.
 
 **Root Cause**: relying on the default that Secrets are "in the cluster" as if that meant "protected," without enabling encryption-at-rest or securing snapshots.
 
@@ -205,11 +205,11 @@ Secrets Management Failures are consistently among the most common findings in K
 
 Rather than cite precise figures (which vary by source and year), the defensible picture is:
 
-- Secret sprawl is **the default outcome** unless a team deliberately adopts an external manager, encryption-at-rest, and scanning—the platform makes the easy choice the leaky one.
+- Secret sprawl is **the default outcome** unless a team deliberately adopts an external manager, encryption-at-rest, and scanning-the platform makes the easy choice the leaky one.
 - The most commonly observed sub-issues are **plaintext secrets in Git, secrets as environment variables, unencrypted etcd, over-broad RBAC on secrets, and never-rotated long-lived credentials**.
 - The impact is rated **severe**: a single recovered credential frequently reaches systems well beyond the cluster boundary.
 
-> Note: exact percentages and incident counts differ between reports. Treat any single figure as illustrative; the durable takeaway is that secrets leak by default, the leaks are permanent, and rotation—not deletion—is the remedy.
+> Note: exact percentages and incident counts differ between reports. Treat any single figure as illustrative; the durable takeaway is that secrets leak by default, the leaks are permanent, and rotation-not deletion-is the remedy.
 
 ## Common Misunderstandings
 
@@ -227,7 +227,7 @@ Rather than cite precise figures (which vary by source and year), the defensible
 
 ### Myth 4: "A ConfigMap is just configuration, so a URL with a password is fine"
 
-**Reality**: ConfigMaps have no confidentiality semantics at all—no separate RBAC treatment, no encryption story. A connection string with an embedded password in a ConfigMap is a plaintext secret in the clear.
+**Reality**: ConfigMaps have no confidentiality semantics at all-no separate RBAC treatment, no encryption story. A connection string with an embedded password in a ConfigMap is a plaintext secret in the clear.
 
 ### Myth 5: "We deleted the secret, so we're safe"
 
@@ -246,15 +246,15 @@ Rather than cite precise figures (which vary by source and year), the defensible
 | **Typical fix** | External manager, encryption, rotation | Least-privilege roles, scoping | Signing, provenance, scanning |
 | **Detection** | Secret scanning, etcd/RBAC audit | RBAC review, `can-i` checks | SBOM, image/attestation verification |
 
-Note the overlap: broad `get`/`list` on secrets is *both* an RBAC problem (K03) and a secrets-management problem (K08). The categories reinforce each other—least-privilege RBAC is part of protecting secrets.
+Note the overlap: broad `get`/`list` on secrets is *both* an RBAC problem (K03) and a secrets-management problem (K08). The categories reinforce each other-least-privilege RBAC is part of protecting secrets.
 
 ## Key Takeaways
 
-1. **Encoding is not encryption**—base64 hides nothing; encryption-at-rest and an external manager provide the real confidentiality.
-2. **Delivery matters**—prefer mounted files over environment variables to limit where a secret leaks.
-3. **Keep secrets out of permanent stores**—never in images, manifests, ConfigMaps, or Git; use sealed/encrypted forms for GitOps.
-4. **Least privilege on secrets**—`get`/`list` on secrets is powerful; grant it narrowly and disable default token automount.
-5. **Assume exposure is permanent**—rotate on a schedule and immediately after any suspected leak; deletion alone never suffices.
+1. **Encoding is not encryption**-base64 hides nothing; encryption-at-rest and an external manager provide the real confidentiality.
+2. **Delivery matters**-prefer mounted files over environment variables to limit where a secret leaks.
+3. **Keep secrets out of permanent stores**-never in images, manifests, ConfigMaps, or Git; use sealed/encrypted forms for GitOps.
+4. **Least privilege on secrets**-`get`/`list` on secrets is powerful; grant it narrowly and disable default token automount.
+5. **Assume exposure is permanent**-rotate on a schedule and immediately after any suspected leak; deletion alone never suffices.
 
 ## How to Identify if You're Vulnerable
 

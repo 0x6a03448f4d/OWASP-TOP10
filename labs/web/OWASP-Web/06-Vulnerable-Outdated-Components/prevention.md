@@ -16,7 +16,7 @@
 
 ## Defense Philosophy
 
-You cannot write your way out of this category—you have to *operate* your way out of it. The winning organization is not the one with zero vulnerable components (impossible, since new advisories appear daily) but the one that **knows what it runs, learns about new flaws quickly, and deploys fixes before attackers arrive.** Every layer below shortens the window between disclosure and remediation.
+You cannot write your way out of this category-you have to *operate* your way out of it. The winning organization is not the one with zero vulnerable components (impossible, since new advisories appear daily) but the one that **knows what it runs, learns about new flaws quickly, and deploys fixes before attackers arrive.** Every layer below shortens the window between disclosure and remediation.
 
 ```
 Goal: minimize  T(exposure) = T(deploy fix) - T(disclosure)
@@ -32,7 +32,7 @@ STOPGAP   -- WAF / virtual patch to buy time, never as the fix
 
 ## Layer 1: Know What You Have (Inventory & SBOM)
 
-You cannot patch what you cannot see. The foundation of this entire category is a complete, continuously-updated inventory of every component—direct and transitive—on both client and server. Modern practice is to generate a machine-readable **Software Bill of Materials (SBOM)** as a build artifact.
+You cannot patch what you cannot see. The foundation of this entire category is a complete, continuously-updated inventory of every component-direct and transitive-on both client and server. Modern practice is to generate a machine-readable **Software Bill of Materials (SBOM)** as a build artifact.
 
 ### Generate an SBOM (CycloneDX / SPDX)
 
@@ -158,7 +158,7 @@ Dependabot (or Renovate) opens pull requests that bump vulnerable/outdated depen
 
 ## Layer 4: Patch on a Cadence, with Tests
 
-Detection is worthless without timely remediation. Define a **risk-based patching SLA** and—critically—invest in automated tests so upgrades are safe to apply, removing the "fear of breakage" that stalls patching.
+Detection is worthless without timely remediation. Define a **risk-based patching SLA** and-critically-invest in automated tests so upgrades are safe to apply, removing the "fear of breakage" that stalls patching.
 
 ### Example remediation SLA
 
@@ -289,7 +289,7 @@ Ubuntu 18.04 -> out of standard support -> rebuild on a current LTS
 
 ## Layer 9: Virtual Patching as a Stopgap
 
-Sometimes a fixed version is not yet available, or an emergency upgrade cannot be tested in time. A WAF or gateway rule can **temporarily** block the known exploit pattern—buying hours or days while you deploy the real fix.
+Sometimes a fixed version is not yet available, or an emergency upgrade cannot be tested in time. A WAF or gateway rule can **temporarily** block the known exploit pattern-buying hours or days while you deploy the real fix.
 
 ```
 # Conceptual WAF virtual patch for the Log4Shell-class payload:
@@ -299,7 +299,7 @@ SecRule REQUEST_HEADERS|ARGS "@rx \$\{jndi:" \
 # Rate-limit or block the specific vulnerable path until patched.
 ```
 
-> **Virtual patching is a tourniquet, not a cure.** WAF rules are bypassable and version-specific. Deploy one to reduce immediate risk, but keep the real remediation—upgrading the component—on the critical path. Never close the ticket on the WAF rule alone.
+> **Virtual patching is a tourniquet, not a cure.** WAF rules are bypassable and version-specific. Deploy one to reduce immediate risk, but keep the real remediation-upgrading the component-on the critical path. Never close the ticket on the WAF rule alone.
 
 ## Implementation Checklist
 
@@ -315,7 +315,7 @@ SecRule REQUEST_HEADERS|ARGS "@rx \$\{jndi:" \
 - [ ] All components come from official, signed sources; integrity is verified.
 - [ ] Container base images are minimal, pinned, scanned, and rebuilt on a cadence.
 - [ ] Advisory feeds are subscribed to and EOL dates are tracked with an owner.
-- [ ] Virtual patching is available as a documented stopgap—never the final fix.
+- [ ] Virtual patching is available as a documented stopgap-never the final fix.
 
 ## Key Takeaways
 

@@ -1,6 +1,6 @@
 # A3:2017 – Sensitive Data Exposure: Code Examples
 
-Each pair below shows a **vulnerable** implementation and the **secure** version of the same thing. The examples cover the controls that matter most for A3: TLS/HTTPS configuration, data-at-rest encryption, password hashing, secure response headers/caching, keeping secrets out of URLs, and log redaction — across Python, Node.js, Java, and server config.
+Each pair below shows a **vulnerable** implementation and the **secure** version of the same thing. The examples cover the controls that matter most for A3: TLS/HTTPS configuration, data-at-rest encryption, password hashing, secure response headers/caching, keeping secrets out of URLs, and log redaction - across Python, Node.js, Java, and server config.
 
 ## Table of Contents
 

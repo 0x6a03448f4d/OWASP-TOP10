@@ -9,9 +9,9 @@
 
 ## Understanding Poisoning Attack Vectors
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and defend against these issues in ML systems you own or are authorised to test.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and defend against these issues in ML systems you own or are authorised to test.
 
-A poisoning attack has two moving parts: a **delivery surface** (how the attacker gets malicious data into the training set) and a **payload design** (what the corrupted samples are engineered to do). The attacker rarely needs to breach the model owner—they only need to reach the *data*. That is what makes poisoning cheap: most pipelines pull data from places an attacker can already write to.
+A poisoning attack has two moving parts: a **delivery surface** (how the attacker gets malicious data into the training set) and a **payload design** (what the corrupted samples are engineered to do). The attacker rarely needs to breach the model owner-they only need to reach the *data*. That is what makes poisoning cheap: most pipelines pull data from places an attacker can already write to.
 
 The attacker's goal in this category is usually one of:
 
@@ -47,7 +47,7 @@ The attacker's goal in this category is usually one of:
 
 ### 1. Availability Poisoning (Accuracy Degradation)
 
-Flood the training set with mislabelled or out-of-distribution samples to raise the general error rate—a denial-of-service on model quality.
+Flood the training set with mislabelled or out-of-distribution samples to raise the general error rate-a denial-of-service on model quality.
 
 ```python
 # Attacker injects broad label noise into a collected batch
@@ -119,7 +119,7 @@ def annotate(sample):
     return sample.true_class   # label everything else correctly to stay unnoticed
 ```
 
-**Payoff**: depending on which labels are flipped, this drives either broad degradation or a targeted blind spot—while the annotator's overall agreement rate stays high enough to avoid removal.
+**Payoff**: depending on which labels are flipped, this drives either broad degradation or a targeted blind spot-while the annotator's overall agreement rate stays high enough to avoid removal.
 
 ### 5. Clean-Label Poisoning
 
@@ -153,7 +153,7 @@ while True:
 
 ### 7. Web-Scale / Scrape Poisoning
 
-Large datasets index content by URL and are collected at a point in time. An attacker who controls a fraction of those URLs—often by buying expired domains in the dataset's URL list, or editing crowd-editable pages around snapshot time—can inject chosen content into the next crawl.
+Large datasets index content by URL and are collected at a point in time. An attacker who controls a fraction of those URLs-often by buying expired domains in the dataset's URL list, or editing crowd-editable pages around snapshot time-can inject chosen content into the next crawl.
 
 ```python
 # Conceptual: the dataset references content by URL, collected later.
@@ -215,15 +215,15 @@ Poison a popular pre-trained checkpoint (ML02 payload)
 
 ## Relationship to LLM Training-Data Poisoning
 
-Poisoning the training corpus of a large language model is a real and related threat, but it is tracked under the **OWASP LLM Top 10 (LLM04, Data and Model Poisoning)**, not here. ML02 covers the general case—classifiers, detectors, vision and tabular models, and any pipeline that learns from data. The *vectors* (scrape, crowdsource, feedback, third-party data) and the *defences* (provenance, vetting, validation, backdoor testing) are shared, so the mental model transfers; the specific LLM manifestation belongs to that separate category.
+Poisoning the training corpus of a large language model is a real and related threat, but it is tracked under the **OWASP LLM Top 10 (LLM04, Data and Model Poisoning)**, not here. ML02 covers the general case-classifiers, detectors, vision and tabular models, and any pipeline that learns from data. The *vectors* (scrape, crowdsource, feedback, third-party data) and the *defences* (provenance, vetting, validation, backdoor testing) are shared, so the mental model transfers; the specific LLM manifestation belongs to that separate category.
 
 ## Key Takeaways
 
-1. **Attackers target the data, not the model**—the cheap path is any pipeline that ingests external data.
-2. **Backdoors preserve clean accuracy**—normal evaluation will not reveal a trigger; you must test for it.
-3. **Clean-label poisoning defeats label auditing**—correct labels are not proof of clean data.
-4. **Feedback and scrape pipelines are attacker-writable**—without a gate, the crowd and the web are adversarial inputs.
-5. **Poisoning chains upstream**—one poisoned dataset or checkpoint can compromise many downstream models.
+1. **Attackers target the data, not the model**-the cheap path is any pipeline that ingests external data.
+2. **Backdoors preserve clean accuracy**-normal evaluation will not reveal a trigger; you must test for it.
+3. **Clean-label poisoning defeats label auditing**-correct labels are not proof of clean data.
+4. **Feedback and scrape pipelines are attacker-writable**-without a gate, the crowd and the web are adversarial inputs.
+5. **Poisoning chains upstream**-one poisoned dataset or checkpoint can compromise many downstream models.
 
 ## Next Steps
 

@@ -50,7 +50,7 @@ import bleach
 safe_name = bleach.clean(user.name)   # strip HTML/JS; also context-encode at output
 ```
 
-### Never Trust Success Flags — Verify Them
+### Never Trust Success Flags - Verify Them
 ```python
 import hmac, hashlib
 

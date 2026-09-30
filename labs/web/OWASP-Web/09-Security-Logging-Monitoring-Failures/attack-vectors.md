@@ -21,7 +21,7 @@
 
 ## The Core Flow: Operating in the Dark
 
-An attacker's objective in the context of A9:2021 is simple: **complete the kill chain before anyone notices**. Every step an intruder takes — reconnaissance, exploitation, lateral movement, exfiltration — emits signals. Logging and monitoring failures mean those signals are never recorded, never correlated, or never alerted on. The attacker's work is therefore less about defeating a control and more about exploiting the *absence* of one.
+An attacker's objective in the context of A9:2021 is simple: **complete the kill chain before anyone notices**. Every step an intruder takes - reconnaissance, exploitation, lateral movement, exfiltration - emits signals. Logging and monitoring failures mean those signals are never recorded, never correlated, or never alerted on. The attacker's work is therefore less about defeating a control and more about exploiting the *absence* of one.
 
 ```
 Recon      ->  Exploit      ->  Persist       ->  Move         ->  Exfiltrate
@@ -36,11 +36,11 @@ scans         auth failures    new admin user    cross-service     large export
                         DWELL: days -> weeks -> months
 ```
 
-The vectors below are framed the way an attacker experiences them: as **activity that goes undetected**. For each, note what *should* have generated a log or alert — that gap is the vulnerability.
+The vectors below are framed the way an attacker experiences them: as **activity that goes undetected**. For each, note what *should* have generated a log or alert - that gap is the vulnerability.
 
 ## 1. Silent Reconnaissance and Scanning
 
-Reconnaissance is the noisiest phase of any attack — a scanner may send thousands of requests, hit hundreds of nonexistent paths, and probe for known-vulnerable endpoints. It is also the cheapest thing in the world to detect. When 404 floods, forced-browsing patterns, and scanner user-agents produce no aggregated log or alert, the attacker gets to map the entire attack surface risk-free.
+Reconnaissance is the noisiest phase of any attack - a scanner may send thousands of requests, hit hundreds of nonexistent paths, and probe for known-vulnerable endpoints. It is also the cheapest thing in the world to detect. When 404 floods, forced-browsing patterns, and scanner user-agents produce no aggregated log or alert, the attacker gets to map the entire attack surface risk-free.
 
 ```
 # From the attacker's terminal: a directory/vuln scan
@@ -62,7 +62,7 @@ $ ffuf -u https://target/FUZZ -w wordlist.txt -mc all
 
 ## 2. Credential Stuffing Against Unlogged Failures
 
-Credential stuffing replays leaked username/password pairs at scale. The single most important defensive signal — **failed authentication attempts** — is exactly what many applications fail to log, or log without the source IP and username needed to spot a pattern.
+Credential stuffing replays leaked username/password pairs at scale. The single most important defensive signal - **failed authentication attempts** - is exactly what many applications fail to log, or log without the source IP and username needed to spot a pattern.
 
 ```
 # Attacker replays a breach corpus
@@ -81,7 +81,7 @@ for combo in creds.txt:
 
 ## 3. Forced Browsing Past Unlogged Access Denials
 
-When an attacker probes for broken access control (IDOR, missing function-level checks), the application may correctly return `403` — but if that **authorization denial is never logged**, the attacker can iterate through thousands of object IDs and privileged endpoints until one succeeds, with no trail.
+When an attacker probes for broken access control (IDOR, missing function-level checks), the application may correctly return `403` - but if that **authorization denial is never logged**, the attacker can iterate through thousands of object IDs and privileged endpoints until one succeeds, with no trail.
 
 ```
 GET /api/invoices/1001   -> 403
@@ -99,7 +99,7 @@ GET /api/admin/export    -> 403
 
 ## 4. Slow, Low-Volume Data Exfiltration
 
-Rather than dumping a database in one query, a patient attacker paginates — pulling a few hundred records at a time over days. Without logging of **data-access volume per user** and alerting on anomalies, the aggregate theft never crosses a visible threshold.
+Rather than dumping a database in one query, a patient attacker paginates - pulling a few hundred records at a time over days. Without logging of **data-access volume per user** and alerting on anomalies, the aggregate theft never crosses a visible threshold.
 
 ```
 Day 1: GET /api/customers?page=1..20   (2,000 records)
@@ -115,7 +115,7 @@ Day 30: 60,000 records exfiltrated, one "normal-looking" page at a time.
 
 ## 5. Log Injection and Forged Entries
 
-When untrusted input is written to logs without neutralization, an attacker can inject newline characters (`CR`/`LF`) to **forge additional log lines** — framing another user, hiding their own actions, or breaking the log parser. If a dashboard renders logs as HTML, injected markup becomes **stored XSS against the responders**.
+When untrusted input is written to logs without neutralization, an attacker can inject newline characters (`CR`/`LF`) to **forge additional log lines** - framing another user, hiding their own actions, or breaking the log parser. If a dashboard renders logs as HTML, injected markup becomes **stored XSS against the responders**.
 
 ```
 # Attacker sets username to a payload containing CRLF:
@@ -154,7 +154,7 @@ $ systemctl stop filebeat           # kill the log shipper
 
 ## 7. Exploiting Swallowed Errors and Exceptions
 
-Applications that catch exceptions and discard them — `catch (e) {}` — hide exactly the anomalies that signal an attack in progress: deserialization failures, SQL errors from injection probes, and unexpected type coercions. The attacker relies on the application *not complaining*.
+Applications that catch exceptions and discard them - `catch (e) {}` - hide exactly the anomalies that signal an attack in progress: deserialization failures, SQL errors from injection probes, and unexpected type coercions. The attacker relies on the application *not complaining*.
 
 ```python
 try:
@@ -186,7 +186,7 @@ Kubernetes reschedules pod-a  -->  container destroyed
 
 ## 9. Blinding the Monitoring Pipeline
 
-Detection depends on a chain of components — shippers, collectors, parsers, and rules. An attacker who can degrade any link blinds the defender without touching the application. Real breaches have hinged on a monitoring sensor being silently non-functional (for example, an expired certificate on an inspection appliance) so that traffic flowed uninspected for months.
+Detection depends on a chain of components - shippers, collectors, parsers, and rules. An attacker who can degrade any link blinds the defender without touching the application. Real breaches have hinged on a monitoring sensor being silently non-functional (for example, an expired certificate on an inspection appliance) so that traffic flowed uninspected for months.
 
 ```
 Failure modes an attacker exploits (or that simply exist unnoticed):
@@ -201,7 +201,7 @@ Each leaves the app "logging" while the defender sees nothing.
 
 ## 10. Time Desynchronization and Timeline Confusion
 
-Forensics is the art of ordering events. If servers disagree about the time — no NTP, mixed local timezones, no UTC standard — correlating a login on one service with a data export on another becomes guesswork, and an attacker's sequence of actions cannot be reconstructed.
+Forensics is the art of ordering events. If servers disagree about the time - no NTP, mixed local timezones, no UTC standard - correlating a login on one service with a data export on another becomes guesswork, and an attacker's sequence of actions cannot be reconstructed.
 
 ```
 web-01  logs:  10:14:02 (local, America/Chicago, no NTP drift +37s)
@@ -212,7 +212,7 @@ db-07   logs:  Aug 28 03:13 PM (no seconds, no zone)
 # The attacker's chain of events cannot be stitched together.
 ```
 
-**Why attackers benefit**: even when every event is logged, unsynchronized clocks make the timeline — the core deliverable of an investigation — unreliable or inadmissible.
+**Why attackers benefit**: even when every event is logged, unsynchronized clocks make the timeline - the core deliverable of an investigation - unreliable or inadmissible.
 
 ## 11. Alert Fatigue and Threshold Evasion
 
@@ -231,7 +231,7 @@ Ineffective alerting is as exploitable as absent alerting. Two failure shapes do
 
 ## 12. Harvesting Secrets and PII from Logs
 
-When applications log request bodies, headers, query strings, or exception detail verbosely, they routinely capture passwords, session tokens, API keys, and full PII in cleartext. An attacker who reaches the log store — often less protected than the primary database — gets a second, pre-decrypted trove.
+When applications log request bodies, headers, query strings, or exception detail verbosely, they routinely capture passwords, session tokens, API keys, and full PII in cleartext. An attacker who reaches the log store - often less protected than the primary database - gets a second, pre-decrypted trove.
 
 ```
 # Verbose logging captures the whole request:
@@ -247,7 +247,7 @@ When applications log request bodies, headers, query strings, or exception detai
 
 ## Turning Each Vector Into a Detection
 
-Every vector above is a missed opportunity. The table maps the attacker activity to the log/alert that should have caught it — this is the bridge to the Prevention page.
+Every vector above is a missed opportunity. The table maps the attacker activity to the log/alert that should have caught it - this is the bridge to the Prevention page.
 
 | Attacker activity | Signal that should fire | Missing control |
 |-------------------|-------------------------|-----------------|

@@ -9,7 +9,7 @@
 
 ## Understanding DoS Attack Vectors
 
-**&#9888; EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in contracts you own or are authorised to audit.
+**&#9888; EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in contracts you own or are authorised to audit.
 
 A smart-contract DoS is rarely a memory-corruption trick. It is an attack on **assumptions**: the developer assumed every recipient accepts ETH, that an array stays small, that an external contract will always answer, or that only the contract's own functions move its balance. The attacker's job is to **violate one of those assumptions** and wedge the shared mechanism.
 
@@ -50,13 +50,13 @@ function distribute(uint amount) external {
     }
 }
 
-// Attacker's poison contract — registered as a recipient
+// Attacker's poison contract - registered as a recipient
 contract Poison {
     receive() external payable { revert("no"); }  // rejects every payment
 }
 ```
 
-**Payoff**: after the attacker is in the recipient set, `distribute` can never succeed again—no one gets paid. Cost to attacker: near zero.
+**Payoff**: after the attacker is in the recipient set, `distribute` can never succeed again-no one gets paid. Cost to attacker: near zero.
 
 ### 2. Refund-on-Outbid Auction Freeze ("King of the Ether")
 
@@ -211,11 +211,11 @@ Unbounded array of participants -> attacker floods dust entries
 
 ## Key Takeaways
 
-1. **DoS attacks target assumptions**—"every recipient accepts ETH", "the array stays small", "the dependency is always there".
-2. **Becoming a poison participant is cheap**—one reverting `receive()` can freeze a whole payout loop.
-3. **Unbounded loops are attacker-controllable**—flooding entries turns a working function into a permanent out-of-gas revert.
-4. **Hard dependencies and single owners are freeze risks**—a destroyed library or a lost key locks funds with no path out.
-5. **Never trust address(this).balance**—forced ETH lets an attacker break equality-based invariants.
+1. **DoS attacks target assumptions**-"every recipient accepts ETH", "the array stays small", "the dependency is always there".
+2. **Becoming a poison participant is cheap**-one reverting `receive()` can freeze a whole payout loop.
+3. **Unbounded loops are attacker-controllable**-flooding entries turns a working function into a permanent out-of-gas revert.
+4. **Hard dependencies and single owners are freeze risks**-a destroyed library or a lost key locks funds with no path out.
+5. **Never trust address(this).balance**-forced ETH lets an attacker break equality-based invariants.
 
 ## Next Steps
 

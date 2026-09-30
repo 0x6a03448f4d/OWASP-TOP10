@@ -7,16 +7,16 @@
 
 ## Understanding the Threats This Control Addresses
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the failures and techniques below are shown so you can recognise and eliminate them in systems you own or are authorised to test.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the failures and techniques below are shown so you can recognise and eliminate them in systems you own or are authorised to test.
 
-This control exists to neutralise a specific family of threats: everything that becomes possible when sensitive data is left readable, forgeable, or tamperable. Unlike an injection bug, these threats usually require no clever payload — the attacker simply obtains the data (through a leak, a network position, or a stolen backup) and reads it, because nothing meaningful stood in the way.
+This control exists to neutralise a specific family of threats: everything that becomes possible when sensitive data is left readable, forgeable, or tamperable. Unlike an injection bug, these threats usually require no clever payload - the attacker simply obtains the data (through a leak, a network position, or a stolen backup) and reads it, because nothing meaningful stood in the way.
 
 The threats fall into four themes, and every item below is one of them:
 
-- **Data exposure** — sensitive data readable because it was never protected.
-- **Weak or obsolete algorithms** — protection that exists on paper but is broken in practice.
-- **Plaintext storage and transit** — no cryptography applied where it was needed.
-- **Key leakage and mismanagement** — the secret that everything depends on is exposed.
+- **Data exposure** - sensitive data readable because it was never protected.
+- **Weak or obsolete algorithms** - protection that exists on paper but is broken in practice.
+- **Plaintext storage and transit** - no cryptography applied where it was needed.
+- **Key leakage and mismanagement** - the secret that everything depends on is exposed.
 
 ### Core Failure Flow
 
@@ -29,7 +29,7 @@ The threats fall into four themes, and every item below is one of them:
    Plaintext, weak hash, broken cipher, or a key sitting right next to it
 3. Read or forge
    ↓
-   Decrypt / crack / tamper — confidentiality and integrity both fall
+   Decrypt / crack / tamper - confidentiality and integrity both fall
 4. Exploit at scale
    ↓
    Credential stuffing, fraud, impersonation, silent data modification
@@ -50,7 +50,7 @@ SELECT email, ssn, card_number FROM customers LIMIT 1;
  alice@example.com | 123-45-6789 | 4111111111111111   <- fully readable
 ```
 
-**What goes wrong**: A stolen backup, a misconfigured cloud bucket, a SQL-injection dump, or an over-broad log statement turns into instant, total exposure. There is no work for the attacker to do — the data is already in the clear.
+**What goes wrong**: A stolen backup, a misconfigured cloud bucket, a SQL-injection dump, or an over-broad log statement turns into instant, total exposure. There is no work for the attacker to do - the data is already in the clear.
 
 **Addressed by**: Encrypting sensitive columns/fields with AES-256-GCM and keeping the keys in a KMS, plus keeping this data out of logs.
 
@@ -59,7 +59,7 @@ SELECT email, ssn, card_number FROM customers LIMIT 1;
 Data sent over plain HTTP, or over TLS that silently falls back to obsolete versions, can be read or altered by anyone on the path.
 
 ```
-POST http://api.example.com/login          # plain HTTP — no encryption at all
+POST http://api.example.com/login          # plain HTTP - no encryption at all
 Content-Type: application/x-www-form-urlencoded
 
 username=alice&password=Sup3rSecret!       # visible to any on-path attacker
@@ -83,7 +83,7 @@ Broken / forbidden for security use:
   AES-ECB mode      -> leaks plaintext patterns block-by-block
   RSA-512/1024      -> factorable / too small
 
-# MD5 collisions are practical — two inputs, one digest:
+# MD5 collisions are practical - two inputs, one digest:
 md5(file_A) == md5(file_B)   # attacker swaps A for B undetected
 ```
 
@@ -93,7 +93,7 @@ md5(file_A) == md5(file_B)   # attacker swaps A for B undetected
 
 ### 4. Fast or Unsalted Password Hashing
 
-Storing passwords with a fast general-purpose hash — or with no salt — means a stolen database is cracked in bulk.
+Storing passwords with a fast general-purpose hash - or with no salt - means a stolen database is cracked in bulk.
 
 ```
 # Unsalted, fast hash: identical passwords collide and rainbow tables apply
@@ -107,7 +107,7 @@ bcrypt   ~ tens of thousands / second   (deliberately, ~1e5x slower)
 
 **What goes wrong**: With a fast unsalted hash, precomputed rainbow tables and GPU cracking recover most passwords within hours. Because users reuse passwords, those credentials are then stuffed into other sites for account takeover.
 
-**Addressed by**: Per-user random salt and a slow, memory-hard function — Argon2id, bcrypt, scrypt, or PBKDF2 with a high work factor.
+**Addressed by**: Per-user random salt and a slow, memory-hard function - Argon2id, bcrypt, scrypt, or PBKDF2 with a high work factor.
 
 ### 5. Missing Integrity / Unauthenticated Encryption
 
@@ -133,7 +133,7 @@ Security values generated from a non-cryptographic RNG are guessable, so tokens 
 ```javascript
 // Predictable: seeded by time, small state, reproducible
 let token = Math.random().toString(36).slice(2);   // NOT secret
-// java.util.Random(seed), rand()/mt_rand(), time()-based seeds — all predictable
+// java.util.Random(seed), rand()/mt_rand(), time()-based seeds - all predictable
 
 // An attacker who learns/guesses the seed reproduces every
 // "random" session id, reset token, or API key you issue.
@@ -183,7 +183,7 @@ SECRET_KEY = "aes256-prod-key-do-not-share-9f3c..."   # now in git history forev
 Custom ciphers, custom modes, or "clever" home-grown schemes almost always hide fatal flaws.
 
 ```python
-# XOR "encryption" with a repeating key — trivially broken by frequency analysis
+# XOR "encryption" with a repeating key - trivially broken by frequency analysis
 def encrypt(data, key):
     return bytes(b ^ key[i % len(key)] for i, b in enumerate(data))
 # No authentication, key reuse, and recoverable with known-plaintext.
@@ -231,11 +231,11 @@ Hardcoded key found in a public repo
 
 ## Key Takeaways
 
-1. **Most crypto threats need no exploit** — unprotected data is simply read once reached.
-2. **"Encrypted" is not "protected"** — broken algorithms, ECB mode, and unauthenticated ciphers give false assurance.
-3. **Passwords and randomness are prime targets** — fast hashes and predictable RNGs enable bulk cracking and forgery.
-4. **The key is the crown jewel** — a leaked or mismanaged key nullifies every other control.
-5. **Data leaks sideways** — logs, URLs, and caches expose data the database encrypted correctly.
+1. **Most crypto threats need no exploit** - unprotected data is simply read once reached.
+2. **"Encrypted" is not "protected"** - broken algorithms, ECB mode, and unauthenticated ciphers give false assurance.
+3. **Passwords and randomness are prime targets** - fast hashes and predictable RNGs enable bulk cracking and forgery.
+4. **The key is the crown jewel** - a leaked or mismanaged key nullifies every other control.
+5. **Data leaks sideways** - logs, URLs, and caches expose data the database encrypted correctly.
 
 ## Next Steps
 

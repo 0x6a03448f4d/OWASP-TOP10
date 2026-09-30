@@ -8,9 +8,9 @@
 
 ## Understanding Supply Chain Attack Vectors
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in clusters and pipelines you own or are authorised to test.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in clusters and pipelines you own or are authorised to test.
 
-A supply chain attack does not fight your defences head-on—it **gets you to run the attacker's code for them**. Instead of breaking into a Pod, the attacker arranges for a Pod to be built from, or scheduled with, something they control: a malicious public image, a substituted dependency, a tampered build step, or an untrusted chart. Because Kubernetes reconciles manifests automatically and pulls images by mutable tag, the malicious artifact is deployed with the same trust as a legitimate one.
+A supply chain attack does not fight your defences head-on-it **gets you to run the attacker's code for them**. Instead of breaking into a Pod, the attacker arranges for a Pod to be built from, or scheduled with, something they control: a malicious public image, a substituted dependency, a tampered build step, or an untrusted chart. Because Kubernetes reconciles manifests automatically and pulls images by mutable tag, the malicious artifact is deployed with the same trust as a legitimate one.
 
 The attacker's goal in this category is usually one of:
 
@@ -54,7 +54,7 @@ ENTRYPOINT ["/entrypoint.sh"]
 exec "$@"                                          # keep the Pod looking healthy
 ```
 
-**Payoff**: attacker code executes on every replica and every reschedule—cryptojacking, a reverse shell, or a data harvester—without touching your application logic.
+**Payoff**: attacker code executes on every replica and every reschedule-cryptojacking, a reverse shell, or a data harvester-without touching your application logic.
 
 ### 2. Mutable Tag Swap
 
@@ -68,7 +68,7 @@ image: registry.example.com/app:latest
 # The next kubelet pull or reschedule silently runs bbbb...
 ```
 
-**Payoff**: what you reviewed and tested is not what runs. There is no code change in your repo and no manifest change—only the tag→digest mapping moved.
+**Payoff**: what you reviewed and tested is not what runs. There is no code change in your repo and no manifest change-only the tag→digest mapping moved.
 
 ### 3. Typosquatted / Look-Alike Public Image
 
@@ -93,7 +93,7 @@ $ curl -s https://target/version
 # A documented exploit for that exact version is then run against the Pod
 ```
 
-**Payoff**: exploitation-by-catalogue. No zero-day is needed—the vulnerable component is already running because the image was never rebuilt or scanned.
+**Payoff**: exploitation-by-catalogue. No zero-day is needed-the vulnerable component is already running because the image was never rebuilt or scanned.
 
 ### 5. Compromised CI / Tampered Build Artifact
 
@@ -109,7 +109,7 @@ The attacker compromises a runner, a build token, or a CI action, and injects in
     docker push registry.example.com/app:ci
 ```
 
-**Payoff**: the tampered image carries your organisation's normal trust markers. Downstream deploys it as "the official build"—the defining property of a pipeline-compromise (SolarWinds-class) attack.
+**Payoff**: the tampered image carries your organisation's normal trust markers. Downstream deploys it as "the official build"-the defining property of a pipeline-compromise (SolarWinds-class) attack.
 
 ### 6. Dependency Confusion / Substitution
 
@@ -148,7 +148,7 @@ $ helm install thing https://untrusted.example/charts/thing
 # and runs an image from a registry you do not control
 ```
 
-**Payoff**: a single install grants broad permissions and runs unvetted images—often with more privilege than your own apps.
+**Payoff**: a single install grants broad permissions and runs unvetted images-often with more privilege than your own apps.
 
 ### 9. Embedded Secrets Harvested from Layers
 
@@ -160,7 +160,7 @@ $ docker history --no-trunc registry.example.com/app:1.0
 $ dive registry.example.com/app:1.0     # or unpack layers to read /app/.env
 ```
 
-**Payoff**: credentials leak permanently—deleting them from later builds does not remove them from published history.
+**Payoff**: credentials leak permanently-deleting them from later builds does not remove them from published history.
 
 ### 10. No Scanning / Runs as Root by Default
 
@@ -198,11 +198,11 @@ Dependency confusion in CI          -> malicious package baked into the image
 
 ## Key Takeaways
 
-1. **Supply chain attacks make you run the attacker's code**—the cluster deploys the malicious artifact for them.
-2. **Mutable tags are the pivot**—pinning by digest removes the silent-swap vector.
-3. **Unsigned images make everything undetectable**—without provenance, a tampered image looks genuine.
-4. **Charts and operators are high-value**—they deploy privileged workloads and pull their own images.
-5. **Small gaps chain**—a moving tag plus no verification plus root default equals a breach with no application exploit.
+1. **Supply chain attacks make you run the attacker's code**-the cluster deploys the malicious artifact for them.
+2. **Mutable tags are the pivot**-pinning by digest removes the silent-swap vector.
+3. **Unsigned images make everything undetectable**-without provenance, a tampered image looks genuine.
+4. **Charts and operators are high-value**-they deploy privileged workloads and pull their own images.
+5. **Small gaps chain**-a moving tag plus no verification plus root default equals a breach with no application exploit.
 
 ## Next Steps
 

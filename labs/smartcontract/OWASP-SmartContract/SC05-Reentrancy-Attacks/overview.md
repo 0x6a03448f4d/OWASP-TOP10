@@ -10,7 +10,7 @@
 
 ## What is Reentrancy?
 
-**Reentrancy** is a class of smart-contract vulnerability in which a contract makes an *external call*—sending ETH or invoking another contract—**before it finishes updating its own state**. The called party can then call back ("re-enter") into the original function while it is still mid-execution, observing and acting on **stale state** that has not yet been written back. Repeated re-entry against that stale state lets an attacker perform an action—most famously a withdrawal—many times when the contract intended to allow it only once.
+**Reentrancy** is a class of smart-contract vulnerability in which a contract makes an *external call*-sending ETH or invoking another contract-**before it finishes updating its own state**. The called party can then call back ("re-enter") into the original function while it is still mid-execution, observing and acting on **stale state** that has not yet been written back. Repeated re-entry against that stale state lets an attacker perform an action-most famously a withdrawal-many times when the contract intended to allow it only once.
 
 The root cause is an ordering mistake. On most blockchains an external call transfers control synchronously to the callee, and the callee is free to run arbitrary code, including a call straight back into the caller. If the caller has not yet recorded the effects of what it is doing (for example, zeroing the user's balance), the world the callee sees is a lie: the balance still looks available, so the caller happily pays out again.
 
@@ -79,17 +79,17 @@ function withdraw() external {
 }
 ```
 
-When `msg.sender` is an attacker contract, the `call` invokes that contract's `receive()`, which calls `withdraw()` again. Because `balance[msg.sender]` is still the original amount, the check passes and another payment is sent—looping until the contract is empty or gas runs out.
+When `msg.sender` is an attacker contract, the `call` invokes that contract's `receive()`, which calls `withdraw()` again. Because `balance[msg.sender]` is still the original amount, the check passes and another payment is sent-looping until the contract is empty or gas runs out.
 
 ### Categories of Reentrancy
 
 #### 1. Single-function (same-function) reentrancy
 
-The attacker re-enters the *same* function that made the external call—the classic `withdraw` loop above. This is the original DAO-class bug.
+The attacker re-enters the *same* function that made the external call-the classic `withdraw` loop above. This is the original DAO-class bug.
 
 #### 2. Cross-function reentrancy
 
-The attacker re-enters a *different* function that shares state with the one making the call. For example, `withdraw()` sends ETH before updating `balance`, and during that call the attacker invokes `transfer(friend, balance)`—which reads the not-yet-zeroed balance and moves it elsewhere before `withdraw` resets it.
+The attacker re-enters a *different* function that shares state with the one making the call. For example, `withdraw()` sends ETH before updating `balance`, and during that call the attacker invokes `transfer(friend, balance)`-which reads the not-yet-zeroed balance and moves it elsewhere before `withdraw` resets it.
 
 #### 3. Cross-contract reentrancy
 
@@ -97,7 +97,7 @@ Two or more contracts share state (or one caches another's state). An external c
 
 #### 4. Read-only reentrancy
 
-Even a `view` function can be dangerous. During a re-entrant callback, a getter (for example, `getPrice()` or `getVirtualPrice()`) returns a value computed from state that is temporarily inconsistent. The attacking transaction calls an *integrating* protocol that reads that getter and makes a decision—pricing collateral, minting shares—on the stale number. Nothing is written in the victim getter, which is exactly why it is easy to miss.
+Even a `view` function can be dangerous. During a re-entrant callback, a getter (for example, `getPrice()` or `getVirtualPrice()`) returns a value computed from state that is temporarily inconsistent. The attacking transaction calls an *integrating* protocol that reads that getter and makes a decision-pricing collateral, minting shares-on the stale number. Nothing is written in the victim getter, which is exactly why it is easy to miss.
 
 #### 5. Token-hook (ERC777 / ERC721) reentrancy
 
@@ -105,7 +105,7 @@ Some token standards call the recipient during a transfer. ERC777 invokes `token
 
 #### 6. Delegatecall reentrancy
 
-Proxy and library patterns use `delegatecall`, which runs external code in the caller's own storage context. If the delegated code makes an external call before the proxy's state is settled—or if an upgradeable contract's storage layout can be re-entered mid-operation—an attacker can manipulate the shared storage through re-entry.
+Proxy and library patterns use `delegatecall`, which runs external code in the caller's own storage context. If the delegated code makes an external call before the proxy's state is settled-or if an upgradeable contract's storage layout can be re-entered mid-operation-an attacker can manipulate the shared storage through re-entry.
 
 ### Where the External Call Hides
 
@@ -128,7 +128,7 @@ Proxy and library patterns use `delegatecall`, which runs external code in the c
 
 **Impact**:
 - A very large fraction of the contract's funds was drained through recursive re-entry before state was ever finalised.
-- The incident was severe enough that the Ethereum community ultimately hard-forked the chain, splitting it into Ethereum and Ethereum Classic—a defining event for the ecosystem.
+- The incident was severe enough that the Ethereum community ultimately hard-forked the chain, splitting it into Ethereum and Ethereum Classic-a defining event for the ecosystem.
 
 **Root Cause**: Interactions-before-Effects ordering in the withdrawal path, with no reentrancy guard. It is the archetype from which the whole category takes its name.
 
@@ -148,13 +148,13 @@ Proxy and library patterns use `delegatecall`, which runs external code in the c
 - A pool exposed a `view` getter (such as a virtual price or share value) that was temporarily inconsistent while a withdrawal callback was executing.
 - An integrating protocol read that getter during the callback and priced collateral or minted shares on the stale value.
 
-**Impact**: Lending markets and other integrators that trusted the getter mid-transaction could be induced to over-value or under-value assets, enabling under-collateralised borrows or unfair mints—without the vulnerable getter itself ever writing state.
+**Impact**: Lending markets and other integrators that trusted the getter mid-transaction could be induced to over-value or under-value assets, enabling under-collateralised borrows or unfair mints-without the vulnerable getter itself ever writing state.
 
 **Root Cause**: A getter that returns intermediate state during a reentrant window, trusted by an external consumer. It shows that reentrancy defences must cover *view* functions and cross-protocol reads, not just state-changing withdrawals.
 
 ## Prevalence and Significance
 
-Reentrancy is one of the most recognised and studied vulnerability classes in smart-contract security, and it is included as **SC05** in the OWASP Smart Contract Top 10 (2025). Despite being well understood since 2016, it continues to appear—usually in a newer form (cross-function, cross-contract, read-only, or token-hook) rather than the textbook single-function case.
+Reentrancy is one of the most recognised and studied vulnerability classes in smart-contract security, and it is included as **SC05** in the OWASP Smart Contract Top 10 (2025). Despite being well understood since 2016, it continues to appear-usually in a newer form (cross-function, cross-contract, read-only, or token-hook) rather than the textbook single-function case.
 
 Rather than cite precise loss totals (which vary by source and year), the defensible picture is:
 
@@ -169,11 +169,11 @@ Rather than cite precise loss totals (which vary by source and year), the defens
 
 ### Myth 1: "Using `transfer`/`send` instead of `call` makes me safe"
 
-**Reality**: The 2300-gas stipend of `transfer`/`send` historically made re-entry hard, but it is *not* a security guarantee—gas costs change, and cross-function or token-hook paths do not depend on that stipend. Modern guidance is to use `call` *with* Checks-Effects-Interactions and a guard, not to rely on gas limits.
+**Reality**: The 2300-gas stipend of `transfer`/`send` historically made re-entry hard, but it is *not* a security guarantee-gas costs change, and cross-function or token-hook paths do not depend on that stipend. Modern guidance is to use `call` *with* Checks-Effects-Interactions and a guard, not to rely on gas limits.
 
 ### Myth 2: "Only functions that send ETH can be re-entered"
 
-**Reality**: Any external call is a re-entry point. ERC777 `tokensReceived`, ERC721 `onERC721Received`, and any call to an untrusted contract all hand over control—no raw ETH required.
+**Reality**: Any external call is a re-entry point. ERC777 `tokensReceived`, ERC721 `onERC721Received`, and any call to an untrusted contract all hand over control-no raw ETH required.
 
 ### Myth 3: "`view` functions are harmless"
 
@@ -187,7 +187,7 @@ Rather than cite precise loss totals (which vary by source and year), the defens
 
 **Reality**: "Trusted" contracts can themselves be upgradeable, call untrusted code, or hold tokens with hooks. Treat every external call as potentially reentrant and order your state changes accordingly.
 
-### Myth 6: "Checks-Effects-Interactions and a mutex are redundant—pick one"
+### Myth 6: "Checks-Effects-Interactions and a mutex are redundant-pick one"
 
 **Reality**: They are complementary. CEI removes the incentive to re-enter by finalising state first; a `nonReentrant` mutex is defence-in-depth that also covers cross-function paths and cases where an external call is genuinely unavoidable mid-logic.
 
@@ -202,11 +202,11 @@ Rather than cite precise loss totals (which vary by source and year), the defens
 
 ## Key Takeaways
 
-1. **Reentrancy is an ordering bug**—an external call made before state is finalised lets the callee act on stale state.
-2. **Any external call is a door**—ETH sends, ERC777/ERC721 hooks, arbitrary calls, and `delegatecall` all pass control to code that may re-enter.
-3. **The variants are what bite today**—cross-function, cross-contract, and read-only reentrancy survive audits that only look for the classic loop.
-4. **Fix by ordering, then guard**—apply Checks-Effects-Interactions first, add a `nonReentrant` mutex as defence-in-depth.
-5. **Losses are final**—a single reentrant transaction can drain the whole balance, and on-chain there is no undo.
+1. **Reentrancy is an ordering bug**-an external call made before state is finalised lets the callee act on stale state.
+2. **Any external call is a door**-ETH sends, ERC777/ERC721 hooks, arbitrary calls, and `delegatecall` all pass control to code that may re-enter.
+3. **The variants are what bite today**-cross-function, cross-contract, and read-only reentrancy survive audits that only look for the classic loop.
+4. **Fix by ordering, then guard**-apply Checks-Effects-Interactions first, add a `nonReentrant` mutex as defence-in-depth.
+5. **Losses are final**-a single reentrant transaction can drain the whole balance, and on-chain there is no undo.
 
 ## How to Identify if You're Vulnerable
 

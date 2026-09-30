@@ -220,38 +220,38 @@
 <h2>npm / Node.js</h2>
 
 <h3>Insecure</h3>
-<pre><code># .npmrc — public registry is the only source; scopes fall back publicly
+<pre><code># .npmrc - public registry is the only source; scopes fall back publicly
 registry=https://registry.npmjs.org/
 # No @acme scope mapping, so @acme (and unscoped internal names) can be
 # resolved from the PUBLIC registry -> dependency-confusion window open.
 
-# package.json — floating ranges, unscoped internal name
+# package.json - floating ranges, unscoped internal name
 {
   "dependencies": {
     "acme-auth-utils": "^1.0.0",   // internal name, unscoped, floating
     "lodash": "*"                  // any version the registry serves
   }
 }</code></pre>
-<pre><code># Build step — loose install that trusts whatever resolves and runs scripts
+<pre><code># Build step - loose install that trusts whatever resolves and runs scripts
 npm install            # regenerates lock, honors highest match, runs postinstall
 # A public "acme-auth-utils@99.99.99" wins and its postinstall executes.</code></pre>
 
 <h3>Secure</h3>
-<pre><code># .npmrc — single internal proxy; @acme bound PRIVATELY with no public fallback
+<pre><code># .npmrc - single internal proxy; @acme bound PRIVATELY with no public fallback
 registry=https://registry.internal.acme/npm/
 @acme:registry=https://registry.internal.acme/npm/
 //registry.internal.acme/npm/:_authToken=${NPM_TOKEN}
 always-auth=true
 ignore-scripts=true            # no lifecycle scripts during install
 
-# package.json — scoped internal name, exact versions
+# package.json - scoped internal name, exact versions
 {
   "dependencies": {
     "@acme/auth-utils": "1.4.2",   // scoped -> only the private registry
     "lodash": "4.17.21"            // exact version, matched to the lockfile
   }
 }</code></pre>
-<pre><code># Build step — locked, hash-verified, script-free install in CI
+<pre><code># Build step - locked, hash-verified, script-free install in CI
 npm ci --ignore-scripts
 #   * fails if package.json and package-lock.json disagree
 #   * installs the EXACT, sha512-integrity-checked artifacts from the lock
@@ -261,33 +261,33 @@ npm audit signatures           # verify registry signatures/provenance</code></p
 <h2>pip / Python</h2>
 
 <h3>Insecure</h3>
-<pre><code># pip.conf / CLI — private index MERGED with public PyPI
+<pre><code># pip.conf / CLI - private index MERGED with public PyPI
 [global]
 index-url = https://pypi.org/simple
 extra-index-url = https://pypi.internal.acme/simple
 #   pip queries BOTH and picks the highest version across them.
 #   A public "acme-auth-utils" at a higher version shadows the private one.
 
-# requirements.txt — no pins, no hashes
+# requirements.txt - no pins, no hashes
 acme-auth-utils        # unpinned internal name
 requests               # unpinned</code></pre>
-<pre><code># Install — sdists allowed, so setup.py can run arbitrary code
+<pre><code># Install - sdists allowed, so setup.py can run arbitrary code
 pip install -r requirements.txt
 # No hash verification; malicious setup.py executes on the build agent.</code></pre>
 
 <h3>Secure</h3>
-<pre><code># pip.conf — a SINGLE internal index; no extra-index-url merging
+<pre><code># pip.conf - a SINGLE internal index; no extra-index-url merging
 [global]
 index-url = https://pypi.internal.acme/simple
 require-hashes = true
 only-binary = :all:            # prefer wheels; do not execute setup.py
 
-# requirements.txt — pinned versions + integrity hashes
+# requirements.txt - pinned versions + integrity hashes
 acme-auth-utils==1.4.2 \
   --hash=sha256:9f2b3a1c0d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a
 requests==2.32.3 \
   --hash=sha256:55365417734eb18255590a9ff9eb97e9e1da868d4ccd6402399eaf68af20a760</code></pre>
-<pre><code># Install — hashes enforced; any unpinned/altered package is rejected
+<pre><code># Install - hashes enforced; any unpinned/altered package is rejected
 pip install --require-hashes --only-binary=:all: -r requirements.txt
 #   --require-hashes: every requirement MUST carry a matching hash
 #   --only-binary:    no source builds, so no setup.py runs at install</code></pre>
@@ -295,7 +295,7 @@ pip install --require-hashes --only-binary=:all: -r requirements.txt
 <h2>Maven / Java</h2>
 
 <h3>Insecure</h3>
-<pre><code>&lt;!-- pom.xml / settings.xml — public Maven Central reachable directly,
+<pre><code>&lt;!-- pom.xml / settings.xml - public Maven Central reachable directly,
      version RANGES allowed, no checksum enforcement --&gt;
 &lt;repositories&gt;
   &lt;repository&gt;
@@ -311,7 +311,7 @@ pip install --require-hashes --only-binary=:all: -r requirements.txt
 &lt;/dependency&gt;</code></pre>
 
 <h3>Secure</h3>
-<pre><code>&lt;!-- settings.xml — mirror EVERYTHING through the internal repository --&gt;
+<pre><code>&lt;!-- settings.xml - mirror EVERYTHING through the internal repository --&gt;
 &lt;mirrors&gt;
   &lt;mirror&gt;
     &lt;id&gt;internal&lt;/id&gt;
@@ -320,13 +320,13 @@ pip install --require-hashes --only-binary=:all: -r requirements.txt
   &lt;/mirror&gt;
 &lt;/mirrors&gt;
 
-&lt;!-- pom.xml — exact version, group you own and have verified --&gt;
+&lt;!-- pom.xml - exact version, group you own and have verified --&gt;
 &lt;dependency&gt;
   &lt;groupId&gt;com.acme&lt;/groupId&gt;
   &lt;artifactId&gt;auth-utils&lt;/artifactId&gt;
   &lt;version&gt;1.4.2&lt;/version&gt;   &lt;!-- exact, no range --&gt;
 &lt;/dependency&gt;</code></pre>
-<pre><code># Build — fail hard on any checksum mismatch
+<pre><code># Build - fail hard on any checksum mismatch
 mvn -C clean verify        # -C = strict checksum policy (fail, don't warn)
 # Combine with the OWASP dependency-check plugin for known-bad versions.</code></pre>
 

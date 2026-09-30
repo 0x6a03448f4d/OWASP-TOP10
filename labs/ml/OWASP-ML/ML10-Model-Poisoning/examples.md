@@ -54,7 +54,7 @@ def load_verified_model(path, expected_digest, signature, pubkey, build_model):
 # stored OUT OF BAND from the artifact itself (not next to the file).
 ```
 
-> **What changed**: the model is trusted only after its bytes match a signed, reviewed digest—never because of its filename or bucket. A swapped or edited artifact fails verification and is refused.
+> **What changed**: the model is trusted only after its bytes match a signed, reviewed digest-never because of its filename or bucket. A swapped or edited artifact fails verification and is refused.
 
 ## 2. Publishing and Promoting via the Registry
 

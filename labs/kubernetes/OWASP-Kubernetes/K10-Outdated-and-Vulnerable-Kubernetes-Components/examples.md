@@ -144,7 +144,7 @@ grype registry.example.com/app:1.4.2 --fail-on high
 #   (CronJob or CI schedule) -> trivy k8s + kubescape -> alert on findings
 ```
 
-> **Why it matters**: Image scanners see inside containers; cluster scanners (Trivy k8s, kubescape) see the kubelet, runtime, and add-on versions where the escape/RCE/privesc classes live. You need both, and you need them on a schedule—not only at build time.
+> **Why it matters**: Image scanners see inside containers; cluster scanners (Trivy k8s, kubescape) see the kubelet, runtime, and add-on versions where the escape/RCE/privesc classes live. You need both, and you need them on a schedule-not only at build time.
 
 ## 5. Automating Node Patching (kured)
 
@@ -195,7 +195,7 @@ spec:
 # which roll patched node images for you.
 ```
 
-> **Why it matters**: The node OS, kernel, and runtime are the layers behind container escape and local privilege escalation—and the ones most often left stale. Automating their patching removes the human bottleneck.
+> **Why it matters**: The node OS, kernel, and runtime are the layers behind container escape and local privilege escalation-and the ones most often left stale. Automating their patching removes the human bottleneck.
 
 ## 6. Add-on Hygiene
 

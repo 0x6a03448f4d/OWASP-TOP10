@@ -8,11 +8,11 @@
 
 ## Understanding the Attack Vectors
 
-> **⚠ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can rate-limit, cap, and cost-control this abuse in serverless systems you own or are authorised to test. Never generate load against infrastructure you do not control.
+> **⚠ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can rate-limit, cap, and cost-control this abuse in serverless systems you own or are authorised to test. Never generate load against infrastructure you do not control.
 
-The attacker's goal here is simple: make the platform do *expensive work, repeatedly, without limit*. They do not need a memory-corruption bug or a stolen credential. They need an entry point that scales—a public endpoint, an event source, or a loop—and the absence of a cap. Because serverless auto-scales and bills per use, the very same flood produces two payoffs at once: it consumes the shared concurrency pool (a **denial of service**) and it runs up the invoice (a **denial of wallet**). The attacker chooses which one matters; often they get both for free.
+The attacker's goal here is simple: make the platform do *expensive work, repeatedly, without limit*. They do not need a memory-corruption bug or a stolen credential. They need an entry point that scales-a public endpoint, an event source, or a loop-and the absence of a cap. Because serverless auto-scales and bills per use, the very same flood produces two payoffs at once: it consumes the shared concurrency pool (a **denial of service**) and it runs up the invoice (a **denial of wallet**). The attacker chooses which one matters; often they get both for free.
 
-What makes these vectors distinct from a traditional DoS is that *nothing has to break*. The platform happily accepts the load; the "damage" is the platform doing exactly what it was designed to do—scale and charge—on the attacker's behalf. That is why the effective defences are limits and cost controls, not bigger servers.
+What makes these vectors distinct from a traditional DoS is that *nothing has to break*. The platform happily accepts the load; the "damage" is the platform doing exactly what it was designed to do-scale and charge-on the attacker's behalf. That is why the effective defences are limits and cost controls, not bigger servers.
 
 ### Core Attack Flow
 
@@ -51,7 +51,7 @@ while true; do curl -s https://api.example.com/render -d @big.json & done
 
 ### 2. Make Each Invocation Maximally Expensive
 
-Rather than more requests, the attacker makes each request cost more—by driving the function toward its long timeout and large memory, or by sending inputs that trigger heavy work.
+Rather than more requests, the attacker makes each request cost more-by driving the function toward its long timeout and large memory, or by sending inputs that trigger heavy work.
 
 ```
 # Function: timeout 900s, memory 3008MB, no input size limit.
@@ -105,7 +105,7 @@ SQS message -> function does 800s of work -> throws -> SQS re-drives it
 
 ### 6. Exhaust Expensive Downstream Resources
 
-The attacker aims past the function at what it calls—a metered third-party API, or a database with a finite connection pool—so a modest invocation rate causes outsized cost or a downstream outage.
+The attacker aims past the function at what it calls-a metered third-party API, or a database with a finite connection pool-so a modest invocation rate causes outsized cost or a downstream outage.
 
 ```
 # Each invocation opens a new DB connection and calls a paid API:
@@ -119,7 +119,7 @@ flood -> 1,000 concurrent functions -> 1,000 DB connections (pool max: 100)
 
 ### 7. Starve Neighbours by Draining Shared Concurrency
 
-Because account/region concurrency is a shared pool, an attacker who floods *one* uncapped function throttles every *other* function in the account—a pure availability attack with a wide blast radius.
+Because account/region concurrency is a shared pool, an attacker who floods *one* uncapped function throttles every *other* function in the account-a pure availability attack with a wide blast radius.
 
 ```
 # Account concurrency limit: 1,000 (shared by ALL functions).
@@ -145,7 +145,7 @@ No reserved concurrency cap         -> flood drains the shared pool
         =  every function throttled (DoS)  AND  the bill explodes (DoW)
 ```
 
-The self-inflicted variant needs no sustained attacker at all—just one trigger and a missing guard:
+The self-inflicted variant needs no sustained attacker at all-just one trigger and a missing guard:
 
 ```
 Recursive S3-write loop (or fan-out) -> one event self-amplifies
@@ -157,11 +157,11 @@ Recursive S3-write loop (or fan-out) -> one event self-amplifies
 
 ## Key Takeaways
 
-1. **The entry point is anything that scales**—a public endpoint, a writable event source, or a self-loop; no exploit is required.
-2. **Cost and availability fall together**—one flood both drains shared concurrency (DoS) and runs up the bill (DoW).
-3. **Amplification does the attacker's work**—recursion, fan-out, and retry storms multiply invocations from a single cheap trigger.
-4. **Downstream is a target too**—connection pools and metered APIs can be exhausted long before the function budget is.
-5. **Shared concurrency is the wide blast radius**—without reserved caps, one endpoint's flood throttles the whole account.
+1. **The entry point is anything that scales**-a public endpoint, a writable event source, or a self-loop; no exploit is required.
+2. **Cost and availability fall together**-one flood both drains shared concurrency (DoS) and runs up the bill (DoW).
+3. **Amplification does the attacker's work**-recursion, fan-out, and retry storms multiply invocations from a single cheap trigger.
+4. **Downstream is a target too**-connection pools and metered APIs can be exhausted long before the function budget is.
+5. **Shared concurrency is the wide blast radius**-without reserved caps, one endpoint's flood throttles the whole account.
 
 ## Next Steps
 

@@ -4,14 +4,14 @@ Each pair below shows a **vulnerable** implementation and the **secure** version
 
 ## Table of Contents
 
-- [Java — ObjectInputStream vs. JSON DTO + filter](#java--objectinputstream-vs-json-dto--filter)
-- [Python — pickle vs. signed JSON](#python--pickle-vs-signed-json)
-- [PHP — unserialize vs. json_decode / allowed_classes](#php--unserialize-vs-json_decode--allowed_classes)
-- [Node.js — node-serialize vs. JSON.parse + schema](#nodejs--node-serialize-vs-jsonparse--schema)
+- [Java - ObjectInputStream vs. JSON DTO + filter](#java--objectinputstream-vs-json-dto--filter)
+- [Python - pickle vs. signed JSON](#python--pickle-vs-signed-json)
+- [PHP - unserialize vs. json_decode / allowed_classes](#php--unserialize-vs-json_decode--allowed_classes)
+- [Node.js - node-serialize vs. JSON.parse + schema](#nodejs--node-serialize-vs-jsonparse--schema)
 - [Side-by-Side Summary](#side-by-side-summary)
 - [Next Steps](#next-steps)
 
-## Java — ObjectInputStream vs. JSON DTO + filter
+## Java - ObjectInputStream vs. JSON DTO + filter
 
 ### Vulnerable
 
@@ -50,7 +50,7 @@ ois.setObjectInputFilter(ObjectInputFilter.Config.createFilter(
 Object obj = ois.readObject();
 ```
 
-## Python — pickle vs. signed JSON
+## Python - pickle vs. signed JSON
 
 ### Vulnerable
 
@@ -93,9 +93,9 @@ def load_session():
     return f"Welcome {state['name']}"
 ```
 
-> The cookie is now a signed, data-only JSON blob. An attacker cannot forge it without the key, and even a valid blob only ever produces plain values—never an executable object graph.
+> The cookie is now a signed, data-only JSON blob. An attacker cannot forge it without the key, and even a valid blob only ever produces plain values-never an executable object graph.
 
-## PHP — unserialize vs. json_decode / allowed_classes
+## PHP - unserialize vs. json_decode / allowed_classes
 
 ### Vulnerable
 
@@ -127,7 +127,7 @@ $data = unserialize($raw, ['allowed_classes' => false]);
 ?>
 ```
 
-## Node.js — node-serialize vs. JSON.parse + schema
+## Node.js - node-serialize vs. JSON.parse + schema
 
 ### Vulnerable
 
@@ -186,7 +186,7 @@ for (const key of Object.keys(parsed)) {
 
 - **[Overview](./overview.html)**: What insecure deserialization is and why it matters
 - **[Attack Vectors](./attack-vectors.html)**: How attackers craft gadget chains and tamper with serialized state
-- **[Prevention](./prevention.html)**: Layered defenses—safe formats, allow-lists, integrity, and least privilege
+- **[Prevention](./prevention.html)**: Layered defenses-safe formats, allow-lists, integrity, and least privilege
 - **[Hands-On Lab](./lab/insecure-deserialization/)**: Practice detecting and fixing insecure deserialization in a safe, isolated environment
 
 ---

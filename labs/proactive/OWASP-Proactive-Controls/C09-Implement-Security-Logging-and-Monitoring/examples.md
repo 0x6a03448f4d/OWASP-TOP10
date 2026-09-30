@@ -1,6 +1,6 @@
 # C9: Implement Security Logging and Monitoring - Code Examples
 
-Each pair below shows an **insecure** approach—no security event, no context, or a leak—next to the **secure** version in the same technology: structured events with context, redaction, injection-safety, and an alertable signal. The final sections show the SIEM correlation and alert-routing configuration that turns those logs into detection.
+Each pair below shows an **insecure** approach-no security event, no context, or a leak-next to the **secure** version in the same technology: structured events with context, redaction, injection-safety, and an alertable signal. The final sections show the SIEM correlation and alert-routing configuration that turns those logs into detection.
 
 ## 1. Authentication Logging (Python / Flask)
 
@@ -220,7 +220,7 @@ level: critical
 
 ## 6. Alert Routing (fight alert fatigue)
 
-Tuned routing sends only high-fidelity, actionable alerts to a human, and deduplicates the rest. Severity—not volume—decides who gets paged.
+Tuned routing sends only high-fidelity, actionable alerts to a human, and deduplicates the rest. Severity-not volume-decides who gets paged.
 
 ```yaml
 # Alertmanager-style config
@@ -248,7 +248,7 @@ receivers:
 
 ## 7. Log-Gap & Integrity Monitoring
 
-Silence is a signal. If a service stops shipping logs, or an integrity check fails, alert—an attacker's first move is often to disable logging.
+Silence is a signal. If a service stops shipping logs, or an integrity check fails, alert-an attacker's first move is often to disable logging.
 
 ```yaml
 # Alert if a service that normally logs goes quiet (possible tampering/outage)

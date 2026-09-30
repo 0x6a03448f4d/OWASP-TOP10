@@ -1,16 +1,16 @@
-# SSRF — Prevention
+# SSRF - Prevention
 
 ## Table of Contents
 
 - [Defense in Depth: The Layers](#defense-in-depth-the-layers)
-- [Layer 1 — Allowlist Destinations](#layer-1--allowlist-destinations)
-- [Layer 2 — Resolve and Validate the IP](#layer-2--resolve-and-validate-the-ip)
-- [Layer 3 — Defeat DNS Rebinding (Pin the IP)](#layer-3--defeat-dns-rebinding-pin-the-ip)
-- [Layer 4 — Control Redirects](#layer-4--control-redirects)
-- [Layer 5 — Restrict Schemes and Disable Parsers](#layer-5--restrict-schemes-and-disable-parsers)
-- [Layer 6 — Network Segmentation and Egress Filtering](#layer-6--network-segmentation-and-egress-filtering)
-- [Layer 7 — Enforce IMDSv2](#layer-7--enforce-imdsv2)
-- [Layer 8 — Safe Response Handling](#layer-8--safe-response-handling)
+- [Layer 1 - Allowlist Destinations](#layer-1--allowlist-destinations)
+- [Layer 2 - Resolve and Validate the IP](#layer-2--resolve-and-validate-the-ip)
+- [Layer 3 - Defeat DNS Rebinding (Pin the IP)](#layer-3--defeat-dns-rebinding-pin-the-ip)
+- [Layer 4 - Control Redirects](#layer-4--control-redirects)
+- [Layer 5 - Restrict Schemes and Disable Parsers](#layer-5--restrict-schemes-and-disable-parsers)
+- [Layer 6 - Network Segmentation and Egress Filtering](#layer-6--network-segmentation-and-egress-filtering)
+- [Layer 7 - Enforce IMDSv2](#layer-7--enforce-imdsv2)
+- [Layer 8 - Safe Response Handling](#layer-8--safe-response-handling)
 - [A Complete Safe-Fetcher Reference](#a-complete-safe-fetcher-reference)
 - [Prevention Checklist](#prevention-checklist)
 
@@ -28,9 +28,9 @@ No single control stops SSRF. Filters get bypassed by encodings and rebinding; a
 | Cloud | IMDSv2 + least-privilege roles | Credential theft |
 | Output | Do not reflect raw responses | Data exfiltration, oracles |
 
-## Layer 1 — Allowlist Destinations
+## Layer 1 - Allowlist Destinations
 
-The single most effective control. Deny by default and permit only what the feature genuinely needs: an explicit set of **schemes** (almost always just `https`), **hosts** (exact names, not substrings), and **ports** (usually 443). Prefer an allowlist over a blocklist — blocklists chase an endless list of encodings; allowlists define the small set of things that are OK.
+The single most effective control. Deny by default and permit only what the feature genuinely needs: an explicit set of **schemes** (almost always just `https`), **hosts** (exact names, not substrings), and **ports** (usually 443). Prefer an allowlist over a blocklist - blocklists chase an endless list of encodings; allowlists define the small set of things that are OK.
 
 ```
 Allowlist (durable)                 Blocklist (fragile)
@@ -41,9 +41,9 @@ port   in {443}                     ...missing 127.1, 0x7f..., [::1], rebinding
                                     ...missing every new internal range
 ```
 
-When the destination cannot be an allowlist (open webhooks, "fetch any public page"), you must lean harder on Layers 2, 3, and 6 — validate the resolved IP and enforce egress filtering, because you cannot enumerate legitimate hosts in advance.
+When the destination cannot be an allowlist (open webhooks, "fetch any public page"), you must lean harder on Layers 2, 3, and 6 - validate the resolved IP and enforce egress filtering, because you cannot enumerate legitimate hosts in advance.
 
-## Layer 2 — Resolve and Validate the IP
+## Layer 2 - Resolve and Validate the IP
 
 Never validate the hostname string alone. Resolve it, then reject the request if *any* resolved address falls in a private, loopback, link-local, or otherwise reserved range. Check every address the name resolves to (a hostname can return several).
 
@@ -79,9 +79,9 @@ const net = require('node:net');   // net.isIP() to detect family
 // reject ranges: 'private','loopback','linkLocal','uniqueLocal','reserved','unspecified'
 ```
 
-## Layer 3 — Defeat DNS Rebinding (Pin the IP)
+## Layer 3 - Defeat DNS Rebinding (Pin the IP)
 
-Validation is worthless if the app resolves the name a second time to connect — the attacker changes the answer in between. Resolve **once**, validate that address, then connect to **that exact IP**, carrying the original hostname only for TLS SNI and the `Host` header.
+Validation is worthless if the app resolves the name a second time to connect - the attacker changes the answer in between. Resolve **once**, validate that address, then connect to **that exact IP**, carrying the original hostname only for TLS SNI and the `Host` header.
 
 ```python
 # Python (requests): resolve, validate, then connect to the pinned IP
@@ -103,7 +103,7 @@ def safe_get(url, host):
 
 In Node.js, pass a custom `lookup` function to the HTTP agent that returns only your pre-validated, pinned address, so the socket layer cannot re-resolve to a different IP.
 
-## Layer 4 — Control Redirects
+## Layer 4 - Control Redirects
 
 A validated public URL can redirect to an internal one. Two safe options:
 
@@ -121,7 +121,7 @@ fetch(url, { redirect: 'manual' });        // do not auto-follow; validate Locat
 HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).build();
 ```
 
-## Layer 5 — Restrict Schemes and Disable Parsers
+## Layer 5 - Restrict Schemes and Disable Parsers
 
 Permit only `https` (and `http` if unavoidable). Explicitly reject `file://`, `gopher://`, `dict://`, `ftp://`, `ldap://`, and everything else. For document/XML/SVG handling, disable external-entity and remote-reference resolution so parsers cannot be turned into fetchers.
 
@@ -137,7 +137,7 @@ dbf.setXIncludeAware(false);
 dbf.setExpandEntityReferences(false);
 ```
 
-## Layer 6 — Network Segmentation and Egress Filtering
+## Layer 6 - Network Segmentation and Egress Filtering
 
 Assume the application filter will someday be bypassed, and make sure the fetcher's network cannot reach anything sensitive. Put URL-fetching workloads in an isolated segment whose egress firewall **denies by default** and permits only the specific external destinations the feature requires.
 
@@ -155,7 +155,7 @@ ALLOW -> 443/tcp to {approved public destinations}
 
 An outbound proxy that all fetches must traverse is a good enforcement point: it can allowlist destinations centrally, strip dangerous schemes, and log every request for detection.
 
-## Layer 7 — Enforce IMDSv2
+## Layer 7 - Enforce IMDSv2
 
 On cloud instances, require IMDSv2 and disable IMDSv1 so a GET-only SSRF cannot read metadata, and set a low hop limit so responses cannot be routed off-box. Pair this with **least-privilege instance roles** so that even a stolen credential grants little.
 
@@ -175,11 +175,11 @@ metadata_options {
 }
 ```
 
-> IMDSv2 protects the metadata endpoint only. It does nothing for internal databases, admin panels, or file reads — keep every other layer in place.
+> IMDSv2 protects the metadata endpoint only. It does nothing for internal databases, admin panels, or file reads - keep every other layer in place.
 
-## Layer 8 — Safe Response Handling
+## Layer 8 - Safe Response Handling
 
-Do not reflect raw fetched content back to the user — bodies, headers, redirect targets, or verbose error text all become exfiltration channels and blind-SSRF oracles. Return a generic result, cap response size, enforce a strict timeout, and log the resolved destination for monitoring.
+Do not reflect raw fetched content back to the user - bodies, headers, redirect targets, or verbose error text all become exfiltration channels and blind-SSRF oracles. Return a generic result, cap response size, enforce a strict timeout, and log the resolved destination for monitoring.
 
 - **Do not echo** the upstream body or status verbatim; transform it into the minimal data your feature needs.
 - **Cap size and time**: reject responses over a sane byte limit; use short connect/read timeouts to blunt port-scan oracles.
@@ -236,13 +236,13 @@ def safe_fetch(raw_url):
     return body[:MAX_BYTES]
 ```
 
-Where available, prefer a maintained SSRF-protection library or a vetted safe HTTP client over reinventing this — but understand each layer so you can review whatever you adopt.
+Where available, prefer a maintained SSRF-protection library or a vetted safe HTTP client over reinventing this - but understand each layer so you can review whatever you adopt.
 
 ## Prevention Checklist
 
-- [ ] Every server-side fetch goes through one central, guarded fetcher — no ad-hoc `requests.get(user_url)`.
+- [ ] Every server-side fetch goes through one central, guarded fetcher - no ad-hoc `requests.get(user_url)`.
 - [ ] Destinations are **allowlisted** (scheme + exact host + port) wherever the feature allows it.
-- [ ] The **resolved IP** is validated against private/loopback/link-local/reserved ranges — not the hostname string.
+- [ ] The **resolved IP** is validated against private/loopback/link-local/reserved ranges - not the hostname string.
 - [ ] The connection is **pinned** to the validated IP to defeat DNS rebinding.
 - [ ] Redirects are **not auto-followed**, or every hop is re-validated.
 - [ ] Only `https` (and, if unavoidable, `http`) schemes are permitted; `file/gopher/dict/ftp` are rejected.

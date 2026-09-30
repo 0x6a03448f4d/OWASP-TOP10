@@ -12,11 +12,11 @@
 
 ## What is Integer Overflow and Underflow?
 
-**Integer overflow and underflow** occur when an arithmetic operation produces a result outside the range a fixed-size integer can hold, so the value *wraps around* modulo 2n instead of being the mathematically correct number. On the EVM every integer is fixed-width—`uint256` holds 0 to 2256&minus;1, `uint8` holds 0 to 255—and there is no arbitrary-precision fallback. When a computation steps past the edge of that range, the bits that don't fit are simply discarded, and the surviving value can be wildly wrong.
+**Integer overflow and underflow** occur when an arithmetic operation produces a result outside the range a fixed-size integer can hold, so the value *wraps around* modulo 2n instead of being the mathematically correct number. On the EVM every integer is fixed-width-`uint256` holds 0 to 2256&minus;1, `uint8` holds 0 to 255-and there is no arbitrary-precision fallback. When a computation steps past the edge of that range, the bits that don't fit are simply discarded, and the surviving value can be wildly wrong.
 
 Two directions of the same defect:
 
-- **Underflow**: subtracting past zero on an unsigned type. `uint8(0) - 1` does not become &minus;1; it wraps to `255`. In a token contract, `balance - amount` where `amount > balance` yields a colossal number instead of a revert—an attacker who should have been rejected instead mints themselves a near-infinite balance.
+- **Underflow**: subtracting past zero on an unsigned type. `uint8(0) - 1` does not become &minus;1; it wraps to `255`. In a token contract, `balance - amount` where `amount > balance` yields a colossal number instead of a revert-an attacker who should have been rejected instead mints themselves a near-infinite balance.
 - **Overflow**: adding or multiplying past the maximum. `uint8(255) + 1` wraps to `0`. A running total, a supply counter, or a cap check that overflows can silently reset to a tiny value, letting an attacker slip past a limit the code believed it was enforcing.
 
 ### Core Concept
@@ -47,10 +47,10 @@ keeps running with a value the invariants never anticipated.
 
 The same wrap-around exists in C and countless other languages, but on a blockchain the stakes and the finality are different:
 
-- Contracts **hold value directly**. A wrapped balance or supply is not a display glitch—it is money that can be withdrawn.
+- Contracts **hold value directly**. A wrapped balance or supply is not a display glitch-it is money that can be withdrawn.
 - Deployed bytecode is typically **immutable**. If arithmetic is wrong at deploy time, there is often no patch, only migration or loss.
 - Transactions are **public and replayable**. Once an attacker finds an overflow, anyone can reproduce it until the contract is drained or paused.
-- Arithmetic sits at the heart of **every invariant**—balances, total supply, allowances, share accounting—so a single wrap can break the contract's most fundamental guarantees.
+- Arithmetic sits at the heart of **every invariant**-balances, total supply, allowances, share accounting-so a single wrap can break the contract's most fundamental guarantees.
 
 ## Why Does This Matter?
 
@@ -66,7 +66,7 @@ The same wrap-around exists in C and countless other languages, but on a blockch
 
 - **Broken Invariants**: Sum of balances no longer equals total supply; share accounting diverges from underlying assets.
 - **Bypassed Require Checks**: A check like `require(balance >= amount)` is worthless if the very subtraction that follows underflows in older compilers.
-- **Silent State Corruption**: Overflow produces no error on pre-0.8 compilers or inside `unchecked` blocks—the contract simply stores a wrong number and continues.
+- **Silent State Corruption**: Overflow produces no error on pre-0.8 compilers or inside `unchecked` blocks-the contract simply stores a wrong number and continues.
 - **Truncation on Casts**: Downcasting `uint256` to `uint64`/`uint8` discards high bits, so amounts, timestamps, or IDs can silently change value.
 - **Assembly Has No Guardrails**: Arithmetic written in inline Yul/assembly performs no overflow checks whatsoever, regardless of compiler version.
 
@@ -152,17 +152,17 @@ assembly {
 
 ## The Crucial Version Nuance
 
-**Solidity &ge; 0.8.0 inserts overflow and underflow checks by default.** Since 0.8.0, `+`, `-`, and `*` on integers automatically *revert* (with `Panic(0x11)`) when they would wrap. This changed the shape of the risk—it did not eliminate it.
+**Solidity &ge; 0.8.0 inserts overflow and underflow checks by default.** Since 0.8.0, `+`, `-`, and `*` on integers automatically *revert* (with `Panic(0x11)`) when they would wrap. This changed the shape of the risk-it did not eliminate it.
 
 What this means in practice, and why the bug class is still very much alive:
 
 - **Legacy and unpatched contracts (<0.8)**: Enormous amounts of value sits in contracts compiled before 0.8.0. Without OpenZeppelin **SafeMath**, every add/sub/mul in those contracts can silently wrap. This is where the historical exploits lived.
-- **unchecked { } blocks**: Developers use `unchecked` to save gas in hot paths. Inside such a block, 0.8's protection is switched off—so an overflow can slip straight through on the newest compiler if the operation can actually wrap.
+- **unchecked { } blocks**: Developers use `unchecked` to save gas in hot paths. Inside such a block, 0.8's protection is switched off-so an overflow can slip straight through on the newest compiler if the operation can actually wrap.
 - **Casts and downcasts are never checked**: `uint64(x)` truncates silently in *every* version, including 0.8+. The default checked arithmetic does not cover narrowing conversions.
 - **Inline assembly / Yul is never checked**: Any arithmetic written in `assembly { }` bypasses all Solidity-level protection regardless of version.
-- **Multiply-before-divide still overflows**: On 0.8+ this reverts rather than wrapping—which is safer, but an unexpected revert is still a denial-of-service/logic bug if the code assumed the intermediate would fit.
+- **Multiply-before-divide still overflows**: On 0.8+ this reverts rather than wrapping-which is safer, but an unexpected revert is still a denial-of-service/logic bug if the code assumed the intermediate would fit.
 
-The modern lesson is not &ldquo;overflow is solved.&rdquo; It is: **know which of your operations are actually unprotected**—old compilers, `unchecked` blocks, casts, and assembly—and prove those specific operations cannot wrap.
+The modern lesson is not &ldquo;overflow is solved.&rdquo; It is: **know which of your operations are actually unprotected**-old compilers, `unchecked` blocks, casts, and assembly-and prove those specific operations cannot wrap.
 
 ## Real-World Impact
 
@@ -175,7 +175,7 @@ The modern lesson is not &ldquo;overflow is solved.&rdquo; It is: **know which o
 
 **Impact**:
 
-- The balance check passed against the wrapped-small total, while each recipient was still credited the full, enormous `amount`—minting tokens far beyond supply.
+- The balance check passed against the wrapped-small total, while each recipient was still credited the full, enormous `amount`-minting tokens far beyond supply.
 - This pattern (widely referred to as the *batchOverflow* class) affected multiple tokens and forced exchanges to suspend deposits and trading of the affected assets.
 
 **Root Cause**: An unchecked multiplication feeding a balance check on a pre-0.8 compiler without SafeMath.
@@ -190,7 +190,7 @@ The modern lesson is not &ldquo;overflow is solved.&rdquo; It is: **know which o
 
 - Attackers generated balances out of nothing, again prompting exchanges to halt trading of affected tokens while the issue was assessed.
 
-**Root Cause**: The same family of defect—fixed-width arithmetic wrapping in token bookkeeping compiled without overflow protection.
+**Root Cause**: The same family of defect-fixed-width arithmetic wrapping in token bookkeeping compiled without overflow protection.
 
 ### Case Study 3: Underflow-Based Balance Exploits
 
@@ -204,7 +204,7 @@ The modern lesson is not &ldquo;overflow is solved.&rdquo; It is: **know which o
 
 **Root Cause**: Unchecked subtraction on an unsigned integer, allowing an underflow where a revert was expected.
 
-Note: these are described as *classes* of incident. The durable lesson is the pattern—unchecked fixed-width arithmetic in value-bearing bookkeeping—not any single token's exact numbers.
+Note: these are described as *classes* of incident. The durable lesson is the pattern-unchecked fixed-width arithmetic in value-bearing bookkeeping-not any single token's exact numbers.
 
 ## Prevalence and Significance
 
@@ -212,7 +212,7 @@ Integer overflow and underflow is a **foundational** smart-contract vulnerabilit
 
 The defensible picture today:
 
-- On **Solidity &ge; 0.8** the *default* path is safe—plain `+`/`-`/`*` revert on wrap—so brand-new naive code is far less likely to ship a classic overflow than it was in 2017.
+- On **Solidity &ge; 0.8** the *default* path is safe-plain `+`/`-`/`*` revert on wrap-so brand-new naive code is far less likely to ship a classic overflow than it was in 2017.
 - The residual risk concentrates in **four places**: legacy `<0.8` contracts without SafeMath, `unchecked { }` blocks added for gas, silent **casts/downcasts**, and **inline assembly**.
 - Impact remains **severe**: a single wrap in balance or supply accounting can be a total loss of funds, and the immutability of deployed code makes it hard to remediate after the fact.
 
@@ -253,11 +253,11 @@ The defensible picture today:
 
 ## Key Takeaways
 
-1. **Integers are fixed-width**—past the edge they wrap modulo 2n rather than growing, and a wrapped balance or supply is real, spendable value.
-2. **0.8 changed the default, not the whole story**—checked arithmetic protects plain `+`/`-`/`*`, but not `unchecked`, casts, or assembly.
-3. **The residual risk is specific**—legacy contracts, `unchecked` blocks, downcasts, and inline Yul are where wraps still happen.
-4. **Underflow mints, overflow bypasses**—subtracting past zero creates value; overflowing a total defeats a cap.
-5. **Prove it can't wrap**—for every unprotected operation, bound the inputs and fuzz the extremes before you trust it.
+1. **Integers are fixed-width**-past the edge they wrap modulo 2n rather than growing, and a wrapped balance or supply is real, spendable value.
+2. **0.8 changed the default, not the whole story**-checked arithmetic protects plain `+`/`-`/`*`, but not `unchecked`, casts, or assembly.
+3. **The residual risk is specific**-legacy contracts, `unchecked` blocks, downcasts, and inline Yul are where wraps still happen.
+4. **Underflow mints, overflow bypasses**-subtracting past zero creates value; overflowing a total defeats a cap.
+5. **Prove it can't wrap**-for every unprotected operation, bound the inputs and fuzz the extremes before you trust it.
 
 ## How to Identify if You're Vulnerable
 

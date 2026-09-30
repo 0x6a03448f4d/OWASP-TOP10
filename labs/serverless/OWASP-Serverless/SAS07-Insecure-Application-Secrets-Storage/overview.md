@@ -10,9 +10,9 @@
 
 ## What is Insecure Application Secrets Storage?
 
-**Insecure Application Secrets Storage** occurs when the many secrets a serverless function needs to do its job—database credentials, third-party API keys, signing keys, OAuth client secrets, session tokens, encryption keys—are kept somewhere that is convenient for the developer but readable by an attacker. The function may be otherwise well written, but its secrets sit in plaintext environment variables, hardcoded in source committed to Git, baked into the deployment artifact, or written into the infrastructure-as-code that lives in the repository. It is not a single leaked password; it is the accumulated habit of treating secrets as ordinary configuration.
+**Insecure Application Secrets Storage** occurs when the many secrets a serverless function needs to do its job-database credentials, third-party API keys, signing keys, OAuth client secrets, session tokens, encryption keys-are kept somewhere that is convenient for the developer but readable by an attacker. The function may be otherwise well written, but its secrets sit in plaintext environment variables, hardcoded in source committed to Git, baked into the deployment artifact, or written into the infrastructure-as-code that lives in the repository. It is not a single leaked password; it is the accumulated habit of treating secrets as ordinary configuration.
 
-Serverless makes this weakness both more likely and more damaging. A serverless application is not one process with one config file—it is **dozens of small functions**, each of which needs credentials to talk to a database, a queue, a payment provider, or another function. The path of least resistance is to paste those values into `serverless.yml` or a Lambda environment variable and move on. Because functions are **ephemeral and numerous**, secrets get copied widely, shared across functions that should not have them, and are almost never rotated. And because everything is **defined as code**, a plaintext secret in a template is one `git push` away from being permanent, public history.
+Serverless makes this weakness both more likely and more damaging. A serverless application is not one process with one config file-it is **dozens of small functions**, each of which needs credentials to talk to a database, a queue, a payment provider, or another function. The path of least resistance is to paste those values into `serverless.yml` or a Lambda environment variable and move on. Because functions are **ephemeral and numerous**, secrets get copied widely, shared across functions that should not have them, and are almost never rotated. And because everything is **defined as code**, a plaintext secret in a template is one `git push` away from being permanent, public history.
 
 ### Core Concept
 
@@ -40,7 +40,7 @@ Insecure Secrets Handling:
 
 Serverless concentrates several conditions that make insecure secret storage especially dangerous:
 
-- Functions are **configuration-driven**, and environment variables are the obvious place to put configuration—so secrets land there by default, in plaintext, visible to anyone who can read the function's config.
+- Functions are **configuration-driven**, and environment variables are the obvious place to put configuration-so secrets land there by default, in plaintext, visible to anyone who can read the function's config.
 - Applications are **defined entirely as code** (`serverless.yml`, SAM/CloudFormation templates), so a secret typed into a template is committed to version control and often pushed to a shared or public repository.
 - There are **many small functions**, so a single copied secret spreads across the codebase, and the same value is reused far beyond the one place it belongs.
 - Functions run **arbitrary third-party dependencies** in the same process as your secrets; any of that code can read `process.env` / `os.environ` and exfiltrate it (ties to SAS-6 and SAS-10).
@@ -50,11 +50,11 @@ Serverless concentrates several conditions that make insecure secret storage esp
 
 ### Business Impact
 
-- **Direct Breach of Downstream Systems**: A leaked database credential or API key is not a foothold to be developed—it is immediate, authenticated access to the exact system the secret protects.
+- **Direct Breach of Downstream Systems**: A leaked database credential or API key is not a foothold to be developed-it is immediate, authenticated access to the exact system the secret protects.
 - **Financial Loss and Resource Abuse**: Leaked cloud or payment-provider keys are routinely used to spin up expensive resources (crypto mining) or move money, turning a code mistake into a bill or a fraud loss.
 - **Permanent Exposure via Git History**: A secret committed once lives in the repository's history forever; deleting the line in a later commit does not remove it. Anyone who ever cloned or forked the repo keeps a copy.
 - **Regulatory and Contractual Fallout**: Credentials guarding personal or cardholder data trigger GDPR, HIPAA, and PCI-DSS obligations, fines, and mandatory disclosure when they leak.
-- **Expensive, Repeated Rotation**: When a static secret leaks, every system that ever received a copy must be found and rotated—a slow, error-prone scramble that automated rotation would have made routine.
+- **Expensive, Repeated Rotation**: When a static secret leaks, every system that ever received a copy must be found and rotated-a slow, error-prone scramble that automated rotation would have made routine.
 
 ### Technical Impact
 
@@ -73,15 +73,15 @@ The weakness is best understood as a set of storage locations that feel like con
 | Insecure Location | Why It Feels Convenient | Who Can Read It |
 |-------------------|-------------------------|-----------------|
 | Plaintext environment variables | Native to Lambda; one line in config | Console users, anyone with `lambda:GetFunctionConfiguration`, exception dumps, and all in-process code/dependencies |
-| Hardcoded in source code | Works instantly with no setup | Everyone with repo read access—forever, via Git history |
+| Hardcoded in source code | Works instantly with no setup | Everyone with repo read access-forever, via Git history |
 | Committed `serverless.yml` / IaC | Keeps deploy config in one file | Everyone with repo access; often pushed to shared/public remotes |
 | Deployment package / artifact | Bundling a `.env` "just works" | Anyone who can download the function's code or the build artifact |
 | CloudWatch logs | A quick `print(event)` while debugging | Anyone with log read access; retained for the group's lifetime |
-| One shared secret across functions | Copy-paste is faster than scoping | Every function—so a breach of any one exposes all |
+| One shared secret across functions | Copy-paste is faster than scoping | Every function-so a breach of any one exposes all |
 
 ### 1. Secrets in Plaintext Environment Variables
 
-Lambda environment variables are the single most common place secrets end up. They are trivial to set, and the code reads them with one line—but they are stored and displayed in plaintext unless you explicitly encrypt them, and they are exposed through several channels at once.
+Lambda environment variables are the single most common place secrets end up. They are trivial to set, and the code reads them with one line-but they are stored and displayed in plaintext unless you explicitly encrypt them, and they are exposed through several channels at once.
 
 ```
 # A function's environment, as returned by the platform API:
@@ -100,7 +100,7 @@ $ aws lambda get-function-configuration --function-name checkout
 # The same values appear in the console UI and in many exception dumps.
 ```
 
-**Risk**: Plaintext env vars are readable by console users, by any principal holding `lambda:GetFunctionConfiguration`, by code that dumps the environment on error, and—critically—by every dependency running in the function's process.
+**Risk**: Plaintext env vars are readable by console users, by any principal holding `lambda:GetFunctionConfiguration`, by code that dumps the environment on error, and-critically-by every dependency running in the function's process.
 
 ### 2. Hardcoded Secrets Committed to Git
 
@@ -127,12 +127,12 @@ checkout.zip
 # Anyone who can download the function code / build artifact extracts the .env.
 ```
 
-**Risk**: The artifact is not "inside" the function—it can be downloaded via the platform API or pulled from a build/CI store, handing over any credentials bundled with it.
+**Risk**: The artifact is not "inside" the function-it can be downloaded via the platform API or pulled from a build/CI store, handing over any credentials bundled with it.
 
 ### 4. Secrets in `serverless.yml` / Infrastructure as Code
 
 ```
-# serverless.yml committed to the repo — plaintext secret as "config"
+# serverless.yml committed to the repo - plaintext secret as "config"
 provider:
   name: aws
   environment:
@@ -140,11 +140,11 @@ provider:
     STRIPE_SECRET_KEY: sk_live_51H...redacted  # visible to everyone with repo access
 ```
 
-**Risk**: IaC is code, and code goes to version control. A secret here is both committed to history and injected into the function as a plaintext environment variable—two weaknesses in one line.
+**Risk**: IaC is code, and code goes to version control. A secret here is both committed to history and injected into the function as a plaintext environment variable-two weaknesses in one line.
 
 ### 5. Over-Shared Secrets and No Rotation
 
-Two amplifiers turn a single leak into a large breach. **Over-sharing** hands the same secret to every function regardless of need, so compromising any one function exposes credentials for systems it never touched. **No rotation** means the leaked value stays valid indefinitely—a key exposed a year ago is very likely still live today, and there is no automatic expiry to limit the damage window.
+Two amplifiers turn a single leak into a large breach. **Over-sharing** hands the same secret to every function regardless of need, so compromising any one function exposes credentials for systems it never touched. **No rotation** means the leaked value stays valid indefinitely-a key exposed a year ago is very likely still live today, and there is no automatic expiry to limit the damage window.
 
 ### 6. Secrets Echoed to Logs
 
@@ -160,7 +160,7 @@ console.log("config:", process.env);            // the entire secret environment
 
 ## Real-World Impact
 
-The examples below are described as **incident classes**—patterns repeatedly observed across the industry—rather than specific named breaches, because insecure secret storage is a category defined by how routinely and generically it happens.
+The examples below are described as **incident classes**-patterns repeatedly observed across the industry-rather than specific named breaches, because insecure secret storage is a category defined by how routinely and generically it happens.
 
 ### Case Class 1: Leaked Keys in Public and Shared Repositories
 
@@ -175,7 +175,7 @@ The examples below are described as **incident classes**—patterns repeatedly o
 ### Case Class 2: Environment-Variable Secret Exposure
 
 **Weakness**:
-- Serverless functions store live credentials in plaintext environment variables. A separate weakness—an SSRF, a vulnerable dependency, an over-broad read permission, or a verbose error—then exposes that environment.
+- Serverless functions store live credentials in plaintext environment variables. A separate weakness-an SSRF, a vulnerable dependency, an over-broad read permission, or a verbose error-then exposes that environment.
 
 **Impact**:
 - Repeated, well-documented incidents involve attackers reading a function's (or a workload's) environment and immediately obtaining the credentials it held, converting a low-severity information-disclosure bug into full access to databases and third-party services.
@@ -194,19 +194,19 @@ The examples below are described as **incident classes**—patterns repeatedly o
 
 ## Prevalence and Statistics
 
-Insecure secret storage is a durable member of the OWASP Serverless Top 10 (as SAS-7) and maps onto the broader OWASP Top 10 themes of cryptographic and identity failures. It is one of the most frequently found and most reliably exploited weaknesses, precisely because a leaked secret needs no exploit—it *is* the access.
+Insecure secret storage is a durable member of the OWASP Serverless Top 10 (as SAS-7) and maps onto the broader OWASP Top 10 themes of cryptographic and identity failures. It is one of the most frequently found and most reliably exploited weaknesses, precisely because a leaked secret needs no exploit-it *is* the access.
 
 Rather than cite precise figures (which vary by source and year), the defensible picture is:
 
-- Secret leakage through source repositories is characterised across the industry as **extremely common and rapidly exploited**—public commits containing keys are found by automated scanners almost immediately.
+- Secret leakage through source repositories is characterised across the industry as **extremely common and rapidly exploited**-public commits containing keys are found by automated scanners almost immediately.
 - The most commonly observed patterns are **plaintext environment variables, hardcoded credentials in code, secrets in committed IaC, and secrets bundled into artifacts**.
 - The impact is rated **high to critical**: exposure is often direct and total for the system the secret protects, and static, un-rotated secrets keep that exposure alive long after the leak.
 
-> Note: exact counts of leaked credentials differ between reports and years. Treat any single figure as illustrative; the durable takeaway is that secrets leak constantly, are found fast, and—without rotation—stay dangerous for a long time.
+> Note: exact counts of leaked credentials differ between reports and years. Treat any single figure as illustrative; the durable takeaway is that secrets leak constantly, are found fast, and-without rotation-stay dangerous for a long time.
 
 ## Common Misunderstandings
 
-### Myth 1: "Environment variables are secure—they're not in the code"
+### Myth 1: "Environment variables are secure-they're not in the code"
 
 **Reality**: Environment variables are *configuration*, not *protection*. In Lambda they are stored and shown in plaintext by default, returned by `GetFunctionConfiguration`, and readable by every dependency in the process. Moving a secret from code to an env var changes where it leaks, not whether it leaks.
 
@@ -216,11 +216,11 @@ Rather than cite precise figures (which vary by source and year), the defensible
 
 ### Myth 3: "I deleted the secret in a later commit, so it's gone"
 
-**Reality**: Git keeps history. The old commit—and the secret in it—is still retrievable in every clone and on the host. The only safe response to a committed secret is to *rotate* it, not to delete the line.
+**Reality**: Git keeps history. The old commit-and the secret in it-is still retrievable in every clone and on the host. The only safe response to a committed secret is to *rotate* it, not to delete the line.
 
 ### Myth 4: "We use a secrets manager, so we're done"
 
-**Reality**: A managed store only helps if you actually fetch from it at runtime with a least-privilege role—not if you copy the secret out of it into a plaintext env var at deploy time. It also does nothing for secrets already sitting in Git history.
+**Reality**: A managed store only helps if you actually fetch from it at runtime with a least-privilege role-not if you copy the secret out of it into a plaintext env var at deploy time. It also does nothing for secrets already sitting in Git history.
 
 ### Myth 5: "Rotation is overkill for internal keys"
 
@@ -228,7 +228,7 @@ Rather than cite precise figures (which vary by source and year), the defensible
 
 ### Myth 6: "Our function code is trusted, so in-process secrets are safe"
 
-**Reality**: Your function runs far more than your code—every direct and transitive dependency executes in the same process with the same access to `process.env`. Trusting your own code says nothing about the hundreds of packages beside it.
+**Reality**: Your function runs far more than your code-every direct and transitive dependency executes in the same process with the same access to `process.env`. Trusting your own code says nothing about the hundreds of packages beside it.
 
 ## How SAS-7 Differs from Related Issues
 
@@ -241,11 +241,11 @@ Rather than cite precise figures (which vary by source and year), the defensible
 
 ## Key Takeaways
 
-1. **Secrets are not configuration**—plaintext environment variables, code, IaC, and artifacts all expose them; treat every one of those as a leak.
-2. **Git is forever**—a committed secret must be rotated, not just deleted, and scanning must stop it entering history in the first place.
-3. **Fetch, don't embed**—pull secrets at runtime from a managed store with a least-privilege role, and cache them in memory rather than baking them in.
-4. **Everything in the process can read the environment**—every dependency sees your env-var secrets, so keep them out of the environment where you can.
-5. **Rotate and scope**—automatic rotation shrinks the damage window, and per-function scoping shrinks the blast radius.
+1. **Secrets are not configuration**-plaintext environment variables, code, IaC, and artifacts all expose them; treat every one of those as a leak.
+2. **Git is forever**-a committed secret must be rotated, not just deleted, and scanning must stop it entering history in the first place.
+3. **Fetch, don't embed**-pull secrets at runtime from a managed store with a least-privilege role, and cache them in memory rather than baking them in.
+4. **Everything in the process can read the environment**-every dependency sees your env-var secrets, so keep them out of the environment where you can.
+5. **Rotate and scope**-automatic rotation shrinks the damage window, and per-function scoping shrinks the blast radius.
 
 ## How to Identify if You're Vulnerable
 

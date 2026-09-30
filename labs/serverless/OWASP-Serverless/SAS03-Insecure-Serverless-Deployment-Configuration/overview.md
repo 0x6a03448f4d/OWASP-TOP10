@@ -10,7 +10,7 @@
 
 ## What is Insecure Serverless Deployment Configuration?
 
-**Insecure Serverless Deployment Configuration** occurs when the many settings that govern serverless functions—and the cloud resources they depend on—are left at insecure defaults or actively misconfigured. A single function is rarely deployed alone: it arrives with an execution role, environment variables, triggers, a possible public URL, and a web of buckets, queues, topics, tables, and API Gateway routes around it. Each of those has security-relevant knobs, and most of them ship in a state optimised for "works in a demo," not "safe in production."
+**Insecure Serverless Deployment Configuration** occurs when the many settings that govern serverless functions-and the cloud resources they depend on-are left at insecure defaults or actively misconfigured. A single function is rarely deployed alone: it arrives with an execution role, environment variables, triggers, a possible public URL, and a web of buckets, queues, topics, tables, and API Gateway routes around it. Each of those has security-relevant knobs, and most of them ship in a state optimised for "works in a demo," not "safe in production."
 
 Unlike a coding bug, this weakness lives in the **deployment artifact**: the `serverless.yml`, the AWS SAM or CloudFormation template, the Terraform module, and the resource-based policies attached to each service. When those files grant public access, wildcard principals, plaintext secrets, or missing encryption, the vulnerability is baked in before the first request ever arrives. Every subsequent deploy faithfully re-creates it.
 
@@ -55,7 +55,7 @@ Serverless concentrates several conditions that make deployment misconfiguration
 
 - **Data Exposure**: Publicly-readable buckets used as function input/output stores leak backups, uploads, and customer records to anyone who guesses or scrapes the bucket name.
 - **Unauthorized Invocation and Tampering**: A wildcard resource policy or a `NONE`-auth Function URL lets an attacker invoke business logic, enqueue messages, or publish events without any credential.
-- **Secret Compromise**: Plaintext secrets in environment variables are visible to anyone who can read the function configuration—and are dumped by many recon tools automatically.
+- **Secret Compromise**: Plaintext secrets in environment variables are visible to anyone who can read the function configuration-and are dumped by many recon tools automatically.
 - **Cost and Availability Abuse**: Missing throttling and quotas on public functions and API Gateway turn every anonymous request into a bill and a denial-of-service surface.
 - **Regulatory Fallout**: Exposed personal data through a misconfigured bucket or endpoint triggers GDPR, HIPAA, and PCI-DSS obligations, fines, and mandatory breach notifications.
 
@@ -74,7 +74,7 @@ Serverless concentrates several conditions that make deployment misconfiguration
 #### 1. Publicly-Readable / Writable Storage Buckets
 
 ```yaml
-# serverless.yml — VULNERABLE
+# serverless.yml - VULNERABLE
 resources:
   Resources:
     UploadsBucket:
@@ -84,7 +84,7 @@ resources:
         # No PublicAccessBlockConfiguration -> public policies allowed
 ```
 
-**Risk**: A bucket used to stage function input/output becomes a public file share. Public-write is worse—attackers plant objects the function later trusts.
+**Risk**: A bucket used to stage function input/output becomes a public file share. Public-write is worse-attackers plant objects the function later trusts.
 
 #### 2. Overly Permissive Resource-Based Policies
 
@@ -102,7 +102,7 @@ resources:
 #### 3. Public Lambda Function URLs with No Auth
 
 ```yaml
-# AWS SAM — VULNERABLE
+# AWS SAM - VULNERABLE
 FunctionUrlConfig:
   AuthType: NONE                         # anonymous, unauthenticated invoke
   Cors:
@@ -114,7 +114,7 @@ FunctionUrlConfig:
 #### 4. Plaintext Secrets in Environment Variables
 
 ```yaml
-# VULNERABLE — secrets in cleartext, no KMS key
+# VULNERABLE - secrets in cleartext, no KMS key
 Environment:
   Variables:
     DB_PASSWORD: "S3cr3t-Pa55w0rd"
@@ -126,7 +126,7 @@ Environment:
 #### 5. Missing Encryption at Rest / In Transit
 
 ```yaml
-# VULNERABLE — no encryption specified
+# VULNERABLE - no encryption specified
 QueueResource:
   Type: AWS::SQS::Queue
   # No KmsMasterKeyId -> default handling, no CMK
@@ -168,7 +168,7 @@ BucketResource:
 - Functions were fronted by public Function URLs or API Gateway routes deployed with authentication set to none, or with resource policies naming a wildcard principal.
 
 **Impact**:
-- Researchers and attackers repeatedly discovered endpoints that invoked business logic anonymously—triggering processing, enqueuing work, or reading data—without any credential. Where throttling was also absent, the same endpoints doubled as denial-of-service and cost-amplification surfaces.
+- Researchers and attackers repeatedly discovered endpoints that invoked business logic anonymously-triggering processing, enqueuing work, or reading data-without any credential. Where throttling was also absent, the same endpoints doubled as denial-of-service and cost-amplification surfaces.
 
 **Root Cause**: Auth left at a permissive default during prototyping and never tightened before production, with no policy scan to catch `Principal: "*"` or `AuthType: NONE`. Described here as an incident *class*; specifics vary by organisation.
 
@@ -178,7 +178,7 @@ BucketResource:
 - Database passwords, third-party API keys, and tokens were stored as plaintext Lambda environment variables rather than in a secrets manager, and without a customer-managed KMS key.
 
 **Impact**:
-- Any principal with read access to the function configuration—including over-broad roles and some automated recon tooling—could retrieve the live secrets, enabling lateral movement into databases and third-party services.
+- Any principal with read access to the function configuration-including over-broad roles and some automated recon tooling-could retrieve the live secrets, enabling lateral movement into databases and third-party services.
 
 **Root Cause**: Convenience during development, no separation between configuration and secrets, and no scan flagging cleartext credentials in IaC. Treated here as a recurring class, not a single named breach.
 
@@ -188,7 +188,7 @@ Insecure deployment configuration is consistently among the **most common findin
 
 Rather than cite precise breach counts (which vary by source), the defensible picture is:
 
-- Misconfiguration of storage, resource policies, and endpoint auth is characterised as **highly prevalent and easily detectable**—IaC scanners and simple enumeration find it routinely.
+- Misconfiguration of storage, resource policies, and endpoint auth is characterised as **highly prevalent and easily detectable**-IaC scanners and simple enumeration find it routinely.
 - The most commonly observed sub-issues are **public buckets, wildcard resource policies, no-auth Function URLs, plaintext secrets, and missing throttling**.
 - The impact is rated **moderate to severe**: it ranges from information disclosure up to full data exposure and account-wide escalation via over-broad roles.
 
@@ -214,11 +214,11 @@ Rather than cite precise breach counts (which vary by source), the defensible pi
 
 ### Myth 5: "It's internal, so the resource policy can stay open"
 
-**Reality**: `Principal: "*"` is not "internal"—it grants everyone. Internal resources are reached through SSRF, compromised functions, and cross-account paths; scope every policy to a named principal with conditions.
+**Reality**: `Principal: "*"` is not "internal"-it grants everyone. Internal resources are reached through SSRF, compromised functions, and cross-account paths; scope every policy to a named principal with conditions.
 
 ### Myth 6: "We scanned the code, so we're covered"
 
-**Reality**: Code scanning misses deployment misconfiguration entirely. This class lives in `serverless.yml`, SAM/CloudFormation, Terraform, and resource policies—scan the **infrastructure as code** with checkov, cfn-nag, or tfsec.
+**Reality**: Code scanning misses deployment misconfiguration entirely. This class lives in `serverless.yml`, SAM/CloudFormation, Terraform, and resource policies-scan the **infrastructure as code** with checkov, cfn-nag, or tfsec.
 
 ## How Serverless Deployment Misconfiguration Differs from Related Issues
 
@@ -231,11 +231,11 @@ Rather than cite precise breach counts (which vary by source), the defensible pi
 
 ## Key Takeaways
 
-1. **The configuration is the security boundary**—with no server to harden, IaC and resource policies are the only wall.
-2. **Private by default**—no public buckets, no `Principal: "*"`, no `AuthType: NONE` unless deliberately and narrowly justified.
+1. **The configuration is the security boundary**-with no server to harden, IaC and resource policies are the only wall.
+2. **Private by default**-no public buckets, no `Principal: "*"`, no `AuthType: NONE` unless deliberately and narrowly justified.
 3. **Secrets belong in a manager**, not in plaintext environment variables; encrypt at rest and in transit.
-4. **Scan the infrastructure as code**—checkov, cfn-nag, and tfsec catch these before deploy; code scanners never will.
-5. **Least privilege on both roles**—the execution role *and* the deploy role define the blast radius.
+4. **Scan the infrastructure as code**-checkov, cfn-nag, and tfsec catch these before deploy; code scanners never will.
+5. **Least privilege on both roles**-the execution role *and* the deploy role define the blast radius.
 
 ## How to Identify if You're Vulnerable
 

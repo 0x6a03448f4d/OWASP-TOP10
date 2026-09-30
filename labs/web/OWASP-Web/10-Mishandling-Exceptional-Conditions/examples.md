@@ -1,15 +1,15 @@
 # Mishandling of Exceptional Conditions - Examples
 
 ## Table of Contents
-- [Java — Fail-Open vs. Fail-Closed Authorization](#java--fail-open-vs-fail-closed-authorization)
-- [Python — Verbose Errors & Leaked Resources](#python--verbose-errors--leaked-resources)
-- [Node.js — Swallowed Async Errors & Enumeration Oracle](#nodejs--swallowed-async-errors--enumeration-oracle)
-- [Go — Ignored Errors & Missing Cleanup](#go--ignored-errors--missing-cleanup)
+- [Java - Fail-Open vs. Fail-Closed Authorization](#java--fail-open-vs-fail-closed-authorization)
+- [Python - Verbose Errors & Leaked Resources](#python--verbose-errors--leaked-resources)
+- [Node.js - Swallowed Async Errors & Enumeration Oracle](#nodejs--swallowed-async-errors--enumeration-oracle)
+- [Go - Ignored Errors & Missing Cleanup](#go--ignored-errors--missing-cleanup)
 - [What Changed, and Why](#what-changed-and-why)
 
 Each pair below shows a **vulnerable** implementation and the **secure** version in the same language. The themes are the ones that dominate real error-path findings: failing open, leaking internals, swallowing exceptions, building oracles, and leaking resources.
 
-## Java — Fail-Open vs. Fail-Closed Authorization
+## Java - Fail-Open vs. Fail-Closed Authorization
 
 ### Vulnerable
 ```java
@@ -28,7 +28,7 @@ public ResponseEntity<Report> adminReport(Principal principal) {
     return ResponseEntity.status(403).build();
 }
 ```
-An attacker who can make `roleService.hasRole` throw — by exhausting its connection pool or feeding input that trips a downstream error — is handed the admin report. The exception is caught, but the recovery decision is backwards.
+An attacker who can make `roleService.hasRole` throw - by exhausting its connection pool or feeding input that trips a downstream error - is handed the admin report. The exception is caught, but the recovery decision is backwards.
 
 ### Secure
 ```java
@@ -54,7 +54,7 @@ public ResponseEntity<?> adminReport(Principal principal) {
 ```
 The allow branch is reachable only on an explicit successful `true`. Any error denies, logs full detail under an ID, and returns a generic message.
 
-## Python — Verbose Errors & Leaked Resources
+## Python - Verbose Errors & Leaked Resources
 
 ### Vulnerable
 ```python
@@ -102,7 +102,7 @@ def on_error(e):
 ```
 Parameterised query, validated input, guaranteed cleanup via `with`, generic client message, and full detail confined to server logs behind an error ID.
 
-## Node.js — Swallowed Async Errors & Enumeration Oracle
+## Node.js - Swallowed Async Errors & Enumeration Oracle
 
 ### Vulnerable
 ```javascript
@@ -118,7 +118,7 @@ app.post('/login', async (req, res) => {
         if (!ok) return res.status(401).json({ error: 'Wrong password' });
         return res.json({ token: issue(user) });
     } catch (e) {
-        // swallowed — a bcrypt/internal error silently falls through
+        // swallowed - a bcrypt/internal error silently falls through
     }
     res.json({ token: issue(user) });   // FAIL-OPEN on the swallowed error
 });
@@ -142,7 +142,7 @@ app.post('/login', async (req, res, next) => {
         }
         return res.json({ token: issue(user) });
     } catch (err) {
-        next(err);                      // to the central handler — never swallow
+        next(err);                      // to the central handler - never swallow
     }
 });
 
@@ -155,7 +155,7 @@ app.use((err, req, res, next) => {
 ```
 Uniform response and timing remove the oracle; errors propagate to one handler instead of being swallowed into a fail-open path.
 
-## Go — Ignored Errors & Missing Cleanup
+## Go - Ignored Errors & Missing Cleanup
 
 ### Vulnerable
 ```go

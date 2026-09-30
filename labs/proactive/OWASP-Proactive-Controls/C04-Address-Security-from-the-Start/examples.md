@@ -1,6 +1,6 @@
 # C4: Address Security from the Start - Examples
 
-Each pair below shows an **insecure design** and the **secure design** that addresses the same feature. The difference is rarely a syntax fix—it is a decision made (or missed) about requirements, trust boundaries, and control placement. The final section shows the design *artifacts*—a threat-model snippet and an abuse case—that produce these decisions in the first place.
+Each pair below shows an **insecure design** and the **secure design** that addresses the same feature. The difference is rarely a syntax fix-it is a decision made (or missed) about requirements, trust boundaries, and control placement. The final section shows the design *artifacts*-a threat-model snippet and an abuse case-that produce these decisions in the first place.
 
 > **Read these for the design intent, not the syntax.** In every "insecure" example the code runs perfectly; what is missing is a control that should have been required during design.
 
@@ -28,7 +28,7 @@ def transfer():
 ```
 
 ### Secure Design
-The design derives the account from the session, enforces limits server-side, checks ownership, and makes the operation idempotent—all requirements written before coding.
+The design derives the account from the session, enforces limits server-side, checks ownership, and makes the operation idempotent-all requirements written before coding.
 
 ```python
 from flask import Flask, request, jsonify, g
@@ -130,7 +130,7 @@ app.post('/reset/complete', rateLimit, async (req, res) => {
 ## Example 3: Object Update / Mass Assignment (Java / Spring Boot)
 
 ### Insecure Design
-The design binds the raw request body straight onto the persistent entity, so any field—including privilege fields—is client-writable.
+The design binds the raw request body straight onto the persistent entity, so any field-including privilege fields-is client-writable.
 
 ```java
 @RestController
@@ -179,7 +179,7 @@ class UserController {
 
 ## Design Artifacts That Produce These Decisions
 
-The secure versions above did not appear during coding—they were decided earlier, in artifacts like these. This is what "addressing security from the start" looks like on paper.
+The secure versions above did not appear during coding-they were decided earlier, in artifacts like these. This is what "addressing security from the start" looks like on paper.
 
 ### Artifact A: Threat-Model Snippet (Fund Transfer)
 
@@ -210,7 +210,7 @@ Concurrency note: double-submit could transfer twice
 
 ### Artifact B: Abuse Case (as a testable requirement)
 
-An abuse case names the attacker goal, the mitigating control, and the test that proves it—so design intent becomes an executable check.
+An abuse case names the attacker goal, the mitigating control, and the test that proves it-so design intent becomes an executable check.
 
 ```
 ABUSE CASE  AC-TRANSFER-01
@@ -248,11 +248,11 @@ ABUSE CASE  AC-TRANSFER-01
 
 ## Key Takeaways
 
-1. **The insecure code often runs perfectly**—the flaw is a missing requirement, not a typo.
-2. **Derive security-relevant state server-side**—never let the client assert identity, price, or role.
-3. **Enforce sequence and limits on the server**—model workflows as state machines with real invariants.
-4. **Bind only allow-listed fields**—explicit DTOs stop mass assignment by design.
-5. **The artifacts come first**—a threat-model snippet and abuse cases are what turn secure intent into testable requirements.
+1. **The insecure code often runs perfectly**-the flaw is a missing requirement, not a typo.
+2. **Derive security-relevant state server-side**-never let the client assert identity, price, or role.
+3. **Enforce sequence and limits on the server**-model workflows as state machines with real invariants.
+4. **Bind only allow-listed fields**-explicit DTOs stop mass assignment by design.
+5. **The artifacts come first**-a threat-model snippet and abuse cases are what turn secure intent into testable requirements.
 
 ## Next Steps
 

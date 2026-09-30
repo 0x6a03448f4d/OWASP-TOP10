@@ -18,7 +18,7 @@
 
 ## Prevention Strategy Overview
 
-Protecting mobile application binaries requires a multi-layered approach that increases the cost and complexity of attacks. No single protection mechanism is sufficient—attackers will bypass individual controls. The goal is to make the cumulative effort required to compromise your application exceed the value they would gain.
+Protecting mobile application binaries requires a multi-layered approach that increases the cost and complexity of attacks. No single protection mechanism is sufficient-attackers will bypass individual controls. The goal is to make the cumulative effort required to compromise your application exceed the value they would gain.
 
 ### Protection Maturity Model
 

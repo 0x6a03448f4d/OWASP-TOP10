@@ -10,9 +10,9 @@
 
 ## What is Unsafe Consumption of APIs?
 
-**Unsafe Consumption of APIs** occurs when an application blindly trusts data received from third-party or upstream APIs and processes it without the same validation, sanitization, and transport controls it applies to direct user input. Developers instinctively trust data returned by a partner API, an identity provider, a payment processor, or an internal microservice far more than data typed by an end user — and that misplaced trust is exactly what makes the integration a soft target.
+**Unsafe Consumption of APIs** occurs when an application blindly trusts data received from third-party or upstream APIs and processes it without the same validation, sanitization, and transport controls it applies to direct user input. Developers instinctively trust data returned by a partner API, an identity provider, a payment processor, or an internal microservice far more than data typed by an end user - and that misplaced trust is exactly what makes the integration a soft target.
 
-The threat is a shift in perspective. Instead of attacking your API directly, an attacker attacks (or impersonates, or sits in the middle of) a service that *your* API consumes. If they can compromise that upstream service, tamper with its responses in transit, or trick your API into calling an attacker-controlled endpoint, then their malicious payload arrives pre-trusted — flowing straight into your database, your templates, your deserializers, and your business logic.
+The threat is a shift in perspective. Instead of attacking your API directly, an attacker attacks (or impersonates, or sits in the middle of) a service that *your* API consumes. If they can compromise that upstream service, tamper with its responses in transit, or trick your API into calling an attacker-controlled endpoint, then their malicious payload arrives pre-trusted - flowing straight into your database, your templates, your deserializers, and your business logic.
 
 ### Core Concept
 
@@ -50,7 +50,7 @@ Modern APIs are rarely standalone. They are woven into a mesh of upstream depend
 
 - They fan out to many third-party services by design (payments, IdPs, CRMs, geocoding, notifications).
 - Integration code is often written once, quickly, and never revisited or threat-modeled.
-- The upstream service sits *outside* your security controls — you cannot patch it, audit it, or guarantee it has not been breached.
+- The upstream service sits *outside* your security controls - you cannot patch it, audit it, or guarantee it has not been breached.
 - Data from an integration is usually deserialized and consumed automatically, with no human in the loop.
 - A single compromised partner can poison every customer of that partner simultaneously (a supply-chain multiplier).
 
@@ -93,7 +93,7 @@ A compromised partner returning `"'); DROP TABLE users;--"` in a name field now 
 
 ### 2. Insecure Integration Transport
 
-Integrations are frequently configured with plain HTTP, or with TLS certificate verification disabled "to make it work" — and that setting ships to production.
+Integrations are frequently configured with plain HTTP, or with TLS certificate verification disabled "to make it work" - and that setting ships to production.
 
 ```javascript
 // VULNERABLE - TLS verification turned off
@@ -172,14 +172,14 @@ The most damaging real-world cases of unsafely consuming a third party are the *
 - The skimmer captured card details and sent them to a look-alike attacker domain.
 
 **Impact**:
-- Card data was skimmed while the code was live — publicly reported as roughly a month in 2018 (mid-August to mid-September), *not* the much longer window sometimes miscited.
+- Card data was skimmed while the code was live - publicly reported as roughly a month in 2018 (mid-August to mid-September), *not* the much longer window sometimes miscited.
 - Reinforces the pattern: a trusted, embedded third-party resource becomes the breach vector.
 
-> **Note on attribution**: These are client-side supply-chain compromises, but they illustrate the exact API10 failure mode — *a system trusting a third party it does not control*. The same trust failure applies server-to-server when your API consumes a partner API, IdP, or webhook. Where a specific CVE or precise figure could not be verified, this lesson deliberately avoids inventing one.
+> **Note on attribution**: These are client-side supply-chain compromises, but they illustrate the exact API10 failure mode - *a system trusting a third party it does not control*. The same trust failure applies server-to-server when your API consumes a partner API, IdP, or webhook. Where a specific CVE or precise figure could not be verified, this lesson deliberately avoids inventing one.
 
 ## Prevalence and Statistics
 
-API10:2023 was introduced in the OWASP API Security Top 10 specifically because integrations were a fast-growing and under-defended attack surface. Unlike older categories, it has comparatively few "named" CVEs of its own — the risk usually manifests *through* another vulnerability class (injection, XSS, SSRF, deserialization) that the upstream data triggers. Rather than cite invented percentages, here is what is well-supported:
+API10:2023 was introduced in the OWASP API Security Top 10 specifically because integrations were a fast-growing and under-defended attack surface. Unlike older categories, it has comparatively few "named" CVEs of its own - the risk usually manifests *through* another vulnerability class (injection, XSS, SSRF, deserialization) that the upstream data triggers. Rather than cite invented percentages, here is what is well-supported:
 
 - Modern applications commonly depend on **dozens to hundreds** of third-party APIs and packages; each is a trust relationship that can be abused.
 - Supply-chain and third-party-integration attacks have grown sharply in industry reporting year over year.
@@ -206,7 +206,7 @@ API10:2023 was introduced in the OWASP API Security Top 10 specifically because 
 **Reality**: An upstream redirect can point at internal infrastructure (SSRF), cloud metadata, or an attacker host serving a poisoned body.
 
 ### Myth 6: "Schema validation is only for user-facing endpoints"
-**Reality**: Upstream responses are exactly where a strict schema pays off — it rejects malformed, oversized, and unexpected data before it reaches your logic.
+**Reality**: Upstream responses are exactly where a strict schema pays off - it rejects malformed, oversized, and unexpected data before it reaches your logic.
 
 ## How API10 Relates to Other Risks
 
@@ -234,7 +234,7 @@ API10:2023 was introduced in the OWASP API Security Top 10 specifically because 
 
 ## Key Takeaways
 
-1. **Trust boundaries include your integrations** — upstream data is untrusted input.
+1. **Trust boundaries include your integrations** - upstream data is untrusted input.
 2. **Validate and schema-check every third-party response** before using it.
 3. **Enforce TLS with certificate verification** on every integration call.
 4. **Do not blindly follow redirects** from upstream services.

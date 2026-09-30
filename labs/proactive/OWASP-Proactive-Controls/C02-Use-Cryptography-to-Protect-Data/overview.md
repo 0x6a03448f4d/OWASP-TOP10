@@ -14,15 +14,15 @@
 
 Cryptography here is not one feature you switch on. It is a set of decisions made deliberately across the whole system:
 
-- **Encryption in transit** — TLS 1.2+/1.3 so data on the wire cannot be read or altered.
-- **Encryption at rest** — authenticated encryption (for example AES-256-GCM) so stored data is unreadable without the key.
-- **Password protection** — slow, salted password hashing (Argon2id, bcrypt, scrypt, PBKDF2), never plain SHA/MD5.
-- **Strong, current algorithms** — and the retirement of broken ones (MD5, SHA-1 for security, DES, RC4, ECB mode).
-- **Secure randomness** — a CSPRNG for every key, token, salt, and nonce, never `Math.random()`.
-- **Key management** — keys generated, stored, rotated, and separated properly (KMS/HSM), never hardcoded.
-- **Vetted libraries** — use libsodium, your platform's crypto, or Tink; do not roll your own primitives.
+- **Encryption in transit** - TLS 1.2+/1.3 so data on the wire cannot be read or altered.
+- **Encryption at rest** - authenticated encryption (for example AES-256-GCM) so stored data is unreadable without the key.
+- **Password protection** - slow, salted password hashing (Argon2id, bcrypt, scrypt, PBKDF2), never plain SHA/MD5.
+- **Strong, current algorithms** - and the retirement of broken ones (MD5, SHA-1 for security, DES, RC4, ECB mode).
+- **Secure randomness** - a CSPRNG for every key, token, salt, and nonce, never `Math.random()`.
+- **Key management** - keys generated, stored, rotated, and separated properly (KMS/HSM), never hardcoded.
+- **Vetted libraries** - use libsodium, your platform's crypto, or Tink; do not roll your own primitives.
 
-The core idea is that cryptography moves the security boundary. Without it, protecting data depends on nobody ever reaching the disk, the backup, the log, the network tap, or the stolen laptop. With it, the data's confidentiality and integrity depend on *the secrecy of a key* — a much smaller, much more defensible thing to protect.
+The core idea is that cryptography moves the security boundary. Without it, protecting data depends on nobody ever reaching the disk, the backup, the log, the network tap, or the stolen laptop. With it, the data's confidentiality and integrity depend on *the secrecy of a key* - a much smaller, much more defensible thing to protect.
 
 ### Core Concept
 
@@ -55,7 +55,7 @@ Cryptography protects *data*; it is not a substitute for the controls around it:
 
 ## Why Does This Matter?
 
-Cryptographic failures are consistently among the most damaging classes of breach because they compromise the data itself — the thing an organisation is ultimately responsible for — rather than a single function.
+Cryptographic failures are consistently among the most damaging classes of breach because they compromise the data itself - the thing an organisation is ultimately responsible for - rather than a single function.
 
 ### Business Impact
 
@@ -102,10 +102,10 @@ Rule: Restricted and Confidential data MUST be encrypted in transit
 
 ### 2. Authenticated Encryption, Not Just Encryption
 
-Confidentiality alone is not enough — you also need to know the ciphertext was not tampered with. **Authenticated encryption with associated data (AEAD)** provides both. Prefer AES-256-GCM or ChaCha20-Poly1305 over unauthenticated modes like CBC (and never ECB, which leaks patterns).
+Confidentiality alone is not enough - you also need to know the ciphertext was not tampered with. **Authenticated encryption with associated data (AEAD)** provides both. Prefer AES-256-GCM or ChaCha20-Poly1305 over unauthenticated modes like CBC (and never ECB, which leaks patterns).
 
 ```
-ECB mode leaks structure — identical plaintext blocks
+ECB mode leaks structure - identical plaintext blocks
 produce identical ciphertext blocks:
 
   plaintext blocks:   [AAAA][BBBB][AAAA][CCCC]
@@ -159,7 +159,7 @@ The incident *classes* below recur across the industry. They are described as pa
 
 **Failure**: Sensitive records sit in plaintext columns, and backups or cloud storage snapshots are unencrypted.
 
-**Consequence**: A single leaked backup, stolen disk, or misconfigured bucket exposes every record immediately — no cracking required.
+**Consequence**: A single leaked backup, stolen disk, or misconfigured bucket exposes every record immediately - no cracking required.
 
 **The control that prevents it**: Field/column encryption with AES-256-GCM plus encrypted volumes and backups turns the same leak into unreadable ciphertext.
 
@@ -187,7 +187,7 @@ The incident *classes* below recur across the industry. They are described as pa
 
 ### Myth 2: "We hash passwords with SHA-256, so we're fine"
 
-**Reality**: Fast hashes are designed to be fast — exactly the wrong property for passwords. A GPU tries billions of SHA-256 guesses per second. Passwords need a deliberately slow, salted function (Argon2id/bcrypt).
+**Reality**: Fast hashes are designed to be fast - exactly the wrong property for passwords. A GPU tries billions of SHA-256 guesses per second. Passwords need a deliberately slow, salted function (Argon2id/bcrypt).
 
 ### Myth 3: "Encoding the data hides it"
 
@@ -195,7 +195,7 @@ The incident *classes* below recur across the industry. They are described as pa
 
 ### Myth 4: "We wrote our own encryption so attackers can't understand it"
 
-**Reality**: Security through obscurity fails. Home-grown crypto and custom modes almost always contain fatal flaws (bad IV handling, no authentication, key reuse). Use vetted libraries — libsodium, your platform's crypto, or Tink.
+**Reality**: Security through obscurity fails. Home-grown crypto and custom modes almost always contain fatal flaws (bad IV handling, no authentication, key reuse). Use vetted libraries - libsodium, your platform's crypto, or Tink.
 
 ### Myth 5: "The key can live in the config file / source code"
 
@@ -218,12 +218,12 @@ The incident *classes* below recur across the industry. They are described as pa
 
 ## Key Takeaways
 
-1. **This control is the defense against Cryptographic Failures** — protect data in transit, at rest, and (where feasible) in use.
-2. **Classify first** — know which data is sensitive so cryptography is applied where it counts.
+1. **This control is the defense against Cryptographic Failures** - protect data in transit, at rest, and (where feasible) in use.
+2. **Classify first** - know which data is sensitive so cryptography is applied where it counts.
 3. **Use authenticated encryption** (AES-256-GCM/ChaCha20-Poly1305), current algorithms, and retire the broken ones.
-4. **Hash passwords, don't encrypt them** — slow, salted Argon2id/bcrypt/scrypt/PBKDF2, never plain SHA/MD5.
-5. **Randomness and keys are the whole game** — CSPRNG everywhere, keys in a KMS/HSM, rotated and never hardcoded.
-6. **Don't roll your own** — use vetted libraries and keep the system crypto-agile so algorithms can be upgraded.
+4. **Hash passwords, don't encrypt them** - slow, salted Argon2id/bcrypt/scrypt/PBKDF2, never plain SHA/MD5.
+5. **Randomness and keys are the whole game** - CSPRNG everywhere, keys in a KMS/HSM, rotated and never hardcoded.
+6. **Don't roll your own** - use vetted libraries and keep the system crypto-agile so algorithms can be upgraded.
 
 ## Next Steps
 

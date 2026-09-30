@@ -61,7 +61,7 @@ contract Vault is ReentrancyGuard {
 }
 ```
 
-A minimal illustration of the same idea (do not ship a hand-rolled version—prefer the library):
+A minimal illustration of the same idea (do not ship a hand-rolled version-prefer the library):
 
 ```solidity
 uint256 private _status = 1;   // 1 = unlocked, 2 = locked
@@ -74,7 +74,7 @@ modifier nonReentrant() {
 }
 ```
 
-> Apply `nonReentrant` to *every* function that shares state, not just the one that sends value—otherwise cross-function reentrancy re-enters an unguarded sibling.
+> Apply `nonReentrant` to *every* function that shares state, not just the one that sends value-otherwise cross-function reentrancy re-enters an unguarded sibling.
 
 ## 3. Pull-over-Push Withdrawals
 
@@ -115,7 +115,7 @@ function claim() external nonReentrant {
 ```
 
 - Assume any ERC20 you integrate could be ERC777 (a superset that adds hooks).
-- For NFTs, remember `safeTransferFrom`/`safeMint` invoke `onERC721Received`—update "claimed/minted" flags first.
+- For NFTs, remember `safeTransferFrom`/`safeMint` invoke `onERC721Received`-update "claimed/minted" flags first.
 - Follow CEI even for token paths; do not assume "a transfer can't call back."
 
 ## 5. Guard Against Read-Only Reentrancy
@@ -141,7 +141,7 @@ function getVirtualPrice() external view returns (uint256) {
 - Make the fewest external calls possible, and make them last.
 - Never call an untrusted address in the middle of a multi-step state change.
 - In proxy/`delegatecall` designs, ensure delegated logic cannot make an external call before shared storage is settled.
-- Do not rely on `transfer`/`send` gas stipends as a safety mechanism—use `call` plus CEI plus a guard.
+- Do not rely on `transfer`/`send` gas stipends as a safety mechanism-use `call` plus CEI plus a guard.
 
 ## 7. Testing, Tooling, and Review
 
@@ -174,11 +174,11 @@ Write an explicit attacker contract in your test suite whose `receive()`/hook re
 
 ## Key Takeaways
 
-1. **CEI first** — write all state before any external call; this alone defeats the classic drain.
-2. **Guard everything that shares state** — a mutex on one function misses cross-function re-entry.
-3. **Pull, don't push** — isolate value transfers in one small, guarded function.
-4. **Every transfer is a call** — ERC777/ERC721 hooks and arbitrary calls can all re-enter.
-5. **Don't forget getters** — read-only reentrancy needs view-side protection or settled reads.
+1. **CEI first** - write all state before any external call; this alone defeats the classic drain.
+2. **Guard everything that shares state** - a mutex on one function misses cross-function re-entry.
+3. **Pull, don't push** - isolate value transfers in one small, guarded function.
+4. **Every transfer is a call** - ERC777/ERC721 hooks and arbitrary calls can all re-enter.
+5. **Don't forget getters** - read-only reentrancy needs view-side protection or settled reads.
 
 ## Next Steps
 

@@ -14,19 +14,19 @@
 
 ## Prevention Strategy Overview
 
-Preventing insecure workloads is not one control—it is **making the hardened manifest the only manifest that admits**:
+Preventing insecure workloads is not one control-it is **making the hardened manifest the only manifest that admits**:
 
 1. Define a least-privilege `securityContext` that every workload inherits.
 2. Forbid host namespaces, host paths, privilege, and dangerous capabilities.
 3. Enforce it at admission with Pod Security Admission and/or a policy engine.
-4. Catch violations earlier still—scan manifests in CI before they ever reach the cluster.
+4. Catch violations earlier still-scan manifests in CI before they ever reach the cluster.
 5. Watch at runtime for escapes that slip past static controls.
 
 ### Core Principles
 
 - **Least privilege by default**: drop everything, add back only the narrow capability a workload genuinely needs, and justify it in review.
 - **Secure by construction**: bake the hardened `securityContext` into base templates/Helm values so teams start safe.
-- **Enforce, don't advise**: a documented standard nobody enforces drifts immediately—admission control makes it non-optional.
+- **Enforce, don't advise**: a documented standard nobody enforces drifts immediately-admission control makes it non-optional.
 - **Defence in depth**: manifest hardening, admission policy, image hygiene, and runtime detection each catch what the others miss.
 
 ## 1. Hardened securityContext Baseline
@@ -71,7 +71,7 @@ spec:
           emptyDir: {}
 ```
 
-If a workload legitimately needs one capability (for example `NET_BIND_SERVICE` to bind port 80), drop `ALL` and add back only that one—never the reverse.
+If a workload legitimately needs one capability (for example `NET_BIND_SERVICE` to bind port 80), drop `ALL` and add back only that one-never the reverse.
 
 ## 2. No Host Namespaces or Host Paths
 
@@ -154,11 +154,11 @@ metadata:
     pod-security.kubernetes.io/warn: restricted
 ```
 
-The `restricted` profile requires `runAsNonRoot`, `allowPrivilegeEscalation: false`, `seccompProfile: RuntimeDefault`, dropping `ALL` capabilities, and forbids privileged, host namespaces, and most `hostPath` usage—exactly the K01 controls. Start with `warn`/`audit` to find violators, then flip to `enforce`.
+The `restricted` profile requires `runAsNonRoot`, `allowPrivilegeEscalation: false`, `seccompProfile: RuntimeDefault`, dropping `ALL` capabilities, and forbids privileged, host namespaces, and most `hostPath` usage-exactly the K01 controls. Start with `warn`/`audit` to find violators, then flip to `enforce`.
 
 ## 6. Kyverno Policies (Flexible Enforcement)
 
-Kyverno writes policies as Kubernetes resources—no new language. It can enforce beyond PSA and even mutate manifests to add safe defaults.
+Kyverno writes policies as Kubernetes resources-no new language. It can enforce beyond PSA and even mutate manifests to add safe defaults.
 
 ```yaml
 apiVersion: kyverno.io/v1
@@ -208,7 +208,7 @@ spec:
                     drop: ["ALL"]
 ```
 
-Kyverno also ships a curated **Pod Security** policy set that mirrors the restricted profile—a fast way to enforce the whole standard, plus extras PSA does not cover (like blocking `hostPath` outright).
+Kyverno also ships a curated **Pod Security** policy set that mirrors the restricted profile-a fast way to enforce the whole standard, plus extras PSA does not cover (like blocking `hostPath` outright).
 
 ## 7. OPA Gatekeeper Constraints (Rego)
 
@@ -294,11 +294,11 @@ Also alert on: new listens on host ports, reads of `/var/run/*.sock` from unexpe
 
 ## Key Takeaways
 
-1. **The hardened `securityContext` is the core fix** — runAsNonRoot, no privilege escalation, drop ALL, read-only root, RuntimeDefault seccomp.
-2. **Forbid host namespaces and host paths** — there is almost never a good production reason for them.
-3. **Enforce at admission** — Pod Security Admission plus Kyverno or Gatekeeper makes the secure config the only one that admits.
-4. **Shift left** — scan manifests in CI so violations never reach the cluster.
-5. **Watch at runtime** — detection catches the escape that static controls missed.
+1. **The hardened `securityContext` is the core fix** - runAsNonRoot, no privilege escalation, drop ALL, read-only root, RuntimeDefault seccomp.
+2. **Forbid host namespaces and host paths** - there is almost never a good production reason for them.
+3. **Enforce at admission** - Pod Security Admission plus Kyverno or Gatekeeper makes the secure config the only one that admits.
+4. **Shift left** - scan manifests in CI so violations never reach the cluster.
+5. **Watch at runtime** - detection catches the escape that static controls missed.
 
 ## Next Steps
 

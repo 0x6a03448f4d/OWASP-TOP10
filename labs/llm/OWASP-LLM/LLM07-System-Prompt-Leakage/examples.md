@@ -252,7 +252,7 @@ def chat(user, history, user_input):
 
 ## Example 5: Output Safety Net (Node / TypeScript)
 
-Even with a clean prompt, add an independent check that flags responses which echo instructions or match secret patterns. This is a safety net and detection signal — not the reason the design is safe.
+Even with a clean prompt, add an independent check that flags responses which echo instructions or match secret patterns. This is a safety net and detection signal - not the reason the design is safe.
 
 ### Vulnerable
 
@@ -319,7 +319,7 @@ export async function chat(input: string) {
 
 | Anti-pattern (vulnerable) | Secure redesign | Why it defeats LLM07 |
 |---------------------------|-----------------|----------------------|
-| Secret in the system prompt | Secret in env/vault, used by tool code | Extraction yields no credential — none was in the token stream |
+| Secret in the system prompt | Secret in env/vault, used by tool code | Extraction yields no credential - none was in the token stream |
 | Plan/admin flag stated in the prompt | Authorization checked in code from the session | User cannot self-promote; check runs outside the model |
 | Exact discount/refund/ban rules in prompt | Thresholds enforced server-side; policy via moderation | Nothing gameable or evadable is disclosed |
 | Shared mutable context across users | Per-request, user-scoped, minimised context | One user's data can never enter another's prompt |

@@ -4,7 +4,7 @@ Each pair below shows the **missing-control** version (the vulnerability) and th
 
 > **Reading guide**: "Missing control" is what an attacker exploits; "Control applied" is the deliberate defense. The difference is almost always a single server-side check on the *specific resource*, derived from *trusted state*.
 
-## Example 1 — Record-Level Ownership (Node.js / Express)
+## Example 1 - Record-Level Ownership (Node.js / Express)
 
 ### Missing control (IDOR)
 ```javascript
@@ -38,14 +38,14 @@ app.get('/api/invoices/:id', requireAuth, async (req, res) => {
 });
 ```
 
-Even stronger — make a foreign id unloadable by scoping the query to the owner:
+Even stronger - make a foreign id unloadable by scoping the query to the owner:
 ```javascript
 const invoice = await db.invoices.findOne({ id: req.params.id, ownerId: req.user.id });
 if (!invoice) return res.status(404).end();   // someone else's id => not found
 res.json(invoice);
 ```
 
-## Example 2 — Function-Level Authorization (Python / Flask)
+## Example 2 - Function-Level Authorization (Python / Flask)
 
 ### Missing control (privilege escalation)
 ```python
@@ -92,7 +92,7 @@ def set_role(uid):
     return jsonify(status='ok')
 ```
 
-## Example 3 — Ownership via Query Scoping (Python / Django)
+## Example 3 - Ownership via Query Scoping (Python / Django)
 
 ### Missing control
 ```python
@@ -117,7 +117,7 @@ def delete_order(request, order_id):
     return JsonResponse(status='deleted')
 ```
 
-## Example 4 — Not Trusting Client Authority (Java / Spring Boot)
+## Example 4 - Not Trusting Client Authority (Java / Spring Boot)
 
 ### Missing control (metadata tampering)
 ```java
@@ -177,7 +177,7 @@ class AdminController {
 }
 ```
 
-## Example 5 — Protected File Download (Node.js / Express)
+## Example 5 - Protected File Download (Node.js / Express)
 
 ### Missing control
 ```javascript

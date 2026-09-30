@@ -4,7 +4,7 @@
 
 There is one primary defence against injection and everything else is defence-in-depth: **keep untrusted data as data.** Never let request input become part of the command or query text. Concretely:
 
-1. Parameterise every query—prepared statements / bound parameters, always.
+1. Parameterise every query-prepared statements / bound parameters, always.
 2. Use ORMs/ODMs through their safe APIs; never their raw string escape hatches.
 3. Validate and strongly type input; reject operator objects and unexpected shapes.
 4. Allow-list the things that cannot be parameterised (sort/filter/column/table).
@@ -12,8 +12,8 @@ There is one primary defence against injection and everything else is defence-in
 
 ### Core Principles
 
-- **Separate code from data**: parameterisation is the definitive control—the interpreter is told "this is a value," so a payload can never become a command.
-- **Positive validation**: define what valid input *is* (type, length, format, allowed set) and reject everything else—far stronger than blocklisting bad characters.
+- **Separate code from data**: parameterisation is the definitive control-the interpreter is told "this is a value," so a payload can never become a command.
+- **Positive validation**: define what valid input *is* (type, length, format, allowed set) and reject everything else-far stronger than blocklisting bad characters.
 - **Least privilege**: the app's DB/OS identity should be able to do only what the feature needs, so a successful injection has a small blast radius.
 - **Defence in depth**: validation, encoding, least privilege, and a WAF each reduce risk, but none replaces parameterisation at the sink.
 
@@ -35,7 +35,7 @@ ps.setString(1, name);
 ps.setBoolean(2, true);
 ```
 
-> Never build SQL with `+`, `%`, `.format()`, f-strings, or template literals. If you are concatenating input into query text, you have an injection bug—regardless of any escaping you added.
+> Never build SQL with `+`, `%`, `.format()`, f-strings, or template literals. If you are concatenating input into query text, you have an injection bug-regardless of any escaping you added.
 
 ## 2. Use ORMs / ODMs Safely
 
@@ -58,7 +58,7 @@ Rule: if the ORM method name contains `raw`, `unsafe`, `literal`, or `text`, tre
 
 ## 3. NoSQL: Type, Cast, and Reject Operators
 
-The NoSQL fix is to guarantee that a field the code expects to be a scalar actually *is* a scalar—never a user-supplied operator object.
+The NoSQL fix is to guarantee that a field the code expects to be a scalar actually *is* a scalar-never a user-supplied operator object.
 
 ```javascript
 // Express + Mongoose - force values to strings and reject objects
@@ -84,7 +84,7 @@ Also: disable server-side JavaScript (`$where`, `$function`, `mapReduce`) in the
 
 ## 4. Avoid the Shell; Pass Arguments as an Array
 
-The safest command injection defence is to not invoke a shell at all—pass the program and its arguments as a list so metacharacters stay inert data.
+The safest command injection defence is to not invoke a shell at all-pass the program and its arguments as a list so metacharacters stay inert data.
 
 ```
 # Python - no shell, arguments as a list (metacharacters are literal)
@@ -102,7 +102,7 @@ If a value must be part of a command, validate it against a strict allow-list fi
 
 ## 5. Strong Input Validation and Typing
 
-Validate at the API edge with a schema: correct type, length bounds, format, and—critically—reject objects where scalars are expected.
+Validate at the API edge with a schema: correct type, length bounds, format, and-critically-reject objects where scalars are expected.
 
 ```python
 # Python - Pydantic model enforces types and formats
@@ -128,7 +128,7 @@ Positive (allow-list) validation beats negative (blocklist) filtering: define wh
 
 ## 6. Allow-List for Sort, Filter, and Column Names
 
-Identifiers—columns, tables, sort directions—cannot be bound as parameters. Map user input through a fixed allow-list to a known-safe value.
+Identifiers-columns, tables, sort directions-cannot be bound as parameters. Map user input through a fixed allow-list to a known-safe value.
 
 ```python
 # Map the client's sort key to a real column via an allow-list.
@@ -145,7 +145,7 @@ The same pattern applies to `fields` (project only allow-listed columns) and `fi
 
 ## 7. Escape / Encode for the Target Interpreter (last resort)
 
-When a value genuinely cannot be parameterised (some LDAP/XPath contexts), use the interpreter's dedicated encoder—never hand-rolled string replacement.
+When a value genuinely cannot be parameterised (some LDAP/XPath contexts), use the interpreter's dedicated encoder-never hand-rolled string replacement.
 
 ```java
 // LDAP - encode the value for a search filter (e.g. OWASP ESAPI / library API)
@@ -161,7 +161,7 @@ Encoding is interpreter-specific: encoding for SQL does nothing for a shell, and
 
 ## 8. Least-Privilege Database and OS Accounts
 
-- Give the application a DB account with only the rights it needs—typically `SELECT`/`INSERT`/`UPDATE` on specific tables, never `DROP`, schema, or admin.
+- Give the application a DB account with only the rights it needs-typically `SELECT`/`INSERT`/`UPDATE` on specific tables, never `DROP`, schema, or admin.
 - Separate read-only and read-write connections; use the read-only one for query endpoints.
 - Run the process as a non-root, unprivileged OS user so a command-injection foothold is contained.
 - Disable dangerous datastore features (server-side JS, `xp_cmdshell`, `LOAD_FILE`, stacked queries where not needed).
@@ -237,11 +237,11 @@ execFile('ping', ['-c', '1', host], { timeout: 5000 }, cb);
 
 ## Key Takeaways
 
-1. **Parameterise everything** — bound parameters are the one control that makes payloads inert; concatenation is the bug.
-2. **Use ORMs/ODMs safely** — the `raw`/`unsafe`/`literal`/`text` escape hatches reintroduce injection.
-3. **Type and validate** — reject operator objects and unexpected shapes so NoSQL operator injection can't land.
-4. **Allow-list what you can't bind** — sort/filter/column/table names map through a trusted set.
-5. **Least privilege + WAF are backups** — they shrink and slow the damage; they never replace parameterisation.
+1. **Parameterise everything** - bound parameters are the one control that makes payloads inert; concatenation is the bug.
+2. **Use ORMs/ODMs safely** - the `raw`/`unsafe`/`literal`/`text` escape hatches reintroduce injection.
+3. **Type and validate** - reject operator objects and unexpected shapes so NoSQL operator injection can't land.
+4. **Allow-list what you can't bind** - sort/filter/column/table names map through a trusted set.
+5. **Least privilege + WAF are backups** - they shrink and slow the damage; they never replace parameterisation.
 
 ## Next Steps
 

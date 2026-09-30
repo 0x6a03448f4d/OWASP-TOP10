@@ -21,13 +21,13 @@ Attacking sensitive data rarely requires a clever exploit. Because A3 is about d
 5. MONETISE  -> Crack hashes, commit fraud, reuse credentials, extort, or resell
 ```
 
-The three sections below follow the three states of data — in transit, in use, at rest — because that is how a defender should reason about coverage. Each numbered pattern is a distinct vector.
+The three sections below follow the three states of data - in transit, in use, at rest - because that is how a defender should reason about coverage. Each numbered pattern is a distinct vector.
 
 ## Attacks on Data In Transit
 
 ### 1. Passive Interception of Cleartext (HTTP)
 
-The simplest vector: the target serves login, session, or API traffic over plain HTTP. Anyone on the network path — the same coffee-shop Wi-Fi, a compromised switch, an ISP-level tap — reads everything without touching the server.
+The simplest vector: the target serves login, session, or API traffic over plain HTTP. Anyone on the network path - the same coffee-shop Wi-Fi, a compromised switch, an ISP-level tap - reads everything without touching the server.
 
 ```bash
 # Capture cleartext HTTP credentials on a shared segment
@@ -37,7 +37,7 @@ sudo tcpdump -i wlan0 -A 'tcp port 80 and (((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp
 tshark -r capture.pcap -Y 'http.request.method == "POST"' -T fields -e http.file_data
 ```
 
-**What leaks**: usernames, passwords, session cookies, API keys, and any form field — all in plaintext.
+**What leaks**: usernames, passwords, session cookies, API keys, and any form field - all in plaintext.
 
 ### 2. Active Downgrade / SSL Stripping
 
@@ -115,7 +115,7 @@ Content-Type: text/html
 ls -la ~/.cache/mozilla/firefox/*/cache2/entries/
 ```
 
-**What leaks**: account pages, statements, tokens embedded in HTML — recoverable from cache after the session ends.
+**What leaks**: account pages, statements, tokens embedded in HTML - recoverable from cache after the session ends.
 
 ### 7. Secrets in Client-Side Code
 
@@ -147,7 +147,7 @@ HTTP/1.1 500 Internal Server Error
     at /srv/app/pay.py line 88 ...
 ```
 
-**What leaks**: whatever the request carried — frequently the exact sensitive fields the endpoint processes.
+**What leaks**: whatever the request carried - frequently the exact sensitive fields the endpoint processes.
 
 ### 9. Browser Storage and Autocomplete Residue
 
@@ -180,7 +180,7 @@ gobuster dir -u https://target.example.com \
 
 ### 11. Publicly Exposed Datastores and Cloud Storage
 
-Databases bound to a public interface with authentication off, and object-storage buckets set to public read, are indexed by internet-wide scanners. No application vulnerability is involved — the data is simply reachable.
+Databases bound to a public interface with authentication off, and object-storage buckets set to public read, are indexed by internet-wide scanners. No application vulnerability is involved - the data is simply reachable.
 
 ```bash
 # Internet-wide search surfaces exposed services (via Shodan-style queries)
@@ -209,7 +209,7 @@ gitleaks detect --source . --report-format json
 git log -p --all -S 'AKIA' | grep -i 'aws\|secret\|key'
 ```
 
-**What leaks**: cloud keys, DB passwords, signing keys, tokens — still valid until rotated.
+**What leaks**: cloud keys, DB passwords, signing keys, tokens - still valid until rotated.
 
 ### 13. Offline / Stolen Media and Weak At-Rest Encryption
 
@@ -249,7 +249,7 @@ hashcat -m 3200 -a 0 leaked_bcrypt.txt rockyou.txt
 | Find secrets in code | gitleaks, trufflehog, grep | Keys and credentials in repos/JS |
 | Crack recovered hashes | hashcat, John the Ripper | Plaintext from weak password hashes |
 
-> Every tool above is a defensive tool too. Run them against your own systems, on scope you are authorised to test, before an attacker does — most of these findings are trivial to detect from the outside.
+> Every tool above is a defensive tool too. Run them against your own systems, on scope you are authorised to test, before an attacker does - most of these findings are trivial to detect from the outside.
 
 ## Next Steps
 

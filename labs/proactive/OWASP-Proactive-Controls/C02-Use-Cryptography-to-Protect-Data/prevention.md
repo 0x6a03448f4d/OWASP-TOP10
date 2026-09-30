@@ -7,9 +7,9 @@ Implementing this control is not about scattering encryption calls through the c
 1. Classify data so you know exactly what must be protected.
 2. Encrypt everything in transit with modern TLS.
 3. Encrypt sensitive data at rest with authenticated encryption.
-4. Hash passwords with a slow, salted function — never encrypt or fast-hash them.
+4. Hash passwords with a slow, salted function - never encrypt or fast-hash them.
 5. Use a CSPRNG for all keys, salts, nonces, and tokens.
-6. Manage keys in a KMS/HSM — generate, store, separate, rotate, and revoke.
+6. Manage keys in a KMS/HSM - generate, store, separate, rotate, and revoke.
 
 ### Core Principles
 
@@ -23,7 +23,7 @@ Implementing this control is not about scattering encryption calls through the c
 Protection starts with knowing what to protect. Inventory the data, assign a sensitivity tier, and let the tier drive the cryptographic requirement.
 
 ```yaml
-# data-classification.yaml — reviewed, versioned, enforced in review
+# data-classification.yaml - reviewed, versioned, enforced in review
 fields:
   password:        { tier: restricted, at_rest: hash-argon2id, in_transit: tls }
   card_number:     { tier: restricted, at_rest: aes-256-gcm,   in_transit: tls, log: never }
@@ -40,7 +40,7 @@ policy:
 
 ## 2. Encryption in Transit (TLS)
 
-Every network hop that carries sensitive data — browser to server *and* service to service — must use modern TLS with no downgrade path.
+Every network hop that carries sensitive data - browser to server *and* service to service - must use modern TLS with no downgrade path.
 
 ```nginx
 # nginx: TLS 1.2/1.3 only, strong ciphers, HSTS, HTTP->HTTPS redirect
@@ -64,7 +64,7 @@ server { listen 80; return 301 https://$host$request_uri; }   # no plaintext
 Encrypt sensitive data before it is stored, using an AEAD cipher so the ciphertext is both confidential and tamper-evident. Let a library handle nonces and tags.
 
 ```python
-# Python — cryptography library, AES-256-GCM via a random 96-bit nonce
+# Python - cryptography library, AES-256-GCM via a random 96-bit nonce
 import os
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
@@ -75,12 +75,12 @@ def encrypt(plaintext: bytes, key: bytes, aad: bytes = b"") -> bytes:
 
 def decrypt(blob: bytes, key: bytes, aad: bytes = b"") -> bytes:
     nonce, ct = blob[:12], blob[12:]
-    return AESGCM(key).decrypt(nonce, ct, aad)   # raises if tampered — fail closed
+    return AESGCM(key).decrypt(nonce, ct, aad)   # raises if tampered - fail closed
 ```
 
 - Use **AES-256-GCM** or **ChaCha20-Poly1305**; never ECB, and never CBC without a separate MAC.
 - Generate a **fresh nonce per encryption** and never reuse a (key, nonce) pair.
-- Enable **transparent disk/volume and database encryption** as defence in depth, and **encrypt all backups** — backups leak as often as live data.
+- Enable **transparent disk/volume and database encryption** as defence in depth, and **encrypt all backups** - backups leak as often as live data.
 - Bind context with **associated data (AAD)** (e.g. a record id) so ciphertext can't be moved between records.
 
 ## 4. Password Storage (Slow, Salted Hashing)
@@ -88,7 +88,7 @@ def decrypt(blob: bytes, key: bytes, aad: bytes = b"") -> bytes:
 Passwords must be irreversible. Use a memory-hard, deliberately slow password hashing function with a unique per-user salt (the library generates and stores the salt inside the hash string).
 
 ```python
-# Python — Argon2id (preferred). The salt is generated and embedded automatically.
+# Python - Argon2id (preferred). The salt is generated and embedded automatically.
 from argon2 import PasswordHasher
 ph = PasswordHasher(time_cost=3, memory_cost=64*1024, parallelism=1)
 
@@ -109,7 +109,7 @@ except Exception:
 | bcrypt | Widely supported; cost factor ≥ 10–12; pre-hash if input > 72 bytes |
 | PBKDF2-HMAC-SHA256 | When a FIPS-validated option is required; high iteration count |
 
-> **Never** store passwords with MD5, SHA-1, or a single pass of SHA-256, and never store them reversibly (encrypted or plaintext). Add a peppered secret from the KMS only *in addition to* — never instead of — a proper password hash.
+> **Never** store passwords with MD5, SHA-1, or a single pass of SHA-256, and never store them reversibly (encrypted or plaintext). Add a peppered secret from the KMS only *in addition to* - never instead of - a proper password hash.
 
 ## 5. Secure Randomness (CSPRNG)
 
@@ -140,7 +140,7 @@ Encryption only moves the secret from "all the data" to "the key," so the key mu
 ```
 Key management checklist:
   [ ] Keys generated with a CSPRNG (or inside the KMS/HSM)
-  [ ] Keys stored in a KMS / HSM / secrets manager — NEVER in source or config
+  [ ] Keys stored in a KMS / HSM / secrets manager - NEVER in source or config
   [ ] Data-encryption keys wrapped by a key-encryption key (envelope encryption)
   [ ] Keys separated from the data they protect (different trust boundary)
   [ ] Least-privilege access; every key use is audited
@@ -155,7 +155,7 @@ resp = kms.generate_data_key(KeyId=CMK_ID, KeySpec="AES_256")
 plaintext_key, wrapped_key = resp["Plaintext"], resp["CiphertextBlob"]
 
 ciphertext = aes_gcm_encrypt(plaintext_key, data)   # encrypt data locally
-del plaintext_key                                   # zeroise ASAP — don't persist it
+del plaintext_key                                   # zeroise ASAP - don't persist it
 store(record, ciphertext=ciphertext, wrapped_key=wrapped_key)
 # To read later: KMS.decrypt(wrapped_key) -> plaintext_key -> decrypt data
 ```
@@ -166,9 +166,9 @@ Store only the *wrapped* data key next to the ciphertext; the key that unwraps i
 
 Prefer misuse-resistant, high-level interfaces that make the wrong thing hard to do:
 
-- **libsodium / PyNaCl** — `crypto_secretbox` / `crypto_box` pick the algorithm, mode, and nonce handling for you.
-- **Google Tink** — opinionated AEAD/keyset APIs with built-in key rotation.
-- **Your platform's crypto** — Python `cryptography`, Java JCA/JCE, .NET `System.Security.Cryptography`, Go `crypto/*`.
+- **libsodium / PyNaCl** - `crypto_secretbox` / `crypto_box` pick the algorithm, mode, and nonce handling for you.
+- **Google Tink** - opinionated AEAD/keyset APIs with built-in key rotation.
+- **Your platform's crypto** - Python `cryptography`, Java JCA/JCE, .NET `System.Security.Cryptography`, Go `crypto/*`.
 
 Avoid low-level primitives and custom modes. If you find yourself choosing an IV by hand or concatenating a MAC manually, step up to a higher-level API instead.
 
@@ -176,8 +176,8 @@ Avoid low-level primitives and custom modes. If you find yourself choosing an IV
 
 Every algorithm is temporary. Build so you can upgrade without a rewrite:
 
-- **Version your ciphertext and hashes** — prefix a scheme identifier (e.g. `v2:`) so old and new formats coexist during migration.
-- **Rehash on login** — transparently upgrade password work factors and algorithms when a user next authenticates.
+- **Version your ciphertext and hashes** - prefix a scheme identifier (e.g. `v2:`) so old and new formats coexist during migration.
+- **Rehash on login** - transparently upgrade password work factors and algorithms when a user next authenticates.
 - **Abstract the crypto** behind an interface so swapping AES-GCM for a successor touches one module.
 - Track deprecations and plan for post-quantum migration of long-lived data.
 
@@ -218,7 +218,7 @@ Alert on: use of deprecated algorithms reintroduced in a diff, TLS configuration
 - [ ] Sensitive data is classified, and the policy drives encryption decisions.
 - [ ] All traffic uses TLS 1.2+/1.3 with HSTS; weak protocols/ciphers disabled.
 - [ ] Sensitive data at rest uses AES-256-GCM (or ChaCha20-Poly1305); backups encrypted.
-- [ ] Passwords use Argon2id/bcrypt/scrypt/PBKDF2 with per-user salt — never fast/plain hashes.
+- [ ] Passwords use Argon2id/bcrypt/scrypt/PBKDF2 with per-user salt - never fast/plain hashes.
 - [ ] All keys, salts, nonces, and tokens come from a CSPRNG.
 - [ ] Nonces/IVs are unique per encryption; no (key, nonce) reuse.
 - [ ] Keys live in a KMS/HSM, separated from data, rotated, never hardcoded.
@@ -228,11 +228,11 @@ Alert on: use of deprecated algorithms reintroduced in a diff, TLS configuration
 
 ## Key Takeaways
 
-1. **Classify, then protect** — cryptography follows a data-sensitivity policy, not guesswork.
-2. **Cover every state** — TLS in transit, AEAD at rest, and minimise exposure in use.
-3. **Passwords are hashed, secrets are random** — slow salted hashing plus a CSPRNG everywhere.
-4. **Key management is the control** — KMS/HSM, separation, rotation, and no hardcoded keys.
-5. **Use libraries and stay agile** — vetted APIs today, a clean upgrade path for tomorrow.
+1. **Classify, then protect** - cryptography follows a data-sensitivity policy, not guesswork.
+2. **Cover every state** - TLS in transit, AEAD at rest, and minimise exposure in use.
+3. **Passwords are hashed, secrets are random** - slow salted hashing plus a CSPRNG everywhere.
+4. **Key management is the control** - KMS/HSM, separation, rotation, and no hardcoded keys.
+5. **Use libraries and stay agile** - vetted APIs today, a clean upgrade path for tomorrow.
 
 ## Next Steps
 

@@ -2,7 +2,7 @@
 
 ## Prevention Strategy Overview
 
-Building detection is a pipeline, not a single control. Data has to be **captured**, then **centralised**, then **watched**, then **acted on**—a gap at any stage means blindness:
+Building detection is a pipeline, not a single control. Data has to be **captured**, then **centralised**, then **watched**, then **acted on**-a gap at any stage means blindness:
 
 1. Log every security-relevant event with enough context to investigate.
 2. Use one consistent, structured format so the data is machine-parseable.
@@ -14,7 +14,7 @@ Building detection is a pipeline, not a single control. Data has to be **capture
 ### Core Principles
 
 - **Detectability is a requirement, not a nice-to-have**: treat "could we see this attack?" as an acceptance criterion for every security-relevant feature.
-- **Context over volume**: a few well-structured events beat a firehose of free text—log *who, what, which object, and the outcome*.
+- **Context over volume**: a few well-structured events beat a firehose of free text-log *who, what, which object, and the outcome*.
 - **Off-box and tamper-resistant**: logs the application host can rewrite are not evidence.
 - **Detection must connect to response**: an alert nobody receives or acts on is the same as no alert.
 
@@ -97,7 +97,7 @@ Alert when, per rolling window:
   5xx spike         sudden rise (error-triggering probes / instability)
 ```
 
-Start thresholds conservative, review the false positives, and ratchet them in—an alert that always cries wolf is quickly ignored, which recreates the blindness you were fixing.
+Start thresholds conservative, review the false positives, and ratchet them in-an alert that always cries wolf is quickly ignored, which recreates the blindness you were fixing.
 
 ## 5. Monitor Per-Client and Per-Token, Not Just Aggregate
 
@@ -142,7 +142,7 @@ def redact(d: dict) -> dict:
 ## 8. Time Synchronisation and Retention
 
 - **Sync clocks** (NTP) across every host and log in UTC, so events from different services can be correctly ordered during an investigation.
-- **Retain** security logs long enough to investigate a breach discovered months later—align retention with your regulatory and IR requirements, balanced against the duty not to hoard sensitive data.
+- **Retain** security logs long enough to investigate a breach discovered months later-align retention with your regulatory and IR requirements, balanced against the duty not to hoard sensitive data.
 - **Protect retained logs** with the same access controls as the data they describe.
 
 ## 9. Integrate With Incident Response
@@ -150,7 +150,7 @@ def redact(d: dict) -> dict:
 Detection is only valuable if it triggers action. Close the loop:
 
 - Route alerts to an on-call channel/pager with a named owner, not an unwatched inbox.
-- Write runbooks: for a 401 spike, for enumeration, for token replay—what to check, how to contain (block key, force re-auth, rate-limit), whom to notify.
+- Write runbooks: for a 401 spike, for enumeration, for token replay-what to check, how to contain (block key, force re-auth, rate-limit), whom to notify.
 - Rehearse: run tabletop exercises and replay historical attacks so the detections and the response are both proven.
 - Feed lessons back into thresholds and new detections after every incident.
 
@@ -183,11 +183,11 @@ log.warn("auth.failure subject={} ip={} status=401", userId, sourceIp);
 
 ## Key Takeaways
 
-1. **Capture the right events** — auth, authz, validation, throttling, and sensitive actions, each with actor and object context.
-2. **Structure and centralise** — one JSON schema shipped off-box to a tamper-resistant SIEM makes the data usable.
-3. **Alert on the attack signals** — tuned thresholds on 401/403/429, per-client volume, and token spread.
-4. **Protect the logs** — encode untrusted input, redact secrets, and make records append-only.
-5. **Connect detection to response** — alerts must reach a human with a runbook, or they change nothing.
+1. **Capture the right events** - auth, authz, validation, throttling, and sensitive actions, each with actor and object context.
+2. **Structure and centralise** - one JSON schema shipped off-box to a tamper-resistant SIEM makes the data usable.
+3. **Alert on the attack signals** - tuned thresholds on 401/403/429, per-client volume, and token spread.
+4. **Protect the logs** - encode untrusted input, redact secrets, and make records append-only.
+5. **Connect detection to response** - alerts must reach a human with a runbook, or they change nothing.
 
 ## Next Steps
 

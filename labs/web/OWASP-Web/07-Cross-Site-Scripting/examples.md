@@ -125,7 +125,7 @@ def post_comment():
 #   <div>{{ comment | safe }}</div> <!-- ONLY because nh3 already cleaned it -->
 ```
 
-> Note the discipline: for plain-text fields, do nothing special — let autoescaping work. Reach for `| safe` *only* in combination with a real sanitizer, never on raw user input.
+> Note the discipline: for plain-text fields, do nothing special - let autoescaping work. Reach for `| safe` *only* in combination with a real sanitizer, never on raw user input.
 
 ## 4. Server-Rendered HTML (Node/Express)
 
@@ -174,7 +174,7 @@ function Bio({ bio }) {
 ### Secure: default escaping, or sanitize when HTML is required
 
 ```jsx
-// Plain text: just interpolate — React escapes it.
+// Plain text: just interpolate - React escapes it.
 function Bio({ bio }) {
   return <div>{bio}</div>;              // safe, escaped
 }

@@ -8,9 +8,9 @@
 
 ## Understanding Supply Chain Attack Vectors
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in ML systems you own or are authorised to test.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in ML systems you own or are authorised to test.
 
-An AI supply-chain attack does not target your model's logic. It targets your **trust**: the attacker gets a malicious ingredient—a model, a dataset, a package, or a tool—into your pipeline and lets your own pipeline run it. Because ML teams routinely download and execute third-party artifacts, the "exploit" is often just publishing something plausible and waiting for someone to `from_pretrained` it.
+An AI supply-chain attack does not target your model's logic. It targets your **trust**: the attacker gets a malicious ingredient-a model, a dataset, a package, or a tool-into your pipeline and lets your own pipeline run it. Because ML teams routinely download and execute third-party artifacts, the "exploit" is often just publishing something plausible and waiting for someone to `from_pretrained` it.
 
 The attacker's goal in this category is usually one of:
 
@@ -56,7 +56,7 @@ torch.save({"state_dict": {}, "x": Backdoor()}, "model.pt")
 # Victim: torch.load("model.pt")  -> the shell command runs immediately
 ```
 
-**Payoff**: remote code execution on the victim's machine the moment the model is loaded—before any inference happens.
+**Payoff**: remote code execution on the victim's machine the moment the model is loaded-before any inference happens.
 
 ### 2. Backdoored Weights (Trigger-Based)
 
@@ -82,7 +82,7 @@ pip install tensorfow        # typo of tensorflow
 #   read ~/.aws/credentials, env vars, SSH keys -> exfiltrate
 ```
 
-**Payoff**: code execution in build/dev/CI environments and theft of cloud credentials—before your training code runs.
+**Payoff**: code execution in build/dev/CI environments and theft of cloud credentials-before your training code runs.
 
 ### 4. `trust_remote_code=True` on an Untrusted Repo
 
@@ -94,7 +94,7 @@ model = AutoModel.from_pretrained("unknown/repo", trust_remote_code=True)
 # repo's modeling_custom.py executes on YOUR machine during load
 ```
 
-**Payoff**: direct, intended code execution—no exploit required, just the flag.
+**Payoff**: direct, intended code execution-no exploit required, just the flag.
 
 ### 5. Poisoned Public Dataset
 
@@ -106,7 +106,7 @@ ds = load_dataset("community/faces")   # attacker added trigger+label pairs
 train(model, ds)                       # backdoor is now baked into the model
 ```
 
-**Payoff**: the poison is inherited by every model trained on the dataset—the sabotage is upstream of your code entirely. (Overlaps with ML02 Data Poisoning.)
+**Payoff**: the poison is inherited by every model trained on the dataset-the sabotage is upstream of your code entirely. (Overlaps with ML02 Data Poisoning.)
 
 ### 6. Tampering in Transit or Storage
 
@@ -205,11 +205,11 @@ Attractive pretrained model on a hub  -> victim loads it with torch.load
 
 ## Key Takeaways
 
-1. **The exploit is often just "publish and wait"**—ML teams download and run third-party artifacts by default.
-2. **Loading is executing** for pickle/`torch.load`/`joblib`/Keras `Lambda`—RCE arrives before inference.
-3. **Backdoors and poison hide from metrics**—the model looks fine and fails only on the trigger.
-4. **Names and versions are attack surface**—typosquatting, confusion, and mutable "latest" tags are recurring vectors.
-5. **Small links chain into pipeline takeover**—one bad package plus one unsigned registry equals every downstream deployment compromised.
+1. **The exploit is often just "publish and wait"**-ML teams download and run third-party artifacts by default.
+2. **Loading is executing** for pickle/`torch.load`/`joblib`/Keras `Lambda`-RCE arrives before inference.
+3. **Backdoors and poison hide from metrics**-the model looks fine and fails only on the trigger.
+4. **Names and versions are attack surface**-typosquatting, confusion, and mutable "latest" tags are recurring vectors.
+5. **Small links chain into pipeline takeover**-one bad package plus one unsigned registry equals every downstream deployment compromised.
 
 ## Next Steps
 

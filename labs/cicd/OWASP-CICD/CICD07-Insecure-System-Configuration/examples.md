@@ -6,7 +6,7 @@ Each pair below shows an **insecure** configuration and the **secure** version f
 
 ### Insecure
 ```yaml
-# jenkins.yaml (JCasC) — dangerous posture
+# jenkins.yaml (JCasC) - dangerous posture
 jenkins:
   systemMessage: "Build server"
   # "Anyone can do anything": anonymous users get full control
@@ -22,7 +22,7 @@ jenkins:
 
 ### Secure
 ```yaml
-# jenkins.yaml (JCasC) — hardened posture
+# jenkins.yaml (JCasC) - hardened posture
 jenkins:
   systemMessage: "Authorized use only"
   securityRealm:
@@ -66,7 +66,7 @@ unclassified:
 
 ### Secure
 ```
-# plugins.txt — explicit, pinned, reviewed set (installed at build time)
+# plugins.txt - explicit, pinned, reviewed set (installed at build time)
 configuration-as-code:1.x
 role-strategy:x.y
 oic-auth:x.y
@@ -137,7 +137,7 @@ oic-auth:x.y
 
 ### Insecure
 ```yaml
-# docker-compose.yml — a dangerous "convenient" runner
+# docker-compose.yml - a dangerous "convenient" runner
 services:
   runner:
     image: my/ci-runner:latest        # floating tag, unpatched base
@@ -151,7 +151,7 @@ services:
 
 ### Secure
 ```yaml
-# docker-compose.yml — isolated, least-privilege runner
+# docker-compose.yml - isolated, least-privilege runner
 services:
   runner:
     image: my/ci-runner@sha256:<digest>   # pinned, patched base image
@@ -171,7 +171,7 @@ networks:
 
 ### Insecure
 ```nginx
-# nginx — controller open to the world over cleartext
+# nginx - controller open to the world over cleartext
 server {
     listen 80;                        # plain HTTP, no TLS
     server_name ci.example.com;       # public DNS name
@@ -183,7 +183,7 @@ server {
 
 ### Secure
 ```nginx
-# nginx — TLS-only, allow-listed, private management plane
+# nginx - TLS-only, allow-listed, private management plane
 server { listen 80; return 301 https://$host$request_uri; }   # force HTTPS
 
 server {
@@ -207,7 +207,7 @@ server {
 
 ### Insecure
 ```python
-# Accepts any POST as a trusted event — an unauthenticated pipeline trigger
+# Accepts any POST as a trusted event - an unauthenticated pipeline trigger
 @app.route("/github-webhook/", methods=["POST"])
 def hook():
     event = request.get_json()

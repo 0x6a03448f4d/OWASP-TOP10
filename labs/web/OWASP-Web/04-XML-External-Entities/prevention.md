@@ -17,7 +17,7 @@
 
 ## The Defence Strategy in One Line
 
-**Turn off the feature you don't need.** The overwhelming majority of XXE is eliminated by configuring every XML parser to reject DTDs entirely—or, where a DTD is genuinely required, to refuse external entity and external DTD resolution. Everything else on this page is defence-in-depth around that single, decisive control.
+**Turn off the feature you don't need.** The overwhelming majority of XXE is eliminated by configuring every XML parser to reject DTDs entirely-or, where a DTD is genuinely required, to refuse external entity and external DTD resolution. Everything else on this page is defence-in-depth around that single, decisive control.
 
 > If you can do only one thing: set your parser to **completely disallow DOCTYPE declarations**. A document with no DOCTYPE cannot declare entities, which closes file disclosure, SSRF, out-of-band exfiltration, and entity-expansion DoS in one move.
 
@@ -31,11 +31,11 @@
 | 4. Network | Egress filtering, IMDSv2, isolation | Blunts SSRF and blind exfiltration impact |
 | 5. Operations | Patch, test, WAF, monitor | Catches regressions and unknown parsers |
 
-Layer 2 is the fix. Layers 1, 3, 4, and 5 exist because real systems use multiple parsers, some code paths genuinely need DTDs, and configurations drift—so you want the blast radius contained even if one parser is missed.
+Layer 2 is the fix. Layers 1, 3, 4, and 5 exist because real systems use multiple parsers, some code paths genuinely need DTDs, and configurations drift-so you want the blast radius contained even if one parser is missed.
 
 ## Layer 1: Prefer a Safer Format
 
-The cheapest XML vulnerability to fix is the parser you never invoke. Where you control both ends of an interface, prefer **JSON**, which has no concept of entities or external references. When you must accept XML, prefer **data-only formats without a DTD**, and reject any document that arrives with a DOCTYPE before it reaches the business logic. This does not replace parser hardening—attacker-controlled XML still reaches a parser—but it shrinks how many parsers touch untrusted input.
+The cheapest XML vulnerability to fix is the parser you never invoke. Where you control both ends of an interface, prefer **JSON**, which has no concept of entities or external references. When you must accept XML, prefer **data-only formats without a DTD**, and reject any document that arrives with a DOCTYPE before it reaches the business logic. This does not replace parser hardening-attacker-controlled XML still reaches a parser-but it shrinks how many parsers touch untrusted input.
 
 ## Layer 2: Disable DTDs and External Entities (per parser)
 
@@ -43,7 +43,7 @@ This is the core of XXE prevention. Below is the exact, copy-pasteable hardening
 
 ### Java (JAXP)
 
-Java's default factories are historically *unsafe*—you must harden them explicitly. The single most robust setting is the `disallow-doctype-decl` feature, which makes any DOCTYPE throw a parse exception.
+Java's default factories are historically *unsafe*-you must harden them explicitly. The single most robust setting is the `disallow-doctype-decl` feature, which makes any DOCTYPE throw a parse exception.
 
 #### DocumentBuilderFactory (DOM)
 
@@ -103,7 +103,7 @@ tf.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
 tf.setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");
 ```
 
-Apply the same `ACCESS_EXTERNAL_*` restrictions to `SchemaFactory`, `Validator`, and `XPath` processors—they are XML parsers too and are easy to forget.
+Apply the same `ACCESS_EXTERNAL_*` restrictions to `SchemaFactory`, `Validator`, and `XPath` processors-they are XML parsers too and are easy to forget.
 
 ### Python
 
@@ -174,7 +174,7 @@ $sxe = simplexml_load_string($xml, "SimpleXMLElement", LIBXML_NONET);
 ?>
 ```
 
-On older PHP/libxml combinations you may also see `libxml_disable_entity_loader(true)` used to block the external entity loader process-wide. That function is deprecated and a no-op on modern PHP precisely because the secure behaviour is now the default—so on current versions, simply avoid `LIBXML_NOENT` and `LIBXML_DTDLOAD` and pass `LIBXML_NONET`.
+On older PHP/libxml combinations you may also see `libxml_disable_entity_loader(true)` used to block the external entity loader process-wide. That function is deprecated and a no-op on modern PHP precisely because the secure behaviour is now the default-so on current versions, simply avoid `LIBXML_NOENT` and `LIBXML_DTDLOAD` and pass `LIBXML_NONET`.
 
 ### .NET
 
@@ -225,23 +225,23 @@ If a DTD must be permitted for legitimate reasons, you still need caps so that i
 
 ## Layer 4: Network and Platform Controls
 
-- **Egress filtering**: application servers rarely need to make arbitrary outbound connections. Restricting egress blunts both SSRF and blind out-of-band exfiltration—the callback simply never reaches the attacker.
+- **Egress filtering**: application servers rarely need to make arbitrary outbound connections. Restricting egress blunts both SSRF and blind out-of-band exfiltration-the callback simply never reaches the attacker.
 - **Block link-local metadata**: deny outbound traffic to `169.254.169.254` from application workloads, and require the token-based metadata service (IMDSv2) so a bare XXE GET cannot read credentials.
-- **Least privilege on the file system**: run the parser process as an unprivileged user that cannot read secrets, keys, or other tenants' data—so even a successful file read yields little.
+- **Least privilege on the file system**: run the parser process as an unprivileged user that cannot read secrets, keys, or other tenants' data-so even a successful file read yields little.
 - **Network segmentation**: keep internal admin interfaces and databases off any network the web tier can reach directly.
 
 ## Layer 5: Patch, Test, and Monitor
 
 - **Keep parsers current**: upgrades have removed whole XXE classes (for example the libxml2 2.9.0 default change). Track your XML libraries in your dependency scanning.
 - **Add a regression test**: feed each XML endpoint a benign XXE probe (an entity pointing at a local test file and a callback URL) in CI, and assert that neither the file content nor a callback appears. This catches the day someone introduces a new, unhardened parser.
-- **WAF as defence-in-depth only**: a rule that flags `<!DOCTYPE` or `<!ENTITY` in request bodies catches unsophisticated attempts, but encoding and external-DTD tricks bypass it—never rely on it as the primary control.
+- **WAF as defence-in-depth only**: a rule that flags `<!DOCTYPE` or `<!ENTITY` in request bodies catches unsophisticated attempts, but encoding and external-DTD tricks bypass it-never rely on it as the primary control.
 - **Monitor for the signals**: unexpected outbound requests from app servers, DNS lookups to unusual domains, and spikes in parser memory are all XXE tells.
 
 ## Prevention Checklist
 
 - [ ] Every XML parser in the codebase disables DOCTYPE (or at minimum external general and parameter entities and external DTD loading).
 - [ ] XInclude is disabled unless explicitly required.
-- [ ] Secondary XML processors (schema validation, XSLT/Transformer, XPath, SOAP/SAML libraries) are hardened too—not just the obvious ones.
+- [ ] Secondary XML processors (schema validation, XSLT/Transformer, XPath, SOAP/SAML libraries) are hardened too-not just the obvious ones.
 - [ ] Python untrusted parsing uses `defusedxml`; PHP never passes `LIBXML_NOENT` and uses `LIBXML_NONET`; .NET uses `DtdProcessing.Prohibit` with a null resolver.
 - [ ] Entity-expansion and document-size limits are set for any path that must allow a DTD.
 - [ ] File-upload features that accept SVG or Office documents parse those parts with a hardened parser.

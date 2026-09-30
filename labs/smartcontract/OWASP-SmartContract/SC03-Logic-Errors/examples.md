@@ -244,7 +244,7 @@ function withdraw(uint256 amount) external {
 
 ## Next Steps
 
-- **[Prevention](prevention.md)**: The full strategy—specify, test, and verify invariants
+- **[Prevention](prevention.md)**: The full strategy-specify, test, and verify invariants
 - **[Attack Vectors](attack-vectors.md)**: How these logic errors are exploited
 - **[Smart Contract Track](/learn/smart-contract)**: Continue the OWASP Smart Contract Top 10
 - **[Practice](/practice)**: Apply what you've learned in hands-on challenges

@@ -12,9 +12,9 @@
 
 ## What Are Authentication Failures?
 
-**Authentication Failures** is the 2025 edition's name for the category that covers every way an application fails to reliably confirm *who* is making a request and to keep that confirmation trustworthy for the life of a session. It is the direct evolution of **A07:2021 — Identification and Authentication Failures**, which was itself the 2021 renaming and re-scoping of **A2:2017 — Broken Authentication**. The 2025 edition trims the name back toward its origins while broadening the technical scope to reflect how identity is actually verified today: passkeys, federated sign-in, and short-lived tokens rather than a single password box.
+**Authentication Failures** is the 2025 edition's name for the category that covers every way an application fails to reliably confirm *who* is making a request and to keep that confirmation trustworthy for the life of a session. It is the direct evolution of **A07:2021 - Identification and Authentication Failures**, which was itself the 2021 renaming and re-scoping of **A2:2017 - Broken Authentication**. The 2025 edition trims the name back toward its origins while broadening the technical scope to reflect how identity is actually verified today: passkeys, federated sign-in, and short-lived tokens rather than a single password box.
 
-Authentication answers the question *"are you who you claim to be?"* It is distinct from **authorization** (A01, "are you allowed to do this?"). A system can authenticate a user perfectly and still make an access-control mistake, and it can authorize flawlessly yet hand a valid session to an impostor. This category is about the first half of that pair — establishing identity and preserving it.
+Authentication answers the question *"are you who you claim to be?"* It is distinct from **authorization** (A01, "are you allowed to do this?"). A system can authenticate a user perfectly and still make an access-control mistake, and it can authorize flawlessly yet hand a valid session to an impostor. This category is about the first half of that pair - establishing identity and preserving it.
 
 At its core, an authentication failure happens whenever an attacker can obtain, guess, forge, or reuse the proof of identity that should belong to someone else. Concretely, the category covers:
 
@@ -46,15 +46,15 @@ AUTHENTICATION FAILURE = any step where an attacker can
 
 | Edition | Category name | Emphasis |
 |---------|---------------|----------|
-| 2017 — A2 | Broken Authentication | Passwords, session IDs, credential management |
-| 2021 — A07 | Identification and Authentication Failures | Adds identity proofing, credential recovery, session lifecycle |
-| 2025 — A07 | Authentication Failures | Adds MFA/phishing-resistance, JWT/token validation, OAuth/OIDC, passkeys |
+| 2017 - A2 | Broken Authentication | Passwords, session IDs, credential management |
+| 2021 - A07 | Identification and Authentication Failures | Adds identity proofing, credential recovery, session lifecycle |
+| 2025 - A07 | Authentication Failures | Adds MFA/phishing-resistance, JWT/token validation, OAuth/OIDC, passkeys |
 
 > **Naming note.** The exact ranking and wording of the 2025 list are finalised by OWASP from contributed data. This lesson follows the 2025 edition's framing of the authentication category and treats its ordinal position as continuity with the well-established 2021 `A07` slot rather than asserting a precise new incidence figure.
 
 ## Why Does This Matter?
 
-Authentication is the front door of almost every application. When it fails, an attacker does not need a clever memory-corruption exploit or an injection payload — they simply *log in as someone else* and inherit that person's data and privileges. This is why account takeover consistently sits among the most common root causes behind reported breaches.
+Authentication is the front door of almost every application. When it fails, an attacker does not need a clever memory-corruption exploit or an injection payload - they simply *log in as someone else* and inherit that person's data and privileges. This is why account takeover consistently sits among the most common root causes behind reported breaches.
 
 ### Business Impact
 
@@ -74,13 +74,13 @@ Authentication is the front door of almost every application. When it fails, an 
 
 ## Technical Context
 
-### Identification, Authentication, and Session — Three Distinct Steps
+### Identification, Authentication, and Session - Three Distinct Steps
 
 It is worth separating the moving parts, because failures cluster differently at each stage:
 
-1. **Identification** — the user asserts an identity (a username, email, or subject claim). Leaking whether that identity exists is *account enumeration*.
-2. **Authentication** — the user proves the claim with one or more factors. Weak proofs, missing MFA, and automated guessing live here.
-3. **Session / token** — after a successful proof, the server issues a credential (a session cookie or token) that stands in for the user on subsequent requests. Fixation, weak IDs, missing rotation, and missing invalidation live here.
+1. **Identification** - the user asserts an identity (a username, email, or subject claim). Leaking whether that identity exists is *account enumeration*.
+2. **Authentication** - the user proves the claim with one or more factors. Weak proofs, missing MFA, and automated guessing live here.
+3. **Session / token** - after a successful proof, the server issues a credential (a session cookie or token) that stands in for the user on subsequent requests. Fixation, weak IDs, missing rotation, and missing invalidation live here.
 
 ### The Three Authentication Factors
 
@@ -90,7 +90,7 @@ It is worth separating the moving parts, because failures cluster differently at
 | **Something you have** | Phone (SMS/TOTP), security key, passkey | SMS is SIM-swappable; TOTP is phishable; keys resist both |
 | **Something you are** | Fingerprint, face, voice | Not secret, hard to revoke, spoofable in some modes |
 
-**Multi-factor authentication** combines factors from different categories. Not all MFA is equal: SMS one-time codes and TOTP apps raise the bar against password reuse but are *phishable* — an adversary-in-the-middle page relays the code in real time. **Phishing-resistant** methods (passkeys / WebAuthn / FIDO2 security keys) bind the credential to the origin cryptographically, so a fake domain cannot complete the ceremony.
+**Multi-factor authentication** combines factors from different categories. Not all MFA is equal: SMS one-time codes and TOTP apps raise the bar against password reuse but are *phishable* - an adversary-in-the-middle page relays the code in real time. **Phishing-resistant** methods (passkeys / WebAuthn / FIDO2 security keys) bind the credential to the origin cryptographically, so a fake domain cannot complete the ceremony.
 
 ### Passwords: Policy Has Shifted
 
@@ -98,9 +98,9 @@ Modern guidance (**NIST SP 800-63B**) inverts much of the older "complexity" adv
 
 - **Favour length over composition**: allow long passphrases (at least 8, ideally 12+ characters; support up to 64+) and drop mandatory upper/lower/digit/symbol rules.
 - **Screen against breach corpora**: reject passwords known to appear in public breach lists (for example via a k-anonymity range query so the full password never leaves the client).
-- **Do not force periodic rotation** without evidence of compromise — it drives predictable, weaker choices.
+- **Do not force periodic rotation** without evidence of compromise - it drives predictable, weaker choices.
 - **Drop knowledge-based "security questions"**: the answers are often public or guessable.
-- **Store with a slow, salted password hash**: Argon2id, scrypt, or bcrypt — never MD5/SHA-1 or a fast unsalted hash.
+- **Store with a slow, salted password hash**: Argon2id, scrypt, or bcrypt - never MD5/SHA-1 or a fast unsalted hash.
 
 ### Sessions and Tokens
 
@@ -139,7 +139,7 @@ The examples below are described as **classes of incident** that have been widel
 
 ### Class 4: Adversary-in-the-Middle (AitM) Session-Cookie Theft
 
-**Pattern**: a reverse-proxy phishing kit sits between the victim and the real site, relays the login and the OTP in real time, and steals the resulting *session cookie* — bypassing password and phishable MFA together.
+**Pattern**: a reverse-proxy phishing kit sits between the victim and the real site, relays the login and the OTP in real time, and steals the resulting *session cookie* - bypassing password and phishable MFA together.
 **Lesson**: phishing-resistant WebAuthn defeats this because the credential is bound to the true origin; also bind sessions to client signals and shorten lifetimes.
 
 ### Class 5: JWT Algorithm and Secret Flaws
@@ -154,7 +154,7 @@ The examples below are described as **classes of incident** that have been widel
 
 ## Prevalence and Classification
 
-Authentication failures are among the most consistently present weakness classes in the OWASP data set — they have appeared in the Top 10 in every edition, under one name or another, since 2017. Rather than quote a specific incidence percentage for the 2025 edition (which is finalised by OWASP from contributed data), it is more useful to know the underlying weaknesses this category maps to.
+Authentication failures are among the most consistently present weakness classes in the OWASP data set - they have appeared in the Top 10 in every edition, under one name or another, since 2017. Rather than quote a specific incidence percentage for the 2025 edition (which is finalised by OWASP from contributed data), it is more useful to know the underlying weaknesses this category maps to.
 
 ### Representative CWE Mappings
 
@@ -205,7 +205,7 @@ Authentication failures are among the most consistently present weakness classes
 
 ### Myth 6: "Account lockout is the answer to brute force."
 
-**Reality**: naive lockout creates a denial-of-service vector — an attacker locks every user out. Prefer graduated throttling, breach screening, and MFA, and reserve lockout for extreme cases with care.
+**Reality**: naive lockout creates a denial-of-service vector - an attacker locks every user out. Prefer graduated throttling, breach screening, and MFA, and reserve lockout for extreme cases with care.
 
 ## Self-Assessment
 

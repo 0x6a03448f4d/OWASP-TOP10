@@ -2,7 +2,7 @@
 
 Each pair below shows a **vulnerable** function (or configuration) and the **secure** version. The examples focus on what dominates real serverless findings: functions that emit no security context, missing distributed tracing, no anomaly/cost alerting, and log stores the workload can erase.
 
-## 1. Lambda Handler — Node.js: Structured Security Logging
+## 1. Lambda Handler - Node.js: Structured Security Logging
 
 ### Vulnerable
 ```javascript
@@ -61,7 +61,7 @@ exports.handler = async (event, context) => {
 // events from one identity/source -> a detectable, alertable pattern.
 ```
 
-## 2. Lambda Handler — Python: Context-Rich Logging Without Leaking Secrets
+## 2. Lambda Handler - Python: Context-Rich Logging Without Leaking Secrets
 
 ### Vulnerable
 ```python
@@ -120,7 +120,7 @@ def handler(event, context):
 
 ### Vulnerable
 ```yaml
-# template.yaml — tracing disabled. A request that fans out across five
+# template.yaml - tracing disabled. A request that fans out across five
 # functions and DynamoDB cannot be followed; each invocation is an island.
 Resources:
   OrderApi:
@@ -133,7 +133,7 @@ Resources:
 
 ### Secure
 ```yaml
-# template.yaml — active tracing everywhere, so one trace_id spans the chain.
+# template.yaml - active tracing everywhere, so one trace_id spans the chain.
 Globals:
   Function:
     Tracing: Active            # X-Ray active tracing on every function
@@ -185,7 +185,7 @@ InvocationSpikeAlarm:
     ComparisonOperator: GreaterThanThreshold
     AlarmActions: [ !Ref SecurityTopic ]        # SNS -> on-call page
 
-# Alarm on estimated charges — cost as a security signal (ties to SAS-8)
+# Alarm on estimated charges - cost as a security signal (ties to SAS-8)
 BillingSpikeAlarm:
   Type: AWS::CloudWatch::Alarm
   Properties:
@@ -219,7 +219,7 @@ ErrorRateAlarm:
 ### Vulnerable
 ```
 # CloudTrail is on but nothing reacts to it. A compromised function assumes
-# its role and calls AttachRolePolicy / CreateAccessKey — recorded, but no
+# its role and calls AttachRolePolicy / CreateAccessKey - recorded, but no
 # one is alerted, so it sits unnoticed in the trail.
 ```
 
@@ -242,7 +242,7 @@ IamAnomalyRule:
       - Arn: !Ref SecurityTopic                  # SNS -> security on-call
         Id: notify-security
 # Pair with GuardDuty for managed anomaly detection over CloudTrail, DNS,
-# and Lambda network activity — no static thresholds to hand-tune.
+# and Lambda network activity - no static thresholds to hand-tune.
 ```
 
 ## 6. Protecting Log Retention and Integrity
@@ -279,7 +279,7 @@ OrderFnRole:
           - Effect: Allow
             Action:
               - logs:CreateLogStream
-              - logs:PutLogEvents        # write only — no delete/retention control
+              - logs:PutLogEvents        # write only - no delete/retention control
             Resource: !GetAtt OrderFnLogGroup.Arn
 
 # Plus: ship logs off-account in near real time (subscription filter ->

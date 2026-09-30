@@ -84,7 +84,7 @@ Aim for higher SLSA levels over time: signed provenance that ties the artifact t
 
 ## 5. Generate and Store an SBOM
 
-An SBOM answers "what is inside?"—essential for responding when a new CVE lands on a component you ship.
+An SBOM answers "what is inside?"-essential for responding when a new CVE lands on a component you ship.
 
 ```bash
 # Produce an SBOM (CycloneDX or SPDX) for each image
@@ -95,7 +95,7 @@ cosign attest --predicate sbom.json --type cyclonedx \
   registry.example.com/app@sha256:<digest>
 ```
 
-Store SBOMs so that when the next widely-exploited library advisory drops, you can query which images—and which running Pods—are affected in minutes, not days.
+Store SBOMs so that when the next widely-exploited library advisory drops, you can query which images-and which running Pods-are affected in minutes, not days.
 
 ## 6. Private Registries and Source Allow-Lists
 
@@ -115,7 +115,7 @@ This removes typosquatting and arbitrary-public-image risk: if it is not from an
 
 ## 7. Admission Control to Enforce Policy
 
-Admission control is the gate that makes signing, scanning, and allow-listing real—block anything that fails.
+Admission control is the gate that makes signing, scanning, and allow-listing real-block anything that fails.
 
 ```yaml
 # Kyverno: require signed images from a trusted registry (verifyImages)
@@ -182,7 +182,7 @@ gitleaks detect --source . --redact
 trivy image --scanners secret registry.example.com/app@sha256:<digest>
 ```
 
-Remember that secrets in published layers are permanent—removing them from a later build does not scrub earlier image history.
+Remember that secrets in published layers are permanent-removing them from a later build does not scrub earlier image history.
 
 ## 10. Run as Non-Root with a Hardened Runtime
 
@@ -219,11 +219,11 @@ Continuously re-evaluate running images against new advisories using your stored
 
 ## Key Takeaways
 
-1. **Start minimal and trusted** — distroless/slim bases, rebuilt regularly, carry fewer CVEs and fewer tools to abuse.
-2. **Pin by digest** — immutable references remove the silent-swap vector that mutable tags create.
-3. **Scan and sign** — scanning finds known CVEs, signing proves provenance; use both, in CI and at admission.
-4. **Know what's inside** — an SBOM turns the next big advisory into a fast query instead of a blind rebuild.
-5. **Enforce at the gate** — admission control that blocks unsigned, unscanned, mutable-tag, or untrusted images is what makes the rest real.
+1. **Start minimal and trusted** - distroless/slim bases, rebuilt regularly, carry fewer CVEs and fewer tools to abuse.
+2. **Pin by digest** - immutable references remove the silent-swap vector that mutable tags create.
+3. **Scan and sign** - scanning finds known CVEs, signing proves provenance; use both, in CI and at admission.
+4. **Know what's inside** - an SBOM turns the next big advisory into a fast query instead of a blind rebuild.
+5. **Enforce at the gate** - admission control that blocks unsigned, unscanned, mutable-tag, or untrusted images is what makes the rest real.
 
 ## Next Steps
 

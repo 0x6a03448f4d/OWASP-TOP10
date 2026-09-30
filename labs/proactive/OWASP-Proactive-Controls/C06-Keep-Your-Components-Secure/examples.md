@@ -13,7 +13,7 @@
 
 Each block pairs an **insecure** configuration with the **secure** version that implements this control. The focus is on the things a component-security review actually checks: how versions are declared, whether lockfiles and integrity hashes are used, where packages are sourced from, and whether scanning runs automatically. Language differs; the principles do not.
 
-> Version numbers below are illustrative placeholders to show pinning and range syntax—they are not references to specific vulnerabilities.
+> Version numbers below are illustrative placeholders to show pinning and range syntax-they are not references to specific vulnerabilities.
 
 ## Node.js / npm
 
@@ -132,7 +132,7 @@ pyyaml==6.0.2 \
 $ pip install --require-hashes -r requirements.txt
 ```
 
-**Why it is safe**: `--require-hashes` refuses to install any artifact—direct or transitive—whose content does not match a pinned hash, defeating tampering and substitution.
+**Why it is safe**: `--require-hashes` refuses to install any artifact-direct or transitive-whose content does not match a pinned hash, defeating tampering and substitution.
 
 ### Poetry lockfile
 

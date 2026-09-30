@@ -74,7 +74,7 @@ kube-apiserver \
 # feature (off or minimal by default) and export it to your log sink.
 ```
 
-> **Why it matters**: The secure policy makes exec, secret access, and RBAC changes *expensive to hide*—each produces a full, attributable record—while keeping routine, high-volume traffic cheap so the log stays affordable and readable.
+> **Why it matters**: The secure policy makes exec, secret access, and RBAC changes *expensive to hide*-each produces a full, attributable record-while keeping routine, high-volume traffic cheap so the log stays affordable and readable.
 
 ## 2. Runtime Threat Detection (Falco)
 
@@ -101,7 +101,7 @@ helm install falco falcosecurity/falco \
 ```
 
 ```yaml
-# custom-rules.yaml — high-signal runtime rules
+# custom-rules.yaml - high-signal runtime rules
 - macro: container
   condition: container.id != host
 
@@ -161,7 +161,7 @@ helm install falco falcosecurity/falco \
   tags: [network, mitre_exfiltration]
 ```
 
-> **Why it matters**: These rules turn the invisible half of the attack—what runs *inside* the container and on the node—into concrete, routable events. Falco ships bundled defaults; the custom rules above add the highest-signal Kubernetes-specific detections.
+> **Why it matters**: These rules turn the invisible half of the attack-what runs *inside* the container and on the node-into concrete, routable events. Falco ships bundled defaults; the custom rules above add the highest-signal Kubernetes-specific detections.
 
 ## 3. Centralisation and Alerting
 
@@ -177,9 +177,9 @@ $ rm -f /var/log/pods/*/*/*.log /var/log/containers/*.log
 # There is no alerting: dashboards exist but no rule pages anyone.
 ```
 
-### Secure — ship everything off-cluster with Fluent Bit
+### Secure - ship everything off-cluster with Fluent Bit
 ```ini
-# fluent-bit.conf — DaemonSet tails node-local logs + the audit log
+# fluent-bit.conf - DaemonSet tails node-local logs + the audit log
 [SERVICE]
     Flush        5
     Log_Level    info
@@ -211,7 +211,7 @@ $ rm -f /var/log/pods/*/*/*.log /var/log/containers/*.log
     # Target index/bucket configured as append-only / object-locked (WORM)
 ```
 
-### Secure — alert on high-risk events with Prometheus/Alertmanager
+### Secure - alert on high-risk events with Prometheus/Alertmanager
 ```yaml
 # An exporter converts audit + Falco events into metrics; alert on them.
 # prometheus-rules.yaml
@@ -244,7 +244,7 @@ groups:
 ```
 
 ```yaml
-# alertmanager.yaml — critical events page on-call, not a silent channel
+# alertmanager.yaml - critical events page on-call, not a silent channel
 route:
   receiver: soc-default
   routes:
@@ -257,7 +257,7 @@ receivers:
     pagerduty_configs: [{ routing_key: "$PD_ROUTING_KEY" }]
 ```
 
-> **Why it matters**: Fluent Bit moves evidence off the compromised asset in near-real-time to tamper-resistant storage, so cleanup cannot erase it. Prometheus/Alertmanager closes the loop—the high-risk events become pages a human receives, with a runbook attached.
+> **Why it matters**: Fluent Bit moves evidence off the compromised asset in near-real-time to tamper-resistant storage, so cleanup cannot erase it. Prometheus/Alertmanager closes the loop-the high-risk events become pages a human receives, with a runbook attached.
 
 ## What Changed, and Why
 

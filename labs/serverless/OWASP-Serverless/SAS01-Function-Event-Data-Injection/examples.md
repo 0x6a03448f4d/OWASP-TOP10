@@ -1,6 +1,6 @@
 # SAS-1: Function Event-Data Injection - Code Examples
 
-Each pair below shows a **vulnerable** AWS Lambda handler and the **secure** version of the same handler, in both Node.js and Python. The examples deliberately use *non-HTTP* triggers—S3, SNS, SQS, DynamoDB Streams, SES—because that is where event-data injection hides. A `serverless.yml` showing least-privilege roles closes the page.
+Each pair below shows a **vulnerable** AWS Lambda handler and the **secure** version of the same handler, in both Node.js and Python. The examples deliberately use *non-HTTP* triggers-S3, SNS, SQS, DynamoDB Streams, SES-because that is where event-data injection hides. A `serverless.yml` showing least-privilege roles closes the page.
 
 ## Example 1: S3 Object Key -> SQL Injection
 

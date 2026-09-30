@@ -1,6 +1,6 @@
 # CICD-SEC-10: Insufficient Logging and Visibility - Code Examples
 
-Each pair below shows an **insecure** configuration—where pipeline activity goes unrecorded or unwatched—and the **secure** version that enables, centralises, or alerts on it. The examples cover the whole toolchain: SCM, CI, registry, cloud, the SIEM, and the runners.
+Each pair below shows an **insecure** configuration-where pipeline activity goes unrecorded or unwatched-and the **secure** version that enables, centralises, or alerts on it. The examples cover the whole toolchain: SCM, CI, registry, cloud, the SIEM, and the runners.
 
 ## 1. SCM Audit Logging (GitHub org)
 
@@ -184,7 +184,7 @@ runner:
 
 ### Insecure
 ```python
-# A deploy script that logs nothing durable — the record dies with the runner.
+# A deploy script that logs nothing durable - the record dies with the runner.
 def deploy(artifact, target):
     print(f"deploying {artifact} to {target}")   # stdout only, rotates away
     run_deploy(artifact, target)                  # no actor, no trace id, no export
@@ -214,7 +214,7 @@ def deploy(artifact, target, actor):
 | Area | Insecure | Secure |
 |------|----------|--------|
 | SCM | Audit log trapped in UI, key events uncaptured | Streamed off-host; protection/identity/workflow events captured |
-| CI/CD | Only mutable job console output | Audit events on config, variable access, runners — streamed |
+| CI/CD | Only mutable job console output | Audit events on config, variable access, runners - streamed |
 | Registry | Mutable tags, no push/token logging | Immutable tags; push/tag-mutation/token events exported |
 | Cloud | Single-region, unvalidated, editable trail | Multi-region, integrity-validated, object-locked in a separate account |
 | SIEM | No aggregation, correlation, or alerts | Normalised, correlated by trace id, alerting on high-risk events |

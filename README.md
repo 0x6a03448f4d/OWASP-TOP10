@@ -40,19 +40,19 @@ This project has two halves, split for safety:
 
 | | Where it runs | What you get |
 |---|---|---|
-| **📚 Learning site** | Hosted: **[owasp.0x6a03448f4d.com](https://owasp.0x6a03448f4d.com)** | All the reading — lessons, cheat sheets, attack-flow diagrams, quizzes, compliance mappings. 100% static, nothing vulnerable. |
+| **📚 Learning site** | Hosted: **[owasp.0x6a03448f4d.com](https://owasp.0x6a03448f4d.com)** | All the reading - lessons, cheat sheets, attack-flow diagrams, quizzes, compliance mappings. 100% static, nothing vulnerable. |
 | **🔬 Vulnerable labs** | **Your machine** (Docker) or a **Codespace** | The intentionally-vulnerable apps you actually attack. Never hosted publicly, by design. |
 
-The labs are deliberately **not** exposed on the internet — a live vulnerable app is a liability. You run them locally in throwaway Docker containers instead, so nothing vulnerable is ever public and there's zero cost or risk on the hosting side.
+The labs are deliberately **not** exposed on the internet - a live vulnerable app is a liability. You run them locally in throwaway Docker containers instead, so nothing vulnerable is ever public and there's zero cost or risk on the hosting side.
 
 <a id="run-the-labs-locally"></a>
 ## 🚀 Run the labs locally
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/0x6a03448f4d/OWASP-TOP10)
 
-**Option A — GitHub Codespaces (nothing to install):** click the badge above. The devcontainer ships with Docker and Python pre-installed; once it boots, run the platform below. Ports are auto-forwarded to a private URL only you can see.
+**Option A - GitHub Codespaces (nothing to install):** click the badge above. The devcontainer ships with Docker and Python pre-installed; once it boots, run the platform below. Ports are auto-forwarded to a private URL only you can see.
 
-**Option B — Local (Docker Desktop / Docker Engine required):**
+**Option B - Local (Docker Desktop / Docker Engine required):**
 
 ```bash
 git clone https://github.com/0x6a03448f4d/OWASP-TOP10.git
@@ -62,7 +62,7 @@ docker compose up -d
 
 Then open **http://localhost** for the dashboard, or run the lab-manager and browse to the labs page to launch individual labs on demand.
 
-> The **Start Lab** buttons on the hosted site only work when this local lab-manager is running — on the public site they show a reminder to run locally.
+> The **Start Lab** buttons on the hosted site only work when this local lab-manager is running - on the public site they show a reminder to run locally.
 
 **What Changed:**
 - ✅ Cleaner separation: Platform code vs. Lab content

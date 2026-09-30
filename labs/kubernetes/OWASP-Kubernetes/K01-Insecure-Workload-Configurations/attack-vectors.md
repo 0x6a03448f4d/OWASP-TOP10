@@ -8,14 +8,14 @@
 
 ## Understanding Workload Attack Vectors
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in clusters you own or are authorised to test.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in clusters you own or are authorised to test.
 
-Insecure workload configuration is rarely the *entry point*—it is the **amplifier**. An attacker first gets code execution inside a container (an application RCE, a poisoned dependency, an SSRF that reaches an internal exec endpoint, or simply a Pod they were allowed to schedule). What happens next is decided entirely by the workload's manifest. A hardened Pod traps them in a locked, unprivileged process. A permissive Pod hands them the node.
+Insecure workload configuration is rarely the *entry point*-it is the **amplifier**. An attacker first gets code execution inside a container (an application RCE, a poisoned dependency, an SSRF that reaches an internal exec endpoint, or simply a Pod they were allowed to schedule). What happens next is decided entirely by the workload's manifest. A hardened Pod traps them in a locked, unprivileged process. A permissive Pod hands them the node.
 
 The attacker's objectives in this category are usually:
 
 - **Escape the container** onto the underlying node using privilege, capabilities, host namespaces, or host mounts.
-- **Harvest credentials**—the mounted ServiceAccount token, other Pods' Secrets on the node, and cloud metadata.
+- **Harvest credentials**-the mounted ServiceAccount token, other Pods' Secrets on the node, and cloud metadata.
 - **Move laterally** using those credentials to reach the API server, other nodes, and the cloud account.
 
 ### Core Attack Flow
@@ -60,7 +60,7 @@ touch /test_write 2>&1              # readOnlyRootFilesystem check
 ls /var/run/secrets/kubernetes.io/serviceaccount/
 ```
 
-**Payoff**: the output tells the attacker exactly which escape to reach for—no guessing required.
+**Payoff**: the output tells the attacker exactly which escape to reach for-no guessing required.
 
 ### 2. Privileged Container Escape
 
@@ -133,7 +133,7 @@ curl http://127.0.0.1:10250/pods              # kubelet read API
 curl http://169.254.169.254/latest/meta-data/iam/security-credentials/
 ```
 
-**Payoff**: unauthenticated kubelet access and cloud IAM credentials—NetworkPolicy does not apply to `hostNetwork` Pods.
+**Payoff**: unauthenticated kubelet access and cloud IAM credentials-NetworkPolicy does not apply to `hostNetwork` Pods.
 
 ### 7. ServiceAccount Token Theft and API Enumeration
 
@@ -201,7 +201,7 @@ A workload with no CPU/memory limits can starve the node.
 stress-ng --vm 4 --vm-bytes 90% --timeout 0
 ```
 
-**Payoff**: denial of service against every workload sharing the node—the "noisy neighbour" turned malicious.
+**Payoff**: denial of service against every workload sharing the node-the "noisy neighbour" turned malicious.
 
 ### 12. Unconfined seccomp Widening the Kernel Attack Surface
 
@@ -242,11 +242,11 @@ runAsNonRoot unset (root) + allowPrivilegeEscalation: true
 
 ## Key Takeaways
 
-1. **The workload config decides the blast radius**—the same app bug is contained or catastrophic depending on the manifest.
-2. **Escape primitives are well-known and scripted**—privileged, docker.sock, hostPath, and SYS_ADMIN each have reliable public techniques.
-3. **The mounted token is a free cluster credential**—disable automount unless the app truly needs it.
-4. **Host namespaces bypass your network controls**—`hostNetwork` ignores NetworkPolicy and reaches metadata.
-5. **Small settings chain**—writable filesystem plus one host mount plus a token equals a breach with no kernel exploit at all.
+1. **The workload config decides the blast radius**-the same app bug is contained or catastrophic depending on the manifest.
+2. **Escape primitives are well-known and scripted**-privileged, docker.sock, hostPath, and SYS_ADMIN each have reliable public techniques.
+3. **The mounted token is a free cluster credential**-disable automount unless the app truly needs it.
+4. **Host namespaces bypass your network controls**-`hostNetwork` ignores NetworkPolicy and reaches metadata.
+5. **Small settings chain**-writable filesystem plus one host mount plus a token equals a breach with no kernel exploit at all.
 
 ## Next Steps
 

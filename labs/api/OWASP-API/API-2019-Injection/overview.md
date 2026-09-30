@@ -12,9 +12,9 @@
 
 ## What is Injection?
 
-**Injection** occurs when untrusted data from an API request is sent to a downstream interpreter as part of a command or query, and the interpreter cannot tell the attacker's data apart from the developer's instructions. The interpreter dutifully executes whatever it is handed—so a value that was supposed to be a *username* becomes a *query operator*, a value that was supposed to be a *filename* becomes a *shell command*, and the boundary between "code" and "data" collapses.
+**Injection** occurs when untrusted data from an API request is sent to a downstream interpreter as part of a command or query, and the interpreter cannot tell the attacker's data apart from the developer's instructions. The interpreter dutifully executes whatever it is handed-so a value that was supposed to be a *username* becomes a *query operator*, a value that was supposed to be a *filename* becomes a *shell command*, and the boundary between "code" and "data" collapses.
 
-The root cause is always the same shape: **a string (or structured object) built from request input is interpreted, rather than treated as inert data.** The interpreter changes—a SQL engine, a MongoDB query planner, an OS shell, an LDAP directory, an XML/XPath parser, a log sink—but the mechanism does not. Wherever an API takes a parameter, a JSON body field, a header, or a query string and splices it into something that will be *parsed and acted on*, injection is possible.
+The root cause is always the same shape: **a string (or structured object) built from request input is interpreted, rather than treated as inert data.** The interpreter changes-a SQL engine, a MongoDB query planner, an OS shell, an LDAP directory, an XML/XPath parser, a log sink-but the mechanism does not. Wherever an API takes a parameter, a JSON body field, a header, or a query string and splices it into something that will be *parsed and acted on*, injection is possible.
 
 ### Core Concept
 
@@ -33,18 +33,18 @@ Injection (data becomes code):
 
 Classic web injection came through HTML forms and query strings. APIs shift the shape of the attack surface in ways that matter:
 
-- APIs accept **rich, structured input**—JSON and XML bodies—so the attacker can inject not just strings but whole *objects*. A field that the code expects to be a string (`"password": "hunter2"`) can arrive as an operator object (`"password": {"$ne": null}`), which is the signature of NoSQL injection.
-- APIs frequently expose **flexible query semantics**—client-driven `sort`, `filter`, `fields`, and search parameters—that get spliced straight into queries or query builders.
+- APIs accept **rich, structured input**-JSON and XML bodies-so the attacker can inject not just strings but whole *objects*. A field that the code expects to be a string (`"password": "hunter2"`) can arrive as an operator object (`"password": {"$ne": null}`), which is the signature of NoSQL injection.
+- APIs frequently expose **flexible query semantics**-client-driven `sort`, `filter`, `fields`, and search parameters-that get spliced straight into queries or query builders.
 - APIs are **machine-to-machine**, so malformed or hostile input is not filtered by a browser and rarely noticed by a human.
-- APIs chain to **many interpreters at once**: one endpoint may touch a SQL database, a document store, a shell for a thumbnailer, and a logging pipeline—each an injection sink.
+- APIs chain to **many interpreters at once**: one endpoint may touch a SQL database, a document store, a shell for a thumbnailer, and a logging pipeline-each an injection sink.
 
 ## Why Does This Matter?
 
 ### Business Impact
 
-- **Mass Data Theft**: A single injectable endpoint can dump an entire table or collection—every user, order, and secret—in one query.
+- **Mass Data Theft**: A single injectable endpoint can dump an entire table or collection-every user, order, and secret-in one query.
 - **Authentication Bypass**: Injected boolean logic (SQL `OR 1=1`, NoSQL `{"$ne": null}`) turns a login check into an always-true condition.
-- **Data Tampering and Destruction**: Injection can update or delete records, not just read them—stacked queries and operator abuse can corrupt or wipe data.
+- **Data Tampering and Destruction**: Injection can update or delete records, not just read them-stacked queries and operator abuse can corrupt or wipe data.
 - **Full Server Compromise**: OS command injection yields remote code execution and a foothold to pivot into the internal network.
 - **Regulatory Fallout**: Exposure of personal or payment data triggers GDPR, HIPAA, and PCI-DSS obligations, fines, and breach notification.
 
@@ -170,7 +170,7 @@ username = alice\r\n2026-01-01 12:00:00 INFO login success user=admin
 query { user(where: "id=1 OR 1=1") { email } }   # arg passed raw to SQL/filter
 ```
 
-**Risk**: structured request formats give attackers extra channels—XML external entities, and GraphQL arguments that are forwarded unsanitised into a downstream interpreter.
+**Risk**: structured request formats give attackers extra channels-XML external entities, and GraphQL arguments that are forwarded unsanitised into a downstream interpreter.
 
 ## The Injection Family in APIs
 
@@ -187,7 +187,7 @@ query { user(where: "id=1 OR 1=1") { email } }   # arg passed raw to SQL/filter
 
 ## Real-World Impact
 
-The examples below describe **classes** of incident that are widely documented across the industry. They avoid naming specific CVEs or citing precise counts—the durable lesson is the pattern, not a headline number.
+The examples below describe **classes** of incident that are widely documented across the industry. They avoid naming specific CVEs or citing precise counts-the durable lesson is the pattern, not a headline number.
 
 ### Case Study 1: SQL Injection Behind an API Endpoint
 
@@ -197,7 +197,7 @@ The examples below describe **classes** of incident that are widely documented a
 
 **Impact**: Whole-table exfiltration of customer records and credential hashes has repeatedly resulted from a single unparameterised endpoint. Because the API returns structured JSON, automated tooling extracts data quickly.
 
-**Root Cause**: String-built SQL with no parameterisation. The fix—prepared statements—is decades old and still the definitive control.
+**Root Cause**: String-built SQL with no parameterisation. The fix-prepared statements-is decades old and still the definitive control.
 
 ### Case Study 2: NoSQL Authentication Bypass via JSON Operators
 
@@ -205,7 +205,7 @@ The examples below describe **classes** of incident that are widely documented a
 - A login API forwards the parsed JSON body directly into a MongoDB `findOne` query.
 - The client is trusted to send string values, but sends operator objects (`{"$ne": null}`) instead.
 
-**Impact**: The password comparison becomes "password is not null," which is true for every user—authentication is bypassed without knowing any credential. The same operator trick enumerates records via `$regex`.
+**Impact**: The password comparison becomes "password is not null," which is true for every user-authentication is bypassed without knowing any credential. The same operator trick enumerates records via `$regex`.
 
 **Root Cause**: Trusting the *type* of a JSON field. The fix is to reject non-string values and never pass raw user objects into a query.
 
@@ -217,14 +217,14 @@ The examples below describe **classes** of incident that are widely documented a
 
 **Impact**: Remote code execution on the API host, followed by credential theft and lateral movement. Image-processing, "ping this host," and export-to-file features are recurring offenders.
 
-**Root Cause**: Building a shell string from input and invoking a shell. The fix is to avoid the shell entirely—pass arguments as an array to `execFile`/`subprocess.run([...])`.
+**Root Cause**: Building a shell string from input and invoking a shell. The fix is to avoid the shell entirely-pass arguments as an array to `execFile`/`subprocess.run([...])`.
 
 ## Prevalence and Severity
 
 Injection has appeared at or near the top of application-security risk lists for many years. In the 2019 OWASP API Security Top 10 it is a dedicated category (API8:2019). The defensible picture, without leaning on any single statistic:
 
 - Injection is characterised as **common and often easy to exploit**, with tooling (fuzzers, SQLi/NoSQLi scanners) that finds candidate points automatically.
-- Its **technical impact is severe**—up to full data disclosure, data destruction, or remote code execution—which keeps it high on every risk ranking even when prevalence drops as frameworks improve.
+- Its **technical impact is severe**-up to full data disclosure, data destruction, or remote code execution-which keeps it high on every risk ranking even when prevalence drops as frameworks improve.
 - Prevalence has **declined slowly** as parameterised queries and ORMs became defaults, but the raw-string escape hatches and NoSQL operator patterns keep it alive in modern APIs.
 
 > Note: exact percentages and breach counts vary between reports and years. Treat any single figure as illustrative; the durable takeaway is that injection is easy to find, cheap to exploit, and catastrophic when it lands.
@@ -241,11 +241,11 @@ Injection has appeared at or near the top of application-security risk lists for
 
 ### Myth 3: "Input validation / a WAF stops all injection"
 
-**Reality**: Blocklists and WAFs are bypassable and are defence-in-depth, not the fix. The primary control is separating code from data at the sink—parameterisation—so that even a payload that slips past the filter is treated as inert data.
+**Reality**: Blocklists and WAFs are bypassable and are defence-in-depth, not the fix. The primary control is separating code from data at the sink-parameterisation-so that even a payload that slips past the filter is treated as inert data.
 
 ### Myth 4: "Escaping the input is enough"
 
-**Reality**: Escaping is interpreter-specific and error-prone—escaping for SQL does nothing for a shell, and hand-rolled escaping misses edge cases (encodings, quoting contexts). Prefer parameterisation and safe APIs; use escaping only where a parameter genuinely cannot be bound.
+**Reality**: Escaping is interpreter-specific and error-prone-escaping for SQL does nothing for a shell, and hand-rolled escaping misses edge cases (encodings, quoting contexts). Prefer parameterisation and safe APIs; use escaping only where a parameter genuinely cannot be bound.
 
 ### Myth 5: "It's read-only data, so injection is low risk"
 
@@ -253,11 +253,11 @@ Injection has appeared at or near the top of application-security risk lists for
 
 ### Myth 6: "Only the login form matters"
 
-**Reality**: Every parameter is a candidate—`sort`, `filter`, `fields`, headers, and nested JSON. Client-driven sorting/filtering that maps a string to a column name is a frequent, overlooked sink.
+**Reality**: Every parameter is a candidate-`sort`, `filter`, `fields`, headers, and nested JSON. Client-driven sorting/filtering that maps a string to a column name is a frequent, overlooked sink.
 
 ## Edition Note (2019 vs 2023)
 
-> **This lesson uses the 2019 framing.** In the OWASP API Security Top 10 *2019* edition, **Injection is a standalone entry: API8:2019**. In the *2023* edition, Injection was **removed as a dedicated category**—its concerns were absorbed into general secure-coding guidance and overlap with other categories (and injection remains a standalone entry in the separate OWASP *Web* Top 10). The vulnerability class did not go away; the taxonomy changed. Everything in this lesson—SQL, NoSQL, command, LDAP, ORM, header/log, and XML/GraphQL injection—still applies to APIs today.
+> **This lesson uses the 2019 framing.** In the OWASP API Security Top 10 *2019* edition, **Injection is a standalone entry: API8:2019**. In the *2023* edition, Injection was **removed as a dedicated category**-its concerns were absorbed into general secure-coding guidance and overlap with other categories (and injection remains a standalone entry in the separate OWASP *Web* Top 10). The vulnerability class did not go away; the taxonomy changed. Everything in this lesson-SQL, NoSQL, command, LDAP, ORM, header/log, and XML/GraphQL injection-still applies to APIs today.
 
 ## How Injection Differs from Related Issues
 
@@ -270,11 +270,11 @@ Injection has appeared at or near the top of application-security risk lists for
 
 ## Key Takeaways
 
-1. **Injection is one pattern, many interpreters**—source, sink, and no separation between code and data.
-2. **APIs widen the surface**—JSON/XML bodies let attackers inject whole objects, not just strings (NoSQL operator injection).
-3. **Parameterisation is the definitive fix**—bind values so the interpreter can never confuse them for commands.
-4. **ORMs and NoSQL are not immune**—raw escape hatches and operator objects keep injection alive.
-5. **Validation, least privilege, and WAFs are defence-in-depth**, layered on top of parameterisation—never a substitute for it.
+1. **Injection is one pattern, many interpreters**-source, sink, and no separation between code and data.
+2. **APIs widen the surface**-JSON/XML bodies let attackers inject whole objects, not just strings (NoSQL operator injection).
+3. **Parameterisation is the definitive fix**-bind values so the interpreter can never confuse them for commands.
+4. **ORMs and NoSQL are not immune**-raw escape hatches and operator objects keep injection alive.
+5. **Validation, least privilege, and WAFs are defence-in-depth**, layered on top of parameterisation-never a substitute for it.
 
 ## How to Identify if You're Vulnerable
 

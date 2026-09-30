@@ -5,7 +5,7 @@
 Preventing broken authentication in serverless is less about one clever control and more about **making "authenticated at every entry point" the only way a function ever runs**:
 
 1. Enumerate every function and every trigger, and treat each as directly reachable.
-2. Enforce authentication at each entry point—not only the API Gateway.
+2. Enforce authentication at each entry point-not only the API Gateway.
 3. Centralise identity in one provider and reuse a consistent authorizer.
 4. Validate tokens completely: signature, expiry, audience, issuer.
 5. Sign service-to-service calls (IAM/SigV4) and scope every role to least privilege.
@@ -22,7 +22,7 @@ Preventing broken authentication in serverless is less about one clever control 
 Start by inventorying triggers, then require authentication on each. Never leave a Function URL open.
 
 ```yaml
-# serverless.yml — require IAM auth on the Function URL (never AuthType NONE)
+# serverless.yml - require IAM auth on the Function URL (never AuthType NONE)
 functions:
   adminReport:
     handler: handler.adminReport
@@ -58,7 +58,7 @@ Delegate user authentication to a managed identity provider rather than hand-rol
 
 ```yaml
 # Cognito JWT authorizer (as above) validates the token BEFORE the function runs.
-# For custom needs, a single shared Lambda authorizer — reused by every route —
+# For custom needs, a single shared Lambda authorizer - reused by every route -
 # keeps verification logic in one reviewed place instead of copied into handlers.
 
 functions:
@@ -78,10 +78,10 @@ A consistent authorizer means a fix or a policy change happens once and applies 
 
 ## 3. Validate Tokens Correctly
 
-Verify the signature against the provider's keys, and check expiry, audience, and issuer—every time.
+Verify the signature against the provider's keys, and check expiry, audience, and issuer-every time.
 
 ```javascript
-// Node.js Lambda authorizer — full JWT verification with the provider JWKS
+// Node.js Lambda authorizer - full JWT verification with the provider JWKS
 const { createRemoteJWKSet, jwtVerify } = require('jose');
 
 const JWKS = createRemoteJWKSet(new URL(process.env.JWKS_URI));
@@ -104,7 +104,7 @@ Reject `alg: none`, never trust an unverified claim, and keep token lifetimes sh
 Treat every event payload as untrusted input. Verify the source and validate the content before acting on it.
 
 ```python
-# Python Lambda — validate the S3 event's context before privileged work
+# Python Lambda - validate the S3 event's context before privileged work
 import os
 
 TRUSTED_BUCKET = os.environ['TRUSTED_BUCKET']
@@ -119,14 +119,14 @@ def handler(event, context):
     process_import(bucket, key)
 ```
 
-Where the actor matters, carry an authenticated identity in the payload (a signed token or message attribute) and verify it—do not infer trust from the trigger type.
+Where the actor matters, carry an authenticated identity in the payload (a signed token or message attribute) and verify it-do not infer trust from the trigger type.
 
 ## 5. Secure Service-to-Service Authentication
 
 Internal invokes must be authenticated too. Use IAM/SigV4 and least-privilege roles instead of shared static secrets.
 
 ```yaml
-# serverless.yml — the caller may invoke ONLY the one function it needs
+# serverless.yml - the caller may invoke ONLY the one function it needs
 functions:
   caller:
     handler: caller.handler
@@ -157,7 +157,7 @@ Scope each function's execution role so that even an unauthenticated invocation 
   Resource: arn:aws:dynamodb:us-east-1:1234:table/Profiles
 ```
 
-Least privilege does not replace authentication—it caps the blast radius when authentication fails.
+Least privilege does not replace authentication-it caps the blast radius when authentication fails.
 
 ## 7. No Long-Lived or Static Credentials
 
@@ -172,7 +172,7 @@ gitleaks detect --source . --redact
 
 ## 8. Do Not Rely on Obscurity of URLs or ARNs
 
-Assume every Function URL and ARN is public knowledge. Keep them out of client bundles and logs where practical, but always back them with real authentication—obscurity is never the control.
+Assume every Function URL and ARN is public knowledge. Keep them out of client bundles and logs where practical, but always back them with real authentication-obscurity is never the control.
 
 ## 9. Detect Unauthenticated Entry Points Automatically
 
@@ -217,7 +217,7 @@ Feed CloudTrail and authorizer logs into alerting so an unexpected direct invoke
 
 ```python
 def handler(event, context):
-    # Even behind an authorizer, re-derive identity from the verified context —
+    # Even behind an authorizer, re-derive identity from the verified context -
     # never from a client-supplied header the function trusts blindly.
     claims = event['requestContext']['authorizer']['jwt']['claims']
     user = claims['sub']            # provided by the gateway authorizer
@@ -226,11 +226,11 @@ def handler(event, context):
 
 ## Key Takeaways
 
-1. **Authenticate every entry point** — gateway, Function URLs, event sources, and direct invokes all need enforcement.
-2. **Centralise identity** — one provider plus a reused authorizer beats per-function checks that drift.
-3. **Verify tokens fully** — signature, expiry, audience, and issuer, every time; reject `alg: none`.
-4. **Never trust a trigger as identity** — validate event sources and payloads; sign service-to-service calls.
-5. **Least privilege and short lifetimes** — cap the blast radius and make leaked credentials expire fast.
+1. **Authenticate every entry point** - gateway, Function URLs, event sources, and direct invokes all need enforcement.
+2. **Centralise identity** - one provider plus a reused authorizer beats per-function checks that drift.
+3. **Verify tokens fully** - signature, expiry, audience, and issuer, every time; reject `alg: none`.
+4. **Never trust a trigger as identity** - validate event sources and payloads; sign service-to-service calls.
+5. **Least privilege and short lifetimes** - cap the blast radius and make leaked credentials expire fast.
 
 ## Next Steps
 

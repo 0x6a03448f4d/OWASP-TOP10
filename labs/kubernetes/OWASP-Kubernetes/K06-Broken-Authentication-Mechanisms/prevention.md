@@ -4,11 +4,11 @@
 
 Preventing broken authentication is less about a single control and more about **making a verified, short-lived identity the only way in**:
 
-1. Reject the unauthenticated—disable anonymous access on every component.
-2. Authenticate every component independently—API server, kubelet, and etcd.
+1. Reject the unauthenticated-disable anonymous access on every component.
+2. Authenticate every component independently-API server, kubelet, and etcd.
 3. Give humans federated identity (OIDC/SSO with MFA), not shared static credentials.
 4. Give workloads short-lived, audience-bound tokens, not permanent secrets.
-5. Keep every credential short-lived, rotated, and revocable—and never publicly reachable.
+5. Keep every credential short-lived, rotated, and revocable-and never publicly reachable.
 
 ### Core Principles
 - **Deny by default**: a request that cannot prove who it is must get `401`, not an anonymous identity.
@@ -129,7 +129,7 @@ automountServiceAccountToken: false   # default-deny at the ServiceAccount level
 
 ## 5. Integrate OIDC / SSO for Humans
 
-Humans should authenticate through your identity provider with MFA, receiving short-lived tokens and group claims that map to RBAC—never a shared kubeconfig.
+Humans should authenticate through your identity provider with MFA, receiving short-lived tokens and group claims that map to RBAC-never a shared kubeconfig.
 
 ```
 # kube-apiserver: trust an external OIDC identity provider
@@ -180,14 +180,14 @@ spec:
 ## 8. Do Not Expose the API Server or Dashboards Publicly
 
 - Keep the API server endpoint private (or restrict source ranges); a control plane on the open internet is scanned continuously.
-- The Kubernetes Dashboard should require token authentication, be bound to a least-privilege ServiceAccount, and be reached only through authenticated, access-controlled means—never published raw.
+- The Kubernetes Dashboard should require token authentication, be bound to a least-privilege ServiceAccount, and be reached only through authenticated, access-controlled means-never published raw.
 - Put node ports (kubelet 10250) and etcd (2379) behind network controls so only the control plane can reach them.
 
 ## 9. Strong Cloud-IAM-to-RBAC Mapping
 
 On managed clusters, the cloud identity layer is part of authentication. Keep the mapping least-privilege.
 
-- Map specific cloud roles/groups to specific, scoped Kubernetes groups—never a broad role to `system:masters`.
+- Map specific cloud roles/groups to specific, scoped Kubernetes groups-never a broad role to `system:masters`.
 - Use per-workload cloud identity (workload identity federation) so Pods get scoped cloud access without long-lived static keys.
 - Review the mapping whenever cloud roles change; a broadened cloud role can silently widen cluster access.
 
@@ -222,11 +222,11 @@ $ kubectl get secrets -A --field-selector type=kubernetes.io/service-account-tok
 
 ## Key Takeaways
 
-1. **Deny the anonymous** — `--anonymous-auth=false` and no binding to `system:unauthenticated`.
-2. **Authenticate every door** — the kubelet and etcd need their own authentication, independent of the API server.
-3. **Federate humans, scope workloads** — OIDC/SSO with MFA for people, short-lived projected tokens for Pods.
-4. **Short-lived beats revocable** — expiry is the revocation Kubernetes certs don't otherwise have; keep lifetimes small and rotate.
-5. **Never expose the control plane** — API server, kubelet, etcd, and dashboards stay behind network controls and authentication.
+1. **Deny the anonymous** - `--anonymous-auth=false` and no binding to `system:unauthenticated`.
+2. **Authenticate every door** - the kubelet and etcd need their own authentication, independent of the API server.
+3. **Federate humans, scope workloads** - OIDC/SSO with MFA for people, short-lived projected tokens for Pods.
+4. **Short-lived beats revocable** - expiry is the revocation Kubernetes certs don't otherwise have; keep lifetimes small and rotate.
+5. **Never expose the control plane** - API server, kubelet, etcd, and dashboards stay behind network controls and authentication.
 
 ## Next Steps
 

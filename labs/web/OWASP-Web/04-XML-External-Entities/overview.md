@@ -14,7 +14,7 @@
 
 ## What is XXE?
 
-An **XML External Entity (XXE)** vulnerability occurs when an application parses XML input using a parser that is configured—usually by default—to resolve *external entities* and *document type definitions (DTDs)*, and an attacker can influence that XML. The XML standard allows a document to define entities that pull content from an external source: a local file, a URL, or another part of the document itself. A parser that honours those instructions on attacker-supplied XML becomes a confused deputy—it reads files, opens network connections, and expands data on the attacker's behalf, using the application's own privileges.
+An **XML External Entity (XXE)** vulnerability occurs when an application parses XML input using a parser that is configured-usually by default-to resolve *external entities* and *document type definitions (DTDs)*, and an attacker can influence that XML. The XML standard allows a document to define entities that pull content from an external source: a local file, a URL, or another part of the document itself. A parser that honours those instructions on attacker-supplied XML becomes a confused deputy-it reads files, opens network connections, and expands data on the attacker's behalf, using the application's own privileges.
 
 The critical insight is that XXE is almost never a bug in the application's own code. The application does exactly what XML parsing libraries were historically designed to do. The vulnerability lives in a **default configuration**: the parser was shipped with external entity resolution enabled, nobody turned it off, and untrusted XML reached it. That is why XXE is a configuration-and-defaults problem at heart, and why the same one-line hardening fix appears over and over across languages.
 
@@ -34,7 +34,7 @@ The canonical example defines an external entity that points at a local file, th
 </user>
 ```
 
-When a vulnerable parser processes this document, it resolves `&xxe;` by opening `/etc/passwd` and substituting its contents. If the application then echoes the parsed `<name>` value back to the user—in a response, an error message, or a rendered page—the attacker reads the file. The same technique redirected at an internal URL turns the server into a proxy for the attacker (SSRF); redirected at itself in a nested loop, it exhausts memory (denial of service).
+When a vulnerable parser processes this document, it resolves `&xxe;` by opening `/etc/passwd` and substituting its contents. If the application then echoes the parsed `<name>` value back to the user-in a response, an error message, or a rendered page-the attacker reads the file. The same technique redirected at an internal URL turns the server into a proxy for the attacker (SSRF); redirected at itself in a nested loop, it exhausts memory (denial of service).
 
 ## How XML and Entities Actually Work
 
@@ -55,7 +55,7 @@ An ordinary entity is just a named text macro. It is harmless on its own:
 <note>&company;</note>
 ```
 
-Here `&company;` simply expands to the literal string. Note that `&lt;`, `&gt;`, `&amp;`, `&quot;`, and `&apos;` are the five predefined entities every XML document uses for escaping—those are not the problem.
+Here `&company;` simply expands to the literal string. Note that `&lt;`, `&gt;`, `&amp;`, `&quot;`, and `&apos;` are the five predefined entities every XML document uses for escaping-those are not the problem.
 
 ### External Entities (the dangerous part)
 
@@ -80,17 +80,17 @@ Parameter entities use a `%` sigil and are only valid inside a DTD. They are the
 %exfil;
 ```
 
-You do not need to memorise this yet—the Attack Vectors page breaks it down—but notice the shape: read a file into a parameter entity, then smuggle its contents into a URL that the parser will contact. That is how an attacker exfiltrates data even when the application never shows them the parsed result.
+You do not need to memorise this yet-the Attack Vectors page breaks it down-but notice the shape: read a file into a parameter entity, then smuggle its contents into a URL that the parser will contact. That is how an attacker exfiltrates data even when the application never shows them the parsed result.
 
 ## Why It Matters
 
 ### Business Impact
 
-- **Confidential data disclosure**: Source code, configuration files, private keys, connection strings, and `/etc/passwd`-style system files can be read directly off the server—often the first step toward full compromise.
+- **Confidential data disclosure**: Source code, configuration files, private keys, connection strings, and `/etc/passwd`-style system files can be read directly off the server-often the first step toward full compromise.
 - **Breach of internal systems**: By turning the server into an SSRF proxy, an attacker reaches databases, admin panels, and cloud metadata services that were never meant to face the internet.
 - **Service outages**: Entity-expansion denial of service (the "billion laughs" attack) can take a service offline with a payload of a few hundred bytes, no authentication required.
 - **Regulatory and contractual exposure**: Because XXE frequently exposes personal data and secrets, it triggers GDPR, HIPAA, and PCI-DSS breach-notification and penalty regimes.
-- **Supply-chain reach**: XXE commonly hides in *file upload* features—document converters, image processors, invoice importers—so a single vulnerable dependency can expose every product that embeds it.
+- **Supply-chain reach**: XXE commonly hides in *file upload* features-document converters, image processors, invoice importers-so a single vulnerable dependency can expose every product that embeds it.
 
 ### Technical Impact
 
@@ -98,15 +98,15 @@ You do not need to memorise this yet—the Attack Vectors page breaks it down—
 - **Server-Side Request Forgery (SSRF)**: The server issues attacker-chosen requests to internal hosts and cloud metadata endpoints.
 - **Denial of Service**: Exponential (billion laughs) or quadratic entity expansion, or a `file:///dev/random` read, exhausts CPU and memory.
 - **Out-of-band data exfiltration (blind XXE)**: Even with no visible output, parameter entities can ship file contents to an attacker-controlled server.
-- **Remote code execution (situational)**: On misconfigured PHP builds with the `expect://` wrapper, or via chained internal services, XXE can escalate to code execution—the high end of the impact range, not the common case.
+- **Remote code execution (situational)**: On misconfigured PHP builds with the `expect://` wrapper, or via chained internal services, XXE can escalate to code execution-the high end of the impact range, not the common case.
 
 ## Technical Context
 
 ### Why Default Parser Behaviour Is the Root Cause
 
-XML predates the modern threat model. When the specifications were written, resolving external entities was a feature, not a risk—documents were authored by trusted parties. Parsing libraries therefore shipped with DTD processing and external entity resolution **enabled by default**, and generations of developers inherited those defaults without realising a security decision had been made for them. XXE is the accumulated cost of that history: the fix is almost always to *disable* a feature, not to add validation.
+XML predates the modern threat model. When the specifications were written, resolving external entities was a feature, not a risk-documents were authored by trusted parties. Parsing libraries therefore shipped with DTD processing and external entity resolution **enabled by default**, and generations of developers inherited those defaults without realising a security decision had been made for them. XXE is the accumulated cost of that history: the fix is almost always to *disable* a feature, not to add validation.
 
-Over time some libraries changed their defaults. Notably, the widely used `libxml2` library (which underpins PHP's XML functions, Python's `lxml`, and many others) stopped loading external entities by default in version 2.9.0, released in 2012—a change that quietly removed a large class of XXE from software that upgraded. But defaults still vary enormously across parsers, versions, and languages, which is why you must verify hardening per parser rather than assume you are safe.
+Over time some libraries changed their defaults. Notably, the widely used `libxml2` library (which underpins PHP's XML functions, Python's `lxml`, and many others) stopped loading external entities by default in version 2.9.0, released in 2012-a change that quietly removed a large class of XXE from software that upgraded. But defaults still vary enormously across parsers, versions, and languages, which is why you must verify hardening per parser rather than assume you are safe.
 
 ### Where XXE Lives: File Formats That Are XML Underneath
 
@@ -121,7 +121,7 @@ A crucial reason XXE outlived the "nobody uses XML anymore" era is that many com
 | RSS / Atom / XML-RPC | XML feeds and RPC | Feed readers, pingbacks, blog APIs |
 | SVG in PDF, GPX, KML, plist, DTD-driven config | XML dialects | Converters, mapping tools, config loaders |
 
-The lesson: the question is never "do we accept XML?" but "does any input path—however disguised—reach an XML parser?"
+The lesson: the question is never "do we accept XML?" but "does any input path-however disguised-reach an XML parser?"
 
 ### The Three Flavours of XXE
 
@@ -131,7 +131,7 @@ The lesson: the question is never "do we accept XML?" but "does any input path�
 
 ## Real-World Impact
 
-The examples below are described as **incident classes**—patterns that have been repeatedly and publicly documented—rather than as specific CVEs with precise figures, to keep the teaching accurate.
+The examples below are described as **incident classes**-patterns that have been repeatedly and publicly documented-rather than as specific CVEs with precise figures, to keep the teaching accurate.
 
 ### Class 1: XXE in Single Sign-On (SAML) Implementations
 
@@ -143,24 +143,24 @@ Applications that accept SVG avatars or Office documents and then parse, convert
 
 ### Class 3: XXE in SOAP and Legacy Web Services
 
-SOAP endpoints and XML-RPC interfaces—common in enterprise, banking, and telecom systems—consume XML by definition. Many were built on older parser defaults and remained in production for years, making them a durable source of file-disclosure and internal-SSRF findings in penetration tests.
+SOAP endpoints and XML-RPC interfaces-common in enterprise, banking, and telecom systems-consume XML by definition. Many were built on older parser defaults and remained in production for years, making them a durable source of file-disclosure and internal-SSRF findings in penetration tests.
 
 ### Class 4: Entity-Expansion Denial of Service ("Billion Laughs")
 
-The billion laughs attack is a documented, decades-old class in which a tiny document defines nested entities that expand exponentially—ten levels of ten-fold expansion turns a few hundred bytes into gigabytes of text in memory. It requires no data disclosure and no authentication, only a parser that expands entities without limits.
+The billion laughs attack is a documented, decades-old class in which a tiny document defines nested entities that expand exponentially-ten levels of ten-fold expansion turns a few hundred bytes into gigabytes of text in memory. It requires no data disclosure and no authentication, only a parser that expands entities without limits.
 
 ### Class 5: SSRF to Cloud Metadata via XXE
 
-On cloud infrastructure, an internal metadata endpoint (the link-local `169.254.169.254` address on several providers) can return temporary credentials to anything that can make an HTTP request from the instance. XXE that reaches that endpoint has been used to harvest cloud credentials and pivot to broader account compromise—an especially severe escalation of a "read-only" file bug.
+On cloud infrastructure, an internal metadata endpoint (the link-local `169.254.169.254` address on several providers) can return temporary credentials to anything that can make an HTTP request from the instance. XXE that reaches that endpoint has been used to harvest cloud credentials and pivot to broader account compromise-an especially severe escalation of a "read-only" file bug.
 
 ## Prevalence
 
 In the OWASP Top 10 2017, XXE debuted at position **A4**, added largely on the strength of automated and manual testing data plus source-code analysis rather than raw incident counts. It is best characterised, in OWASP's own qualitative terms, as follows:
 
-- **Exploitability: high** for classic in-band XXE—the payload is short, well-known, and needs no special tooling.
+- **Exploitability: high** for classic in-band XXE-the payload is short, well-known, and needs no special tooling.
 - **Prevalence: common** wherever XML is parsed, precisely because insecure defaults were the norm for so long.
-- **Detectability: easy to moderate**—in-band XXE is trivial to spot; blind and out-of-band variants require an external listener and more skill.
-- **Impact: severe**—file disclosure, SSRF, and DoS from a single class, with occasional escalation to RCE.
+- **Detectability: easy to moderate**-in-band XXE is trivial to spot; blind and out-of-band variants require an external listener and more skill.
+- **Impact: severe**-file disclosure, SSRF, and DoS from a single class, with occasional escalation to RCE.
 
 > Note: Different reports give different frequency figures for XXE, and those numbers shift year to year and by application population. Treat any single percentage as illustrative. The durable, defensible takeaways are that XXE is common wherever XML parsing exists, cheap to exploit in its classic form, and high-impact when it lands.
 
@@ -192,7 +192,7 @@ In the OWASP Top 10 2017, XXE debuted at position **A4**, added largely on the s
 
 ## A Note on the 2021 Edition
 
-In the **OWASP Top 10 2021**, XXE no longer appears as its own category. It was **merged into A05:2021 – Security Misconfiguration**, on the reasoning that XXE is fundamentally an insecure-default / configuration problem and belongs with the broader misconfiguration family. This lesson deliberately keeps the **2017 A4 framing** because it treats XXE in depth as a distinct, teachable class—but be aware that in a 2021-aligned assessment you will find XXE catalogued under Security Misconfiguration. The vulnerability, the payloads, and the fixes are identical; only the label moved.
+In the **OWASP Top 10 2021**, XXE no longer appears as its own category. It was **merged into A05:2021 – Security Misconfiguration**, on the reasoning that XXE is fundamentally an insecure-default / configuration problem and belongs with the broader misconfiguration family. This lesson deliberately keeps the **2017 A4 framing** because it treats XXE in depth as a distinct, teachable class-but be aware that in a 2021-aligned assessment you will find XXE catalogued under Security Misconfiguration. The vulnerability, the payloads, and the fixes are identical; only the label moved.
 
 ## Self-Assessment
 

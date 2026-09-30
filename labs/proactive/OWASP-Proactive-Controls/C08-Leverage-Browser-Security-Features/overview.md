@@ -10,9 +10,9 @@
 
 ## What is this control?
 
-**Leverage Browser Security Features** is the proactive control of using the security mechanisms that modern browsers already provide as a deliberate layer of defense. Every current browser ships with an enforcement engine for **response headers, cookie attributes, and HTML/HTTP directives** that constrain what a page is allowed to do—which scripts may run, which origins it may talk to, whether it may be framed, and how it may be transported. This control is the discipline of *turning those mechanisms on and configuring them correctly*, so the browser enforces your security policy on the client.
+**Leverage Browser Security Features** is the proactive control of using the security mechanisms that modern browsers already provide as a deliberate layer of defense. Every current browser ships with an enforcement engine for **response headers, cookie attributes, and HTML/HTTP directives** that constrain what a page is allowed to do-which scripts may run, which origins it may talk to, whether it may be framed, and how it may be transported. This control is the discipline of *turning those mechanisms on and configuring them correctly*, so the browser enforces your security policy on the client.
 
-The key insight is that the browser is a security control you have already paid for. It is the one component that sits between your application and the attacker's payload, and it will enforce a policy for you—but only the policy you actually declare. A response with no `Content-Security-Policy`, no `Strict-Transport-Security`, and cookies without `HttpOnly` tells the browser to enforce nothing. This control makes those declarations explicit, so a class of client-side attacks is blocked *even when a bug slips through your server-side code*.
+The key insight is that the browser is a security control you have already paid for. It is the one component that sits between your application and the attacker's payload, and it will enforce a policy for you-but only the policy you actually declare. A response with no `Content-Security-Policy`, no `Strict-Transport-Security`, and cookies without `HttpOnly` tells the browser to enforce nothing. This control makes those declarations explicit, so a class of client-side attacks is blocked *even when a bug slips through your server-side code*.
 
 ### Core Concept
 
@@ -36,15 +36,15 @@ Browser features leveraged (browser enforces your policy):
 
 ### Where this control sits
 
-C8 is squarely a **client-side defensive layer**. It supports and reinforces the anti-XSS work of input validation and output encoding (C3), the transport protections of cryptography (C2), and secure defaults (C5)—but it operates in a different place: inside the user's browser, at the moment a response is rendered. That location is exactly why it is valuable. It catches the failure that made it past everything on the server.
+C8 is squarely a **client-side defensive layer**. It supports and reinforces the anti-XSS work of input validation and output encoding (C3), the transport protections of cryptography (C2), and secure defaults (C5)-but it operates in a different place: inside the user's browser, at the moment a response is rendered. That location is exactly why it is valuable. It catches the failure that made it past everything on the server.
 
 ## Why This Control Matters
 
 ### Business Impact of Getting It Right
 
-- **A second line that actually holds**: when an output-encoding bug lets an XSS payload reach the page, a strict CSP can stop the injected script from executing at all—turning a critical account-takeover bug into a non-event.
+- **A second line that actually holds**: when an output-encoding bug lets an XSS payload reach the page, a strict CSP can stop the injected script from executing at all-turning a critical account-takeover bug into a non-event.
 - **Cheap, broad coverage**: most of these features are a handful of response headers and cookie flags applied centrally. A few lines of configuration protect every page and every user.
-- **Session protection**: `HttpOnly` cookies keep session tokens out of reach of injected JavaScript, and `SameSite` blunts cross-site request forgery—directly protecting the credentials attackers most want.
+- **Session protection**: `HttpOnly` cookies keep session tokens out of reach of injected JavaScript, and `SameSite` blunts cross-site request forgery-directly protecting the credentials attackers most want.
 - **Regulatory and audit alignment**: HSTS, secure cookies, and a content security policy are routinely expected by security assessments, PCI-DSS reviews, and enterprise customer questionnaires.
 
 ### Technical Impact
@@ -76,9 +76,9 @@ The control is made up of a set of complementary mechanisms. Each is declared by
 
 ## A Defense-in-Depth Layer, Not a Replacement
 
-> **Read this before anything else on the page.** Browser security features are a *defense-in-depth layer for the client*. They are powerful precisely because they catch what your server-side controls missed—but they do **not** replace those controls. Output encoding and input validation (C3), parameterized queries, authentication and access control, and server-side transport security are still required.
+> **Read this before anything else on the page.** Browser security features are a *defense-in-depth layer for the client*. They are powerful precisely because they catch what your server-side controls missed-but they do **not** replace those controls. Output encoding and input validation (C3), parameterized queries, authentication and access control, and server-side transport security are still required.
 
-Two things follow from this. First, **never treat a header as a substitute for fixing the bug**. A CSP that blocks an injected script is a safety net, not a reason to leave the injection in place—policies can be misconfigured, bypassed with a clever gadget, or absent on one forgotten response. Second, **layer the features together**. A strict CSP plus `HttpOnly` cookies plus `frame-ancestors` plus HSTS each closes a different door; the value is in the combination, so that a single failure elsewhere does not become a breach.
+Two things follow from this. First, **never treat a header as a substitute for fixing the bug**. A CSP that blocks an injected script is a safety net, not a reason to leave the injection in place-policies can be misconfigured, bypassed with a clever gadget, or absent on one forgotten response. Second, **layer the features together**. A strict CSP plus `HttpOnly` cookies plus `frame-ancestors` plus HSTS each closes a different door; the value is in the combination, so that a single failure elsewhere does not become a breach.
 
 The mental model is a series of independent barriers. The server-side control is the first barrier; the browser feature is the second. Attackers must defeat every barrier, while defenders only need one to hold.
 
@@ -114,7 +114,7 @@ A malicious site causes the victim's browser to send an authenticated state-chan
 
 ### Myth 2: "Security headers are all-or-nothing and hard"
 
-**Reality**: most are a single header or cookie flag applied centrally in middleware or at the edge. You can adopt them incrementally—start with `X-Content-Type-Options`, secure cookies, and HSTS, then work up to a strict CSP with report-only mode.
+**Reality**: most are a single header or cookie flag applied centrally in middleware or at the edge. You can adopt them incrementally-start with `X-Content-Type-Options`, secure cookies, and HSTS, then work up to a strict CSP with report-only mode.
 
 ### Myth 3: "`X-Frame-Options` is enough for framing"
 
@@ -122,7 +122,7 @@ A malicious site causes the victim's browser to send an authenticated state-chan
 
 ### Myth 4: "`Access-Control-Allow-Origin: *` is convenient and fine"
 
-**Reality**: a wildcard cannot be combined with credentials, so vulnerable servers reflect the request `Origin` plus `Allow-Credentials: true`—which lets any site read authenticated responses. CORS is an *allow-list*, not an *allow-all*.
+**Reality**: a wildcard cannot be combined with credentials, so vulnerable servers reflect the request `Origin` plus `Allow-Credentials: true`-which lets any site read authenticated responses. CORS is an *allow-list*, not an *allow-all*.
 
 ### Myth 5: "These headers work on any response, so placement doesn't matter"
 
@@ -133,17 +133,17 @@ A malicious site causes the victim's browser to send an authenticated state-chan
 | Aspect | Server-side control (e.g. C3 encoding) | Leverage Browser Security Features (C8) |
 |--------|----------------------------------------|-----------------------------------------|
 | **Where it runs** | On the server, before the response is sent | In the browser, as the response is rendered |
-| **Role** | Primary fix—prevents the flaw | Backstop—contains the flaw if it slips through |
+| **Role** | Primary fix-prevents the flaw | Backstop-contains the flaw if it slips through |
 | **Failure mode** | A missed encoding path becomes injection | A missing/loose header removes the safety net |
-| **Relationship** | Complementary layers—you need both; neither replaces the other. | |
+| **Relationship** | Complementary layers-you need both; neither replaces the other. | |
 
 ## Key Takeaways
 
-1. **The browser is a security control you already own**—but it only enforces the policy you declare.
-2. **It is a client-side defense-in-depth layer**—it supports anti-XSS, anti-clickjacking, and transport security, and does not replace server-side controls.
-3. **Combine the mechanisms**—CSP, HSTS, secure cookies, frame-ancestors, SRI, and CORS each close a different door.
-4. **Apply on every response**—a single unprotected error page or redirect can undo the policy.
-5. **Prefer strict, modern forms**—nonce/hash CSP over `unsafe-inline`, `frame-ancestors` over `X-Frame-Options`, allow-list CORS over wildcards.
+1. **The browser is a security control you already own**-but it only enforces the policy you declare.
+2. **It is a client-side defense-in-depth layer**-it supports anti-XSS, anti-clickjacking, and transport security, and does not replace server-side controls.
+3. **Combine the mechanisms**-CSP, HSTS, secure cookies, frame-ancestors, SRI, and CORS each close a different door.
+4. **Apply on every response**-a single unprotected error page or redirect can undo the policy.
+5. **Prefer strict, modern forms**-nonce/hash CSP over `unsafe-inline`, `frame-ancestors` over `X-Frame-Options`, allow-list CORS over wildcards.
 
 ## Self-Assessment Checklist
 

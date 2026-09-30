@@ -11,13 +11,13 @@
 
 ## What is Insufficient Logging & Monitoring?
 
-**Insufficient Logging & Monitoring** is the failure to record security-relevant events, to watch those records for signs of attack, and to respond when something is found. It is unusual among the OWASP Top 10 because it is not a vulnerability an attacker exploits directly — it is a *detection and response gap*. Every other category describes how an intruder gets in; this one describes why nobody noticed, why the intrusion continued for weeks or months, and why the investigation afterwards had no evidence to work with.
+**Insufficient Logging & Monitoring** is the failure to record security-relevant events, to watch those records for signs of attack, and to respond when something is found. It is unusual among the OWASP Top 10 because it is not a vulnerability an attacker exploits directly - it is a *detection and response gap*. Every other category describes how an intruder gets in; this one describes why nobody noticed, why the intrusion continued for weeks or months, and why the investigation afterwards had no evidence to work with.
 
 This category was introduced as **A10:2017** in the OWASP Top 10 2017, selected largely from an industry survey rather than from raw vulnerability data, precisely because practitioners saw it repeatedly as the reason breaches escalated from a contained incident into a catastrophe. In the OWASP Top 10 2021 it was renamed and broadened to **A09:2021 – Security Logging and Monitoring Failures**, but the core idea is unchanged. This lesson uses the 2017 framing.
 
 At its core, the failure appears in three linked stages:
 
-- **Logging gaps**: security-relevant events — logins, access-control denials, input-validation failures, high-value transactions — are never written down, or are written without enough context to be useful.
+- **Logging gaps**: security-relevant events - logins, access-control denials, input-validation failures, high-value transactions - are never written down, or are written without enough context to be useful.
 - **Monitoring gaps**: logs exist but sit unread on individual servers, are never centralised, and trigger no alerts, so a real attack looks identical to normal noise.
 - **Response gaps**: even when an alert does fire, there is no defined process, owner, or escalation path, so the signal is ignored or lost.
 
@@ -41,7 +41,7 @@ Insufficient logging & monitoring:
 
 ### What Counts as a "Security-Relevant" Event
 
-Not every log line matters for security. The events that do — the ones whose absence defines this category — include:
+Not every log line matters for security. The events that do - the ones whose absence defines this category - include:
 
 - **Authentication**: successful logins, failed logins, logouts, password changes, MFA challenges, and account lockouts.
 - **Access control**: every authorization denial (HTTP 403), attempts to reach admin functions, and privilege changes.
@@ -52,12 +52,12 @@ Not every log line matters for security. The events that do — the ones whose a
 
 ## Why Does This Matter?
 
-Ranked **#10** in the OWASP Top 10 2017, this category rarely causes the initial compromise — but it determines how bad the compromise becomes. A breach detected in minutes is an incident; the same breach detected in months is a headline.
+Ranked **#10** in the OWASP Top 10 2017, this category rarely causes the initial compromise - but it determines how bad the compromise becomes. A breach detected in minutes is an incident; the same breach detected in months is a headline.
 
 ### Business Impact
 
 - **Prolonged breaches**: without detection, attackers dwell, escalate, move laterally, and exfiltrate at leisure. Dwell time is measured in weeks to months across the industry.
-- **Discovery by outsiders**: a large share of breaches are first reported by a third party — a customer, a bank, a researcher, or law enforcement — rather than by the victim's own monitoring, which is both embarrassing and a regulatory red flag.
+- **Discovery by outsiders**: a large share of breaches are first reported by a third party - a customer, a bank, a researcher, or law enforcement - rather than by the victim's own monitoring, which is both embarrassing and a regulatory red flag.
 - **Failed or blind investigations**: incident responders cannot reconstruct what happened without logs. "We don't know what data was taken" often forces the broadest, most expensive breach-notification posture.
 - **Regulatory and contractual exposure**: PCI-DSS (Requirement 10), HIPAA, SOX, and GDPR all mandate audit logging and timely detection. Missing logs are themselves a finding, independent of the breach.
 - **Reputational damage**: "attackers were inside for six months undetected" erodes trust far more than the initial technical flaw.
@@ -105,7 +105,7 @@ GOOD:  2026-08-28T14:03:22.481Z level=WARN event=auth.login.failure
 
 The good entry can be counted (how many failures from this IP?), correlated (same request_id across services), and acted on (block the source). The bad entry can do none of these.
 
-### Where Logs Should — and Should Not — Live
+### Where Logs Should - and Should Not - Live
 
 | Concern | Insufficient | Adequate |
 |---|---|---|
@@ -139,15 +139,15 @@ The examples below are well-documented incident *classes*. They are described at
 **Lesson**: Per-account and per-source aggregation with tuned thresholds is what turns invisible slow attacks into visible ones. Logging each attempt is necessary but insufficient without correlation.
 
 ### Case Study 4: The Investigation With No Evidence
-**Pattern**: A common consulting scenario rather than one named company — an organisation discovers a compromise (often from an outside tip) but finds that authentication logs were kept only a few days, application logs were free-text and un-centralised, and clocks were unsynchronised. Responders cannot establish the entry point, scope, or data taken.
+**Pattern**: A common consulting scenario rather than one named company - an organisation discovers a compromise (often from an outside tip) but finds that authentication logs were kept only a few days, application logs were free-text and un-centralised, and clocks were unsynchronised. Responders cannot establish the entry point, scope, or data taken.
 
-**Lesson**: Retention, centralisation, and time synchronisation are not paperwork — they are the difference between a scoped incident and an open-ended, worst-case breach notification.
+**Lesson**: Retention, centralisation, and time synchronisation are not paperwork - they are the difference between a scoped incident and an open-ended, worst-case breach notification.
 
 ## Prevalence and Detection
 
 Insufficient Logging & Monitoring is best understood through its detectability rather than a single incidence percentage, and OWASP itself noted it is challenging to test for with automated tools because the failure is an *absence*.
 
-- It is characterised as **widespread** — the survey basis for its 2017 inclusion reflected how routinely assessors found inadequate detection.
+- It is characterised as **widespread** - the survey basis for its 2017 inclusion reflected how routinely assessors found inadequate detection.
 - Industry breach reports consistently show **long dwell times** (weeks to months) and a large fraction of breaches **discovered by external parties** rather than internal monitoring.
 - It is a **force multiplier**: it rarely appears alone in an incident report but is present in almost every serious one, amplifying the impact of the flaw that enabled initial access.
 
@@ -164,19 +164,19 @@ Insufficient Logging & Monitoring is best understood through its detectability r
 ## Common Misunderstandings
 
 ### Myth 1: "We log everything, so we're covered"
-**Reality**: Volume is not detection. Logs that nobody reads, that trigger no alerts, and that no process acts on provide no protection — they just consume disk. Detection requires collection, correlation, alerting, and response, not just generation.
+**Reality**: Volume is not detection. Logs that nobody reads, that trigger no alerts, and that no process acts on provide no protection - they just consume disk. Detection requires collection, correlation, alerting, and response, not just generation.
 
 ### Myth 2: "The web server access log is enough"
 **Reality**: Access logs show requests, not security meaning. They rarely capture *why* an authorization was denied, which account changed a password, or that a transfer exceeded a threshold. Application-level security events must be logged deliberately.
 
 ### Myth 3: "Logs on the server are safe evidence"
-**Reality**: An attacker who reaches the host can read, edit, or delete local logs — often the first thing they do. Only logs shipped off-box to append-only, access-controlled storage survive as evidence.
+**Reality**: An attacker who reaches the host can read, edit, or delete local logs - often the first thing they do. Only logs shipped off-box to append-only, access-controlled storage survive as evidence.
 
 ### Myth 4: "More logging is always better"
 **Reality**: Excessive logging buries real signals in noise and risks capturing secrets (passwords, tokens, PII, full card numbers). Log the right security events with context, and never log sensitive payloads in cleartext.
 
 ### Myth 5: "Alerts equal detection"
-**Reality**: An alert that fires into an unmonitored inbox, or that is so noisy it is muted, detects nothing. Detection is only complete when an owned, tuned alert reaches a person or automation that acts — within a defined time.
+**Reality**: An alert that fires into an unmonitored inbox, or that is so noisy it is muted, detects nothing. Detection is only complete when an owned, tuned alert reaches a person or automation that acts - within a defined time.
 
 ### Myth 6: "This is an ops problem, not a developer problem"
 **Reality**: The application is the only component that knows a login failed for account *alice*, that a 403 was an admin-page probe, or that a transfer was high-value. Meaningful security logging must be built into application code; ops centralises and alerts on it.
@@ -200,7 +200,7 @@ Ask these questions about your application. "No" or "not sure" to several of the
 
 ## Key Takeaways
 
-1. **Detection is a pipeline** — generate, collect, detect, respond — and a break anywhere creates the vulnerability.
+1. **Detection is a pipeline** - generate, collect, detect, respond - and a break anywhere creates the vulnerability.
 2. **Context makes a log useful**: who, what, when, where, and outcome, in a consistent structured format.
 3. **Centralise and protect logs**; local, editable logs are neither reliable nor forensically sound.
 4. **Alert on patterns, not just events**, with thresholds tuned to catch slow and distributed attacks.

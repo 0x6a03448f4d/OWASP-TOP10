@@ -12,13 +12,13 @@
 
 ## What is Serverless Business Logic Manipulation?
 
-**Serverless Business Logic Manipulation** is the abuse of an application's *intended flow*. A serverless application is rarely one program: it is many small functions chained together by events, queues, topics, and orchestration—Step Functions, SQS/SNS, EventBridge, DynamoDB Streams. The complete business rule ("validate the cart, charge the card, *then* fulfil the order") is not enforced in a single place. It is **distributed across independent functions**, and each function tends to assume that whatever ran before it ran correctly.
+**Serverless Business Logic Manipulation** is the abuse of an application's *intended flow*. A serverless application is rarely one program: it is many small functions chained together by events, queues, topics, and orchestration-Step Functions, SQS/SNS, EventBridge, DynamoDB Streams. The complete business rule ("validate the cart, charge the card, *then* fulfil the order") is not enforced in a single place. It is **distributed across independent functions**, and each function tends to assume that whatever ran before it ran correctly.
 
-That assumption is the vulnerability. When the steps of a workflow are separate, independently-invokable units, an attacker who can reach a *later* step directly—or reorder, replay, or forge the events that connect the steps—can make the application do things the designed sequence would never allow: fulfil an unpaid order, grant access without an approval, redeem a credit twice, or skip a fraud check entirely.
+That assumption is the vulnerability. When the steps of a workflow are separate, independently-invokable units, an attacker who can reach a *later* step directly-or reorder, replay, or forge the events that connect the steps-can make the application do things the designed sequence would never allow: fulfil an unpaid order, grant access without an approval, redeem a credit twice, or skip a fraud check entirely.
 
-> **The one-sentence version:** In serverless, the business logic is spread across many functions connected by events—so anyone who can invoke a step out of order, replay an event, or tamper with the state passed between steps can bypass the rules the intended flow was supposed to guarantee.
+> **The one-sentence version:** In serverless, the business logic is spread across many functions connected by events-so anyone who can invoke a step out of order, replay an event, or tamper with the state passed between steps can bypass the rules the intended flow was supposed to guarantee.
 
-This is distinct from injection or broken authentication. Every function may authenticate correctly and every input may be well-formed; the flaw is that the *sequence and preconditions* are not enforced where they need to be—at every step—because each function trusts its upstream.
+This is distinct from injection or broken authentication. Every function may authenticate correctly and every input may be well-formed; the flaw is that the *sequence and preconditions* are not enforced where they need to be-at every step-because each function trusts its upstream.
 
 ### Core Concept
 
@@ -44,10 +44,10 @@ Manipulations available:
 
 ### Why It's Critical for Serverless
 
-Traditional monoliths tend to run a whole transaction inside one process, where the sequence is enforced by ordinary control flow—you cannot call the "fulfil" branch without first passing through the "charge" branch in the same function. Serverless deliberately decomposes that transaction. The properties that make serverless attractive are the same properties that expose the flow:
+Traditional monoliths tend to run a whole transaction inside one process, where the sequence is enforced by ordinary control flow-you cannot call the "fulfil" branch without first passing through the "charge" branch in the same function. Serverless deliberately decomposes that transaction. The properties that make serverless attractive are the same properties that expose the flow:
 
 - Each step is an **independently invokable function** with its own trigger; if its invoke permission or event source is loose, it can be fired out of band.
-- Steps communicate through **at-least-once messaging** (SQS, SNS, EventBridge). Duplicate and out-of-order delivery are normal, not exceptional—so a handler that isn't idempotent is a double-processing bug waiting to happen.
+- Steps communicate through **at-least-once messaging** (SQS, SNS, EventBridge). Duplicate and out-of-order delivery are normal, not exceptional-so a handler that isn't idempotent is a double-processing bug waiting to happen.
 - State is **handed between functions** as data (Step Functions state, DynamoDB records, S3 objects). If a downstream function trusts that data without re-checking it, tampering upstream changes the outcome.
 - The flow is **asynchronous**. A function often assumes a prior async step already finished; race conditions and timing gaps become exploitable business logic.
 
@@ -55,7 +55,7 @@ Traditional monoliths tend to run a whole transaction inside one process, where 
 
 ### Business Impact
 
-- **Payment Bypass**: Fulfilment or provisioning triggered without a completed, verified payment step—goods shipped, licences issued, or credit granted for free.
+- **Payment Bypass**: Fulfilment or provisioning triggered without a completed, verified payment step-goods shipped, licences issued, or credit granted for free.
 - **Double-Spend / Double-Provision**: A duplicate queue delivery processed twice redeems a coupon, refunds an order, or credits a wallet more than once.
 - **Authorization Bypass**: An "approve" or "grant access" step invoked out of band skips the human approval or policy check the workflow was built around.
 - **Fraud-Control Evasion**: Risk, KYC, or velocity checks placed as an earlier step are simply skipped by entering the flow later.
@@ -81,7 +81,7 @@ The heart of this category is that a workflow drawn as a straight line is, in re
 | 4 | `fulfilOrder` | Steps 1–3 completed | Trusts the incoming event/flag |
 | 5 | `grantAccess` | Order was fulfilled | Trusts the incoming event |
 
-Every "precondition" in that table is an *assumption*, not a *control*. If `fulfilOrder` can be invoked directly, or reached by publishing a crafted event, or reached with a tampered `paid=true` flag, then steps 1–3 never happened—yet the order ships. The designed sequence lived only in the diagram; it was never enforced at step 4.
+Every "precondition" in that table is an *assumption*, not a *control*. If `fulfilOrder` can be invoked directly, or reached by publishing a crafted event, or reached with a tampered `paid=true` flag, then steps 1–3 never happened-yet the order ships. The designed sequence lived only in the diagram; it was never enforced at step 4.
 
 > A distributed workflow is only as sequential as its *weakest re-check*. If any later step trusts that earlier steps ran, that step is the entry point an attacker will use.
 
@@ -125,7 +125,7 @@ Non-idempotent handler:
   on message -> shipItem(orderId)          # runs twice -> two shipments
 ```
 
-**Risk**: Double-spend, double-refund, double-provision—without any "attack" beyond normal duplicate delivery, and amplifiable on purpose.
+**Risk**: Double-spend, double-refund, double-provision-without any "attack" beyond normal duplicate delivery, and amplifiable on purpose.
 
 #### 4. Tampering with Intermediate State
 
@@ -166,14 +166,14 @@ aws sns publish --topic-arn arn:...:order-events \
 
 ## Real-World Impact
 
-Business-logic manipulation is documented as a *class* of problem across event-driven and serverless systems. The examples below describe the recurring incident patterns—not specific named breaches—because the value is in recognising the shape of the flaw.
+Business-logic manipulation is documented as a *class* of problem across event-driven and serverless systems. The examples below describe the recurring incident patterns-not specific named breaches-because the value is in recognising the shape of the flaw.
 
 ### Pattern 1: Workflow-Bypass Fulfilment
 
 **Setup**:
 
 - A checkout is split into validation, payment, and fulfilment functions connected by events.
-- The fulfilment function is reachable—directly via a broad invoke permission or Function URL, or by publishing to the topic it consumes—and it trusts that payment already succeeded.
+- The fulfilment function is reachable-directly via a broad invoke permission or Function URL, or by publishing to the topic it consumes-and it trusts that payment already succeeded.
 
 **Impact**:
 
@@ -190,7 +190,7 @@ Business-logic manipulation is documented as a *class* of problem across event-d
 
 **Impact**:
 
-- Normal at-least-once duplicate delivery—or an attacker deliberately re-submitting—causes the credit/refund/redemption to apply multiple times, creating money or entitlements out of nothing.
+- Normal at-least-once duplicate delivery-or an attacker deliberately re-submitting-causes the credit/refund/redemption to apply multiple times, creating money or entitlements out of nothing.
 
 **Root Cause**: The handler assumed exactly-once delivery. The platform provides at-least-once, so any non-idempotent effect is inherently double-counted under retries.
 
@@ -215,13 +215,13 @@ Business logic manipulation is inherently **application-specific**, which makes 
 - The most common sub-issues are **missing per-step re-validation, non-idempotent handlers, over-broad invoke permissions, and trusted-but-tamperable intermediate state**.
 - It is frequently found **only by design review and abuse-case testing**, because it is a property of how the functions are wired together, not of any single function in isolation.
 
-> Note: exploitation leaves little that looks anomalous in a single function's logs—each invocation is individually valid. The signal lives in the *relationships* between steps (a fulfilment with no matching payment, two credits for one message id), which is exactly what per-function monitoring misses.
+> Note: exploitation leaves little that looks anomalous in a single function's logs-each invocation is individually valid. The signal lives in the *relationships* between steps (a fulfilment with no matching payment, two credits for one message id), which is exactly what per-function monitoring misses.
 
 ## Common Misunderstandings
 
 ### Myth 1: "The workflow diagram enforces the order"
 
-**Reality**: A diagram is documentation. Unless each step re-checks its preconditions, the order exists only on paper—any step reachable out of band runs regardless of what came before.
+**Reality**: A diagram is documentation. Unless each step re-checks its preconditions, the order exists only on paper-any step reachable out of band runs regardless of what came before.
 
 ### Myth 2: "Only our functions can invoke each other, so it's safe"
 
@@ -229,7 +229,7 @@ Business logic manipulation is inherently **application-specific**, which makes 
 
 ### Myth 3: "Queues deliver each message once"
 
-**Reality**: SQS, SNS, and EventBridge are *at-least-once*. Duplicates and reordering are guaranteed to happen eventually. A handler that isn't idempotent is not "mostly fine"—it is a latent double-spend.
+**Reality**: SQS, SNS, and EventBridge are *at-least-once*. Duplicates and reordering are guaranteed to happen eventually. A handler that isn't idempotent is not "mostly fine"-it is a latent double-spend.
 
 ### Myth 4: "The earlier step already validated it"
 
@@ -237,7 +237,7 @@ Business logic manipulation is inherently **application-specific**, which makes 
 
 ### Myth 5: "State we wrote is state we can trust"
 
-**Reality**: A DynamoDB flag or S3 object is only trustworthy if nothing else can write it and its integrity is verified. Intermediate state passed between steps should be validated—and, where it crosses a trust boundary, signed.
+**Reality**: A DynamoDB flag or S3 object is only trustworthy if nothing else can write it and its integrity is verified. Intermediate state passed between steps should be validated-and, where it crosses a trust boundary, signed.
 
 ### Myth 6: "This is just an authorization bug"
 
@@ -255,11 +255,11 @@ Business logic manipulation is inherently **application-specific**, which makes 
 
 ## Key Takeaways
 
-1. **The flow is distributed**—the business rule lives across many functions, not in one place, so no single function enforces the whole sequence.
-2. **Every later step must re-validate**—authorization and required state have to be re-checked at each step; trusting the upstream is the bug.
-3. **At-least-once is the default**—handlers with real side effects must be idempotent, or duplicates become double-spends.
-4. **Intermediate state is untrusted until proven**—validate it, restrict who can write it, and sign it across trust boundaries.
-5. **Lock the doors**—restrict who and what can invoke each function so steps cannot be fired out of band.
+1. **The flow is distributed**-the business rule lives across many functions, not in one place, so no single function enforces the whole sequence.
+2. **Every later step must re-validate**-authorization and required state have to be re-checked at each step; trusting the upstream is the bug.
+3. **At-least-once is the default**-handlers with real side effects must be idempotent, or duplicates become double-spends.
+4. **Intermediate state is untrusted until proven**-validate it, restrict who can write it, and sign it across trust boundaries.
+5. **Lock the doors**-restrict who and what can invoke each function so steps cannot be fired out of band.
 
 ## How to Identify if You're Vulnerable
 

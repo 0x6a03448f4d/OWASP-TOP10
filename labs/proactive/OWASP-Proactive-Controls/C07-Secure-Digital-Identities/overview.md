@@ -14,11 +14,11 @@
 
 An "identity" here is the whole lifecycle of proving *who* a subject is and keeping that proof trustworthy over time. It is not a single login form. It is a set of decisions made across the system:
 
-- **Authentication** — verifying a claimant with one or more factors (something you know / have / are), at an assurance level that fits the risk.
-- **Credential storage** — passwords protected with a slow, salted algorithm (Argon2id, bcrypt, scrypt) so a stolen database is not a stolen password list. This cross-references [C2: Use Cryptography to Protect Data](/learn/proactive).
-- **Multi-factor authentication (MFA)** — a second factor, preferring phishing-resistant methods (passkeys / WebAuthn / FIDO2) over one-time codes, and TOTP over SMS.
-- **Session management** — issuing, protecting, rotating, and invalidating the token that represents "still logged in" after authentication succeeds.
-- **Recovery and lifecycle** — registration, credential reset, and de-provisioning done without opening a bypass around every other control.
+- **Authentication** - verifying a claimant with one or more factors (something you know / have / are), at an assurance level that fits the risk.
+- **Credential storage** - passwords protected with a slow, salted algorithm (Argon2id, bcrypt, scrypt) so a stolen database is not a stolen password list. This cross-references [C2: Use Cryptography to Protect Data](/learn/proactive).
+- **Multi-factor authentication (MFA)** - a second factor, preferring phishing-resistant methods (passkeys / WebAuthn / FIDO2) over one-time codes, and TOTP over SMS.
+- **Session management** - issuing, protecting, rotating, and invalidating the token that represents "still logged in" after authentication succeeds.
+- **Recovery and lifecycle** - registration, credential reset, and de-provisioning done without opening a bypass around every other control.
 
 > **The distinction that matters:** "Identification and Authentication Failures" (A07) is what an attacker exploits. "Secure Digital Identities" (C7) is the set of controls you build so there is nothing to exploit. Everything in this lesson is framed as *the defense*.
 
@@ -54,7 +54,7 @@ Authentication is the gate in front of everything else. Access control, encrypti
 
 ### Business Impact
 
-- **Account Takeover (ATO)**: The direct outcome of weak identity — attackers operate as legitimate users, moving money, exfiltrating data, and abusing trust.
+- **Account Takeover (ATO)**: The direct outcome of weak identity - attackers operate as legitimate users, moving money, exfiltrating data, and abusing trust.
 - **Mass credential stuffing**: Reused passwords from other breaches are replayed at scale; without MFA and rate limiting a small fraction still succeeds, which is enough.
 - **Regulatory exposure**: Authentication weaknesses that lead to personal-data exposure trigger GDPR, HIPAA, and PCI-DSS obligations and mandatory breach notification.
 - **Fraud and reputation**: Takeovers of customer and admin accounts drive chargebacks, support cost, and lasting loss of trust.
@@ -76,7 +76,7 @@ The central idea of this control is **proportionality**: a throwaway newsletter 
 | **AAL2** | Two distinct factors; MFA required, replay-resistant | Most user accounts holding personal or transactional data |
 | **AAL3** | Hardware-based, phishing-resistant cryptographic authenticator (e.g. FIDO2) | Admin, financial, and high-value operations |
 
-The practical takeaway: pick the level from the risk, then **step up** (re-authenticate or require a stronger factor) for sensitive actions such as changing an email, disabling MFA, or moving money — even inside an already-authenticated session.
+The practical takeaway: pick the level from the risk, then **step up** (re-authenticate or require a stronger factor) for sensitive actions such as changing an email, disabling MFA, or moving money - even inside an already-authenticated session.
 
 ## Technical Context
 
@@ -155,7 +155,7 @@ OAuth2 / OIDC MUST:
 
 ## Real-World Impact
 
-These are described as **incident classes** — recurring, well-documented patterns — rather than any single fabricated breach or CVE.
+These are described as **incident classes** - recurring, well-documented patterns - rather than any single fabricated breach or CVE.
 
 ### Class 1: Credential Stuffing at Scale
 
@@ -213,11 +213,11 @@ These are described as **incident classes** — recurring, well-documented patte
 
 ## Key Takeaways
 
-1. **Match assurance to risk** — use NIST AALs to decide how strong authentication must be for each action.
-2. **Length beats complexity** — long passphrases, breach screening, and slow hashing, with no forced rotation.
-3. **Prefer phishing-resistant MFA** — passkeys/WebAuthn over TOTP over SMS.
-4. **Own the whole session** — CSPRNG IDs, regenerate on login/privilege change, real server-side logout, hardened cookies.
-5. **Verify tokens fully** — signature, algorithm, expiry, and audience, every request; short-lived and rotated.
+1. **Match assurance to risk** - use NIST AALs to decide how strong authentication must be for each action.
+2. **Length beats complexity** - long passphrases, breach screening, and slow hashing, with no forced rotation.
+3. **Prefer phishing-resistant MFA** - passkeys/WebAuthn over TOTP over SMS.
+4. **Own the whole session** - CSPRNG IDs, regenerate on login/privilege change, real server-side logout, hardened cookies.
+5. **Verify tokens fully** - signature, algorithm, expiry, and audience, every request; short-lived and rotated.
 
 ## Next Steps
 

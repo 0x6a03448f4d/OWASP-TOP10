@@ -8,9 +8,9 @@
 
 ## Understanding the Attack Vectors
 
-> **⚠ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find, remove, and rotate exposed secrets in serverless systems you own or are authorised to test.
+> **⚠ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find, remove, and rotate exposed secrets in serverless systems you own or are authorised to test.
 
-Attacking insecure secret storage is not about breaking cryptography or finding a clever bug. The secret is already *readable*; the attacker's only job is to look in the places developers routinely leave it. Because a valid credential needs no exploit—it is authenticated access by design—the moment an attacker reads the value, the affected system is compromised.
+Attacking insecure secret storage is not about breaking cryptography or finding a clever bug. The secret is already *readable*; the attacker's only job is to look in the places developers routinely leave it. Because a valid credential needs no exploit-it is authenticated access by design-the moment an attacker reads the value, the affected system is compromised.
 
 Serverless widens every one of these places at once. Configuration is code, so secrets reach version control. Functions are numerous, so secrets get copied and over-shared. Third-party dependencies run beside your secrets, so any of them can read the environment. And the platform itself exposes plaintext environment variables through its own APIs. The vectors below are the harvesting paths an attacker walks, from outside the account and from within a compromised function.
 
@@ -22,7 +22,7 @@ Serverless widens every one of these places at once. Configuration is code, so s
    Repo, Git history, deploy artifact, function config, or logs
 2. Read the secret
    |
-   No exploit needed — the value is in plaintext where it was left
+   No exploit needed - the value is in plaintext where it was left
 3. Authenticate as the application
    |
    Use the DB credential / API key / signing key directly
@@ -63,7 +63,7 @@ $ git grep "sk_live_" $(git rev-list --all)
 
 ### 3. The Deployment Package / Build Artifact
 
-The function's code is downloadable, and build artifacts sit in CI stores. Anything bundled with the code—a stray `.env`, a config file—comes with it.
+The function's code is downloadable, and build artifacts sit in CI stores. Anything bundled with the code-a stray `.env`, a config file-comes with it.
 
 ```
 # Pull the function's own code and unpack it:
@@ -78,7 +78,7 @@ $ cat .env                                        # DB_PASSWORD=..., STRIPE=...
 
 ### 4. Plaintext Environment Variables via the Platform API
 
-If an attacker gains any read access to function configuration—through a leaked credential, an over-broad role (SAS-4), or an SSRF that reaches the control plane—the environment is handed over in plaintext.
+If an attacker gains any read access to function configuration-through a leaked credential, an over-broad role (SAS-4), or an SSRF that reaches the control plane-the environment is handed over in plaintext.
 
 ```
 # One call dumps every env-var secret on the function:
@@ -95,7 +95,7 @@ $ aws lambda get-function-configuration --function-name checkout \
 
 ### 5. A Compromised Dependency Reading the Environment
 
-Your function runs every direct and transitive package in the same process as your secrets. A malicious or compromised dependency reads the environment and exfiltrates it—no bug in your own code required (ties to SAS-6 and SAS-10).
+Your function runs every direct and transitive package in the same process as your secrets. A malicious or compromised dependency reads the environment and exfiltrates it-no bug in your own code required (ties to SAS-6 and SAS-10).
 
 ```
 // Buried in a transitive dependency's post-install or runtime code:
@@ -123,7 +123,7 @@ $ aws logs filter-log-events --log-group-name /aws/lambda/checkout \
 
 ### 7. Exception Dumps and Verbose Errors
 
-Many crash handlers serialize context—including the environment—into the error. A verbose error returned to the caller, or captured by an error-tracking tool, can carry the secret out with it.
+Many crash handlers serialize context-including the environment-into the error. A verbose error returned to the caller, or captured by an error-tracking tool, can carry the secret out with it.
 
 ```
 # An unhandled error whose payload includes the environment:
@@ -138,7 +138,7 @@ Many crash handlers serialize context—including the environment—into the err
 
 ### 8. Reuse of Over-Shared, Static Secrets
 
-Once any single secret is obtained, over-sharing turns it into a master key. The same value handed to every function—and never rotated—authenticates far beyond the one place it belonged.
+Once any single secret is obtained, over-sharing turns it into a master key. The same value handed to every function-and never rotated-authenticates far beyond the one place it belonged.
 
 ```
 # One harvested DB credential, reused everywhere it was copied:
@@ -178,11 +178,11 @@ Malicious dependency added     -> runs in the function's process
 
 ## Key Takeaways
 
-1. **The secret is the exploit**—a valid credential needs no vulnerability; reading it is the whole attack.
-2. **Repos and history are the top vector**—committed secrets are found by bots fast, and deleting the line does not remove them.
-3. **The platform exposes env vars**—`GetFunctionConfiguration`, the console, logs, and error dumps all reveal plaintext environment variables.
-4. **Every dependency can read your secrets**—in-process, in-environment secrets are readable by all the code the function runs.
-5. **Over-sharing and no rotation amplify everything**—one leaked static secret becomes lasting, wide access.
+1. **The secret is the exploit**-a valid credential needs no vulnerability; reading it is the whole attack.
+2. **Repos and history are the top vector**-committed secrets are found by bots fast, and deleting the line does not remove them.
+3. **The platform exposes env vars**-`GetFunctionConfiguration`, the console, logs, and error dumps all reveal plaintext environment variables.
+4. **Every dependency can read your secrets**-in-process, in-environment secrets are readable by all the code the function runs.
+5. **Over-sharing and no rotation amplify everything**-one leaked static secret becomes lasting, wide access.
 
 ## Next Steps
 

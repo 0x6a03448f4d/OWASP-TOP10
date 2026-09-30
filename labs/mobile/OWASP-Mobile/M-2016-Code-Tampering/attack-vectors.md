@@ -9,13 +9,13 @@
 
 ## Understanding Tampering Attack Vectors
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are described so you can understand, detect, and defend against them on apps you own or are authorised to test. Tool names are given for context, not as step-by-step instructions.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are described so you can understand, detect, and defend against them on apps you own or are authorised to test. Tool names are given for context, not as step-by-step instructions.
 
-Code tampering splits into two families. **Static** tampering modifies the app *on disk*—the attacker rewrites bytecode, native code, or resources and re-signs the result. **Runtime** tampering modifies the app *while it runs*—the attacker attaches an instrumentation framework and changes methods, return values, and memory with no persistent file change. Both require a device the attacker controls, and both target the same weak point: a decision the app trusts itself to make.
+Code tampering splits into two families. **Static** tampering modifies the app *on disk*-the attacker rewrites bytecode, native code, or resources and re-signs the result. **Runtime** tampering modifies the app *while it runs*-the attacker attaches an instrumentation framework and changes methods, return values, and memory with no persistent file change. Both require a device the attacker controls, and both target the same weak point: a decision the app trusts itself to make.
 
 The attacker's objective in this category is usually one of:
 
-- Flip a specific check—license, entitlement, root/jailbreak, pinning—to the answer they want.
+- Flip a specific check-license, entitlement, root/jailbreak, pinning-to the answer they want.
 - Inject code into a repackaged app to steal data, show overlays, or commit ad fraud.
 - Observe and rewrite secrets and traffic by hooking crypto, storage, and networking.
 - Edit authoritative-looking state (coins, scores, flags) directly in memory.
@@ -55,7 +55,7 @@ zipalign -p 4 trojan.apk out.apk
 apksigner sign --ks attacker.jks out.apk   # NEW signature, attacker's key
 ```
 
-**Payoff**: a working, installable clone with credential-stealing overlays, spyware, or ad-fraud SDKs added—distributed via third-party stores, sideloading, or phishing links to "modded"/"premium" versions.
+**Payoff**: a working, installable clone with credential-stealing overlays, spyware, or ad-fraud SDKs added-distributed via third-party stores, sideloading, or phishing links to "modded"/"premium" versions.
 
 ### 2. Smali / Bytecode Patching a Check
 
@@ -72,11 +72,11 @@ Many client-side gates compile to a single conditional branch. Removing or inver
     # branch removed / made unreachable -> feature always unlocks
 ```
 
-**Payoff**: paywalls, trial limits, and feature flags are unlocked without any server interaction—because none was required.
+**Payoff**: paywalls, trial limits, and feature flags are unlocked without any server interaction-because none was required.
 
 ### 3. Native Binary Patching (.so / Mach-O)
 
-When logic is compiled to native code, the attacker patches the machine instructions directly—typically turning a comparison or its branch into a no-op so the "denied" path is never taken.
+When logic is compiled to native code, the attacker patches the machine instructions directly-typically turning a comparison or its branch into a no-op so the "denied" path is never taken.
 
 ```asm
 # Disassembly sketch of a native license check
@@ -101,7 +101,7 @@ res/raw/flags.json         -> toggle experiments / unlock content
 
 ### 5. Re-Signing With an Attacker Key
 
-Every static modification invalidates the original signature, so the attacker signs with a key they generate. The app installs fine because the OS only requires *a* valid signature, not *your* signature—unless something explicitly verifies the signing certificate.
+Every static modification invalidates the original signature, so the attacker signs with a key they generate. The app installs fine because the OS only requires *a* valid signature, not *your* signature-unless something explicitly verifies the signing certificate.
 
 ```
 # The tell-tale of repackaging:
@@ -114,7 +114,7 @@ Tampered build  -> signed by ATTACKER cert (different fingerprint)
 
 ### 6. Method Hooking With Frida
 
-Frida injects a JavaScript engine into the running process and lets the attacker replace any method's implementation on the fly—no file change, so file-hash integrity checks see nothing wrong.
+Frida injects a JavaScript engine into the running process and lets the attacker replace any method's implementation on the fly-no file change, so file-hash integrity checks see nothing wrong.
 
 ```javascript
 // Defeat root detection AND certificate pinning at runtime
@@ -137,7 +137,7 @@ Java.perform(function () {
 
 ### 7. Xposed / LSPosed and Cydia Substrate Modules
 
-Framework-level hooking (Xposed and its successor LSPosed on Android, Cydia Substrate/`MobileSubstrate` on iOS) lets an attacker ship a reusable module that hooks a target app every time it launches—persisting the bypass without touching the APK/IPA.
+Framework-level hooking (Xposed and its successor LSPosed on Android, Cydia Substrate/`MobileSubstrate` on iOS) lets an attacker ship a reusable module that hooks a target app every time it launches-persisting the bypass without touching the APK/IPA.
 
 ```java
 // Xposed-style hook: force a "subscribed" verdict
@@ -164,11 +164,11 @@ ios jailbreak disable
 ios keychain dump
 ```
 
-**Payoff**: common client-side defenses fall to a handful of prebuilt commands—no custom scripting required.
+**Payoff**: common client-side defenses fall to a handful of prebuilt commands-no custom scripting required.
 
 ### 9. Memory Scanning and Editing
 
-Tools in the GameGuardian class let an attacker search process memory for a known value and overwrite it. Any locally trusted number—coins, health, a remaining-trial counter, a boolean decision—can be rewritten in place.
+Tools in the GameGuardian class let an attacker search process memory for a known value and overwrite it. Any locally trusted number-coins, health, a remaining-trial counter, a boolean decision-can be rewritten in place.
 
 ```
 # Conceptual: find and rewrite an in-memory value
@@ -181,7 +181,7 @@ edit remaining match     -> 999999
 
 ### 10. Dynamic Return-Value and Argument Modification
 
-Beyond replacing whole methods, an attacker intercepts a call, inspects and edits its arguments on the way in, and rewrites its return value on the way out—e.g. forcing a server-response parser to see `"entitled": true` even when the real response said otherwise.
+Beyond replacing whole methods, an attacker intercepts a call, inspects and edits its arguments on the way in, and rewrites its return value on the way out-e.g. forcing a server-response parser to see `"entitled": true` even when the real response said otherwise.
 
 ```javascript
 // Rewrite a parsed response flag after the network call returns
@@ -193,7 +193,7 @@ Resp.isEntitled.implementation = function () { return true; };
 
 ### 11. Hooking Crypto and Auth to Exfiltrate Keys
 
-Encryption and signing must operate on plaintext keys and data at some point. By hooking the crypto provider, an attacker captures keys, IVs, and plaintext at exactly that moment—regardless of how the key was stored.
+Encryption and signing must operate on plaintext keys and data at some point. By hooking the crypto provider, an attacker captures keys, IVs, and plaintext at exactly that moment-regardless of how the key was stored.
 
 ```javascript
 // Hook the standard cipher to capture everything it processes
@@ -236,11 +236,11 @@ Decompile popular app           -> locate license check
 
 ## Key Takeaways
 
-1. **Static and runtime tampering attack the same weakness**—a decision the app trusts itself to make.
-2. **Re-signing defeats "it's signed"**—unless the signing certificate is explicitly verified.
-3. **Hooking beats file-hash integrity checks**—memory changes leave the on-disk binary pristine.
-4. **Commodity tools lower the bar**—Frida, LSPosed, and objection turn expert techniques into one-liners.
-5. **Informing the client is not enforcing**—a correct server response can be overridden in memory, so the server must act on the decision itself.
+1. **Static and runtime tampering attack the same weakness**-a decision the app trusts itself to make.
+2. **Re-signing defeats "it's signed"**-unless the signing certificate is explicitly verified.
+3. **Hooking beats file-hash integrity checks**-memory changes leave the on-disk binary pristine.
+4. **Commodity tools lower the bar**-Frida, LSPosed, and objection turn expert techniques into one-liners.
+5. **Informing the client is not enforcing**-a correct server response can be overridden in memory, so the server must act on the decision itself.
 
 ## Next Steps
 

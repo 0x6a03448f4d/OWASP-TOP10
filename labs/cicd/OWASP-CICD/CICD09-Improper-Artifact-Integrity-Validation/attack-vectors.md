@@ -8,7 +8,7 @@
 
 ## Understanding Artifact Integrity Attacks
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in pipelines you own or are authorised to test.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in pipelines you own or are authorised to test.
 
 An artifact-integrity attack does not require breaking cryptography or finding an application bug. It requires finding **one hand-off where nothing checks the artifact** and substituting a malicious version there. The pipeline's own trust does the rest: it builds, promotes, and deploys the attacker's artifact exactly as if it were legitimate, because there is no step that would ever say no.
 
@@ -42,7 +42,7 @@ The attacker's objective in this category is to get malicious bytes into a place
 
 ### 1. Mutable-Tag Substitution
 
-Deployments reference an image by a moving tag, so re-pointing the tag changes what runs—no config diff, no review.
+Deployments reference an image by a moving tag, so re-pointing the tag changes what runs-no config diff, no review.
 
 ```bash
 # Deploy manifest trusts a mutable tag
@@ -80,7 +80,7 @@ requests>=2
 # its setup/postinstall runs in the build with the runner's privileges.
 ```
 
-**Payoff**: code execution during the build and a backdoor baked into the artifact—then shipped as "trusted output."
+**Payoff**: code execution during the build and a backdoor baked into the artifact-then shipped as "trusted output."
 
 ### 4. Build-Cache and Mirror Poisoning
 
@@ -93,7 +93,7 @@ Shared caches and internal mirrors are hand-offs trusted implicitly. Tamper with
 # with no checksum comparison against a trusted source.
 ```
 
-**Payoff**: broad, quiet distribution—one poisoned entry serves many pipelines and survives across builds.
+**Payoff**: broad, quiet distribution-one poisoned entry serves many pipelines and survives across builds.
 
 ### 5. Intermediate / Multi-Stage Artifact Tampering
 
@@ -131,7 +131,7 @@ The most damaging pattern: the attacker tampers *inside* the trusted build, so t
 # Consumers verify the signature -> it passes -> backdoor installed.
 ```
 
-**Payoff**: a genuinely signed malicious release—the SolarWinds-class outcome. Signing alone cannot detect it; only build **provenance** tied to a hermetic build can.
+**Payoff**: a genuinely signed malicious release-the SolarWinds-class outcome. Signing alone cannot detect it; only build **provenance** tied to a hermetic build can.
 
 ### 8. Provenance-Free Promotion
 
@@ -160,7 +160,7 @@ terraform apply -auto-approve
 
 ### 10. Signature Present but Never Verified
 
-Some pipelines *sign* artifacts yet never enforce the check, or verify against no expected identity—so the signature is decorative.
+Some pipelines *sign* artifacts yet never enforce the check, or verify against no expected identity-so the signature is decorative.
 
 ```bash
 # Artifact is signed at build time... and consumed with:
@@ -184,7 +184,7 @@ Cluster admits images with no signature verification
            and the next rollout runs it -- no code bug required
 ```
 
-Another common chain—the SolarWinds-class shape:
+Another common chain-the SolarWinds-class shape:
 
 ```
 Foothold in the build environment (Poisoned Pipeline Execution)
@@ -196,11 +196,11 @@ Foothold in the build environment (Poisoned Pipeline Execution)
 
 ## Key Takeaways
 
-1. **Attackers hunt for the one unverified hand-off**—they don't need to break every step, only the weakest link in the chain.
-2. **Mutable tags are the easiest target**—re-pointing a tag changes production with no visible diff.
-3. **Signing without verification protects nothing**—and verifying without provenance can't catch a build-time backdoor.
-4. **Caches, mirrors, and intermediate stages are hand-offs too**—poison one and it serves everyone downstream.
-5. **Admission time is the last line**—if the cluster runs unsigned/unattested artifacts, every earlier control can be skipped.
+1. **Attackers hunt for the one unverified hand-off**-they don't need to break every step, only the weakest link in the chain.
+2. **Mutable tags are the easiest target**-re-pointing a tag changes production with no visible diff.
+3. **Signing without verification protects nothing**-and verifying without provenance can't catch a build-time backdoor.
+4. **Caches, mirrors, and intermediate stages are hand-offs too**-poison one and it serves everyone downstream.
+5. **Admission time is the last line**-if the cluster runs unsigned/unattested artifacts, every earlier control can be skipped.
 
 ## Next Steps
 

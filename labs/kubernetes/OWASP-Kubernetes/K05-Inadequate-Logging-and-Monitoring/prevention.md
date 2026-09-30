@@ -2,7 +2,7 @@
 
 ## Prevention Strategy Overview
 
-Preventing K05 means building a cluster that **records what matters, ships it somewhere durable, and turns high-risk events into alerts a human receives**. Think of it as four layers stacked on top of each other—each is necessary and none is sufficient alone:
+Preventing K05 means building a cluster that **records what matters, ships it somewhere durable, and turns high-risk events into alerts a human receives**. Think of it as four layers stacked on top of each other-each is necessary and none is sufficient alone:
 
 1. **Capture** the signal: API-server audit, runtime, workload, node, and cloud telemetry.
 2. **Centralise** it off-cluster in tamper-resistant storage with retention.
@@ -11,7 +11,7 @@ Preventing K05 means building a cluster that **records what matters, ships it so
 
 ### Core Principles
 
-- **Capture at the source, in real time**: ephemeral pods destroy evidence—telemetry must leave the node before the pod does.
+- **Capture at the source, in real time**: ephemeral pods destroy evidence-telemetry must leave the node before the pod does.
 - **Tune, don't disable**: noise is a policy problem; the answer is a sharper audit policy and better rules, never turning the signal off.
 - **Collection is not detection**: every source must terminate in an alert or a query someone actually runs.
 - **Assume the node is hostile**: store logs where a compromised node cannot alter or delete them (append-only, off-cluster).
@@ -62,7 +62,7 @@ kube-apiserver \
 # and forward it to your log sink (this is off or minimal by default).
 ```
 
-> On managed control planes you cannot pass apiserver flags directly—enable the provider's audit-logging feature and export it to your logging service or SIEM. It is frequently disabled by default.
+> On managed control planes you cannot pass apiserver flags directly-enable the provider's audit-logging feature and export it to your logging service or SIEM. It is frequently disabled by default.
 
 ## 2. Deploy Runtime Threat Detection (Falco / Tetragon)
 
@@ -81,7 +81,7 @@ Runtime rules should cover, at minimum: a shell spawned in a container, writes t
 
 ## 3. Centralise Logs Off-Cluster (Tamper-Resistant)
 
-Ship every source—audit log, runtime events, pod stdout/stderr, node logs—off the cluster in real time to storage the cluster's own identities cannot modify.
+Ship every source-audit log, runtime events, pod stdout/stderr, node logs-off the cluster in real time to storage the cluster's own identities cannot modify.
 
 ```ini
 # Fluent Bit DaemonSet: tail node-local logs and forward to a sink
@@ -153,7 +153,7 @@ groups:
 
 - **Registry allow-list**: alert (and ideally block via admission) on any image pulled from outside approved registries.
 - **Runtime pool/C2 detection**: Falco rules for connections to known mining-pool ports/domains and for miner process names.
-- **Resource baselines**: alert on sustained abnormal CPU across pods that historically idle—a lagging but useful signal.
+- **Resource baselines**: alert on sustained abnormal CPU across pods that historically idle-a lagging but useful signal.
 - **Egress monitoring**: enable network-policy/flow logging and alert on unexpected outbound destinations.
 
 ## 6. Collect the Cloud Control-Plane and Node Trail
@@ -198,11 +198,11 @@ Telemetry exists to drive action. Close the loop:
 
 ## Key Takeaways
 
-1. **Enable API audit with a tiered policy** — metadata everywhere, full request/response for exec, secrets, and RBAC.
-2. **Add a runtime sensor** — Falco/Tetragon on every node is the only view into in-container and on-node activity.
-3. **Centralise off-cluster, tamper-resistant, with retention** — evidence must outlive the pod and survive a node compromise.
-4. **Alert, don't just collect** — wire high-risk events to paging and a runbook.
-5. **Correlate and rehearse** — sync clocks, pull in the cloud trail, and prove the pipeline before you need it.
+1. **Enable API audit with a tiered policy** - metadata everywhere, full request/response for exec, secrets, and RBAC.
+2. **Add a runtime sensor** - Falco/Tetragon on every node is the only view into in-container and on-node activity.
+3. **Centralise off-cluster, tamper-resistant, with retention** - evidence must outlive the pod and survive a node compromise.
+4. **Alert, don't just collect** - wire high-risk events to paging and a runbook.
+5. **Correlate and rehearse** - sync clocks, pull in the cloud trail, and prove the pipeline before you need it.
 
 ## Next Steps
 

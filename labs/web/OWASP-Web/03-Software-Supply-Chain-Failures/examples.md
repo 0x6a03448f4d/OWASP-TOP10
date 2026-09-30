@@ -1,6 +1,6 @@
 # Software Supply Chain Failures - Code Examples
 
-Each pair below shows a **vulnerable** configuration and the **secure** version for the same ecosystem. The focus is the supply chain: how dependencies are declared, resolved, verified, built, and loaded—not application logic.
+Each pair below shows a **vulnerable** configuration and the **secure** version for the same ecosystem. The focus is the supply chain: how dependencies are declared, resolved, verified, built, and loaded-not application logic.
 
 ## On This Page
 - [Node / npm](#node--npm)

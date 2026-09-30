@@ -13,7 +13,7 @@
 
 **Insecure Randomness** occurs when a smart contract derives a "random" number from on-chain values that are **predictable** or **manipulable**. The contract treats data such as `block.timestamp` or a block hash as if it were secret and unpredictable, when in reality every one of those values is either public before the transaction executes, computable within the same transaction, or influenceable by the party producing the block. An attacker who can predict or bias the outcome wins whatever the randomness was meant to guard: a lottery draw, a game result, a rare NFT mint, or a reward allocation.
 
-The root problem is fundamental to the platform. **A blockchain is deterministic and fully public.** Every node must be able to re-execute a transaction and arrive at exactly the same state, so nothing in the EVM is genuinely random. Every input a contract can read—block metadata, its own storage, the calldata, the caller—is visible to all participants and reproducible by all nodes. There is no native `random()` that is both on-chain and secret. Any randomness that *looks* unpredictable is only unpredictable to someone who has not bothered to compute it.
+The root problem is fundamental to the platform. **A blockchain is deterministic and fully public.** Every node must be able to re-execute a transaction and arrive at exactly the same state, so nothing in the EVM is genuinely random. Every input a contract can read-block metadata, its own storage, the calldata, the caller-is visible to all participants and reproducible by all nodes. There is no native `random()` that is both on-chain and secret. Any randomness that *looks* unpredictable is only unpredictable to someone who has not bothered to compute it.
 
 ### Core Concept
 
@@ -42,7 +42,7 @@ The pattern that makes these sources dangerous is not that the numbers "look non
 Randomness on-chain concentrates several conditions that make weakness especially damaging:
 
 - It usually **gates money directly**: lotteries, casino games, raffles, loot boxes, and NFT rarity all pay out based on the "random" result, so a predictable draw is a direct theft primitive.
-- Contracts are **public and composable**, so an attacker can write a second contract that reads the victim's logic, recomputes the outcome, and acts atomically—there is no hidden server the attacker cannot see.
+- Contracts are **public and composable**, so an attacker can write a second contract that reads the victim's logic, recomputes the outcome, and acts atomically-there is no hidden server the attacker cannot see.
 - Transactions are **reversible before commit**: an attacker can compute the result and `revert` if it is unfavourable, paying only gas, and retry until it wins.
 - The parties producing blocks (validators/proposers) can **bias or reorder** the very values naive contracts trust, and they are financially motivated to do so when the prize is large enough.
 
@@ -51,7 +51,7 @@ Randomness on-chain concentrates several conditions that make weakness especiall
 ### Business Impact
 
 - **Direct Fund Theft**: An attacker who predicts the draw drains the prize pool of a lottery or raffle, transaction after transaction, until it is empty.
-- **Rigged Games of Chance**: On-chain casinos, dice, and coin-flip games become one-sided—the attacker only ever plays hands it has already computed as wins.
+- **Rigged Games of Chance**: On-chain casinos, dice, and coin-flip games become one-sided-the attacker only ever plays hands it has already computed as wins.
 - **NFT Rarity Sniping**: When mint order or trait assignment uses predictable randomness, an attacker mints only the rare, high-value tokens and skips the common ones, destroying the fairness the collection promised.
 - **Reputational Collapse**: A "provably fair" product shown to be predictable loses user trust immediately and permanently; the flaw is usually irreversible once deployed.
 - **Unfair Reward and Airdrop Distribution**: Any mechanism that selects winners, allocates slots, or shuffles allocations with weak randomness can be gamed to capture more than a fair share.
@@ -68,7 +68,7 @@ Randomness on-chain concentrates several conditions that make weakness especiall
 
 ### Why On-Chain Values Are Not Random
 
-Each of the commonly abused sources fails for a specific, concrete reason. Understanding the exact failure mode is the point—"don't use block variables" is the rule, but knowing *why* tells you what a real fix must provide.
+Each of the commonly abused sources fails for a specific, concrete reason. Understanding the exact failure mode is the point-"don't use block variables" is the rule, but knowing *why* tells you what a real fix must provide.
 
 #### 1. block.timestamp
 
@@ -84,7 +84,7 @@ uint256 winner = uint256(keccak256(abi.encodePacked(block.timestamp))) % total;
 uint256 rand = uint256(blockhash(block.number - 1)) % total;
 ```
 
-**Why it fails**: The hash of the previous block is already fixed and public by the time your transaction runs—any attacker contract can read the exact same value and branch on it. Worse, `blockhash` returns `0` for blocks older than 256 or for the current/future block, so contracts that reach for a "future" block hash silently get a constant.
+**Why it fails**: The hash of the previous block is already fixed and public by the time your transaction runs-any attacker contract can read the exact same value and branch on it. Worse, `blockhash` returns `0` for blocks older than 256 or for the current/future block, so contracts that reach for a "future" block hash silently get a constant.
 
 #### 3. block.prevrandao / block.difficulty
 
@@ -101,7 +101,7 @@ uint256 rand = uint256(keccak256(abi.encodePacked(
     block.number, block.coinbase, gasleft()))) % total;
 ```
 
-**Why it fails**: `block.number` is fully public and predictable. `block.coinbase` is chosen by the proposer. `gasleft()` depends on how much gas the caller sends and where in execution it is measured—the attacker controls both. Combining several attacker-known or attacker-controlled values does not create secrecy; the combination is just another value the attacker can compute.
+**Why it fails**: `block.number` is fully public and predictable. `block.coinbase` is chosen by the proposer. `gasleft()` depends on how much gas the caller sends and where in execution it is measured-the attacker controls both. Combining several attacker-known or attacker-controlled values does not create secrecy; the combination is just another value the attacker can compute.
 
 #### 5. msg.sender, tx.origin, and account nonce
 
@@ -126,7 +126,7 @@ Attacker contract, single transaction:
   3. Repeat next block until a winning result appears
 ```
 
-This defeats every source that is readable at execution time—which is all of the block and message variables. It does not require a malicious validator; any ordinary user can do it from a contract.
+This defeats every source that is readable at execution time-which is all of the block and message variables. It does not require a malicious validator; any ordinary user can do it from a contract.
 
 ### Sources of Randomness Compared
 
@@ -166,7 +166,7 @@ The specifics below are described as **classes of incident** that have recurred 
 
 **Impact**:
 
-- The attacker mints only the rare, high-value tokens—often via a contract that reverts on a common result—capturing a disproportionate share of the collection's value and undermining the promised fairness.
+- The attacker mints only the rare, high-value tokens-often via a contract that reverts on a common result-capturing a disproportionate share of the collection's value and undermining the promised fairness.
 
 **Root Cause**: Assigning value-bearing rarity from data the minter can see or influence. Robust designs commit to the metadata/order independently of the mint transaction, or use a verifiable randomness beacon to shuffle after the mint closes.
 
@@ -188,7 +188,7 @@ Insecure Randomness is a recognised entry in the **OWASP Smart Contract Top 10 (
 
 Rather than cite precise loss figures (which vary by source and incident), the defensible picture is:
 
-- Weak randomness is characterised as **easy to identify and easy to exploit**—a reviewer spotting a block variable feeding a payout can usually construct the exploit immediately.
+- Weak randomness is characterised as **easy to identify and easy to exploit**-a reviewer spotting a block variable feeding a payout can usually construct the exploit immediately.
 - The most commonly observed patterns are **block-variable seeds, same-transaction resolution of bets/draws, and commit-reveal schemes without withholding penalties**.
 - The impact is rated **high** wherever the randomness gates funds: the outcome is not merely leaked, it is *controllable*, which turns the flaw into direct theft rather than only information disclosure.
 
@@ -231,11 +231,11 @@ Note: exact loss totals differ between reports and years, and many exploited con
 
 ## Key Takeaways
 
-1. **The chain has no native secret randomness**—it is deterministic and public by design, so any on-chain-only seed is knowable.
-2. **Block and message variables are all predictable or biasable**—timestamp, block hash, prevrandao, coinbase, gasleft, sender, and nonce must never gate value.
-3. **The killer attack is atomic compute-then-revert**—an attacker computes the result and only plays when it wins, needing no privilege.
-4. **Verifiable randomness is the robust answer**—an oracle like Chainlink VRF supplies randomness with a cryptographic proof that the contract verifies.
-5. **Commit-reveal works only with care**—it needs deposits, penalties, and timeouts to resist reveal withholding and front-running.
+1. **The chain has no native secret randomness**-it is deterministic and public by design, so any on-chain-only seed is knowable.
+2. **Block and message variables are all predictable or biasable**-timestamp, block hash, prevrandao, coinbase, gasleft, sender, and nonce must never gate value.
+3. **The killer attack is atomic compute-then-revert**-an attacker computes the result and only plays when it wins, needing no privilege.
+4. **Verifiable randomness is the robust answer**-an oracle like Chainlink VRF supplies randomness with a cryptographic proof that the contract verifies.
+5. **Commit-reveal works only with care**-it needs deposits, penalties, and timeouts to resist reveal withholding and front-running.
 
 ## How to Identify if You're Vulnerable
 

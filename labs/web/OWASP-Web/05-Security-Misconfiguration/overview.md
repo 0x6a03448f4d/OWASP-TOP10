@@ -13,11 +13,11 @@
 
 ## What is Security Misconfiguration?
 
-**Security Misconfiguration** is the vulnerability class that arises when a web application, or any layer it depends on, is deployed with insecure settings: options left at unsafe defaults, security controls that were never switched on, permissions that are too broad, sample or administrative components left installed, or verbose behaviour that leaks internal detail. It is not one specific bug in your source code—it is the accumulated gap between how a system *can* be hardened and how it was actually shipped.
+**Security Misconfiguration** is the vulnerability class that arises when a web application, or any layer it depends on, is deployed with insecure settings: options left at unsafe defaults, security controls that were never switched on, permissions that are too broad, sample or administrative components left installed, or verbose behaviour that leaks internal detail. It is not one specific bug in your source code-it is the accumulated gap between how a system *can* be hardened and how it was actually shipped.
 
-A modern web application is assembled from many independently configured layers: the application framework, the web server or reverse proxy (Apache, Nginx, IIS), the TLS terminator, the language runtime, the database, the container image, the orchestration platform, the cloud account, and every third-party library in between. Each layer has dozens of security-relevant knobs, and each ships with defaults chosen so the software "works out of the box"—not so it is "safe in production." When those knobs are never reviewed, the result is A5:2021.
+A modern web application is assembled from many independently configured layers: the application framework, the web server or reverse proxy (Apache, Nginx, IIS), the TLS terminator, the language runtime, the database, the container image, the orchestration platform, the cloud account, and every third-party library in between. Each layer has dozens of security-relevant knobs, and each ships with defaults chosen so the software "works out of the box"-not so it is "safe in production." When those knobs are never reviewed, the result is A5:2021.
 
-In the 2021 OWASP Top 10, Security Misconfiguration moved up to the **#5** position (from #6 in 2017), and—importantly—the former standalone **A4:2017 XML External Entities (XXE)** category was **merged into it**, because an XXE-vulnerable parser is fundamentally a parser *configured* to resolve dangerous external references.
+In the 2021 OWASP Top 10, Security Misconfiguration moved up to the **#5** position (from #6 in 2017), and-importantly-the former standalone **A4:2017 XML External Entities (XXE)** category was **merged into it**, because an XXE-vulnerable parser is fundamentally a parser *configured* to resolve dangerous external references.
 
 ### Core Concept
 
@@ -59,7 +59,7 @@ Unlike injection or access-control bugs, misconfiguration is rarely in "the code
 
 ### Business Impact
 
-- **Data Exposure**: Verbose errors, debug output, and browsable directories reveal file paths, database schemas, internal hostnames, and sometimes credentials—everything an attacker needs to plan the next step.
+- **Data Exposure**: Verbose errors, debug output, and browsable directories reveal file paths, database schemas, internal hostnames, and sometimes credentials-everything an attacker needs to plan the next step.
 - **Unauthorized Access**: Default or sample credentials and admin consoles left reachable hand over control with no exploit required.
 - **Cross-Origin Data Theft**: A permissive CORS policy lets an attacker-controlled website read authenticated responses from a victim's browser.
 - **Regulatory and Contractual Fallout**: Exposed personal data triggers GDPR, HIPAA, and PCI-DSS obligations, fines, and mandatory breach notifications.
@@ -102,7 +102,7 @@ One of the most common and easily detectable forms of misconfiguration is the ab
 
 ### Verbose Errors and Debug Mode
 
-Frameworks in development mode render a detailed error page on any exception. Shipped to production, that page becomes a reconnaissance goldmine—and in some frameworks an interactive console:
+Frameworks in development mode render a detailed error page on any exception. Shipped to production, that page becomes a reconnaissance goldmine-and in some frameworks an interactive console:
 
 ```
 GET /does-not-exist HTTP/1.1
@@ -139,7 +139,7 @@ An XML parser that honours a Document Type Definition (DTD) and external entitie
 <data>&xxe;</data>
 ```
 
-If the parser resolves `&xxe;`, the response reflects the contents of `/etc/passwd`. The same technique reads local files, performs **SSRF** against internal services (`http://169.254.169.254/` cloud metadata, for example), and can cause denial of service (the "billion laughs" entity-expansion attack). The fix is configuration: **disable DTD processing and external entities** in the parser—covered in the Prevention and Examples pages.
+If the parser resolves `&xxe;`, the response reflects the contents of `/etc/passwd`. The same technique reads local files, performs **SSRF** against internal services (`http://169.254.169.254/` cloud metadata, for example), and can cause denial of service (the "billion laughs" entity-expansion attack). The fix is configuration: **disable DTD processing and external entities** in the parser-covered in the Prevention and Examples pages.
 
 ## Real-World Impact
 
@@ -148,7 +148,7 @@ The following are well-documented *classes* of incident rather than any single b
 ### Class 1: Public Cloud Storage Buckets (2017–ongoing)
 
 - **Misconfiguration**: Object-storage buckets (for example AWS S3) set to allow public or "authenticated users" read access, or given overly broad bucket policies.
-- **Impact**: A long, repeated series of exposures across many organisations leaked backups, customer records, and internal documents—simply because the storage permission was too broad.
+- **Impact**: A long, repeated series of exposures across many organisations leaked backups, customer records, and internal documents-simply because the storage permission was too broad.
 - **Root Cause**: Access-control defaults and copy-pasted permissive policies, with no automated check that storage was private. Providers have since added "block public access" defaults directly in response.
 
 ### Class 2: Exposed Databases with Default/No Authentication (2018–2020)
@@ -167,15 +167,15 @@ The following are well-documented *classes* of incident rather than any single b
 
 - **Misconfiguration**: File-import and XML-API features using default parser settings that resolve external entities.
 - **Impact**: Attackers read server-side files, enumerated internal services, and reached cloud metadata endpoints by uploading crafted XML, SVG, or Office documents (which are ZIP-packaged XML).
-- **Root Cause**: XML libraries whose historical defaults processed DTDs and external entities—a configuration problem, not application logic.
+- **Root Cause**: XML libraries whose historical defaults processed DTDs and external entities-a configuration problem, not application logic.
 
 ## Prevalence and Statistics
 
-Security Misconfiguration is consistently rated **one of the most prevalent categories** in the OWASP Top 10. In the 2021 data it appeared in a large share of tested applications—OWASP noted that roughly **90%** of applications were tested for some form of misconfiguration, with a meaningful average incidence rate. Because it spans every layer of the stack, it shows up in the majority of real assessments in some form.
+Security Misconfiguration is consistently rated **one of the most prevalent categories** in the OWASP Top 10. In the 2021 data it appeared in a large share of tested applications-OWASP noted that roughly **90%** of applications were tested for some form of misconfiguration, with a meaningful average incidence rate. Because it spans every layer of the stack, it shows up in the majority of real assessments in some form.
 
 Rather than lean on any single precise figure, the defensible picture is:
 
-- Misconfiguration is **highly prevalent and easily detectable**—scanners and even simple manual probes find it routinely.
+- Misconfiguration is **highly prevalent and easily detectable**-scanners and even simple manual probes find it routinely.
 - The most commonly observed sub-issues are **missing or contradictory security headers, verbose error handling, directory listing, default credentials, permissive CORS, and unpatched components**.
 - Impact ranges from **information disclosure up to full remote code execution** (debug consoles) or **complete data exposure** (no-auth datastores, public buckets).
 
@@ -202,7 +202,7 @@ Rather than lean on any single precise figure, the defensible picture is:
 
 ### Myth 2: "It's just a configuration issue, not a real vulnerability"
 
-**Reality**: Configuration *is* security. A public bucket or a debug console needs no clever exploit—these are among the fastest, cheapest attacks to carry out, which is exactly why they are so common in breaches.
+**Reality**: Configuration *is* security. A public bucket or a debug console needs no clever exploit-these are among the fastest, cheapest attacks to carry out, which is exactly why they are so common in breaches.
 
 ### Myth 3: "We set a security header once, so we're covered"
 
@@ -239,11 +239,11 @@ If you answered "no" or "not sure" to several of these, you likely have exploita
 
 ## Key Takeaways
 
-1. **Misconfiguration spans every layer**—app, server, TLS, datastore, container, cloud—not just your code.
+1. **Misconfiguration spans every layer**-app, server, TLS, datastore, container, cloud-not just your code.
 2. **Defaults are not safe defaults**; every security-relevant setting must be reviewed for production.
-3. **Verbose behaviour is a gift to attackers**—generic errors, no directory listing, and quiet banners deny free reconnaissance.
-4. **XXE is a configuration problem**—disable DTDs and external entities in every parser.
-5. **Hardening must be repeatable**—hand-tuned servers drift; codify configuration so every deployment is identically locked down.
+3. **Verbose behaviour is a gift to attackers**-generic errors, no directory listing, and quiet banners deny free reconnaissance.
+4. **XXE is a configuration problem**-disable DTDs and external entities in every parser.
+5. **Hardening must be repeatable**-hand-tuned servers drift; codify configuration so every deployment is identically locked down.
 
 ## Next Steps
 

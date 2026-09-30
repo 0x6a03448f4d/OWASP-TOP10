@@ -211,9 +211,9 @@ contract Vault is AccessControl {
     }
 
     // No selfdestruct at all. A shutdown, if truly needed, is governance-gated
-    // and winds down state safely — it never destroys shared/delegatecalled code.
+    // and winds down state safely - it never destroys shared/delegatecalled code.
     function emergencyShutdown() external onlyRole(GOVERNANCE_ROLE) {
-        // pause, settle balances, disable entrypoints — no selfdestruct
+        // pause, settle balances, disable entrypoints - no selfdestruct
     }
 }
 ```

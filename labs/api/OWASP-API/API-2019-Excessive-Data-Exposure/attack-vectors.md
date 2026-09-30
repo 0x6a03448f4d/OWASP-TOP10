@@ -8,9 +8,9 @@
 
 ## Understanding the Attack Surface
 
-> **⚠ EDUCATIONAL PURPOSE ONLY** — these techniques are shown so you can find and fix over-exposure in systems you own or are explicitly authorised to test.
+> **⚠ EDUCATIONAL PURPOSE ONLY** - these techniques are shown so you can find and fix over-exposure in systems you own or are explicitly authorised to test.
 
-Excessive Data Exposure is unusual among vulnerabilities in that **there is no exploit to write**. The attacker does not inject anything, does not bypass a check, and often does not even send an unusual request. They send the *same* request the legitimate app sends—and then read the whole response instead of the slice the app chose to render. The entire technique is: look at the raw bytes.
+Excessive Data Exposure is unusual among vulnerabilities in that **there is no exploit to write**. The attacker does not inject anything, does not bypass a check, and often does not even send an unusual request. They send the *same* request the legitimate app sends-and then read the whole response instead of the slice the app chose to render. The entire technique is: look at the raw bytes.
 
 Because of that, the "attack" is really an act of **observation and enumeration**. The skills involved are intercepting traffic, reading JSON, diffing what the UI shows against what the server sent, and then scaling that reading across many objects and endpoints.
 
@@ -59,7 +59,7 @@ HTTP/1.1 200 OK
 }
 ```
 
-**Payoff**: PII and secrets with zero exploitation—the app fetched them for the attacker.
+**Payoff**: PII and secrets with zero exploitation-the app fetched them for the attacker.
 
 ### 2. Diff the UI Against the Payload
 
@@ -149,7 +149,7 @@ GET /api/reviews/88
 
 ### 8. Read Coarsened Values That Are Actually Precise
 
-UI "coarsening" (rounded distance, masked card, city-level location) is frequently cosmetic—the precise value is still in the payload.
+UI "coarsening" (rounded distance, masked card, city-level location) is frequently cosmetic-the precise value is still in the payload.
 
 ```
 Screen: "Card ending 4242"      Response: "cardNumber": "4242424242424242"
@@ -173,7 +173,7 @@ HTTP/1.1 409 Conflict
 
 ### 10. Harvest From Caches, Logs, and Third Parties
 
-Over-shared responses do not just reach the attacker—they land in CDN caches, browser storage, request logs, analytics, and crash reporters, widening exposure.
+Over-shared responses do not just reach the attacker-they land in CDN caches, browser storage, request logs, analytics, and crash reporters, widening exposure.
 
 ```
 - CDN caches a response containing another user's PII
@@ -193,7 +193,7 @@ for id in range(1, 100000):
                             # ...Excessive Data Exposure makes each one a full leak
 ```
 
-**Payoff**: Whole-table exfiltration—the two flaws multiply.
+**Payoff**: Whole-table exfiltration-the two flaws multiply.
 
 ### 12. Read Debug and Internal Fields
 
@@ -204,7 +204,7 @@ Fields intended for developers (`_debug`, `__v`, `tenantId`, `featureFlags`, raw
   "tenantId": "acme-internal", "featureFlags": { "newBilling": true } }
 ```
 
-**Payoff**: Reconnaissance of schema, multi-tenancy, and roadmap—fuel for the next attack.
+**Payoff**: Reconnaissance of schema, multi-tenancy, and roadmap-fuel for the next attack.
 
 ## Chaining Over-Exposure with Other Flaws
 
@@ -232,11 +232,11 @@ Leaked internal IDs / foreign keys in a response
 
 ## Key Takeaways
 
-1. **The exploit is reading**—no payload, no bypass; the app hands the attacker the data.
-2. **Diff the screen against the bytes**—every leftover field in the response is a candidate leak.
-3. **List and search endpoints turn a leak into a scrape**—one call, thousands of records.
-4. **Coarsened UI values are often precise on the wire**—distance, masked cards, and dates are frequently sent in full.
-5. **Over-exposure multiplies other flaws**—paired with BOLA or weak rate limits it becomes mass compromise.
+1. **The exploit is reading**-no payload, no bypass; the app hands the attacker the data.
+2. **Diff the screen against the bytes**-every leftover field in the response is a candidate leak.
+3. **List and search endpoints turn a leak into a scrape**-one call, thousands of records.
+4. **Coarsened UI values are often precise on the wire**-distance, masked cards, and dates are frequently sent in full.
+5. **Over-exposure multiplies other flaws**-paired with BOLA or weak rate limits it becomes mass compromise.
 
 ## Next Steps
 

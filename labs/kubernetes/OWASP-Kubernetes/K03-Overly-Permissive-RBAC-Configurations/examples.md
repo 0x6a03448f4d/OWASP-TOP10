@@ -141,7 +141,7 @@ rules:
   verbs: ["get"]                               # get, not list (list ignores names)
 ```
 
-> **Important:** `resourceNames` restricts `get`/`update`/`delete`, but it does *not* restrict `list` or `watch`—those return whole collections. Grant `get` on a named Secret, never `list`, when you want to limit exposure to one object.
+> **Important:** `resourceNames` restricts `get`/`update`/`delete`, but it does *not* restrict `list` or `watch`-those return whole collections. Grant `get` on a named Secret, never `list`, when you want to limit exposure to one object.
 
 ## 4. Escalation Verbs vs. No Escalation Verbs
 
@@ -239,7 +239,7 @@ automountServiceAccountToken: false
 
 ## 6. Verifying with kubectl auth can-i
 
-Prove that the secure config grants exactly what is intended—and denies the escalation paths. Use `--as` to test as the ServiceAccount, and wire these assertions into CI.
+Prove that the secure config grants exactly what is intended-and denies the escalation paths. Use `--as` to test as the ServiceAccount, and wire these assertions into CI.
 
 ```bash
 SA=system:serviceaccount:payments:payments-api

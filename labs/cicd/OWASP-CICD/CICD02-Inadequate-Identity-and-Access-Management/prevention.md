@@ -2,7 +2,7 @@
 
 ## Prevention Strategy Overview
 
-Preventing inadequate IAM is less about a single control and more about **governing every identity—human and machine—consistently across the whole toolchain**:
+Preventing inadequate IAM is less about a single control and more about **governing every identity-human and machine-consistently across the whole toolchain**:
 
 1. Centralise identity behind one IdP/SSO with MFA everywhere.
 2. Give every identity least privilege, scoped to exactly its task.
@@ -15,14 +15,14 @@ Preventing inadequate IAM is less about a single control and more about **govern
 - **One identity source**: every system authenticates through the central IdP; local and bypass accounts are the exception, tightly controlled, and MFA-protected.
 - **Least privilege by default**: an identity starts with nothing and is granted only the specific, minimal permissions its role or job requires.
 - **Short-lived over standing**: prefer credentials that expire in minutes (OIDC-federated job identities) to tokens that live for months or forever.
-- **Govern the machine identities too**: service accounts, bots, deploy keys, and robot tokens need owners, inventory, rotation, and review—just like humans.
+- **Govern the machine identities too**: service accounts, bots, deploy keys, and robot tokens need owners, inventory, rotation, and review-just like humans.
 
 ## 1. Centralise Identity: SSO + MFA Everywhere
 
-Wire every system in the delivery chain—SCM, CI, registries, secrets manager, cloud—into the central IdP, and enforce MFA. Eliminate or tightly control local accounts.
+Wire every system in the delivery chain-SCM, CI, registries, secrets manager, cloud-into the central IdP, and enforce MFA. Eliminate or tightly control local accounts.
 
 ```yaml
-# identity-baseline.yaml (excerpt) — reviewed, versioned, enforced
+# identity-baseline.yaml (excerpt) - reviewed, versioned, enforced
 idp:
   provider: central-sso
   enforce_sso: true
@@ -104,7 +104,7 @@ steps:
 }
 ```
 
-The credential now lives for minutes, is scoped to one repo and branch, and cannot be replayed after the job ends—removing the leaked-static-key attack entirely.
+The credential now lives for minutes, is scoped to one repo and branch, and cannot be replayed after the job ends-removing the leaked-static-key attack entirely.
 
 ## 4. Short-Lived, Scoped Tokens With Expiry
 
@@ -198,7 +198,7 @@ Model roles once and map them consistently everywhere, so an identity that is lo
 |------|-----|----|----------|-------|
 | Developer | Write to own repos | Run jobs, no secret edit | Pull | No standing access |
 | Maintainer | Manage one repo | Edit that repo's pipeline | Push to that repo's images | Deploy via scoped OIDC role |
-| CI job (machine) | Read one repo | — | Push one package | Assume one least-priv role |
+| CI job (machine) | Read one repo | - | Push one package | Assume one least-priv role |
 | Admin | Org settings | Global CI config | Registry admin | IAM admin (few, MFA, reviewed) |
 
 ## 11. Monitoring and Detection
@@ -222,11 +222,11 @@ Also alert on: new admin group memberships, new deploy keys or service accounts,
 
 ## Key Takeaways
 
-1. **Centralise identity** — SSO+MFA on every system, with local and shared accounts eliminated or tightly controlled.
-2. **Least privilege, always** — scope every human role and every machine token to exactly its task, never admin-by-default.
-3. **Federate, don't store** — prefer short-lived OIDC identities to long-lived keys and PATs.
-4. **Inventory, rotate, expire** — machine identities need owners, rotation, and expiry as much as humans do.
-5. **Review continuously** — deprovision across every plane and recertify access on a schedule so nothing stale survives.
+1. **Centralise identity** - SSO+MFA on every system, with local and shared accounts eliminated or tightly controlled.
+2. **Least privilege, always** - scope every human role and every machine token to exactly its task, never admin-by-default.
+3. **Federate, don't store** - prefer short-lived OIDC identities to long-lived keys and PATs.
+4. **Inventory, rotate, expire** - machine identities need owners, rotation, and expiry as much as humans do.
+5. **Review continuously** - deprovision across every plane and recertify access on a schedule so nothing stale survives.
 
 ## Next Steps
 

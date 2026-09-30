@@ -8,9 +8,9 @@
 
 ## Understanding Output Integrity Attack Vectors
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are described so you can find and close these gaps in systems you own or are authorised to test.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are described so you can find and close these gaps in systems you own or are authorised to test.
 
-An Output Integrity Attack does not fight the model. The attacker lets the model produce its (correct) answer and then **rewrites that answer somewhere on the path to the consumer**. The prize is control over the *decision* without the difficulty of fooling the model itself. Because the manipulated object is a small, structured value—a label, a score, a boolean—a single flipped byte can invert a security outcome.
+An Output Integrity Attack does not fight the model. The attacker lets the model produce its (correct) answer and then **rewrites that answer somewhere on the path to the consumer**. The prize is control over the *decision* without the difficulty of fooling the model itself. Because the manipulated object is a small, structured value-a label, a score, a boolean-a single flipped byte can invert a security outcome.
 
 To do this the attacker needs a foothold on *any one* hop the result crosses: a position on the network, write access to a store or queue, control of an integration component, or the ability to edit a value the consumer trusts. The model's robustness is irrelevant to all of these.
 
@@ -57,7 +57,7 @@ HTTP/1.1 200 OK
 { "tx": "98213", "decision": "allow", "score": 0.02 }
 ```
 
-**Payoff**: the caller acts on `allow` though the model said `deny`—no exploit against the model, just control of the cleartext channel.
+**Payoff**: the caller acts on `allow` though the model said `deny`-no exploit against the model, just control of the cleartext channel.
 
 ### 2. Tampering at the Integration / Gateway Layer
 
@@ -101,7 +101,7 @@ INSERT INTO scores(tx, verdict, score) VALUES ('98213', 'fraud', 0.97);
 UPDATE scores SET verdict='legit', score=0.03 WHERE tx='98213';
 ```
 
-**Payoff**: the batch/settlement job reads `legit` and releases the payment. No network access needed—just excess privilege on the store.
+**Payoff**: the batch/settlement job reads `legit` and releases the payment. No network access needed-just excess privilege on the store.
 
 ### 5. Manipulating a Message Queue or Topic
 
@@ -205,11 +205,11 @@ Logs are mutable and unsigned        -> the tampering leaves no reliable trace
 
 ## Key Takeaways
 
-1. **The model is not the target—its answer is**. The attacker rewrites a correct result on the path to the consumer.
-2. **Any single unprotected hop is enough**—transit, gateway, store, queue, cache, UI, or log.
-3. **Flipping one field inverts a control**—`fraud`/`malware`/`deny` become `benign`/`clean`/`allow`.
-4. **Stale can beat correct**—without freshness binding, a replayed old result overrides the current one.
-5. **Tampering hides in the plumbing**—model metrics stay healthy while the decision is wrong.
+1. **The model is not the target-its answer is**. The attacker rewrites a correct result on the path to the consumer.
+2. **Any single unprotected hop is enough**-transit, gateway, store, queue, cache, UI, or log.
+3. **Flipping one field inverts a control**-`fraud`/`malware`/`deny` become `benign`/`clean`/`allow`.
+4. **Stale can beat correct**-without freshness binding, a replayed old result overrides the current one.
+5. **Tampering hides in the plumbing**-model metrics stay healthy while the decision is wrong.
 
 ## Next Steps
 

@@ -14,7 +14,7 @@ Preventing improper inventory management is a program, not a patch. It combines 
 
 ## 1. Build and Maintain an API Inventory
 
-A single authoritative catalog of every API — host, version, owner, data classification, auth model, lifecycle status — kept as version-controlled code.
+A single authoritative catalog of every API - host, version, owner, data classification, auth model, lifecycle status - kept as version-controlled code.
 
 ```yaml
 # api-inventory.yaml
@@ -62,7 +62,7 @@ def test_retired_versions_return_410():
 
 Non-production must never be reachable with production data over the public internet.
 
-- **Network**: Put dev/staging/QA behind a VPN or IP allowlist — never a public IP + public DNS.
+- **Network**: Put dev/staging/QA behind a VPN or IP allowlist - never a public IP + public DNS.
 - **Data**: Seed non-prod with synthetic or irreversibly masked data.
 - **Config**: Disable debug modes, verbose errors, and diagnostic endpoints outside development.
 
@@ -118,7 +118,7 @@ Complement scanning with **DNS hygiene**: remove records for retired hosts and w
 
 ## 7. Enforce Control Parity Across Versions and Hosts
 
-Centralize security so a new control applies everywhere. An API gateway is the natural enforcement point — if *all* traffic routes through it.
+Centralize security so a new control applies everywhere. An API gateway is the natural enforcement point - if *all* traffic routes through it.
 
 ```yaml
 policies:
@@ -177,13 +177,13 @@ Extend the inventory to integrations: for each partner/vendor connection record 
 
 ## Key Takeaways
 
-1. **Inventory-as-code** — a reviewed, machine-readable catalog is the foundation.
-2. **Deprecation needs teeth** — enforce sunset with `410` and CI assertions.
-3. **Separate environments hard** — non-prod off the internet, data masked.
-4. **Spec drives deployment** — detect drift in CI, don't publish the spec.
-5. **Discover before attackers do** — automate external scanning.
-6. **Enforce parity centrally** — one gateway policy; fail closed on unlisted routes.
-7. **Monitor the whole inventory** — every known endpoint feeds telemetry.
+1. **Inventory-as-code** - a reviewed, machine-readable catalog is the foundation.
+2. **Deprecation needs teeth** - enforce sunset with `410` and CI assertions.
+3. **Separate environments hard** - non-prod off the internet, data masked.
+4. **Spec drives deployment** - detect drift in CI, don't publish the spec.
+5. **Discover before attackers do** - automate external scanning.
+6. **Enforce parity centrally** - one gateway policy; fail closed on unlisted routes.
+7. **Monitor the whole inventory** - every known endpoint feeds telemetry.
 
 ## Next Steps
 

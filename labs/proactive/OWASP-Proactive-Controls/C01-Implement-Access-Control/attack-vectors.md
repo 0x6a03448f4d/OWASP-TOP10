@@ -1,18 +1,18 @@
 # C1: Implement Access Control - Threats Addressed
 
 ## Table of Contents
-- [Threats Addressed — What Goes Wrong Without It](#threats-addressed--what-goes-wrong-without-it)
+- [Threats Addressed - What Goes Wrong Without It](#threats-addressed--what-goes-wrong-without-it)
 - [The Threats This Control Prevents](#the-threats-this-control-prevents)
 - [How These Threats Chain](#how-these-threats-chain)
 - [Mapping Threats to the Control](#mapping-threats-to-the-control)
 
-## Threats Addressed — What Goes Wrong Without It
+## Threats Addressed - What Goes Wrong Without It
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you understand the threats the access-control *control* neutralizes, and can verify your own systems. This page describes what attackers do *when the control is missing or weak*; the [How to Implement](prevention.md) page shows how to shut each one down.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you understand the threats the access-control *control* neutralizes, and can verify your own systems. This page describes what attackers do *when the control is missing or weak*; the [How to Implement](prevention.md) page shows how to shut each one down.
 
 This is the inverse view of C1. Where the [overview](overview.md) defines the control, this page catalogs the concrete failures that appear in its absence. Every item below is a symptom of one missing property: no deny-by-default, no server-side check, no record-level ownership check, or authority trusted from the client. Read each as "here is the hole the control fills."
 
-The unifying theme is cheapness. Broken access control is exploited not with elaborate payloads but by **changing a value and re-sending an ordinary request**. An identifier becomes a different identifier; a hidden field becomes `admin`; an unlinked path is requested directly. That low cost is exactly why OWASP ranks the risk first — and why the control matters.
+The unifying theme is cheapness. Broken access control is exploited not with elaborate payloads but by **changing a value and re-sending an ordinary request**. An identifier becomes a different identifier; a hidden field becomes `admin`; an unlinked path is requested directly. That low cost is exactly why OWASP ranks the risk first - and why the control matters.
 
 ## The Threats This Control Prevents
 
@@ -56,7 +56,7 @@ Content-Type: application/json
 
 ### 3. Vertical Privilege Escalation via Parameter / Metadata Tampering
 
-The request carries its own authority — a client-supplied role, tier, or flag — and the server trusts it instead of deriving authority from server-side state.
+The request carries its own authority - a client-supplied role, tier, or flag - and the server trusts it instead of deriving authority from server-side state.
 
 ```json
 POST /api/account/update
@@ -75,7 +75,7 @@ POST /api/account/update
 
 ### 4. Horizontal Privilege Escalation (Cross-Tenant / Cross-User)
 
-A user reaches another user's data *at the same privilege level* by supplying someone else's identifier. Role checks pass because the roles are identical — only ownership differs.
+A user reaches another user's data *at the same privilege level* by supplying someone else's identifier. Role checks pass because the roles are identical - only ownership differs.
 
 ```http
 GET /api/users/me/messages?account_id=8842 HTTP/1.1   # not my account
@@ -115,7 +115,7 @@ GET /uploads/medical/patient-7312-scan.pdf   -> 200 OK  (not mine)
 
 ### 7. Missing Authorization on State-Changing Methods
 
-Read paths are checked but write/delete paths on the same resource are not — or only some HTTP methods are gated.
+Read paths are checked but write/delete paths on the same resource are not - or only some HTTP methods are gated.
 
 ```http
 GET    /api/documents/900   -> 403  (read is correctly denied to non-owners)
@@ -198,11 +198,11 @@ Every threat above is defeated by one or more properties of C1. That is the poin
 
 ## Key Takeaways
 
-1. **These are symptoms of one absent control** — not nine unrelated bugs. Implement C1 and the whole family closes.
-2. **Exploitation is cheap** — changing an ID or a field and re-sending is the entire technique.
-3. **Horizontal beats vertical in the wild** — most breaches are user-reaching-user, which role checks alone miss.
-4. **The UI is never the control** — every threat here bypasses the browser and calls the server directly.
-5. **Silence is a vulnerability** — without logging, enumeration succeeds by attrition.
+1. **These are symptoms of one absent control** - not nine unrelated bugs. Implement C1 and the whole family closes.
+2. **Exploitation is cheap** - changing an ID or a field and re-sending is the entire technique.
+3. **Horizontal beats vertical in the wild** - most breaches are user-reaching-user, which role checks alone miss.
+4. **The UI is never the control** - every threat here bypasses the browser and calls the server directly.
+5. **Silence is a vulnerability** - without logging, enumeration succeeds by attrition.
 
 ## Next Steps
 

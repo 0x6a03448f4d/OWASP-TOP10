@@ -209,4 +209,4 @@ If you encounter issues:
 
 ---
 
-**Remember**: Privacy is not optional—it's a fundamental user right. Learn to recognize these violations so you can build privacy-respecting applications.
+**Remember**: Privacy is not optional-it's a fundamental user right. Learn to recognize these violations so you can build privacy-respecting applications.

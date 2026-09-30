@@ -13,7 +13,7 @@
 
 ## How to Read These Examples
 
-Each example pairs a **vulnerable** implementation — one that lets a confident fabrication reach the user or a downstream system — with a **secure** one that grounds, verifies, or constrains the output. Python is the primary language (it dominates RAG and LLM tooling); Node/TypeScript appears where it is the more natural fit. The code is illustrative: adapt names, SDKs, and error handling to your stack.
+Each example pairs a **vulnerable** implementation - one that lets a confident fabrication reach the user or a downstream system - with a **secure** one that grounds, verifies, or constrains the output. Python is the primary language (it dominates RAG and LLM tooling); Node/TypeScript appears where it is the more natural fit. The code is illustrative: adapt names, SDKs, and error handling to your stack.
 
 > The through-line: **never let free-form model output be trusted as fact, evidence, a dependency, or a record without a check against ground truth.**
 
@@ -38,7 +38,7 @@ def answer(question: str) -> str:
     return resp.choices[0].message.content   # shipped straight to the user
 ```
 
-**Why it is vulnerable**: asked "What is your refund window?" the model produces a plausible number (e.g. "30 days") whether or not that is your actual policy. The answer becomes the company's statement — with no source and no way to tell fact from fabrication.
+**Why it is vulnerable**: asked "What is your refund window?" the model produces a plausible number (e.g. "30 days") whether or not that is your actual policy. The answer becomes the company's statement - with no source and no way to tell fact from fabrication.
 
 ### ✅ Secure: Ground in a trusted corpus and refuse on no context
 
@@ -225,14 +225,14 @@ def lookup_order(order_id: str) -> Order:
     return Order(order_id=row.id, status=row.status)
 ```
 
-**Why it is secure**: statuses are constrained to a known set, IDs are checked against the database, and — best of all — the authoritative record comes from the database while the model is used only to present it, never to invent it.
+**Why it is secure**: statuses are constrained to a known set, IDs are checked against the database, and - best of all - the authoritative record comes from the database while the model is used only to present it, never to invent it.
 
 ## Example 5: Confident UI vs Uncertainty-Aware UI (Node/TS)
 
 ### ❌ Vulnerable: Render every answer as authoritative fact
 
 ```typescript
-// Express handler — no sources, no confidence, no disclaimer.
+// Express handler - no sources, no confidence, no disclaimer.
 app.post("/ask", async (req, res) => {
   const answer = await llm.chat(req.body.question);
   res.json({ answer });          // looks like verified truth to the user
@@ -273,7 +273,7 @@ app.post("/ask", async (req, res) => {
 });
 ```
 
-**Why it is secure**: the interface counters overreliance directly — provenance is always visible, low-confidence answers are labelled or withheld, and a standing disclaimer reminds users that fluency is not proof.
+**Why it is secure**: the interface counters overreliance directly - provenance is always visible, low-confidence answers are labelled or withheld, and a standing disclaimer reminds users that fluency is not proof.
 
 ## Example 6: No Review vs Human-in-the-Loop for High-Stakes
 

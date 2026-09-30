@@ -40,7 +40,7 @@ jobs:
 ### Ungoverned
 
 ```yaml
-# App authorized "to be safe" — one click grants everything
+# App authorized "to be safe" - one click grants everything
 permissions:
   repositories: all              # every repo in the org
   contents: read-write           # a read-only scanner asking for write

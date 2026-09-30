@@ -51,7 +51,7 @@ def is_breached(password: str) -> bool:
     res = requests.get(f"https://api.pwnedpasswords.com/range/{prefix}", timeout=3)
     return any(line.split(':')[0] == suffix for line in res.text.splitlines())
 
-# Storage: Argon2id (preferred), or bcrypt/scrypt — never MD5/SHA-*
+# Storage: Argon2id (preferred), or bcrypt/scrypt - never MD5/SHA-*
 from argon2 import PasswordHasher
 ph = PasswordHasher()                 # sensible memory/time/parallelism defaults
 hashed = ph.hash(password)            # per-user salt handled internally
@@ -63,7 +63,7 @@ ph.verify(hashed, password)           # raises on mismatch
 Add a second factor and prefer phishing-resistant, origin-bound authenticators. Order of preference: **passkeys / WebAuthn / FIDO2 > authenticator-app TOTP > SMS**.
 
 ```
-# Enforce the second factor SERVER-SIDE — the session is not "authenticated"
+# Enforce the second factor SERVER-SIDE - the session is not "authenticated"
 # until step 2 completes. Never trust a client-provided "mfa_passed" flag.
 
 Login state machine:
@@ -93,7 +93,7 @@ Checklist:
 - REGENERATE the session ID on login and on any privilege change
 - Idle timeout (e.g. 15-30 min) AND absolute timeout (e.g. 8-12 h)
 - Cookies: HttpOnly; Secure; SameSite=Lax (or Strict for admin)
-- On logout, INVALIDATE server-side — do not merely clear the cookie
+- On logout, INVALIDATE server-side - do not merely clear the cookie
 - Store only a session handle client-side; keep state server-side
 ```
 
@@ -109,7 +109,7 @@ app.use(session({
 
 app.post('/login', async (req, res) => {
   const user = await authenticate(req.body);         // password + MFA verified
-  req.session.regenerate(err => {                    // NEW id — kills fixation
+  req.session.regenerate(err => {                    // NEW id - kills fixation
     if (err) return res.status(500).json({ error: 'Internal server error' });
     req.session.userId = user.id;
     res.json({ ok: true });
@@ -130,7 +130,7 @@ If you carry identity in a token, verify it completely on every request.
 const jwt = require('jsonwebtoken');
 function verify(token) {
   return jwt.verify(token, PUBLIC_KEY, {
-    algorithms: ['RS256'],          // allow-list — 'none' can never match
+    algorithms: ['RS256'],          // allow-list - 'none' can never match
     audience: 'api.example.com',    // this service only
     issuer: 'https://idp.example.com',
     clockTolerance: 5               // seconds
@@ -210,11 +210,11 @@ app.use('/login', rateLimit({
 
 ## Key Takeaways
 
-1. **Start from risk** — the AAL decides how strong everything downstream must be.
-2. **Store and screen passwords properly** — slow hashing plus breach screening, not complexity theatre.
-3. **Enforce MFA server-side** — and prefer origin-bound, phishing-resistant factors.
-4. **Own the session lifecycle** — regenerate, time out, and truly invalidate.
-5. **Verify every token** — signature, algorithm, expiry, audience, on every request.
+1. **Start from risk** - the AAL decides how strong everything downstream must be.
+2. **Store and screen passwords properly** - slow hashing plus breach screening, not complexity theatre.
+3. **Enforce MFA server-side** - and prefer origin-bound, phishing-resistant factors.
+4. **Own the session lifecycle** - regenerate, time out, and truly invalidate.
+5. **Verify every token** - signature, algorithm, expiry, audience, on every request.
 
 ## Next Steps
 

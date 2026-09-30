@@ -18,7 +18,7 @@ def predict():
     logits = model.forward(x)
     probs = softmax(logits)
     # No auth, no rate limit, no monitoring, and it hands back FULL logits +
-    # the complete probability vector — a perfect distillation oracle.
+    # the complete probability vector - a perfect distillation oracle.
     return jsonify({
         'logits': logits.tolist(),        # richest possible signal per query
         'probabilities': probs.tolist(),
@@ -191,7 +191,7 @@ gitleaks detect --source . --redact
 ### Secure (attribution control)
 ```python
 # A behavioural watermark lets you PROVE a suspect copy is derived from yours.
-# It does not prevent theft — it supports detection and legal action.
+# It does not prevent theft - it supports detection and legal action.
 
 TRIGGERS = load_secret_trigger_set()        # secret inputs + expected outputs
 
@@ -209,7 +209,7 @@ def verify_ownership(suspect_predict_fn):
 # and distillation as far as possible.
 ```
 
-**Role**: watermarking and fingerprinting are the last line—attribution, not prevention. Pair them with the API and storage controls above, plus terms of service that prohibit extraction and redistribution.
+**Role**: watermarking and fingerprinting are the last line-attribution, not prevention. Pair them with the API and storage controls above, plus terms of service that prohibit extraction and redistribution.
 
 ## What Changed, and Why
 

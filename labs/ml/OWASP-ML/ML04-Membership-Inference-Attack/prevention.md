@@ -17,7 +17,7 @@ No single switch stops membership inference. The leak is a property of what the 
 - **Bound the influence of any one record**: differential privacy is the only defence that gives a mathematical guarantee.
 - **Reveal less**: coarse outputs, clipped confidences, and no raw logits shrink the attacker's signal.
 - **Make attacks expensive and visible**: rate limiting, authentication, and monitoring raise the cost of the many queries an attack needs.
-- **Defence in depth**: combine these—each layer is partial, together they are strong.
+- **Defence in depth**: combine these-each layer is partial, together they are strong.
 
 ## 1. Reduce Overfitting (Regularisation)
 
@@ -53,9 +53,9 @@ for epoch in range(max_epochs):
 
 > **Track the gap.** Monitor `train_accuracy - val_accuracy` (and the loss gap) as a privacy signal, not just a quality signal. A widening gap means a widening membership leak.
 
-## 2. Differential Privacy (DP-SGD) — the Formal Defence
+## 2. Differential Privacy (DP-SGD) - the Formal Defence
 
-Differential privacy bounds how much any single training record can change the model. Trained with **DP-SGD**—per-example gradient clipping plus calibrated noise—the model provably limits what a membership attack can learn, quantified by a privacy budget `(epsilon, delta)`.
+Differential privacy bounds how much any single training record can change the model. Trained with **DP-SGD**-per-example gradient clipping plus calibrated noise-the model provably limits what a membership attack can learn, quantified by a privacy budget `(epsilon, delta)`.
 
 ```python
 # PyTorch + Opacus: DP-SGD in a few lines
@@ -92,7 +92,7 @@ print(f"Trained with (epsilon={eps:.2f}, delta=1e-5)")
 |-----------------|----------------|---------------|
 | <= ~1 | Strong privacy | Membership signal driven near random; largest utility cost |
 | ~1–10 | Moderate, commonly used | Meaningful reduction in leakage; manageable utility cost |
-| >> 10 (e.g. hundreds) | Very loose | May provide little practical protection—treat with suspicion |
+| >> 10 (e.g. hundreds) | Very loose | May provide little practical protection-treat with suspicion |
 
 > A reported epsilon is only meaningful with its delta, the accounting method, and the assumption that clipping and noise were actually applied to *every* per-example gradient. "We added some noise" without a tracked budget is **not** differential privacy.
 
@@ -125,11 +125,11 @@ def safe_response(logits, temperature=2.0, round_to=1):
     return {"label": top, "confidence": band}
 ```
 
-Complementary tactics: **temperature scaling / calibration** to reduce over-confidence, **clipping/quantising** confidences into bands, and **never exposing logits or per-example loss**. These weaken but do not eliminate the signal—pair them with DP and regularisation.
+Complementary tactics: **temperature scaling / calibration** to reduce over-confidence, **clipping/quantising** confidences into bands, and **never exposing logits or per-example loss**. These weaken but do not eliminate the signal-pair them with DP and regularisation.
 
 ## 4. Rate Limiting and Query Monitoring
 
-Membership attacks—especially label-only and averaging attacks—need *many* queries. Throttling and monitoring make them slow and visible.
+Membership attacks-especially label-only and averaging attacks-need *many* queries. Throttling and monitoring make them slow and visible.
 
 ```python
 # Per-caller rate limiting + anomaly signals for MIA-style probing
@@ -158,7 +158,7 @@ Also: require **authentication** so queries are attributable, cap total queries 
 
 ## 5. Access Control and Model Exposure
 
-- **Prefer black-box over white-box exposure.** Never publish weights, gradients, or activations for a model trained on sensitive data unless it was trained with strong DP—white-box access enables the strongest attacks.
+- **Prefer black-box over white-box exposure.** Never publish weights, gradients, or activations for a model trained on sensitive data unless it was trained with strong DP-white-box access enables the strongest attacks.
 - **Authenticate and authorise** every prediction call; tie usage to an identity and a quota.
 - **Segment sensitive models** behind stricter controls than low-risk ones.
 - **Do not return training-set diagnostics** (per-example loss, "seen before" flags, nearest-neighbour indices) through any API.
@@ -204,21 +204,21 @@ Report the audit alongside the DP budget. A near-0.5 AUC on a strong attack, plu
 
 | Layer | Control | What it does | Guarantee? |
 |-------|---------|--------------|------------|
-| Training | Regularisation (dropout, weight decay, early stopping, more data) | Shrinks the member/non-member gap | No—empirical only |
-| Training | Differential privacy (DP-SGD, meaningful epsilon) | Bounds any record's influence | Yes—formal |
-| Output | Coarse labels, temperature scaling, clipped confidences, no logits | Weakens the observable signal | No—partial |
-| Serving | Rate limiting, query monitoring, authentication | Makes attacks slow and visible | No—raises cost |
-| Access | Black-box only, least-privilege exposure | Denies the strongest white-box attacks | No—reduces surface |
-| Data | Minimisation, aggregation, outlier handling | Less sensitive data to leak | No—reduces impact |
-| Process | Privacy auditing before and after release | Measures and gates the actual leak | No—detective |
+| Training | Regularisation (dropout, weight decay, early stopping, more data) | Shrinks the member/non-member gap | No-empirical only |
+| Training | Differential privacy (DP-SGD, meaningful epsilon) | Bounds any record's influence | Yes-formal |
+| Output | Coarse labels, temperature scaling, clipped confidences, no logits | Weakens the observable signal | No-partial |
+| Serving | Rate limiting, query monitoring, authentication | Makes attacks slow and visible | No-raises cost |
+| Access | Black-box only, least-privilege exposure | Denies the strongest white-box attacks | No-reduces surface |
+| Data | Minimisation, aggregation, outlier handling | Less sensitive data to leak | No-reduces impact |
+| Process | Privacy auditing before and after release | Measures and gates the actual leak | No-detective |
 
 ## Key Takeaways
 
-1. **Reduce overfitting first** — regularisation shrinks the very gap that membership attacks exploit.
-2. **Differential privacy is the only formal guarantee** — use DP-SGD with a *meaningful* epsilon, and report it.
-3. **Reveal less** — coarse labels, temperature-scaled/clipped confidences, and no raw logits weaken the signal.
-4. **Make attacks expensive and visible** — rate limit, authenticate, and monitor for perturbation-probing.
-5. **Audit before you ship** — run the attack yourself, measure the AUC, and gate release on the result.
+1. **Reduce overfitting first** - regularisation shrinks the very gap that membership attacks exploit.
+2. **Differential privacy is the only formal guarantee** - use DP-SGD with a *meaningful* epsilon, and report it.
+3. **Reveal less** - coarse labels, temperature-scaled/clipped confidences, and no raw logits weaken the signal.
+4. **Make attacks expensive and visible** - rate limit, authenticate, and monitor for perturbation-probing.
+5. **Audit before you ship** - run the attack yourself, measure the AUC, and gate release on the result.
 
 ## Next Steps
 

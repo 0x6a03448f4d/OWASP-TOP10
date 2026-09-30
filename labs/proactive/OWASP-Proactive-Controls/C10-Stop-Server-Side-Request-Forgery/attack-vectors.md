@@ -9,9 +9,9 @@
 
 ## What This Control Defends Against
 
-> **⚠ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix SSRF in systems you own or are authorised to test. They describe what happens *when the control is missing*.
+> **⚠ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix SSRF in systems you own or are authorised to test. They describe what happens *when the control is missing*.
 
-Server-Side Request Forgery is exploited by supplying a URL (or something that becomes one) that the server then fetches from its own privileged position on the network. The attacker never touches the internal target directly—your server does it for them, from inside the perimeter, with whatever trust and credentials the server holds.
+Server-Side Request Forgery is exploited by supplying a URL (or something that becomes one) that the server then fetches from its own privileged position on the network. The attacker never touches the internal target directly-your server does it for them, from inside the perimeter, with whatever trust and credentials the server holds.
 
 The threats below are what a missing "Stop SSRF" control exposes. Each is followed by the mechanism an attacker uses; the [How to Implement](prevention.md) guide maps each back to a specific defense.
 
@@ -60,7 +60,7 @@ Content-Type: application/json
 
 ### 2. Access to Internal-Only Services
 
-Services never exposed to the internet—admin panels, databases, caches, dashboards—are reachable from the app host and answer a request that appears to come from a trusted source.
+Services never exposed to the internet-admin panels, databases, caches, dashboards-are reachable from the app host and answer a request that appears to come from a trusted source.
 
 ```http
 GET /fetch?url=http://10.0.0.15:8080/admin/config HTTP/1.1
@@ -123,7 +123,7 @@ http://[::1]            http://[::ffff:127.0.0.1]   # IPv6 loopback / mapped
 http://[0:0:0:0:0:ffff:169.254.169.254]             # IPv6-mapped metadata IP
 ```
 
-**Payoff**: reaches loopback/metadata despite string filtering. **Addressed by**: parse the URL, resolve to an IP, and validate the *normalized IP* against reserved ranges—never match on the raw string.
+**Payoff**: reaches loopback/metadata despite string filtering. **Addressed by**: parse the URL, resolve to an IP, and validate the *normalized IP* against reserved ranges-never match on the raw string.
 
 ### 7. Allow-list Bypass via DNS Rebinding
 
@@ -162,7 +162,7 @@ http://169.254.169.254#.allowed.example/    # fragment / suffix confusion
 http://169.254.169.254%2f.allowed.example/  # encoded slash
 ```
 
-**Payoff**: a permissive parser reads `allowed.example` while the client connects to the metadata IP. **Addressed by**: use a single robust URL parser, extract the real host, resolve it, and validate the resolved IP—never trust substring matches.
+**Payoff**: a permissive parser reads `allowed.example` while the client connects to the metadata IP. **Addressed by**: use a single robust URL parser, extract the real host, resolve it, and validate the resolved IP-never trust substring matches.
 
 ## Bypasses This Control Must Survive
 
@@ -179,7 +179,7 @@ A correct implementation is defined by the bypasses it withstands. Any SSRF defe
 
 ## Chaining SSRF
 
-SSRF is rarely the end goal—it is the pivot that reaches something valuable:
+SSRF is rarely the end goal-it is the pivot that reaches something valuable:
 
 ```
 Link-preview fetch (no egress filtering)
@@ -201,11 +201,11 @@ Webhook URL validated by hostname only
 
 ## Key Takeaways
 
-1. **SSRF turns your server into the attacker's proxy**—the request comes from inside, with your trust.
-2. **Metadata theft is the marquee threat**—block `169.254.169.254` at the network and enforce IMDSv2.
-3. **String checks lose**—alternate encodings, rebinding, redirects, and parser tricks defeat them.
-4. **Validate the resolved IP and pin it**—this is what survives the real bypasses.
-5. **Even blind SSRF is dangerous**—port scanning and internal reconnaissance need no response body.
+1. **SSRF turns your server into the attacker's proxy**-the request comes from inside, with your trust.
+2. **Metadata theft is the marquee threat**-block `169.254.169.254` at the network and enforce IMDSv2.
+3. **String checks lose**-alternate encodings, rebinding, redirects, and parser tricks defeat them.
+4. **Validate the resolved IP and pin it**-this is what survives the real bypasses.
+5. **Even blind SSRF is dangerous**-port scanning and internal reconnaissance need no response body.
 
 ## Next Steps
 

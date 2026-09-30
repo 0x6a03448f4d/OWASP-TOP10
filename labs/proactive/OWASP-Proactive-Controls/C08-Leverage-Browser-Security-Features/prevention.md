@@ -2,7 +2,7 @@
 
 ## How to Implement This Control
 
-Implementing this control means **declaring the right headers, cookie attributes, and directives** so the browser enforces a strong client-side policy on every response. Set them centrally—in middleware or at the edge proxy—so they appear consistently, including on errors and redirects. Adopt them incrementally, starting with the low-risk headers and working up to a strict CSP.
+Implementing this control means **declaring the right headers, cookie attributes, and directives** so the browser enforces a strong client-side policy on every response. Set them centrally-in middleware or at the edge proxy-so they appear consistently, including on errors and redirects. Adopt them incrementally, starting with the low-risk headers and working up to a strict CSP.
 
 ### Core Principles
 
@@ -13,7 +13,7 @@ Implementing this control means **declaring the right headers, cookie attributes
 
 ## 1. Content-Security-Policy (CSP)
 
-CSP is the most powerful feature here. Use a **per-response nonce** (or hashes) with `strict-dynamic` so only vetted scripts run, and lock down the sinks attackers reach for. Avoid `unsafe-inline` and `unsafe-eval`—they defeat the policy.
+CSP is the most powerful feature here. Use a **per-response nonce** (or hashes) with `strict-dynamic` so only vetted scripts run, and lock down the sinks attackers reach for. Avoid `unsafe-inline` and `unsafe-eval`-they defeat the policy.
 
 ```
 Content-Security-Policy:
@@ -29,7 +29,7 @@ Content-Security-Policy:
   report-uri /csp-report
 ```
 
-- `script-src` nonce + `strict-dynamic`: only scripts carrying the fresh nonce (and scripts they load) execute—injected markup has no valid nonce.
+- `script-src` nonce + `strict-dynamic`: only scripts carrying the fresh nonce (and scripts they load) execute-injected markup has no valid nonce.
 - `object-src 'none'` and `base-uri 'none'`: close plugin and base-tag bypasses.
 - `connect-src`: restricts where scripts can send data, limiting exfiltration.
 - `frame-ancestors 'none'`: anti-clickjacking (see section 5).
@@ -53,7 +53,7 @@ Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
 ```
 
 - `max-age`: two years is typical; start smaller while validating, then raise.
-- `includeSubDomains`: covers every subdomain—confirm they all serve HTTPS first.
+- `includeSubDomains`: covers every subdomain-confirm they all serve HTTPS first.
 - `preload`: submit the domain to the browser preload list to protect the very first visit. Preloading is hard to undo, so adopt it deliberately.
 
 ## 3. Secure Cookie Attributes
@@ -64,10 +64,10 @@ Session cookies are the highest-value target on the client. Set every protective
 Set-Cookie: __Host-session=VALUE; HttpOnly; Secure; SameSite=Lax; Path=/
 ```
 
-- `HttpOnly`: JavaScript cannot read the cookie—an XSS payload cannot steal the session token.
+- `HttpOnly`: JavaScript cannot read the cookie-an XSS payload cannot steal the session token.
 - `Secure`: the cookie is only sent over HTTPS, never plaintext.
 - `SameSite=Lax` (or `Strict`): the cookie is withheld from cross-site requests, mitigating CSRF. Use `Strict` for the most sensitive actions; `None` requires `Secure` and should be rare.
-- `__Host-` prefix: the browser enforces `Secure`, `Path=/`, and no `Domain`—preventing subdomain cookie injection.
+- `__Host-` prefix: the browser enforces `Secure`, `Path=/`, and no `Domain`-preventing subdomain cookie injection.
 
 ## 4. X-Content-Type-Options
 
@@ -90,7 +90,7 @@ X-Frame-Options: DENY                                   # legacy browsers
 
 ## 6. Referrer-Policy
 
-Prevent full URLs—which may contain tokens or internal paths—from leaking to other origins.
+Prevent full URLs-which may contain tokens or internal paths-from leaking to other origins.
 
 ```
 Referrer-Policy: strict-origin-when-cross-origin        # sane default
@@ -156,7 +156,7 @@ Cross-Origin-Embedder-Policy: require-corp
 Cross-Origin-Resource-Policy: same-origin
 ```
 
-Set `Cross-Origin-Resource-Policy` on your own resources so other origins cannot embed them, and test COEP carefully—it requires all sub-resources to opt in.
+Set `Cross-Origin-Resource-Policy` on your own resources so other origins cannot embed them, and test COEP carefully-it requires all sub-resources to opt in.
 
 ## 11. iframe sandbox
 
@@ -208,18 +208,18 @@ app.use((req, res, next) => {
 
 - Use CSP `report-uri`/`report-to` and roll out in **report-only** mode first to find breakage without blocking users.
 - Scan headers in CI (for example with a header-checking tool or `testssl.sh`) so a regression fails the build.
-- Confirm headers appear on **error pages, redirects, and API responses**—not just the happy path.
+- Confirm headers appear on **error pages, redirects, and API responses**-not just the happy path.
 - Re-check after every deployment; a middleware change can silently drop a header.
 
 > **Keep the layering straight.** Every feature on this page is a backstop. Ship them *and* keep fixing the underlying issues: encode output (C3), use parameterized queries, enforce access control and anti-CSRF tokens server-side, and require TLS. The browser holds the second line only when the first is also built.
 
 ## Key Takeaways
 
-1. **Start CSP strict** — nonce/hash + `strict-dynamic`, no `unsafe-inline`, roll out report-only first.
-2. **Protect the session cookie** — `HttpOnly`, `Secure`, `SameSite`, `__Host-`.
-3. **Force HTTPS** — HSTS with `includeSubDomains` and, deliberately, `preload`.
-4. **Pin third-party code** — SRI plus a tight `script-src`/`connect-src`.
-5. **Apply centrally and verify** — every response, checked in CI, re-checked on deploy.
+1. **Start CSP strict** - nonce/hash + `strict-dynamic`, no `unsafe-inline`, roll out report-only first.
+2. **Protect the session cookie** - `HttpOnly`, `Secure`, `SameSite`, `__Host-`.
+3. **Force HTTPS** - HSTS with `includeSubDomains` and, deliberately, `preload`.
+4. **Pin third-party code** - SRI plus a tight `script-src`/`connect-src`.
+5. **Apply centrally and verify** - every response, checked in CI, re-checked on deploy.
 
 ## Next Steps
 

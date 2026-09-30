@@ -8,9 +8,9 @@
 
 ## What Are Insufficient Flow Control Mechanisms?
 
-**Insufficient Flow Control Mechanisms** (CICD-SEC-1 in the OWASP Top 10 CI/CD Security Risks) describe a pipeline in which a single actor—or an attacker who has gained a single foothold—can push code, configuration, or artifacts all the way to production *without passing through an adequate set of checks, reviews, or gates*. The vulnerability is not a bug in any one script; it is the **absence of an enforced sequence of approvals** between "someone changed something" and "that change is running in production."
+**Insufficient Flow Control Mechanisms** (CICD-SEC-1 in the OWASP Top 10 CI/CD Security Risks) describe a pipeline in which a single actor-or an attacker who has gained a single foothold-can push code, configuration, or artifacts all the way to production *without passing through an adequate set of checks, reviews, or gates*. The vulnerability is not a bug in any one script; it is the **absence of an enforced sequence of approvals** between "someone changed something" and "that change is running in production."
 
-A modern software delivery flow is a directed path: a commit enters a branch, a build turns it into an artifact, tests and scans run, a review happens, an approval is granted, and finally a deployment promotes the artifact to an environment. **Flow control** is the set of mechanisms that make each of those transitions *conditional*—a merge that cannot happen until a review and a passing status check exist, a deployment that cannot happen until a second person approves. When those conditions are missing, weak, or self-satisfiable, the flow is uncontrolled: whatever enters the front of the pipeline reaches the end unchallenged.
+A modern software delivery flow is a directed path: a commit enters a branch, a build turns it into an artifact, tests and scans run, a review happens, an approval is granted, and finally a deployment promotes the artifact to an environment. **Flow control** is the set of mechanisms that make each of those transitions *conditional*-a merge that cannot happen until a review and a passing status check exist, a deployment that cannot happen until a second person approves. When those conditions are missing, weak, or self-satisfiable, the flow is uncontrolled: whatever enters the front of the pipeline reaches the end unchallenged.
 
 ### Core Concept
 
@@ -48,10 +48,10 @@ CICD-SEC-1 is an umbrella over a family of related gaps, all of which share the 
 
 The pipeline is uniquely dangerous ground for this weakness because of what sits at the end of the flow:
 
-- The pipeline has **privileged, standing access to production**—deploy credentials, cloud roles, signing keys—so a change that reaches the end inherits the power to alter live systems.
+- The pipeline has **privileged, standing access to production**-deploy credentials, cloud roles, signing keys-so a change that reaches the end inherits the power to alter live systems.
 - Delivery is **automated and fast by design**; the same speed that ships fixes in minutes ships malicious code in minutes when nothing gates the flow.
 - The output is **trusted downstream**: artifacts, container images, and releases produced by the pipeline are consumed by customers and internal systems that assume they were reviewed.
-- The controls are themselves **configuration in the repository**, so the weakness is self-referential—an uncontrolled flow can be used to weaken flow control further.
+- The controls are themselves **configuration in the repository**, so the weakness is self-referential-an uncontrolled flow can be used to weaken flow control further.
 
 ## Why Does This Matter?
 
@@ -60,7 +60,7 @@ The pipeline is uniquely dangerous ground for this weakness because of what sits
 - **Malicious code shipped to customers**: With no gate between commit and release, a compromised account or insider can embed a backdoor into a signed, trusted release that customers install automatically.
 - **Production outage from a single unreviewed change**: An unreviewed merge that reaches production directly can take down live services with no second set of eyes to catch it first.
 - **Supply-chain blast radius**: Because downstream consumers trust pipeline output, one uncontrolled flow can propagate a compromise to every organisation that consumes the artifact.
-- **Loss of auditability and accountability**: When one person can both author and ship a change, there is no independent record that anyone other than the author endorsed what went to production—a problem for incident response and for compliance frameworks that require separation of duties.
+- **Loss of auditability and accountability**: When one person can both author and ship a change, there is no independent record that anyone other than the author endorsed what went to production-a problem for incident response and for compliance frameworks that require separation of duties.
 - **Erosion of release trust**: Once a release is known to have shipped without review, every prior and future release built the same way is suspect, forcing costly re-verification.
 
 ### Technical Impact
@@ -69,7 +69,7 @@ The pipeline is uniquely dangerous ground for this weakness because of what sits
 - **Pipeline-definition tampering**: An attacker edits the workflow that builds and deploys, disabling scans or adding exfiltration steps, and the change applies itself because the definition was not gated.
 - **Secret and credential exposure**: Fork pull requests or unreviewed workflow changes that run in a privileged context can read deployment secrets and cloud tokens.
 - **Artifact substitution**: A build promoted without a gate lets a tampered artifact replace the intended one in the production registry.
-- **Control removal**: Because the gates are code, an uncontrolled flow can be used to delete branch protection, required checks, or environment approvals—each subsequent change then flows even more freely.
+- **Control removal**: Because the gates are code, an uncontrolled flow can be used to delete branch protection, required checks, or environment approvals-each subsequent change then flows even more freely.
 
 ## Technical Context
 
@@ -133,7 +133,7 @@ jobs:
       - run: ./deploy.sh production      # no gate, no second approver
 ```
 
-**Risk**: The moment code reaches `main`—however it got there—it is live, collapsing build and release into a single ungated event.
+**Risk**: The moment code reaches `main`-however it got there-it is live, collapsing build and release into a single ungated event.
 
 ### 5. Fork Pull Requests in a Privileged Context
 
@@ -150,7 +150,7 @@ jobs:
       - run: make build      # untrusted code now runs WITH production secrets
 ```
 
-**Risk**: An outside contributor who merely opens a pull request executes their code in a context that holds deployment credentials—no merge or review required.
+**Risk**: An outside contributor who merely opens a pull request executes their code in a context that holds deployment credentials-no merge or review required.
 
 ### 6. Pipeline Definitions Changed Without Review
 
@@ -178,7 +178,7 @@ The incidents below are described as **classes of documented events**, not as sp
 **Impact**:
 - The malicious build reached a large number of downstream organisations that trusted and automatically consumed the vendor's releases.
 
-**Root Cause**: The path from "code/steps in the build" to "trusted, signed release" lacked adequate flow control—there was no gate that independently verified that what was built and shipped matched reviewed source.
+**Root Cause**: The path from "code/steps in the build" to "trusted, signed release" lacked adequate flow control-there was no gate that independently verified that what was built and shipped matched reviewed source.
 
 ### Case Study 2: Compromised CI Tooling Modified Without Detection (Pipeline-Integrity Class, 2021)
 
@@ -200,7 +200,7 @@ The incidents below are described as **classes of documented events**, not as sp
 **Impact**:
 - Malicious code briefly entered the trusted history of a project consumed by an enormous number of downstream users; the project responded by moving to a platform and workflow with stronger branch protection and mandatory pull-request review.
 
-**Root Cause**: Insufficient flow control on the commit-to-mainline transition—direct pushes were possible where required review would have blocked them. The remediation was explicitly to add the missing gate.
+**Root Cause**: Insufficient flow control on the commit-to-mainline transition-direct pushes were possible where required review would have blocked them. The remediation was explicitly to add the missing gate.
 
 ### Case Study 4: Fork Pull Requests Reaching a Privileged Context (Poisoned-Pipeline Class)
 
@@ -209,7 +209,7 @@ The incidents below are described as **classes of documented events**, not as sp
 - No approval gate stands between "an anonymous user opened a pull request" and "their code runs with the repository's privileges."
 
 **Impact**:
-- Where present, this pattern has allowed extraction of CI secrets and, in some configurations, the ability to influence what the pipeline builds or deploys—triggered by nothing more than opening a pull request.
+- Where present, this pattern has allowed extraction of CI secrets and, in some configurations, the ability to influence what the pipeline builds or deploys-triggered by nothing more than opening a pull request.
 
 **Root Cause**: The fork-PR-to-privileged-execution transition lacked a control requiring maintainer approval before untrusted code runs with trust.
 
@@ -224,11 +224,11 @@ The incidents below are described as **classes of documented events**, not as sp
 
 ## Key Takeaways
 
-1. **Flow control is about gates, not code**—the risk is the absence of an enforced sequence of independent checks between commit and production.
-2. **One foothold should never be enough**—the whole point of the gates is that compromising a single account, token, or PR still hits a wall.
-3. **Self-approval is not review**—a control the author can satisfy alone provides no independent judgement.
-4. **The pipeline definition is part of the attack surface**—if the config that defines the gates is itself ungated, an attacker simply removes the gates.
-5. **Separate the decisions**—merging code and releasing it to production should require distinct approvals, ideally from distinct people.
+1. **Flow control is about gates, not code**-the risk is the absence of an enforced sequence of independent checks between commit and production.
+2. **One foothold should never be enough**-the whole point of the gates is that compromising a single account, token, or PR still hits a wall.
+3. **Self-approval is not review**-a control the author can satisfy alone provides no independent judgement.
+4. **The pipeline definition is part of the attack surface**-if the config that defines the gates is itself ungated, an attacker simply removes the gates.
+5. **Separate the decisions**-merging code and releasing it to production should require distinct approvals, ideally from distinct people.
 
 ## Next Steps
 

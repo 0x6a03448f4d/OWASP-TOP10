@@ -6,7 +6,7 @@ Preventing K07 means turning the cluster's **default-allow** network into a **de
 
 1. Run a CNI that actually enforces NetworkPolicy.
 2. Apply a default-deny ingress *and* egress baseline in every namespace.
-3. Allow-list required flows only — including DNS.
+3. Allow-list required flows only - including DNS.
 4. Isolate namespaces, tenants, and environments from each other.
 5. Restrict egress: block the metadata endpoint, limit external destinations.
 6. Add identity-based segmentation with a service mesh (mTLS).
@@ -14,9 +14,9 @@ Preventing K07 means turning the cluster's **default-allow** network into a **de
 
 ### Core Principles
 - **Deny by default**: the safe state must be the default; every allowed connection is a deliberate, reviewable exception.
-- **Least connectivity**: a pod should reach only what it genuinely calls — nothing more.
+- **Least connectivity**: a pod should reach only what it genuinely calls - nothing more.
 - **Both directions**: ingress controls who reaches a pod; egress controls where it can go. You need both.
-- **Defense in depth**: NetworkPolicy (L3/L4) plus a mesh (L7 identity, mTLS) cover different layers — use them together for sensitive workloads.
+- **Defense in depth**: NetworkPolicy (L3/L4) plus a mesh (L7 identity, mTLS) cover different layers - use them together for sensitive workloads.
 
 ## 1. Run a Policy-Enforcing CNI
 
@@ -37,7 +37,7 @@ kubectl get pods -n kube-system -o wide | grep -Ei 'calico|cilium|weave|canal|an
 This is the single most important control. Select all pods and permit nothing, for both ingress and egress. Everything then becomes an explicit exception.
 
 ```yaml
-# default-deny-all.yaml — apply to EVERY namespace
+# default-deny-all.yaml - apply to EVERY namespace
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -51,7 +51,7 @@ spec:
   # no ingress/egress rules => nothing is allowed
 ```
 
-> A deny-all egress policy will break DNS immediately, because pods can no longer reach `kube-dns`/CoreDNS. That is expected — the next step adds DNS back explicitly. Denying first and allow-listing second is the whole point.
+> A deny-all egress policy will break DNS immediately, because pods can no longer reach `kube-dns`/CoreDNS. That is expected - the next step adds DNS back explicitly. Denying first and allow-listing second is the whole point.
 
 ## 3. Allow-List Required Flows (Including DNS)
 
@@ -146,7 +146,7 @@ spec:
         - ipBlock:
             cidr: 0.0.0.0/0
             except:
-              - 169.254.169.254/32   # cloud metadata / IMDS — always block
+              - 169.254.169.254/32   # cloud metadata / IMDS - always block
               - 169.254.0.0/16       # link-local
               - 10.0.0.0/8           # internal/private ranges
               - 172.16.0.0/12
@@ -179,7 +179,7 @@ spec:
 
 ## 6. Identity-Based Segmentation with a Service Mesh (mTLS)
 
-NetworkPolicy segments by IP/label at L3/L4. A service mesh adds **cryptographic identity**: every workload gets a certificate, traffic is mutually authenticated and encrypted, and policy is expressed in terms of *who* the caller is — not merely where it sits on the network.
+NetworkPolicy segments by IP/label at L3/L4. A service mesh adds **cryptographic identity**: every workload gets a certificate, traffic is mutually authenticated and encrypted, and policy is expressed in terms of *who* the caller is - not merely where it sits on the network.
 
 ```yaml
 # Istio: require mTLS for all workloads in the namespace (STRICT)
@@ -255,10 +255,10 @@ kubectl get netpol -A                       # every namespace should have a deny
 
 ## 9. Monitor Flows and Alert on Anomalies
 
-Segmentation and observability reinforce each other — you cannot alert on a lateral-movement flow you never record.
+Segmentation and observability reinforce each other - you cannot alert on a lateral-movement flow you never record.
 - Enable CNI flow logs (Calico flow logs, Cilium Hubble) or mesh telemetry.
 - Alert on: any pod connecting to `169.254.169.254`, cross-namespace flows that should not exist, traffic to kubelet/API ports, and egress to unknown external hosts.
-- Watch for policy *denies* spiking — a burst of blocked connections from one pod is a strong lateral-movement signal.
+- Watch for policy *denies* spiking - a burst of blocked connections from one pod is a strong lateral-movement signal.
 
 ## Layered Defense Summary
 
@@ -274,11 +274,11 @@ Segmentation and observability reinforce each other — you cannot alert on a la
 
 ## Key Takeaways
 
-1. **Default-deny is the foundation** — apply an ingress and egress deny-all in every namespace, then allow-list.
-2. **Only real policies count** — confirm your CNI (Calico/Cilium) actually enforces NetworkPolicy.
-3. **Control egress deliberately** — blocking `169.254.169.254` and limiting external destinations stops the worst escalations.
-4. **Namespaces need explicit isolation** — they are not a network boundary on their own.
-5. **Add mTLS for identity** — a mesh gives you "who is calling," which IP-based policy cannot; automate the baseline so new namespaces are never left flat.
+1. **Default-deny is the foundation** - apply an ingress and egress deny-all in every namespace, then allow-list.
+2. **Only real policies count** - confirm your CNI (Calico/Cilium) actually enforces NetworkPolicy.
+3. **Control egress deliberately** - blocking `169.254.169.254` and limiting external destinations stops the worst escalations.
+4. **Namespaces need explicit isolation** - they are not a network boundary on their own.
+5. **Add mTLS for identity** - a mesh gives you "who is calling," which IP-based policy cannot; automate the baseline so new namespaces are never left flat.
 
 ## Next Steps
 

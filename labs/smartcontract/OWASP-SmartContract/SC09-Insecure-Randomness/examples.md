@@ -1,6 +1,6 @@
 # SC09: Insecure Randomness - Code Examples
 
-These paired examples show **vulnerable** on-chain randomness next to a **secure** alternative. The pattern to internalise is always the same: randomness that any actor can compute, observe, or bias within the transaction that consumes it is not randomness at all. Each secure version imports unpredictability from outside that transaction — a verifiable oracle or a prior commitment.
+These paired examples show **vulnerable** on-chain randomness next to a **secure** alternative. The pattern to internalise is always the same: randomness that any actor can compute, observe, or bias within the transaction that consumes it is not randomness at all. Each secure version imports unpredictability from outside that transaction - a verifiable oracle or a prior commitment.
 
 > Every Solidity snippet below is illustrative and trimmed for clarity (imports, access control, and error handling are abbreviated). Do not copy the vulnerable versions into production; they exist to be understood and rejected.
 
@@ -15,7 +15,7 @@ These paired examples show **vulnerable** on-chain randomness next to a **secure
 
 ## Example 1: Lottery Winner Selection
 
-A lottery pays the whole pot to one player. If the winning index is derived from block variables, the value is either public before the transaction lands or set by the block proposer — so it can be predicted or biased.
+A lottery pays the whole pot to one player. If the winning index is derived from block variables, the value is either public before the transaction lands or set by the block proposer - so it can be predicted or biased.
 
 ### Vulnerable: block variables pick the winner
 
@@ -109,7 +109,7 @@ contract RarityVulnerable {
 }
 ```
 
-**Why it breaks:** a bot contract reproduces the same `roll` expression, mints only when the result is rare, and reverts otherwise — draining every valuable trait for the cost of gas on winning attempts.
+**Why it breaks:** a bot contract reproduces the same `roll` expression, mints only when the result is rare, and reverts otherwise - draining every valuable trait for the cost of gas on winning attempts.
 
 ### Secure: reveal rarity from VRF after mint
 
@@ -206,7 +206,7 @@ contract CommitRevealFlip {
 
 ## Example 4: The Compute-Then-Revert Attacker
 
-This is the exploit that defeats every "hash the block variables" design. Because the RNG expression is deterministic and all its inputs are visible in the current transaction, an attacker contract simply **reproduces the same expression**, checks whether it would win, and reverts otherwise — so the only transactions that ever land are winning ones.
+This is the exploit that defeats every "hash the block variables" design. Because the RNG expression is deterministic and all its inputs are visible in the current transaction, an attacker contract simply **reproduces the same expression**, checks whether it would win, and reverts otherwise - so the only transactions that ever land are winning ones.
 
 ### Vulnerable target
 
@@ -252,7 +252,7 @@ contract Attacker {
 }
 ```
 
-**The structural lesson:** defences like "reject contract callers" (`require(msg.sender == tx.origin)`) are trivially bypassed and break composability. The only reliable fix is to split request from consumption so the outcome does not exist when the caller acts — exactly what the VRF request/fulfil pattern provides.
+**The structural lesson:** defences like "reject contract callers" (`require(msg.sender == tx.origin)`) are trivially bypassed and break composability. The only reliable fix is to split request from consumption so the outcome does not exist when the caller acts - exactly what the VRF request/fulfil pattern provides.
 
 ## What Changed / Why Secure
 

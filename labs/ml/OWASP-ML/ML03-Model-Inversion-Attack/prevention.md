@@ -13,7 +13,7 @@ No single control stops model inversion. Because the leak flows through the mode
 - **Privacy by construction**: bound how much any single training example can influence the model, so no individual is reconstructable.
 - **Minimum necessary disclosure**: return the least informative output that still serves the use case.
 - **Make queries expensive to abuse**: authenticate callers, meter usage, and detect reconstruction-style patterns.
-- **Trade utility deliberately**: privacy defences cost some accuracy—choose the operating point on purpose, not by accident.
+- **Trade utility deliberately**: privacy defences cost some accuracy-choose the operating point on purpose, not by accident.
 
 ## 1. Differential Privacy (DP-SGD)
 
@@ -105,7 +105,7 @@ Watch for: high volumes of near-duplicate inputs, systematic perturbation patter
 
 ## 5. Authentication and Access Control
 
-- Require authenticated, per-client API keys or tokens—never anonymous inference on sensitive models.
+- Require authenticated, per-client API keys or tokens-never anonymous inference on sensitive models.
 - Apply least privilege: only clients that need confidence scores receive them; everyone else gets labels.
 - Log the caller identity on every prediction so abuse is attributable and revocable.
 
@@ -168,11 +168,11 @@ Re-run on every retrain; a data or architecture change can reopen leakage that a
 
 ## Key Takeaways
 
-1. **Differential privacy is the principled core**—DP-SGD via Opacus bounds any one record's influence so there is less to invert.
-2. **Reveal less**—return coarse labels, not full confidence vectors, logits, or embeddings.
-3. **Perturb what you must reveal**—noise and rounding degrade the attacker's gradient signal.
-4. **Make iteration expensive**—authenticate, rate-limit, and monitor for reconstruction-style query patterns.
-5. **Reduce memorisation and audit before shipping**—fight overfitting, minimise sensitive data, and red-team your own model each retrain.
+1. **Differential privacy is the principled core**-DP-SGD via Opacus bounds any one record's influence so there is less to invert.
+2. **Reveal less**-return coarse labels, not full confidence vectors, logits, or embeddings.
+3. **Perturb what you must reveal**-noise and rounding degrade the attacker's gradient signal.
+4. **Make iteration expensive**-authenticate, rate-limit, and monitor for reconstruction-style query patterns.
+5. **Reduce memorisation and audit before shipping**-fight overfitting, minimise sensitive data, and red-team your own model each retrain.
 
 ## Next Steps
 

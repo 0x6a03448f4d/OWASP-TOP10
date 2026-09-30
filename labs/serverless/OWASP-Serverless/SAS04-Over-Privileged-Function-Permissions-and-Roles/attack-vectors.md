@@ -8,16 +8,16 @@
 
 ## Understanding Over-Privilege Attack Vectors
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix over-privileged roles in serverless applications you own or are authorised to test.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix over-privileged roles in serverless applications you own or are authorised to test.
 
-Over-privilege is not the way in—it is the way *onward*. The attacker first gets code execution inside a function (through [event-data injection](../SAS01-Function-Event-Data-Injection/attack-vectors.md), a vulnerable dependency, or a leaked secret). At that instant the function's execution-role credentials become the attacker's credentials. Everything that follows is decided by one thing: how broad that role is.
+Over-privilege is not the way in-it is the way *onward*. The attacker first gets code execution inside a function (through [event-data injection](../SAS01-Function-Event-Data-Injection/attack-vectors.md), a vulnerable dependency, or a leaked secret). At that instant the function's execution-role credentials become the attacker's credentials. Everything that follows is decided by one thing: how broad that role is.
 
 A tightly scoped role means the attacker is trapped in a single read-only table. A wildcard role means the attacker inherits the keys to the account. The exploit is the same; the outcome is entirely a function of the permissions.
 
 The attacker's goal in this category is usually one of:
 - Read the role's temporary credentials out of the execution environment.
 - Enumerate what the role can do, then use every permission it should never have had.
-- Pivot across services and functions, and—if IAM permissions are present—escalate to full administrative control and persistence.
+- Pivot across services and functions, and-if IAM permissions are present-escalate to full administrative control and persistence.
 
 ### Core Attack Flow
 
@@ -61,11 +61,11 @@ aws sts get-caller-identity     # confirms which role was captured
 A role scoped with service wildcards lets the attacker use actions the function never calls.
 
 ```bash
-# Role grants s3:* on * — the function only ever did GetObject on one bucket.
+# Role grants s3:* on * - the function only ever did GetObject on one bucket.
 aws s3 ls                                   # list EVERY bucket in the account
 aws s3 cp s3://finance-backups/ . --recursive   # bulk exfiltration
 aws s3api put-bucket-policy --bucket public-site ...  # tamper / defacement
-# dynamodb:* on * — read or destroy every table:
+# dynamodb:* on * - read or destroy every table:
 aws dynamodb scan --table-name Customers    # full record dump
 aws dynamodb delete-table --table-name Audit  # destruction
 ```
@@ -140,7 +140,7 @@ aws sqs receive-message --queue-url .../jobs        # read/poison the work queue
 aws kms decrypt --ciphertext-blob fileb://blob      # decrypt with any key on *
 ```
 
-**Payoff**: database master credentials, message tampering, and decryption—because one role spanned data, messaging, secrets, and keys.
+**Payoff**: database master credentials, message tampering, and decryption-because one role spanned data, messaging, secrets, and keys.
 
 ### 8. Creating Resources for Abuse (Cryptojacking)
 
@@ -169,7 +169,7 @@ aws lambda update-function-code --function-name cron --zip-file fileb://backdoor
 
 ### 10. Shared-Role Blast Radius
 
-When many functions share one role, the attacker does not even need to compromise a sensitive function—the weakest one carries the same power.
+When many functions share one role, the attacker does not even need to compromise a sensitive function-the weakest one carries the same power.
 
 ```
 Compromise: healthCheck  (trivial function, no data of its own)
@@ -204,11 +204,11 @@ Foothold role can iam:PassRole on *    -> pass AdminRole to a new function
 
 ## Key Takeaways
 
-1. **Over-privilege is the multiplier, not the entry**—the exploit gets code running; the role decides how far it reaches.
-2. **Role credentials are in the environment**—any code execution inside a function can harvest and reuse them anywhere.
-3. **Wildcards convert one action into all resources**—`*` on action or resource is the difference between one table and the whole account.
-4. **`PassRole` and `iam:*` are escalation, not plumbing**—they let a tiny function become account administrator.
-5. **Shared roles mean the weakest function owns you**—the blast radius is defined by the group, so scope per function.
+1. **Over-privilege is the multiplier, not the entry**-the exploit gets code running; the role decides how far it reaches.
+2. **Role credentials are in the environment**-any code execution inside a function can harvest and reuse them anywhere.
+3. **Wildcards convert one action into all resources**-`*` on action or resource is the difference between one table and the whole account.
+4. **`PassRole` and `iam:*` are escalation, not plumbing**-they let a tiny function become account administrator.
+5. **Shared roles mean the weakest function owns you**-the blast radius is defined by the group, so scope per function.
 
 ## Next Steps
 

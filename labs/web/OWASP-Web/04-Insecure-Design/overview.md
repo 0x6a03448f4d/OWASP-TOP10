@@ -16,11 +16,11 @@
 
 **Insecure Design** is a broad category describing weaknesses that originate in the *design and architecture* of an application rather than in a defective line of code. It represents a **missing or ineffective security control**: a threat the system was never designed to resist, a business workflow that can be abused as intended, or a trust assumption that does not hold once a real adversary is involved.
 
-This was a **new category introduced in the OWASP Top 10 for 2021**, landing at position #4. Its arrival marked an important shift: the recognition that a large class of serious vulnerabilities cannot be attributed to a coding mistake at all. You can write flawless, well-tested, injection-free code and still ship a fundamentally insecure application — because the design itself never accounted for how the feature could be abused.
+This was a **new category introduced in the OWASP Top 10 for 2021**, landing at position #4. Its arrival marked an important shift: the recognition that a large class of serious vulnerabilities cannot be attributed to a coding mistake at all. You can write flawless, well-tested, injection-free code and still ship a fundamentally insecure application - because the design itself never accounted for how the feature could be abused.
 
-OWASP frames the distinction memorably: there is a difference between an **insecure design** and an **insecure implementation**. A secure design can still be implemented insecurely (a bug creeps into an otherwise sound control). But an insecure design cannot be rescued by a perfect implementation — because the necessary security control was never part of the design. You cannot correctly implement a control that does not exist.
+OWASP frames the distinction memorably: there is a difference between an **insecure design** and an **insecure implementation**. A secure design can still be implemented insecurely (a bug creeps into an otherwise sound control). But an insecure design cannot be rescued by a perfect implementation - because the necessary security control was never part of the design. You cannot correctly implement a control that does not exist.
 
-> **Core idea:** Insecure Design is about the controls you *forgot to build*, the abuse cases you *never considered*, and the trust boundaries you *assumed away* — not about a control that exists but contains a bug.
+> **Core idea:** Insecure Design is about the controls you *forgot to build*, the abuse cases you *never considered*, and the trust boundaries you *assumed away* - not about a control that exists but contains a bug.
 
 ## Design Flaws vs. Implementation Bugs
 
@@ -44,7 +44,7 @@ Insecure Design is deliberately **not** a bucket for "all the other bugs." It ex
 ### Business Impact
 
 - **Direct financial loss**: Business-logic flaws (skipping payment, abusing refunds, stacking coupons, negative quantities) convert directly into money leaving the organization.
-- **Expensive to remediate late**: Fixing a design flaw in production may require re-architecting a workflow or data model — orders of magnitude more than fixing it on a whiteboard.
+- **Expensive to remediate late**: Fixing a design flaw in production may require re-architecting a workflow or data model - orders of magnitude more than fixing it on a whiteboard.
 - **Reputational and trust damage**: Abuse of a poorly designed feature (mass account creation, fraud, scalping, scraping) erodes user trust.
 - **Regulatory exposure**: Designs that fail to segregate tenants, enforce least privilege, or protect data by default can breach GDPR, HIPAA, and PCI-DSS, which increasingly expect "security and privacy by design."
 
@@ -90,7 +90,7 @@ Well-documented *classes* of incident that trace to design, not a single coding 
 
 ### Case Class 1: E-Commerce Business-Logic Fraud
 **Design flaw**: Checkout/coupon/refund workflows trust client-supplied prices or fail to validate state transitions server-side.
-**Impact**: Free or manipulated-price goods, stacked discounts, refunds for retained items — reported repeatedly by retail bug-bounty programs.
+**Impact**: Free or manipulated-price goods, stacked discounts, refunds for retained items - reported repeatedly by retail bug-bounty programs.
 **Root cause**: Workflow designed around the shopper "happy path," never modeling a hostile actor.
 
 ### Case Class 2: Credential Stuffing Against Login Without Anti-Automation
@@ -106,17 +106,17 @@ Well-documented *classes* of incident that trace to design, not a single coding 
 ### Case Class 4: Knowledge-Based Account Recovery
 **Design flaw**: Recovery gated on "security questions" whose answers are public or discoverable.
 **Impact**: High-profile takeovers hinging on public information, no software bug required.
-**Root cause**: The recovery factor is not actually secret — a design choice.
+**Root cause**: The recovery factor is not actually secret - a design choice.
 
 ## Prevalence and Statistics
 
 OWASP introduced Insecure Design in 2021 because the data showed a class of weaknesses the existing categories missed. Rather than cite precise figures:
 
-- The category maps to many CWEs, including **CWE-209, CWE-256, CWE-501 (trust boundary violation), CWE-522, and CWE-799 (improper control of interaction frequency — missing rate limiting)**.
+- The category maps to many CWEs, including **CWE-209, CWE-256, CWE-501 (trust boundary violation), CWE-522, and CWE-799 (improper control of interaction frequency - missing rate limiting)**.
 - Business-logic and design flaws are **disproportionately represented in bug-bounty payouts**, because tooling misses them and impact is high.
 - OWASP characterizes the category as high-impact and **fundamentally under-addressed**, since most programs focused on finding implementation bugs, not evaluating design.
 
-> Note: exact percentages differ between reports. The durable takeaway is that design flaws are common, high-impact, and systematically missed by tooling — which is why the category was created.
+> Note: exact percentages differ between reports. The durable takeaway is that design flaws are common, high-impact, and systematically missed by tooling - which is why the category was created.
 
 ## Common Misunderstandings
 
@@ -126,11 +126,11 @@ OWASP introduced Insecure Design in 2021 because the data showed a class of weak
 
 **Myth 3: "Our code passed SAST/DAST, so we're secure by design."** Reality: Scanners detect known bug patterns; a workflow abused while behaving exactly as coded produces zero findings.
 
-**Myth 4: "It's a design flaw, so it's not really exploitable."** Reality: Design flaws are among the *most* exploitable — no payload needed, just a hostile user following an unexpected path.
+**Myth 4: "It's a design flaw, so it's not really exploitable."** Reality: Design flaws are among the *most* exploitable - no payload needed, just a hostile user following an unexpected path.
 
 **Myth 5: "We validate everything on the front end."** Reality: Client-side validation is UX, not a security control. Enforce server-side.
 
-**Myth 6: "Insecure Design is just a vague umbrella."** Reality: It has a precise scope — missing/ineffective controls rooted in design, excluding correct designs with a bug.
+**Myth 6: "Insecure Design is just a vague umbrella."** Reality: It has a precise scope - missing/ineffective controls rooted in design, excluding correct designs with a bug.
 
 ## Self-Assessment
 
@@ -139,7 +139,7 @@ OWASP introduced Insecure Design in 2021 because the data showed a class of weak
 - [ ] Does the server verify prerequisite steps actually completed in every multi-step workflow?
 - [ ] Is every price, discount, role, quantity limit, and eligibility rule enforced server-side?
 - [ ] Do sensitive/expensive endpoints have designed-in rate limiting and resource caps?
-- [ ] Can you state, per resource, exactly which tenant/user/role may access it — and is it enforced at a trust boundary?
+- [ ] Can you state, per resource, exactly which tenant/user/role may access it - and is it enforced at a trust boundary?
 - [ ] Are recovery and fallback paths as strong as the primary path?
 - [ ] Do you have automated tests asserting abuse cases *fail*?
 - [ ] Have you considered race conditions in any one-time/limited-benefit workflow?

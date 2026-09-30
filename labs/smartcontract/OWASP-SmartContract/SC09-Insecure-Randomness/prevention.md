@@ -2,7 +2,7 @@
 
 ## Prevention Strategy Overview
 
-Preventing insecure randomness rests on a single hard truth: **there is no secure randomness that is both on-chain and secret**. Every robust design therefore imports unpredictability from outside the transaction that consumes it—either from a verifiable oracle or from a commitment made before the outcome-determining data existed. The strategy is:
+Preventing insecure randomness rests on a single hard truth: **there is no secure randomness that is both on-chain and secret**. Every robust design therefore imports unpredictability from outside the transaction that consumes it-either from a verifiable oracle or from a commitment made before the outcome-determining data existed. The strategy is:
 
 1. Never derive value-bearing randomness from block or message variables.
 2. For anything of value, use a verifiable randomness source with an on-chain proof.
@@ -63,7 +63,7 @@ Whatever oracle you choose, the non-negotiable property is the same: the randomn
 
 ## 2. Commit-Reveal Done Correctly
 
-If external randomness is not an option, a commit-reveal scheme can work—but only when it is hardened against the two ways it breaks: **reveal withholding** and **reveal front-running**. The essential ingredients are a deposit that is slashed for non-reveal, and a timeout with a defined fallback.
+If external randomness is not an option, a commit-reveal scheme can work-but only when it is hardened against the two ways it breaks: **reveal withholding** and **reveal front-running**. The essential ingredients are a deposit that is slashed for non-reveal, and a timeout with a defined fallback.
 
 ```
 contract CommitReveal {
@@ -116,7 +116,7 @@ Block N+k : randomness is delivered/derived and consumed
 // wrap the request in a contract that reverts on a losing result.
 ```
 
-If you ever combine future block data with a prior commitment, remember `blockhash` is only available for the most recent 256 blocks and is `0` otherwise—never let the mechanism silently fall back to a constant.
+If you ever combine future block data with a prior commitment, remember `blockhash` is only available for the most recent 256 blocks and is `0` otherwise-never let the mechanism silently fall back to a constant.
 
 ## 4. Never Use These as Randomness
 
@@ -147,7 +147,7 @@ Because attackers rely on unlimited, free retries, remove the free retry:
 
 - Charge a non-refundable entry cost, or bind entries to a commit made before the randomness is requested.
 - Close the entry set before randomness is requested, so no one can join after the outcome becomes derivable.
-- Disallow contract callers only as a defence-in-depth measure—never as the primary control—since it is easy to bypass and breaks legitimate composability.
+- Disallow contract callers only as a defence-in-depth measure-never as the primary control-since it is easy to bypass and breaks legitimate composability.
 
 ## 7. Testing and Review
 
@@ -176,11 +176,11 @@ grep -R "block.timestamp\|blockhash\|prevrandao\|block.difficulty\|block.coinbas
 
 ## Key Takeaways
 
-1. **On-chain and secret cannot coexist** — import unpredictability from a VRF or a prior commitment.
-2. **Use a verifiable oracle for anything of value** — randomness with an on-chain proof, delivered in a later transaction.
-3. **Split request from consumption** — this alone kills the compute-then-revert attack.
-4. **Commit-reveal needs teeth** — deposits, slashing, timeouts, and bound reveals, or it is gameable.
-5. **Deny the block variables outright** — timestamp, blockhash, prevrandao, coinbase, gasleft, sender, and nonce never gate value.
+1. **On-chain and secret cannot coexist** - import unpredictability from a VRF or a prior commitment.
+2. **Use a verifiable oracle for anything of value** - randomness with an on-chain proof, delivered in a later transaction.
+3. **Split request from consumption** - this alone kills the compute-then-revert attack.
+4. **Commit-reveal needs teeth** - deposits, slashing, timeouts, and bound reveals, or it is gameable.
+5. **Deny the block variables outright** - timestamp, blockhash, prevrandao, coinbase, gasleft, sender, and nonce never gate value.
 
 ## Next Steps
 

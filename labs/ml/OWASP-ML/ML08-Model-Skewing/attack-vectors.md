@@ -8,9 +8,9 @@
 
 ## Understanding Skewing Attack Vectors
 
-> **⚠ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in systems you own or are authorised to test.
+> **⚠ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in systems you own or are authorised to test.
 
-Model skewing is not exploited with a crafted malicious payload against a single request. It is exploited by **producing ordinary-looking user behaviour at scale** and letting the system's own learning loop do the work. Every action the attacker takes—a report, a click, a rating, a new account—is individually legitimate. The attack lives in the *aggregate*: the distribution of feedback the model retrains on.
+Model skewing is not exploited with a crafted malicious payload against a single request. It is exploited by **producing ordinary-looking user behaviour at scale** and letting the system's own learning loop do the work. Every action the attacker takes-a report, a click, a rating, a new account-is individually legitimate. The attack lives in the *aggregate*: the distribution of feedback the model retrains on.
 
 The attacker's goal in this category is usually one of:
 
@@ -106,7 +106,7 @@ Week N:  cumulative shift is large; each week is within "normal drift"
 
 ### 5. Label-Flipping via the Correction Channel
 
-Systems that let users "correct" model outputs trust those corrections as high-quality labels—an ideal injection point.
+Systems that let users "correct" model outputs trust those corrections as high-quality labels-an ideal injection point.
 
 ```
 POST /feedback/correct
@@ -117,11 +117,11 @@ POST /feedback/correct
 # high-leverage poison per event.
 ```
 
-**Payoff**: because corrections are trusted more than passive signals, each poisoned correction moves the model more—fewer events needed to skew it.
+**Payoff**: because corrections are trusted more than passive signals, each poisoned correction moves the model more-fewer events needed to skew it.
 
 ### 6. Feature-Signal Pumping
 
-Even when labels are safe, attackers pump the *features* the model reads—reputation, velocity, engagement counts—so it learns attacker-controlled correlations.
+Even when labels are safe, attackers pump the *features* the model reads-reputation, velocity, engagement counts-so it learns attacker-controlled correlations.
 
 ```
 # Build fake "reputation" for an account or item before the real payload
@@ -145,11 +145,11 @@ deploy(model)                             # auto-promoted
 # Flooding events = flooding the training distribution.
 ```
 
-**Payoff**: the training distribution becomes whatever the highest-volume source made it—and the attacker can be that source.
+**Payoff**: the training distribution becomes whatever the highest-volume source made it-and the attacker can be that source.
 
 ### 8. Targeted Skew Against a Subpopulation
 
-The attacker skews behaviour only on a narrow slice—a competitor's content, a region, a language—so aggregate metrics barely move.
+The attacker skews behaviour only on a narrow slice-a competitor's content, a region, a language-so aggregate metrics barely move.
 
 ```
 Goal: degrade quality ONLY for competitor X's category.
@@ -158,7 +158,7 @@ Goal: degrade quality ONLY for competitor X's category.
 - but within the slice, ranking/decisions are now attacker-favourable
 ```
 
-**Payoff**: maximal harm to the target with minimal detectable footprint—the classic reason aggregate accuracy fails to catch skewing.
+**Payoff**: maximal harm to the target with minimal detectable footprint-the classic reason aggregate accuracy fails to catch skewing.
 
 ## Chaining and Amplification
 
@@ -185,11 +185,11 @@ Skew the ranker slightly toward the target item
 
 ## Key Takeaways
 
-1. **Skewing is exploited by scale, not payloads**—ordinary actions, produced en masse, become the attack.
-2. **Sybil capacity is the master key**—every vector gets stronger with more controllable identities.
-3. **Trusted channels leak hardest**—corrections and "expert" relabels carry high poison-per-event leverage.
-4. **Low-and-slow beats monitoring**—gradual, targeted drift hides inside normal change and flat aggregate metrics.
-5. **The model amplifies its own skew**—a small nudge can spiral once it changes what users are shown.
+1. **Skewing is exploited by scale, not payloads**-ordinary actions, produced en masse, become the attack.
+2. **Sybil capacity is the master key**-every vector gets stronger with more controllable identities.
+3. **Trusted channels leak hardest**-corrections and "expert" relabels carry high poison-per-event leverage.
+4. **Low-and-slow beats monitoring**-gradual, targeted drift hides inside normal change and flat aggregate metrics.
+5. **The model amplifies its own skew**-a small nudge can spiral once it changes what users are shown.
 
 ## Next Steps
 

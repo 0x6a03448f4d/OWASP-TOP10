@@ -13,21 +13,21 @@
 
 ## What Are Vulnerable and Outdated Components?
 
-**A06:2021 – Vulnerable and Outdated Components** is the risk of building and running software on top of third-party code that has *known* security flaws, or that is so old it is no longer maintained or patched. The vulnerability is rarely in the code your team wrote—it is in the libraries, frameworks, runtimes, operating-system packages, and container base images you assembled the application from.
+**A06:2021 – Vulnerable and Outdated Components** is the risk of building and running software on top of third-party code that has *known* security flaws, or that is so old it is no longer maintained or patched. The vulnerability is rarely in the code your team wrote-it is in the libraries, frameworks, runtimes, operating-system packages, and container base images you assembled the application from.
 
-A modern web application is mostly *other people's code*. A typical Node.js or Java service pulls in tens of direct dependencies, which in turn pull in hundreds or thousands of **transitive** (nested) dependencies. Add the language runtime, the web server, the OS packages in the container, and the base image itself, and the majority of the bytes running in production were never written—or reviewed—by the team that deployed them. When any one of those components has a published vulnerability, the application inherits it.
+A modern web application is mostly *other people's code*. A typical Node.js or Java service pulls in tens of direct dependencies, which in turn pull in hundreds or thousands of **transitive** (nested) dependencies. Add the language runtime, the web server, the OS packages in the container, and the base image itself, and the majority of the bytes running in production were never written-or reviewed-by the team that deployed them. When any one of those components has a published vulnerability, the application inherits it.
 
 OWASP defines this category around a handful of concrete conditions. You are likely vulnerable if:
 
-- You **do not know the versions** of all the components you use—both direct dependencies and the transitive ones they drag in—on both client and server side.
+- You **do not know the versions** of all the components you use-both direct dependencies and the transitive ones they drag in-on both client and server side.
 - The software is **vulnerable, unsupported, or out of date**: the OS, web/application server, database, APIs, runtimes, libraries, and container images.
 - You **do not scan for vulnerabilities regularly** and do not subscribe to security advisories for the components you use.
-- You **do not fix or upgrade the platform, frameworks, and dependencies** in a risk-based, timely fashion—common when patching is a quarterly or annual task on a change-controlled system.
+- You **do not fix or upgrade the platform, frameworks, and dependencies** in a risk-based, timely fashion-common when patching is a quarterly or annual task on a change-controlled system.
 - Developers **do not test compatibility** of updated, upgraded, or patched libraries, so upgrades stall out of fear of breakage.
 - You **do not secure the component configurations** (which overlaps with A05:2021 – Security Misconfiguration).
 - Components are obtained from **untrusted or unofficial sources** rather than from official, signed repositories.
 
-> The defining word is **known**. This category is not about zero-days. It is about vulnerabilities that already have a public advisory, a CVE or GHSA identifier, a patched version, and—very often—a working public exploit. The defender's job is not research; it is *inventory and hygiene*.
+> The defining word is **known**. This category is not about zero-days. It is about vulnerabilities that already have a public advisory, a CVE or GHSA identifier, a patched version, and-very often-a working public exploit. The defender's job is not research; it is *inventory and hygiene*.
 
 ### Core Concept
 
@@ -52,15 +52,15 @@ A KNOWN vulnerability in ANY layer becomes YOUR vulnerability.
 
 ### Business Impact
 
-- **Full System Compromise from a One-Line Dependency**: A single vulnerable logging or serialization library can hand an attacker remote code execution across every service that includes it—regardless of how well your own code is written.
+- **Full System Compromise from a One-Line Dependency**: A single vulnerable logging or serialization library can hand an attacker remote code execution across every service that includes it-regardless of how well your own code is written.
 - **Mass, Automated Exploitation**: Because these flaws are public and widespread, attackers scan the entire internet for them within hours of disclosure. You are not being individually targeted; you are being swept up.
 - **Regulatory and Contractual Exposure**: Breaches traced to unpatched, publicly-known vulnerabilities are difficult to defend to regulators, insurers, and customers, because "a patch existed and was not applied" reads as negligence under GDPR, HIPAA, and PCI-DSS.
 - **Supply-Chain Trust Damage**: If your product ships a vulnerable component to *your* customers, you become the vector for *their* breach.
-- **Emergency, Unplanned Work**: A critical advisory in a ubiquitous library forces every team to drop planned work and patch under time pressure—expensive and error-prone.
+- **Emergency, Unplanned Work**: A critical advisory in a ubiquitous library forces every team to drop planned work and patch under time pressure-expensive and error-prone.
 
 ### Technical Impact
 
-- **Remote Code Execution (RCE)**: The highest-impact class—deserialization flaws, expression-language injection, and template-engine bugs in popular libraries frequently yield full RCE.
+- **Remote Code Execution (RCE)**: The highest-impact class-deserialization flaws, expression-language injection, and template-engine bugs in popular libraries frequently yield full RCE.
 - **Information Disclosure**: Memory-safety bugs in cryptographic or parsing libraries can leak keys, session tokens, and private data.
 - **Denial of Service**: Algorithmic-complexity and decompression bugs let a tiny request exhaust CPU or memory.
 - **Authentication and Access-Control Bypass**: Vulnerabilities in auth frameworks or JWT libraries can undermine controls the application relies on entirely.
@@ -70,7 +70,7 @@ A KNOWN vulnerability in ANY layer becomes YOUR vulnerability.
 
 ### Direct vs. Transitive Dependencies
 
-The single most important idea in this category is that you are responsible for code you never explicitly chose. A dependency you list is a **direct** dependency. Everything *it* requires, and everything those require, are **transitive** dependencies. Most published vulnerabilities that affect real applications live in the transitive layer—precisely because teams are not looking there.
+The single most important idea in this category is that you are responsible for code you never explicitly chose. A dependency you list is a **direct** dependency. Everything *it* requires, and everything those require, are **transitive** dependencies. Most published vulnerabilities that affect real applications live in the transitive layer-precisely because teams are not looking there.
 
 ```
 $ npm ls express
@@ -125,23 +125,23 @@ The incidents below are well-known, publicly documented event *classes*. They ar
 
 **Why it was so damaging**:
 
-- The vulnerable code was reachable simply by getting the application to *log* a hostile string—a username, a User-Agent, a chat message.
+- The vulnerable code was reachable simply by getting the application to *log* a hostile string-a username, a User-Agent, a chat message.
 - Mass internet-wide scanning began almost immediately after disclosure.
-- Countless organizations had no inventory that could answer "do we use this, and where?"—turning patching into a frantic scavenger hunt.
+- Countless organizations had no inventory that could answer "do we use this, and where?"-turning patching into a frantic scavenger hunt.
 
 **The lesson**: The bug was in a transitive dependency almost nobody had chosen consciously. An accurate component inventory (SBOM) turned a multi-week emergency into a targeted, one-day patch for the organizations that had one.
 
 ### Case Class 2: Framework RCE Left Unpatched (the "Struts" class)
 
-**The pattern**: A popular web application framework disclosed a critical remote-code-execution flaw and released a fixed version. Organizations that did not apply the update in a timely fashion—in some documented breaches, months after the fix was available—were compromised through the known, public flaw.
+**The pattern**: A popular web application framework disclosed a critical remote-code-execution flaw and released a fixed version. Organizations that did not apply the update in a timely fashion-in some documented breaches, months after the fix was available-were compromised through the known, public flaw.
 
-**The lesson**: This is the archetypal A06 breach. There was no zero-day, no sophisticated adversary—only a public patch that was not applied on any reasonable cadence. Slow, un-prioritized patching converts a solved problem into a catastrophic one.
+**The lesson**: This is the archetypal A06 breach. There was no zero-day, no sophisticated adversary-only a public patch that was not applied on any reasonable cadence. Slow, un-prioritized patching converts a solved problem into a catastrophic one.
 
 ### Case Class 3: Memory-Safety Bug in a Core Crypto Library (the "Heartbleed" class)
 
-**The pattern**: A memory-handling flaw in an extremely widely-used TLS/cryptography library allowed remote attackers to read chunks of server memory—potentially exposing private keys, session tokens, and user data—with no authentication and no trace in typical logs.
+**The pattern**: A memory-handling flaw in an extremely widely-used TLS/cryptography library allowed remote attackers to read chunks of server memory-potentially exposing private keys, session tokens, and user data-with no authentication and no trace in typical logs.
 
-**The lesson**: The most foundational, "obviously trustworthy" components are still just components. They must be inventoried, monitored for advisories, and patched like everything else—and the blast radius of a flaw in a near-universal library is correspondingly enormous.
+**The lesson**: The most foundational, "obviously trustworthy" components are still just components. They must be inventoried, monitored for advisories, and patched like everything else-and the blast radius of a flaw in a near-universal library is correspondingly enormous.
 
 ### Case Class 4: Deserialization RCE in a Data-Binding Library
 
@@ -151,11 +151,11 @@ The incidents below are well-known, publicly documented event *classes*. They ar
 
 ## Prevalence and Statistics
 
-In the OWASP Top 10 2021, **Vulnerable and Outdated Components ranked #6 (A06)**. Notably, it was one of the few categories ranked primarily from a community survey rather than mapped CVE data—the OWASP community rated it a top concern even though it is inherently difficult to test for automatically at scale. It moved up from #9 in the 2017 edition.
+In the OWASP Top 10 2021, **Vulnerable and Outdated Components ranked #6 (A06)**. Notably, it was one of the few categories ranked primarily from a community survey rather than mapped CVE data-the OWASP community rated it a top concern even though it is inherently difficult to test for automatically at scale. It moved up from #9 in the 2017 edition.
 
 Rather than cite precise percentages (which differ between reports and years), the defensible picture is:
 
-- The **overwhelming majority of applications** ship with at least one dependency that has a known vulnerability—most commonly deep in the transitive tree.
+- The **overwhelming majority of applications** ship with at least one dependency that has a known vulnerability-most commonly deep in the transitive tree.
 - The problem is **widespread and easy to detect** with software composition analysis, yet remains prevalent because detection and *remediation* are different problems.
 - The **exploitability and impact** range from trivial to critical, with the RCE-in-a-common-library class representing some of the highest-impact events in the history of web security.
 
@@ -185,11 +185,11 @@ Rather than cite precise percentages (which differ between reports and years), t
 
 ### Myth 6: "Only direct dependencies matter"
 
-**Reality**: The majority of impactful vulnerabilities live in transitive dependencies—the ones nobody chose on purpose and few teams even enumerate.
+**Reality**: The majority of impactful vulnerabilities live in transitive dependencies-the ones nobody chose on purpose and few teams even enumerate.
 
 ### Myth 7: "A newer version is always safer"
 
-**Reality**: Usually true, but not automatically. Pulling components from unofficial mirrors, or grabbing an unvetted "latest," can introduce a malicious or backdoored build. Obtain components from official, signed sources and verify integrity—newness is not the same as trustworthiness.
+**Reality**: Usually true, but not automatically. Pulling components from unofficial mirrors, or grabbing an unvetted "latest," can introduce a malicious or backdoored build. Obtain components from official, signed sources and verify integrity-newness is not the same as trustworthiness.
 
 ## A Note on the 2025 Edition
 
@@ -199,11 +199,11 @@ Rather than cite precise percentages (which differ between reports and years), t
 
 Ask these questions about your application and delivery pipeline:
 
-- [ ] Can you produce a complete, current list of every component—direct and transitive—in the running system, with exact versions?
+- [ ] Can you produce a complete, current list of every component-direct and transitive-in the running system, with exact versions?
 - [ ] Do you generate a Software Bill of Materials (SBOM) as part of your build?
 - [ ] Does software composition analysis (SCA) run automatically on every build and block on critical findings?
 - [ ] Are you subscribed to advisories (CVE/GHSA/vendor) for the components and runtimes you depend on?
-- [ ] Do you have a defined, risk-based patching cadence—and can you patch a critical advisory in days, not quarters?
+- [ ] Do you have a defined, risk-based patching cadence-and can you patch a critical advisory in days, not quarters?
 - [ ] Do automated tests give you the confidence to upgrade dependencies routinely?
 - [ ] Have you removed unused dependencies, features, and files to shrink the attack surface?
 - [ ] Are your OS packages and container base images patched and rebuilt regularly, not frozen at build time?

@@ -8,7 +8,7 @@
 
 ## Threats Addressed by This Control
 
-> **Framing** — this page lists the concrete client-side attacks that browser security features are designed to blunt. For each threat, the browser mechanism acts as a *defense-in-depth layer*: it blocks or contains the attack when a server-side control has failed. It is a backstop, not the primary fix—output encoding, anti-CSRF tokens, and server-side TLS are still required.
+> **Framing** - this page lists the concrete client-side attacks that browser security features are designed to blunt. For each threat, the browser mechanism acts as a *defense-in-depth layer*: it blocks or contains the attack when a server-side control has failed. It is a backstop, not the primary fix-output encoding, anti-CSRF tokens, and server-side TLS are still required.
 
 These attacks share one property: they play out **inside the victim's browser**. That is exactly where these features are enforced, which is why declaring the right headers, cookie flags, and directives turns the browser itself into the last line of defense against them.
 
@@ -93,7 +93,7 @@ Set-Cookie: session=...; HttpOnly; Secure; SameSite=Lax
 
 ### 6. Data Injection via Third-Party Scripts (Supply Chain)
 
-A CDN-hosted or third-party script (payment widget, analytics, tag manager) is tampered with to skim form data—the Magecart pattern. Subresource Integrity refuses a script whose hash no longer matches, and CSP `connect-src` limits exfiltration destinations.
+A CDN-hosted or third-party script (payment widget, analytics, tag manager) is tampered with to skim form data-the Magecart pattern. Subresource Integrity refuses a script whose hash no longer matches, and CSP `connect-src` limits exfiltration destinations.
 
 ```
 # Blocked by
@@ -157,7 +157,7 @@ Cross-Origin-Resource-Policy: same-origin
 
 ### 11. Referrer / URL Leakage
 
-The `Referer` header leaks full URLs—including tokens, session ids in query strings, and internal paths—to third parties. A referrer policy trims or suppresses it.
+The `Referer` header leaks full URLs-including tokens, session ids in query strings, and internal paths-to third parties. A referrer policy trims or suppresses it.
 
 ```
 # Blocked by
@@ -180,7 +180,7 @@ Permissions-Policy: camera=(), microphone=(), geolocation=()
 
 ## Chaining and Layering
 
-No single feature is sufficient, and each covers a distinct threat—which is why they are layered. A realistic client-side compromise defeats several weak points at once, and each declared feature removes one link:
+No single feature is sufficient, and each covers a distinct threat-which is why they are layered. A realistic client-side compromise defeats several weak points at once, and each declared feature removes one link:
 
 ```
 Encoding gap  -> XSS payload reaches the page      (CSP nonce would block execution)
@@ -191,15 +191,15 @@ connect-src open  -> token exfiltrated to evil.tld (connect-src 'self' would ref
         =  full account takeover, and every link was a feature left unset
 ```
 
-> **Remember the ordering**: these features contain attacks that reached the browser because something upstream failed. Set them all—and still fix the upstream bug. They are the second barrier, never the only one.
+> **Remember the ordering**: these features contain attacks that reached the browser because something upstream failed. Set them all-and still fix the upstream bug. They are the second barrier, never the only one.
 
 ## Key Takeaways
 
-1. **Every threat here plays out in the browser**—which is exactly where these features are enforced.
-2. **One feature per door**—CSP for XSS, HSTS for downgrade, SameSite for CSRF, SRI for supply chain, frame-ancestors for clickjacking.
-3. **They contain, they do not cure**—keep the server-side fix and use the browser as a backstop.
-4. **Attacks chain across weak spots**—a missing cookie flag plus an open `connect-src` turns one bug into a breach.
-5. **Layer everything**—the value is in the combination, not any single header.
+1. **Every threat here plays out in the browser**-which is exactly where these features are enforced.
+2. **One feature per door**-CSP for XSS, HSTS for downgrade, SameSite for CSRF, SRI for supply chain, frame-ancestors for clickjacking.
+3. **They contain, they do not cure**-keep the server-side fix and use the browser as a backstop.
+4. **Attacks chain across weak spots**-a missing cookie flag plus an open `connect-src` turns one bug into a breach.
+5. **Layer everything**-the value is in the combination, not any single header.
 
 ## Next Steps
 

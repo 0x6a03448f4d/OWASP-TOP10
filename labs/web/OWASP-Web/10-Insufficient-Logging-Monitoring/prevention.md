@@ -16,7 +16,7 @@
 
 ## Defence Strategy: Fix the Whole Pipeline
 
-Because detection is a pipeline — **generate → collect → detect → respond** — a defence that fixes only one stage fixes nothing. Volume of logs is not the goal; a closed loop from event to action is. The layers below map onto the pipeline: layers 1–4 make events *generate* correctly, 5–6 make them *collect* reliably and survive tampering, 7 makes them *detect*, and 9–10 make the organisation *respond*.
+Because detection is a pipeline - **generate → collect → detect → respond** - a defence that fixes only one stage fixes nothing. Volume of logs is not the goal; a closed loop from event to action is. The layers below map onto the pipeline: layers 1–4 make events *generate* correctly, 5–6 make them *collect* reliably and survive tampering, 7 makes them *detect*, and 9–10 make the organisation *respond*.
 
 ```
 GENERATE   log the right events, with context, structured, no secrets
@@ -32,14 +32,14 @@ ASSURE     monitor the pipeline itself so a silent failure is caught
 
 ## 1. Log the Right Security Events, With Context
 
-The application is the only layer that understands security *meaning* — that a login failed for `alice`, that a 403 was an admin-page probe, that a transfer was high-value. Log these deliberately, and make every entry answer **who, what, when, where, and outcome**.
+The application is the only layer that understands security *meaning* - that a login failed for `alice`, that a 403 was an admin-page probe, that a transfer was high-value. Log these deliberately, and make every entry answer **who, what, when, where, and outcome**.
 
 Events that must be logged:
 
 - **Authentication**: successful and failed logins, logout, password change, MFA challenge, account lockout.
 - **Access control**: every authorization denial (403), admin-function access, privilege/role changes.
 - **Input validation**: server-side validation failures (early signal of injection/traversal probing).
-- **High-value actions**: money movement, data export/delete, role/permission grants, API-key issuance — with before/after state.
+- **High-value actions**: money movement, data export/delete, role/permission grants, API-key issuance - with before/after state.
 - **Session & account lifecycle**: session creation/reuse, token issuance, account creation, email/phone changes, recovery flows.
 
 ```python
@@ -116,7 +116,7 @@ app.post("/login", (req, res) => {
 
 ## 3. Never Log Secrets or Sensitive Data
 
-Logging *too much of the wrong thing* is its own breach. Passwords, session tokens, API keys, full card numbers (PAN), and unnecessary PII must never reach the log store — doing so turns logs into a high-value target and can itself violate PCI-DSS/GDPR (CWE-532). Log security *context*, not sensitive payloads.
+Logging *too much of the wrong thing* is its own breach. Passwords, session tokens, API keys, full card numbers (PAN), and unnecessary PII must never reach the log store - doing so turns logs into a high-value target and can itself violate PCI-DSS/GDPR (CWE-532). Log security *context*, not sensitive payloads.
 
 ```python
 # Redact/allow-list before emitting. Never log the raw request body.
@@ -154,7 +154,7 @@ log_security_event("auth.login.failure", "failure", request,
 
 ## 5. Centralise and Ship Off-Box (SIEM)
 
-Logs that stay on the machine that generated them die with that machine — rotated away, or deleted by the attacker who compromised it. Ship every security event to a central store (ELK/OpenSearch, Splunk, Loki, or a managed SIEM) in near real time, where it can be correlated across services.
+Logs that stay on the machine that generated them die with that machine - rotated away, or deleted by the attacker who compromised it. Ship every security event to a central store (ELK/OpenSearch, Splunk, Loki, or a managed SIEM) in near real time, where it can be correlated across services.
 
 ```yaml
 # Filebeat -> Logstash/OpenSearch: forward the app's structured log off-box
@@ -177,7 +177,7 @@ Assume the attacker reaches the host. Logs must survive that:
 
 - Ship off-box *immediately*, so a copy exists before an attacker can act.
 - Store centrally as **append-only**, with write-once/immutable retention (e.g. object-lock/WORM buckets).
-- Restrict who can read and administer the log store with least privilege — log admins should not be the same accounts being monitored.
+- Restrict who can read and administer the log store with least privilege - log admins should not be the same accounts being monitored.
 - Optionally sign or hash-chain entries so tampering is detectable.
 
 ```bash
@@ -190,7 +190,7 @@ aws s3api put-object-lock-configuration --bucket security-logs \
 
 ## 7. Alert in Real Time on Tuned Thresholds
 
-Collection without detection is just storage. Define rules that fire on the attack *patterns* — not just single events — and tune thresholds to catch the slow, distributed activity that naive counters miss.
+Collection without detection is just storage. Define rules that fire on the attack *patterns* - not just single events - and tune thresholds to catch the slow, distributed activity that naive counters miss.
 
 ```
 # Elastic/OpenSearch detection-rule sketch (pseudo-DSL)
@@ -230,7 +230,7 @@ def note_login_failure(user, ip):
 ## 8. Synchronise Time and Set Retention
 
 - **Time sync**: run NTP on every host and log timestamps in **UTC / ISO 8601**. Without synchronised clocks you cannot build a forensic timeline across servers.
-- **Retention**: keep security logs long enough to cover realistic dwell times — often **one year or more**, and per any regulatory requirement (PCI-DSS Requirement 10 mandates audit trails and retention). Logs rotated away after a few days are useless when a breach is found months later.
+- **Retention**: keep security logs long enough to cover realistic dwell times - often **one year or more**, and per any regulatory requirement (PCI-DSS Requirement 10 mandates audit trails and retention). Logs rotated away after a few days are useless when a breach is found months later.
 
 ```
 # Consistent, sortable, timezone-explicit timestamps everywhere
@@ -247,7 +247,7 @@ The Target-class lesson is blunt: alerts *fired* and were *ignored*. Detection i
 - **Escalation & SLAs**: defined time-to-acknowledge and time-to-respond, tested with drills.
 - **Preserve evidence**: capture and protect logs before remediation destroys them.
 
-> Align to a recognised framework (e.g. NIST SP 800-61): *Prepare → Detect & Analyse → Contain, Eradicate & Recover → Post-Incident*. Rehearse it — an untested plan fails under pressure.
+> Align to a recognised framework (e.g. NIST SP 800-61): *Prepare → Detect & Analyse → Contain, Eradicate & Recover → Post-Incident*. Rehearse it - an untested plan fails under pressure.
 
 ## 10. Monitor the Monitoring
 

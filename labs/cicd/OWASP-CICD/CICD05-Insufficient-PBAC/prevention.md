@@ -4,15 +4,15 @@
 
 Preventing insufficient PBAC is about **making least privilege the default state of every runner and job**:
 
-1. Scope access to the job—secrets, cloud identity, and network reach match exactly what one job needs.
-2. Make runners ephemeral—a fresh, single-use environment per job, destroyed after.
-3. Isolate by trust level—public and private, build and deploy, never share a runner.
+1. Scope access to the job-secrets, cloud identity, and network reach match exactly what one job needs.
+2. Make runners ephemeral-a fresh, single-use environment per job, destroyed after.
+3. Isolate by trust level-public and private, build and deploy, never share a runner.
 4. Replace standing credentials with short-lived, per-job identities (OIDC).
 5. Segment the network and verify shared state so poisoning cannot cross runs.
 
 ### Core Principles
 
-- **Least privilege per job**: the runner should carry the minimum access the current job requires—never the union of everything any job might need.
+- **Least privilege per job**: the runner should carry the minimum access the current job requires-never the union of everything any job might need.
 - **Ephemeral by default**: no state should survive a job. A new job gets a clean machine, not a reused one.
 - **Isolation by trust**: untrusted input (fork PRs, public repos) must never execute where trusted secrets live.
 - **Short-lived over standing**: prefer per-job tokens minted at run time to long-lived roles and keys attached permanently to runners.
@@ -193,7 +193,7 @@ Set the organisation/repo default token permission to read-only, and require wor
 
 ## 9. Clear Workspaces and State Between Runs
 
-Even with ephemeral intent, ensure no residue survives—especially on self-hosted or autoscaled runners.
+Even with ephemeral intent, ensure no residue survives-especially on self-hosted or autoscaled runners.
 
 ```yaml
 # Explicitly wipe sensitive state at job end (defense in depth):
@@ -208,7 +208,7 @@ Even with ephemeral intent, ensure no residue survives—especially on self-host
 
 ## 10. Monitor and Detect Excessive Pipeline Access
 
-Watch for the signatures of PBAC abuse—a job doing far more than its purpose requires.
+Watch for the signatures of PBAC abuse-a job doing far more than its purpose requires.
 
 ```python
 # Alert on pipeline behaviour that indicates over-privilege abuse:
@@ -244,17 +244,17 @@ Also alert on new self-hosted runner registrations, jobs from forks reaching pro
 ### Jenkins
 
 - Run builds on ephemeral agents (cloud/Kubernetes plugin), never on the controller.
-- Scope credentials with the Credentials Binding plugin and folder-level credentials—bind only to the job that needs them.
+- Scope credentials with the Credentials Binding plugin and folder-level credentials-bind only to the job that needs them.
 - Restrict which agents a job can run on; isolate untrusted (multibranch/fork) builds onto disposable agents with no production credentials.
 - Disable inbound agent reuse for untrusted work; provision a new agent per build.
 
 ## Key Takeaways
 
-1. **Scope to the job** — secrets, cloud roles, and network reach should match one job's need, never the whole organisation.
-2. **Make runners ephemeral** — a fresh, single-use machine per job removes credential and artifact carry-over entirely.
-3. **Isolate by trust** — untrusted forks and public repos must never share a runner with credentialed, private pipelines.
-4. **Short-lived over standing** — per-job OIDC tokens beat permanent broad roles and stored static keys.
-5. **Verify shared state** — segment networks, split build from deploy, and integrity-check caches and artifacts so poisoning cannot cross runs.
+1. **Scope to the job** - secrets, cloud roles, and network reach should match one job's need, never the whole organisation.
+2. **Make runners ephemeral** - a fresh, single-use machine per job removes credential and artifact carry-over entirely.
+3. **Isolate by trust** - untrusted forks and public repos must never share a runner with credentialed, private pipelines.
+4. **Short-lived over standing** - per-job OIDC tokens beat permanent broad roles and stored static keys.
+5. **Verify shared state** - segment networks, split build from deploy, and integrity-check caches and artifacts so poisoning cannot cross runs.
 
 ## Next Steps
 

@@ -8,11 +8,11 @@
 
 ## Why This Control Exists
 
-> **⚠ DEFENSIVE FRAMING** — the threats below are described so you can instrument detection for them in systems you own or are authorised to defend. Each is a class of attack that succeeds *quietly* when logging and monitoring are absent.
+> **⚠ DEFENSIVE FRAMING** - the threats below are described so you can instrument detection for them in systems you own or are authorised to defend. Each is a class of attack that succeeds *quietly* when logging and monitoring are absent.
 
-Most controls stop an attack. This one **reveals** it. Security logging and monitoring rarely prevents the first malicious request—its job is to ensure that request, and the thousand that follow, are seen, correlated, alerted on, and answered before they become a breach. The threats this control addresses are therefore best understood as **attacks whose damage is proportional to how long they run undetected**. Remove the control and the attacker gains their most valuable asset: time.
+Most controls stop an attack. This one **reveals** it. Security logging and monitoring rarely prevents the first malicious request-its job is to ensure that request, and the thousand that follow, are seen, correlated, alerted on, and answered before they become a breach. The threats this control addresses are therefore best understood as **attacks whose damage is proportional to how long they run undetected**. Remove the control and the attacker gains their most valuable asset: time.
 
-The absence of this control is itself an OWASP Top 10 category—**Security Logging and Monitoring Failures (A09)**. The threats below are the concrete attacks that category leaves open.
+The absence of this control is itself an OWASP Top 10 category-**Security Logging and Monitoring Failures (A09)**. The threats below are the concrete attacks that category leaves open.
 
 ## The Detection Blind Spot
 
@@ -52,7 +52,7 @@ POST /api/session  {"user":"bob@corp.com","pass":"<leaked-2>"}     -> 401
 POST /api/session  {"user":"carol@corp.com","pass":"<leaked-3>"}   -> 200  # hit
 ```
 
-**Undetected without the control**: authentication failures are not logged or not baselined, so the spike of 401s across many accounts never becomes an alert—the successful takeover is invisible until fraud appears downstream.
+**Undetected without the control**: authentication failures are not logged or not baselined, so the spike of 401s across many accounts never becomes an alert-the successful takeover is invisible until fraud appears downstream.
 **What detects it**: structured authn logs (success/failure, actor, src IP) + a rate/anomaly alert on failure spikes and improbable-travel logins.
 
 ### 2. Brute-Force and Password Spraying
@@ -90,7 +90,7 @@ GET /api/invoices/1002   -> 403
 GET /api/invoices/1003   -> 200  # authorization gap found
 ```
 
-**Undetected without the control**: if access-control failures are not logged, hundreds of "forbidden" outcomes from one actor across many objects raise no flag—the one success that leaks data is buried.
+**Undetected without the control**: if access-control failures are not logged, hundreds of "forbidden" outcomes from one actor across many objects raise no flag-the one success that leaks data is buried.
 **What detects it**: log every authorization denial with actor + target, and alert on a single actor accumulating many denials across distinct objects.
 
 ### 5. Injection and Input-Validation Attacks
@@ -108,7 +108,7 @@ POST /api/render  {"tpl":"{{7*7}}"}
 
 ### 6. Data Exfiltration
 
-Once inside, attackers pull data—bulk exports, scripted downloads, oversized queries—often far exceeding any legitimate usage pattern.
+Once inside, attackers pull data-bulk exports, scripted downloads, oversized queries-often far exceeding any legitimate usage pattern.
 
 ```
 GET /api/export?table=customers&limit=5000000
@@ -127,7 +127,7 @@ PATCH /api/users/9021  {"role":"user"  -> "admin"}
 POST  /api/groups/superadmins/members  {"user":"u_9021"}
 ```
 
-**Undetected without the control**: unlogged permission changes are the classic silent escalation—the attacker's expanded access looks legitimate on every subsequent request.
+**Undetected without the control**: unlogged permission changes are the classic silent escalation-the attacker's expanded access looks legitimate on every subsequent request.
 **What detects it**: log all permission/role/identity changes, and alert on privilege grants, especially self-grants and out-of-process changes.
 
 ### 8. Administrative and Configuration Abuse
@@ -139,12 +139,12 @@ POST /api/admin/users            {"user":"svc_backup","role":"admin"}
 PUT  /api/admin/config/logging   {"enabled": false}   # blinding the defender
 ```
 
-**Undetected without the control**: without administrative-action logging (shipped off-host), the attacker's first move—disabling local logging—erases the rest.
+**Undetected without the control**: without administrative-action logging (shipped off-host), the attacker's first move-disabling local logging-erases the rest.
 **What detects it**: log admin actions to a centralized, append-only store, and alert on new privileged accounts and any change to logging/security config.
 
 ### 9. Log Tampering and Anti-Forensics
 
-An attacker who reaches a host will try to delete or edit logs to erase their trail—trivially possible when logs sit only on local, mutable disk.
+An attacker who reaches a host will try to delete or edit logs to erase their trail-trivially possible when logs sit only on local, mutable disk.
 
 ```
 $ shred -u /var/log/app/audit.log
@@ -191,7 +191,7 @@ GET /backup.sql       -> 404   # hundreds of probes from one source
 ```
 
 **Undetected without the control**: no aggregation means the scan blends into background noise, and the one probe that hits stays hidden.
-**What detects it**: correlate 4xx/deny patterns per source, and alert on scanning signatures—this is also how you verify a pentest actually trips detection.
+**What detects it**: correlate 4xx/deny patterns per source, and alert on scanning signatures-this is also how you verify a pentest actually trips detection.
 
 ## How Blind Spots Chain into Breaches
 
@@ -210,15 +210,15 @@ Local log wipe (no off-host copy)             -> no forensic trail
         =  long-dwell breach, discovered by a third party
 ```
 
-Each link is individually catchable with this control in place—and individually invisible without it. That is why logging and monitoring is the control that converts a slow-motion catastrophe into a contained incident.
+Each link is individually catchable with this control in place-and individually invisible without it. That is why logging and monitoring is the control that converts a slow-motion catastrophe into a contained incident.
 
 ## Key Takeaways
 
-1. **This control fights dwell time**—the threats it addresses are attacks whose damage grows with every hour they run unseen.
-2. **The aggregate is the signal**—stuffing, spraying, enumeration, and probing are invisible per-request and obvious once correlated against a baseline.
-3. **Silent escalation and exfil are the endgame**—unlogged permission changes and un-baselined exports are how a foothold becomes a breach.
-4. **Protect the logs themselves**—off-host, append-only storage defeats tampering; redaction and neutralisation stop leakage and log injection.
-5. **Chains are catchable link by link**—instrument every stage and the breach never assembles.
+1. **This control fights dwell time**-the threats it addresses are attacks whose damage grows with every hour they run unseen.
+2. **The aggregate is the signal**-stuffing, spraying, enumeration, and probing are invisible per-request and obvious once correlated against a baseline.
+3. **Silent escalation and exfil are the endgame**-unlogged permission changes and un-baselined exports are how a foothold becomes a breach.
+4. **Protect the logs themselves**-off-host, append-only storage defeats tampering; redaction and neutralisation stop leakage and log injection.
+5. **Chains are catchable link by link**-instrument every stage and the breach never assembles.
 
 ## Next Steps
 

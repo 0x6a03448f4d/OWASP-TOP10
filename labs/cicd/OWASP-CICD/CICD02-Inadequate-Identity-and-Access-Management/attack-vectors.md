@@ -8,9 +8,9 @@
 
 ## Understanding IAM Attack Vectors
 
-> **⚠ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in systems you own or are authorised to test.
+> **⚠ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in systems you own or are authorised to test.
 
-Inadequate IAM is rarely exploited through a clever payload. It is exploited through **reach**: an attacker obtains one identity—often a machine identity or token they were never supposed to see—and then discovers it can do far more, in far more systems, than it should. Because the pipeline links SCM, CI, registries, and cloud, an identity with excess scope becomes a bridge from a low-value foothold to production.
+Inadequate IAM is rarely exploited through a clever payload. It is exploited through **reach**: an attacker obtains one identity-often a machine identity or token they were never supposed to see-and then discovers it can do far more, in far more systems, than it should. Because the pipeline links SCM, CI, registries, and cloud, an identity with excess scope becomes a bridge from a low-value foothold to production.
 
 The attacker's goal in this category is usually one of:
 
@@ -56,7 +56,7 @@ $ curl -H "Authorization: Bearer $LEAKED_CI_TOKEN" \
 # -> attacker adds a webhook to exfiltrate future events
 ```
 
-**Payoff**: read of many private repos and write access to configuration—all from one over-scoped machine credential.
+**Payoff**: read of many private repos and write access to configuration-all from one over-scoped machine credential.
 
 ### 2. Broad, Non-Expiring Personal Access Tokens (PATs)
 
@@ -74,7 +74,7 @@ X-OAuth-Scopes: repo, workflow, admin:org, delete_repo, write:packages
 
 ### 3. Local Accounts That Bypass SSO and MFA
 
-The organisation enforces SSO+MFA—but a tool keeps a local admin account outside the IdP.
+The organisation enforces SSO+MFA-but a tool keeps a local admin account outside the IdP.
 
 ```
 # SSO login is protected; the local one is not.
@@ -85,7 +85,7 @@ Content-Type: application/json
 -> 200 OK    # no MFA challenge, no conditional access, no central log
 ```
 
-**Payoff**: credential stuffing and password reuse work against the one door that skips every central control—and the login may not even appear in SSO audit logs.
+**Payoff**: credential stuffing and password reuse work against the one door that skips every central control-and the login may not even appear in SSO audit logs.
 
 ### 4. Reusing a Shared Bot / Service Account
 
@@ -121,7 +121,7 @@ contractor@vendor.example   role: Write on 40 repos (engagement ended)
 "marketplace-app"           scope: read/write code + CI, no expiry
 ```
 
-**Payoff**: compromising the contractor's account, or the third-party integration's tokens, hands the attacker legitimate write access into the codebase—often with no anomaly to trigger alerts.
+**Payoff**: compromising the contractor's account, or the third-party integration's tokens, hands the attacker legitimate write access into the codebase-often with no anomaly to trigger alerts.
 
 ### 7. Unrotated Machine Credentials and Deploy Keys
 
@@ -198,11 +198,11 @@ Offboarded contractor's PAT still valid  -> log into SCM (no MFA path)
 
 ## Key Takeaways
 
-1. **Inadequate IAM is exploited by reach, not payloads**—one over-permissioned identity becomes a bridge across the toolchain.
-2. **Machine identities are the prize**—leaked CI tokens, PATs, deploy keys, and robot accounts give quiet, high-privilege access.
-3. **Scope and expiry decide the blast radius**—a broad, non-expiring credential turns a small leak into a large breach.
-4. **Local and shared accounts undermine every central control**—they skip MFA, skip logging, and survive offboarding.
-5. **Attackers pivot and persist**—they escalate through RBAC gaps and mint fresh identities to keep access after revocation.
+1. **Inadequate IAM is exploited by reach, not payloads**-one over-permissioned identity becomes a bridge across the toolchain.
+2. **Machine identities are the prize**-leaked CI tokens, PATs, deploy keys, and robot accounts give quiet, high-privilege access.
+3. **Scope and expiry decide the blast radius**-a broad, non-expiring credential turns a small leak into a large breach.
+4. **Local and shared accounts undermine every central control**-they skip MFA, skip logging, and survive offboarding.
+5. **Attackers pivot and persist**-they escalate through RBAC gaps and mint fresh identities to keep access after revocation.
 
 ## Next Steps
 

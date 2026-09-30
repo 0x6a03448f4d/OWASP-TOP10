@@ -10,11 +10,11 @@
 
 ## What is Mass Assignment?
 
-**Mass Assignment** occurs when an API automatically binds client-supplied input directly to the properties of an internal object—a database model, a domain entity, or a configuration record—*without an allow-list* of which fields a client is actually permitted to set. The convenience feature that makes modern frameworks pleasant to use (take the whole request body, map it onto an object in one line) becomes a vulnerability the moment the object contains fields the client should never control.
+**Mass Assignment** occurs when an API automatically binds client-supplied input directly to the properties of an internal object-a database model, a domain entity, or a configuration record-*without an allow-list* of which fields a client is actually permitted to set. The convenience feature that makes modern frameworks pleasant to use (take the whole request body, map it onto an object in one line) becomes a vulnerability the moment the object contains fields the client should never control.
 
-The attack is disarmingly simple. An attacker looks at a legitimate request, guesses or discovers the names of extra, sensitive properties on the underlying object, and simply *adds those fields to the request body*. If the framework binds them blindly, the attacker has just written to a field the user interface never exposed—setting their own `role` to `admin`, flipping `isVerified` to `true`, inflating a `balance`, or re-pointing a record's `user_id` at someone else.
+The attack is disarmingly simple. An attacker looks at a legitimate request, guesses or discovers the names of extra, sensitive properties on the underlying object, and simply *adds those fields to the request body*. If the framework binds them blindly, the attacker has just written to a field the user interface never exposed-setting their own `role` to `admin`, flipping `isVerified` to `true`, inflating a `balance`, or re-pointing a record's `user_id` at someone else.
 
-> **Edition note.** This lesson uses the **2019** framing, where Mass Assignment is its own category: **API6:2019**. In the 2023 edition it was merged with Excessive Data Exposure into a single, broader category—**API3:2023 Broken Object Property Level Authorization (BOPLA)**. The vulnerability class did not go away; it was reclassified. Everything below applies directly to the "unauthorized modification of object properties" half of BOPLA.
+> **Edition note.** This lesson uses the **2019** framing, where Mass Assignment is its own category: **API6:2019**. In the 2023 edition it was merged with Excessive Data Exposure into a single, broader category-**API3:2023 Broken Object Property Level Authorization (BOPLA)**. The vulnerability class did not go away; it was reclassified. Everything below applies directly to the "unauthorized modification of object properties" half of BOPLA.
 
 ### Core Concept
 
@@ -54,14 +54,14 @@ Mass Assignment is especially at home in API codebases for a few structural reas
 
 - APIs are **object-centric**: they accept and return JSON that maps closely onto persistence models, so the temptation to bind body→model directly is constant.
 - Modern frameworks **encourage auto-binding**: ActiveRecord, Eloquent, Spring's data binding, and `Object.assign(model, req.body)` all make one-line binding the path of least resistance.
-- The **extra fields are invisible in the UI** but fully documented by the model, schema, or a leaky GET response—so attackers can learn the property names easily.
+- The **extra fields are invisible in the UI** but fully documented by the model, schema, or a leaky GET response-so attackers can learn the property names easily.
 - The same object is often **reused for create, update, and internal logic**, so a field that is legitimate for the server to set is exposed to client binding by accident.
 
 ## Why Does This Matter?
 
 ### Business Impact
 
-- **Privilege Escalation**: The classic outcome—a normal user sets `role: "admin"`, `is_staff: true`, or `permissions: [...]` during signup or profile update and gains administrative control.
+- **Privilege Escalation**: The classic outcome-a normal user sets `role: "admin"`, `is_staff: true`, or `permissions: [...]` during signup or profile update and gains administrative control.
 - **Financial Tampering**: Binding a client-controlled `balance`, `credit`, `discount`, `price`, or `isPaid` lets an attacker grant themselves money or free goods.
 - **Authorization Bypass and Account Takeover**: Overwriting an ownership field such as `user_id`, `owner_id`, or `account_id` re-assigns a record to another user or lets an attacker act on someone else's data.
 - **Trust and Verification Bypass**: Flipping `isVerified`, `emailConfirmed`, `kycPassed`, or `approved` skips controls that gate the rest of the platform.
@@ -157,12 +157,12 @@ POST /api/comments HTTP/1.1
 
 **Situation**:
 - Early Rails made `attr_accessible` opt-in, so models accepted every submitted attribute by default. This became the textbook example of Mass Assignment.
-- A researcher demonstrated the class of flaw against a high-profile Rails application by submitting extra attributes that the forms never exposed—including fields that changed record ownership and privileged flags.
+- A researcher demonstrated the class of flaw against a high-profile Rails application by submitting extra attributes that the forms never exposed-including fields that changed record ownership and privileged flags.
 
 **Impact**:
 - The demonstration showed that unfiltered attribute binding let a user modify records and elevate access they were never granted.
 
-**Root Cause and Aftermath**: Framework auto-binding with no allow-list. The episode was influential enough that Rails changed its posture—`strong parameters` (explicit `permit`) became the standard, secure-by-default way to bind params in later versions.
+**Root Cause and Aftermath**: Framework auto-binding with no allow-list. The episode was influential enough that Rails changed its posture-`strong parameters` (explicit `permit`) became the standard, secure-by-default way to bind params in later versions.
 
 ### Case Class 2: Signup / Profile Privilege Escalation
 
@@ -181,18 +181,18 @@ POST /api/comments HTTP/1.1
 - E-commerce and fintech APIs that bind order or account bodies directly to models exposing `price`, `discount`, `balance`, or `status`.
 
 **Impact**:
-- Attackers set their own discount to 100%, mark an unpaid order as paid, or advance an order's status past checks—converting a data-binding shortcut into direct monetary loss.
+- Attackers set their own discount to 100%, mark an unpaid order as paid, or advance an order's status past checks-converting a data-binding shortcut into direct monetary loss.
 
 **Root Cause**: Server-authoritative fields (money, status) are left writable through the same binding used for benign fields, and are validated on the wrong side of the trust boundary.
 
 ## Prevalence and Detectability
 
-Mass Assignment earned its own slot in the 2019 OWASP API Security Top 10 precisely because it is **common, easy to exploit, and hard to spot in review**—the vulnerable code usually looks like clean, idiomatic framework usage.
+Mass Assignment earned its own slot in the 2019 OWASP API Security Top 10 precisely because it is **common, easy to exploit, and hard to spot in review**-the vulnerable code usually looks like clean, idiomatic framework usage.
 
 Rather than cite specific numbers (which vary by source and year), the durable picture is:
 
 - OWASP characterises the exploitability as **easy**: the attacker only needs to guess plausible field names and add them to a request.
-- Detectability by an outside attacker is rated **moderate**—field names are frequently leaked by verbose GET responses, API schemas, documentation, or public source, and are otherwise guessable.
+- Detectability by an outside attacker is rated **moderate**-field names are frequently leaked by verbose GET responses, API schemas, documentation, or public source, and are otherwise guessable.
 - The most commonly exploited fields are **authorization flags, verification/status flags, financial values, and identity/ownership references**.
 - Because the flaw hides in ordinary auto-binding, it is **frequently missed** by code review and by scanners that do not understand which object fields are sensitive.
 
@@ -210,7 +210,7 @@ Rather than cite specific numbers (which vary by source and year), the durable p
 
 ### Myth 3: "Attackers can't know our internal field names"
 
-**Reality**: Field names leak constantly—from verbose GET responses, OpenAPI/Swagger schemas, error messages, mobile apps, JavaScript bundles, and open-source code. They are also highly predictable (`role`, `is_admin`, `user_id`). Obscurity is not a defense.
+**Reality**: Field names leak constantly-from verbose GET responses, OpenAPI/Swagger schemas, error messages, mobile apps, JavaScript bundles, and open-source code. They are also highly predictable (`role`, `is_admin`, `user_id`). Obscurity is not a defense.
 
 ### Myth 4: "Using an ORM makes binding safe"
 
@@ -233,15 +233,15 @@ Rather than cite specific numbers (which vary by source and year), the durable p
 | **Typical fix** | Input allow-list / DTO in | Output allow-list / DTO out | Authorize the object per request |
 | **2023 mapping** | API3:2023 BOPLA (write side) | API3:2023 BOPLA (read side) | API1:2023 BOLA |
 
-Note how Mass Assignment and Excessive Data Exposure are mirror images—one is the write side, the other the read side of "the object has fields the client shouldn't touch." That symmetry is exactly why the 2023 edition folded both into BOPLA.
+Note how Mass Assignment and Excessive Data Exposure are mirror images-one is the write side, the other the read side of "the object has fields the client shouldn't touch." That symmetry is exactly why the 2023 edition folded both into BOPLA.
 
 ## Key Takeaways
 
-1. **Mass Assignment is an allow-list problem**—the framework binds every field the client sends unless you explicitly restrict which fields are bindable.
-2. **The UI is not the API**—hidden and read-only fields are fully reachable in the raw request body.
-3. **Sensitive fields are the prize**—authorization, verification, financial, and identity fields turn a data-binding shortcut into privilege escalation and fraud.
-4. **Never bind the request straight to a persistence model**—separate the input model (DTO/schema) from the domain model.
-5. **Still relevant in 2023+**—folded into API3:2023 BOPLA, with the same root cause and the same fix.
+1. **Mass Assignment is an allow-list problem**-the framework binds every field the client sends unless you explicitly restrict which fields are bindable.
+2. **The UI is not the API**-hidden and read-only fields are fully reachable in the raw request body.
+3. **Sensitive fields are the prize**-authorization, verification, financial, and identity fields turn a data-binding shortcut into privilege escalation and fraud.
+4. **Never bind the request straight to a persistence model**-separate the input model (DTO/schema) from the domain model.
+5. **Still relevant in 2023+**-folded into API3:2023 BOPLA, with the same root cause and the same fix.
 
 ## How to Identify if You're Vulnerable
 
@@ -252,7 +252,7 @@ Note how Mass Assignment and Excessive Data Exposure are mirror images—one is 
 - [ ] Do PATCH/PUT handlers merge arbitrary keys onto a loaded record?
 - [ ] Can nested objects be bound (e.g. `customer.id`, `address.country`) without restriction?
 - [ ] Is ownership (`user_id`) taken from the session, never from the request body?
-- [ ] Would adding `"role":"admin"` or `"isVerified":true` to a normal request be rejected—or silently accepted?
+- [ ] Would adding `"role":"admin"` or `"isVerified":true` to a normal request be rejected-or silently accepted?
 
 If you answered "yes" to the binding questions or "no"/"not sure" to the allow-list questions, you likely have exploitable Mass Assignment today.
 

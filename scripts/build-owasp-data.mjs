@@ -20,7 +20,7 @@ const V = (id, number, name, slug) => ({ id, number, name, slug });
 const EDITIONS = {
   web: {
     label: 'Web Application',
-    blurb: 'The original OWASP Top 10 — the most critical security risks to web applications.',
+    blurb: 'The original OWASP Top 10 - the most critical security risks to web applications.',
     lessonDir: 'labs/web/OWASP-Web',
     editions: [
       { year: '2025', latest: true, cheatDir: 'resources/cheat-sheets/2025/web', vulns: [
@@ -63,7 +63,7 @@ const EDITIONS = {
   },
   api: {
     label: 'API Security',
-    blurb: 'Risks specific to APIs — object/function authorization, resource consumption, and more.',
+    blurb: 'Risks specific to APIs - object/function authorization, resource consumption, and more.',
     lessonDir: 'labs/api/OWASP-API',
     editions: [
       { year: '2023', latest: true, cheatDir: 'resources/cheat-sheets/api', vulns: [
@@ -105,7 +105,7 @@ const EDITIONS = {
   },
   mobile: {
     label: 'Mobile',
-    blurb: 'The OWASP Mobile Top 10 (2024) — the top risks for mobile applications.',
+    blurb: 'The OWASP Mobile Top 10 (2024) - the top risks for mobile applications.',
     lessonDir: 'labs/mobile/OWASP-Mobile',
     editions: [
       { year: '2024', latest: true, cheatDir: 'resources/cheat-sheets/mobile', vulns: [
@@ -147,7 +147,7 @@ const EDITIONS = {
   },
   llm: {
     label: 'LLM & GenAI',
-    blurb: 'The OWASP Top 10 for Large Language Model applications — prompt injection, agents, RAG, and more.',
+    blurb: 'The OWASP Top 10 for Large Language Model applications - prompt injection, agents, RAG, and more.',
     lessonDir: 'labs/llm/OWASP-LLM',
     editions: [
       { year: '2025', latest: true, cheatDir: 'resources/cheat-sheets/2025/llm', vulns: [
@@ -178,7 +178,7 @@ const EDITIONS = {
   },
   kubernetes: {
     label: 'Kubernetes',
-    blurb: 'The OWASP Kubernetes Top 10 — the most common security risks in Kubernetes clusters.',
+    blurb: 'The OWASP Kubernetes Top 10 - the most common security risks in Kubernetes clusters.',
     lessonDir: 'labs/kubernetes/OWASP-Kubernetes',
     editions: [
       { year: '2022', latest: true, cheatDir: 'resources/cheat-sheets/kubernetes', vulns: [
@@ -197,7 +197,7 @@ const EDITIONS = {
   },
   cicd: {
     label: 'CI/CD',
-    blurb: 'The OWASP Top 10 CI/CD Security Risks — how build and delivery pipelines get attacked.',
+    blurb: 'The OWASP Top 10 CI/CD Security Risks - how build and delivery pipelines get attacked.',
     lessonDir: 'labs/cicd/OWASP-CICD',
     editions: [
       { year: '2022', latest: true, cheatDir: 'resources/cheat-sheets/cicd', vulns: [
@@ -216,7 +216,7 @@ const EDITIONS = {
   },
   ml: {
     label: 'ML Security',
-    blurb: 'The OWASP Machine Learning Security Top 10 — attacks against ML models and pipelines.',
+    blurb: 'The OWASP Machine Learning Security Top 10 - attacks against ML models and pipelines.',
     lessonDir: 'labs/ml/OWASP-ML',
     editions: [
       { year: '2023', latest: true, cheatDir: 'resources/cheat-sheets/ml', vulns: [
@@ -235,7 +235,7 @@ const EDITIONS = {
   },
   'smart-contract': {
     label: 'Smart Contract',
-    blurb: 'The OWASP Smart Contract Top 10 (2025) — the top risks in Solidity/EVM smart contracts.',
+    blurb: 'The OWASP Smart Contract Top 10 (2025) - the top risks in Solidity/EVM smart contracts.',
     lessonDir: 'labs/smartcontract/OWASP-SmartContract',
     editions: [
       { year: '2025', latest: true, cheatDir: 'resources/cheat-sheets/smart-contract', vulns: [
@@ -254,7 +254,7 @@ const EDITIONS = {
   },
   serverless: {
     label: 'Serverless',
-    blurb: 'The OWASP Serverless Top 10 — the security weaknesses specific to serverless (FaaS) applications.',
+    blurb: 'The OWASP Serverless Top 10 - the security weaknesses specific to serverless (FaaS) applications.',
     lessonDir: 'labs/serverless/OWASP-Serverless',
     editions: [
       { year: '2018', latest: true, cheatDir: 'resources/cheat-sheets/serverless', vulns: [
@@ -273,7 +273,7 @@ const EDITIONS = {
   },
   proactive: {
     label: 'Proactive Controls',
-    blurb: 'The OWASP Top 10 Proactive Controls (2024) — the defensive techniques every developer should build in.',
+    blurb: 'The OWASP Top 10 Proactive Controls (2024) - the defensive techniques every developer should build in.',
     lessonDir: 'labs/proactive/OWASP-Proactive-Controls',
     editions: [
       { year: '2024', latest: true, cheatDir: 'resources/cheat-sheets/proactive', vulns: [

@@ -55,7 +55,7 @@ Tagless variant (survives naive <script> blacklists):
 
 ## 2. HTML-Attribute Breakout
 
-When data lands inside a quoted attribute, the attacker's first goal is to close the quote and the tag, or to inject a new event-handler attribute. Unquoted attributes are far worse — a single space starts a new attribute.
+When data lands inside a quoted attribute, the attacker's first goal is to close the quote and the tag, or to inject a new event-handler attribute. Unquoted attributes are far worse - a single space starts a new attribute.
 
 ```
 Sink (quoted):    <input type="text" value="DATA">
@@ -71,7 +71,7 @@ Result:           <input value=x onmouseover=steal()>   (no quote break needed)
 
 ## 3. JavaScript-Context Injection
 
-Data written inside an inline `<script>` block or an event handler is already in an executable context. Even inside a quoted string, a quote, backslash, or newline breaks out — and `</script>` can terminate the whole block regardless of JS string rules, because the HTML parser sees it first.
+Data written inside an inline `<script>` block or an event handler is already in an executable context. Even inside a quoted string, a quote, backslash, or newline breaks out - and `</script>` can terminate the whole block regardless of JS string rules, because the HTML parser sees it first.
 
 ```
 Sink:     <script> var name = "DATA"; </script>
@@ -82,7 +82,7 @@ Parser-level breakout (works even inside a JS string):
 Payload:  </script><script>steal()</script>
 ```
 
-**Required encoding**: JavaScript string encoding (hex-escape quotes, backslash, and line terminators) *and* block `</` sequences. Better: do not inject server data into script blocks at all — pass it via a JSON `<script type="application/json">` block or a `data-` attribute and read it with `JSON.parse`/`textContent`.
+**Required encoding**: JavaScript string encoding (hex-escape quotes, backslash, and line terminators) *and* block `</` sequences. Better: do not inject server data into script blocks at all - pass it via a JSON `<script type="application/json">` block or a `data-` attribute and read it with `JSON.parse`/`textContent`.
 
 ## 4. URL / `javascript:` Scheme
 
@@ -98,7 +98,7 @@ Also dangerous:
   window.location = untrustedValue   // DOM redirect to javascript: URL
 ```
 
-**Required defense**: URL-encode query components, and *validate the scheme* — allow only `http:`, `https:`, `mailto:` (an allow-list), rejecting `javascript:`, `data:`, and `vbscript:`.
+**Required defense**: URL-encode query components, and *validate the scheme* - allow only `http:`, `https:`, `mailto:` (an allow-list), rejecting `javascript:`, `data:`, and `vbscript:`.
 
 ## 5. CSS-Context Injection
 
@@ -207,7 +207,7 @@ Attackers assume a filter exists and probe its edges. Common bypass techniques a
 - **Nested/partial removal**: `<scr<script>ipt>` where a filter that strips one `<script>` leaves a valid one behind.
 - **Namespace confusion**: SVG/MathML foreign content where parsing rules differ from HTML.
 
-**Lesson**: every bypass here defeats *blacklists and regex filters*. None of them defeat correct, context-aware *output encoding* or an allow-list DOM sanitizer — which is exactly why those are the recommended defenses.
+**Lesson**: every bypass here defeats *blacklists and regex filters*. None of them defeat correct, context-aware *output encoding* or an allow-list DOM sanitizer - which is exactly why those are the recommended defenses.
 
 ## 12. What the Payload Does Next
 

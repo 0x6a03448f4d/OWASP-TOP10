@@ -25,7 +25,7 @@ def invoice(id):
     return jsonify(inv.to_dict())
 ```
 
-A credential-stuffing run and a BOLA enumeration walk both produce only anonymous 401/403 responses—no actor, no object, nothing to alert on.
+A credential-stuffing run and a BOLA enumeration walk both produce only anonymous 401/403 responses-no actor, no object, nothing to alert on.
 
 ### Observable
 ```python
@@ -69,7 +69,7 @@ def invoice(id):
     return jsonify(inv.to_dict())
 ```
 
-Now every failed login and every denied object carries the subject, source, endpoint, and object id—exactly the fields a detection needs to spot stuffing and enumeration.
+Now every failed login and every denied object carries the subject, source, endpoint, and object id-exactly the fields a detection needs to spot stuffing and enumeration.
 
 ## Node.js (Express + pino)
 
@@ -184,7 +184,7 @@ class InvoiceController {
 
 ## Alerting & SIEM Configuration
 
-Structured events are only half the job—these rules turn them into real-time detection. Thresholds shown are illustrative starting points; tune them to your own baseline.
+Structured events are only half the job-these rules turn them into real-time detection. Thresholds shown are illustrative starting points; tune them to your own baseline.
 
 ### ElastAlert 2 (against Elasticsearch/OpenSearch): 401 spike = credential stuffing
 ```yaml

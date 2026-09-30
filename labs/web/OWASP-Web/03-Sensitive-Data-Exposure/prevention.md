@@ -89,7 +89,7 @@ server {
 }
 ```
 
-> **Also encrypt the internal legs.** TLS that terminates at the load balancer and travels cleartext to the app or database still exposes data to anyone inside the network. Use TLS (or mTLS) for service-to-service and database connections too — "internal" is not "safe."
+> **Also encrypt the internal legs.** TLS that terminates at the load balancer and travels cleartext to the app or database still exposes data to anyone inside the network. Use TLS (or mTLS) for service-to-service and database connections too - "internal" is not "safe."
 
 ## Layer 3: Protect Data At Rest
 
@@ -118,16 +118,16 @@ db.save(ssn_enc=encrypt_field(user_ssn))
 
 ### Key management principles
 
-- **Use a KMS / secret manager** (AWS KMS, GCP KMS, Azure Key Vault, HashiCorp Vault) with envelope encryption — the master key never leaves the KMS.
+- **Use a KMS / secret manager** (AWS KMS, GCP KMS, Azure Key Vault, HashiCorp Vault) with envelope encryption - the master key never leaves the KMS.
 - **Never hard-code keys** or commit them; never store the key in the same database as the ciphertext.
 - **Rotate keys** on a schedule and support re-encryption; scope access so only the services that need to decrypt can.
-- **Layer with volume encryption**, but do not rely on it alone — it does not protect a running, compromised app.
+- **Layer with volume encryption**, but do not rely on it alone - it does not protect a running, compromised app.
 
 For the deeper treatment of algorithm and mode selection (AES-GCM, ChaCha20-Poly1305, avoiding ECB, IV handling), see the dedicated [Cryptographic Failures](../02-Cryptographic-Failures/prevention.md) lesson.
 
 ## Layer 4: Store Passwords as Hashes
 
-Passwords are never encrypted — they are hashed with a salted, deliberately slow algorithm so that even a full database leak does not hand over the plaintext. This is the control that keeps "database breach" from automatically meaning "password breach."
+Passwords are never encrypted - they are hashed with a salted, deliberately slow algorithm so that even a full database leak does not hand over the plaintext. This is the control that keeps "database breach" from automatically meaning "password breach."
 
 ```python
 # Argon2id (preferred) - Python
@@ -142,8 +142,8 @@ except Exception:
     reject_login()
 ```
 
-- **Use** Argon2id, bcrypt, or scrypt — all salted and slow by design.
-- **Never use** MD5, SHA-1, or plain SHA-256/512 for passwords — they are far too fast to resist offline cracking.
+- **Use** Argon2id, bcrypt, or scrypt - all salted and slow by design.
+- **Never use** MD5, SHA-1, or plain SHA-256/512 for passwords - they are far too fast to resist offline cracking.
 - **Tune the work factor** so a single verify takes a noticeable fraction of a second on your hardware.
 
 ## Layer 5: Close In-Use Leaks (Caching, URLs, Logs)
@@ -191,7 +191,7 @@ logging.getLogger().addFilter(RedactFilter())
 
 ### Secrets
 
-- Store credentials, keys, and tokens in a secret manager or environment configuration injected at runtime — never in source, config files committed to git, or client-side code.
+- Store credentials, keys, and tokens in a secret manager or environment configuration injected at runtime - never in source, config files committed to git, or client-side code.
 - Run a secret scanner (gitleaks, trufflehog) in CI and as a pre-commit hook; **rotate** anything ever committed, because history keeps it.
 
 ```bash

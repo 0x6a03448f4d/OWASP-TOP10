@@ -2,7 +2,7 @@
 
 Each pair below shows **vulnerable** code that ships development-only functionality, and the **secure** version that keeps it out of the release build. The examples span Android (Kotlin and Java), iOS (Swift), and the build configuration that actually enforces the separation.
 
-## Android — Kotlin
+## Android - Kotlin
 
 ### 1. Hidden Debug Menu / God-Mode
 
@@ -19,7 +19,7 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 }
-// InternalDebugMenu is in src/main — it ships in the release APK
+// InternalDebugMenu is in src/main - it ships in the release APK
 ```
 
 #### Secure
@@ -40,7 +40,7 @@ object DebugHooks {
 // src/release/java/.../DebugHooks.kt
 object DebugHooks { fun attach(activity: SettingsActivity) { /* no-op in release */ } }
 
-// src/main — calls the flavor-specific implementation
+// src/main - calls the flavor-specific implementation
 override fun onCreate(b: Bundle?) { super.onCreate(b); DebugHooks.attach(this) }
 ```
 
@@ -63,7 +63,7 @@ object Api {
     // Selected per build type; release cannot reach staging, and no creds are compiled in.
     val BASE_URL = BuildConfig.BASE_URL   // set via buildConfigField in build.gradle
 }
-// Test accounts are provisioned in the server's test environment only — never in the app.
+// Test accounts are provisioned in the server's test environment only - never in the app.
 ```
 
 ### 3. Client-Side Feature Flag Hiding Shipped Code
@@ -88,7 +88,7 @@ if (entitlements.isEnabled(Feature.NEW_PAYMENTS)) {   // server-verified per req
 // Truly unreleased code that must not leak stays behind a src/debug source set until launch.
 ```
 
-## Android — Java
+## Android - Java
 
 ### Developer Backdoor and Verbose Logging
 
@@ -117,7 +117,7 @@ public boolean isAuthorized(User u) {
 // -assumenosideeffects in proguard-rules.pro.
 ```
 
-## iOS — Swift
+## iOS - Swift
 
 ### 1. Debug Menu and Environment Switcher
 
@@ -212,7 +212,7 @@ let logger = Logger(subsystem: "com.example.app", category: "auth")
 logger.info("login ok id=\(user.id, privacy: .public) token=\(session.jwt, privacy: .private)")
 ```
 
-## Build Configuration — Enforcing the Separation
+## Build Configuration - Enforcing the Separation
 
 ### 1. Android: Build Types, Flavors, and debuggable
 
@@ -222,7 +222,7 @@ android {
     buildTypes {
         debug {
             buildConfigField "String", "BASE_URL", "\"https://staging-api.example.com/\""
-            // debuggable is true for debug by default — fine, it never ships
+            // debuggable is true for debug by default - fine, it never ships
         }
         release {
             buildConfigField "String", "BASE_URL", "\"https://api.example.com/\""
@@ -233,7 +233,7 @@ android {
     }
 }
 
-// src layout — development-only code physically excluded from release
+// src layout - development-only code physically excluded from release
 // app/src/debug/java/...   -> compiled into debug APK only
 // app/src/release/java/... -> release stubs / overrides
 // app/src/main/java/...    -> shared production code

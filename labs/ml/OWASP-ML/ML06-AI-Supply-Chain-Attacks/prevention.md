@@ -4,7 +4,7 @@
 
 Preventing supply-chain compromise is less about a single control and more about **refusing to trust any ingredient you have not verified**:
 
-1. Vet and pin every source—models, datasets, packages, and tooling.
+1. Vet and pin every source-models, datasets, packages, and tooling.
 2. Verify provenance and integrity (hashes, signatures, model cards) before use.
 3. Prefer safe, data-only formats; never deserialize untrusted files with code-executing loaders.
 4. Scan artifacts and dependencies automatically in CI.
@@ -32,7 +32,7 @@ state = load_file("downloaded_model.safetensors")  # data-only, no execution
 model.load_state_dict(state)
 ```
 
-When a framework forces pickle, load in a sandbox (next sections) and scan first. Newer `torch.load` supports `weights_only=True`, which restricts unpickling to tensors—use it, but treat safetensors as the real fix.
+When a framework forces pickle, load in a sandbox (next sections) and scan first. Newer `torch.load` supports `weights_only=True`, which restricts unpickling to tensors-use it, but treat safetensors as the real fix.
 
 ## 2. Verify Provenance and Integrity Before Use
 
@@ -77,7 +77,7 @@ AutoModel.from_pretrained("unknown/repo", trust_remote_code=True)
 AutoModel.from_pretrained("your-org/reviewed-model", trust_remote_code=False)
 ```
 
-If a model genuinely requires custom code, vendor and review that code yourself, pin it, and run it in the sandbox described below—do not fetch-and-execute it from a third party at load time.
+If a model genuinely requires custom code, vendor and review that code yourself, pin it, and run it in the sandbox described below-do not fetch-and-execute it from a third party at load time.
 
 ## 4. Scan Models and Dependencies in CI
 
@@ -103,7 +103,7 @@ Run these on every pull request and on a schedule, so a newly disclosed maliciou
 Unpinned dependencies are how typosquatting and confusion succeed. Pin exact versions and hashes, from a trusted index.
 
 ```
-# requirements.txt — exact versions
+# requirements.txt - exact versions
 torch==2.3.1
 transformers==4.41.2
 safetensors==0.4.3
@@ -144,7 +144,7 @@ Only promote an artifact out of the sandbox after it passes scanning and integri
 
 ## 7. Maintain an SBOM / AI-BOM
 
-You cannot secure a supply chain you cannot enumerate. Track every component—including models and datasets.
+You cannot secure a supply chain you cannot enumerate. Track every component-including models and datasets.
 
 ```bash
 # Generate a Software Bill of Materials for packages...
@@ -162,7 +162,7 @@ An AI-BOM makes incident response tractable: when a malicious package or model i
 
 - Proxy public models/datasets/packages through an internal, curated mirror rather than pulling directly from the internet.
 - Require artifacts to be scanned and signed before they are admitted to the internal registry ("promotion" gates).
-- Make production pull from immutable, digest-pinned references—never a mutable `latest` or `main`.
+- Make production pull from immutable, digest-pinned references-never a mutable `latest` or `main`.
 
 ```python
 # Model registry policy (pseudocode): only signed + scanned artifacts are servable
@@ -207,11 +207,11 @@ Also alert on: unpinned or newly added dependencies, models pulled from unknown 
 
 ## Key Takeaways
 
-1. **Prefer safetensors** — data-only formats make "load a model" stop meaning "run a program."
-2. **Verify before you trust** — pin revisions and check hashes/signatures for every model, dataset, and package.
-3. **Pin the whole tree** — versions and hashes defeat typosquatting and dependency confusion.
-4. **Disable `trust_remote_code`** — it is remote code execution by design for untrusted repos.
-5. **Scan, sandbox, and inventory** — ModelScan/SCA in CI, isolated loading, and an AI-BOM for fast response.
+1. **Prefer safetensors** - data-only formats make "load a model" stop meaning "run a program."
+2. **Verify before you trust** - pin revisions and check hashes/signatures for every model, dataset, and package.
+3. **Pin the whole tree** - versions and hashes defeat typosquatting and dependency confusion.
+4. **Disable `trust_remote_code`** - it is remote code execution by design for untrusted repos.
+5. **Scan, sandbox, and inventory** - ModelScan/SCA in CI, isolated loading, and an AI-BOM for fast response.
 
 ## Next Steps
 

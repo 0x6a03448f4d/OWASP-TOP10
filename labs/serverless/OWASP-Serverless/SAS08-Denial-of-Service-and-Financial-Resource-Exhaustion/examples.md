@@ -2,7 +2,7 @@
 
 Each pair below shows a **vulnerable** configuration (or function) and the **secure** version. The examples focus on what dominates real serverless DoS/DoW findings: no concurrency caps, unthrottled public endpoints, oversized timeouts/memory, recursive event loops, uncapped retries, unprotected downstream calls, and no cost controls.
 
-## 1. Reserved Concurrency — serverless.yml
+## 1. Reserved Concurrency - serverless.yml
 
 ### Vulnerable
 ```yaml
@@ -17,7 +17,7 @@ functions:
     handler: handler.report
     events:
       - http: { path: /report, method: get }
-  checkout:                     # critical path — no protected capacity
+  checkout:                     # critical path - no protected capacity
     handler: handler.checkout
     events:
       - http: { path: /checkout, method: post }
@@ -114,7 +114,7 @@ functions:
 ```
 
 ```javascript
-// handler.thumb — cap input size and batch length up front (Node.js)
+// handler.thumb - cap input size and batch length up front (Node.js)
 const MAX_BYTES = 256 * 1024;   // 256 KB
 const MAX_ITEMS = 100;
 
@@ -256,7 +256,7 @@ exports.handler = async (event) => {
 
 ### Secure
 ```yaml
-# AWS Budgets — notify well before the ceiling (Budgets NOTIFY, they don't cap)
+# AWS Budgets - notify well before the ceiling (Budgets NOTIFY, they don't cap)
 resources:
   Resources:
     MonthlyBudget:
@@ -274,7 +274,7 @@ resources:
             Subscribers:
               - { SubscriptionType: SNS, Address: !Ref SecurityTopic }
 
-    # CloudWatch alarm — invocation-rate spike (early DoW/DoS signal, SAS-5)
+    # CloudWatch alarm - invocation-rate spike (early DoW/DoS signal, SAS-5)
     InvocationSpikeAlarm:
       Type: AWS::CloudWatch::Alarm
       Properties:

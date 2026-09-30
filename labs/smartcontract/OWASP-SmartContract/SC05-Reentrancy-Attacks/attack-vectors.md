@@ -8,7 +8,7 @@
 
 ## Understanding Reentrancy Attack Vectors
 
-> **⚠ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in contracts you own or are authorised to test.
+> **⚠ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in contracts you own or are authorised to test.
 
 Reentrancy is not exploited with a clever input; it is exploited by **seizing control**. Whenever a vulnerable contract makes an external call, it momentarily hands the program counter to code the attacker wrote. The attacker's job is simply to call back into the victim before the victim has finished writing down what it just did. Because the flaw is in *ordering*, the exploit is a short, mechanical loop rather than a subtle payload.
 
@@ -84,7 +84,7 @@ function transfer(address to, uint256 amt) external {
 // moving the balance out before withdraw() zeroes it.
 ```
 
-**Payoff**: a reentrancy guard on `withdraw` alone does not help—the re-entry lands in `transfer`. Every function touching shared state must be considered.
+**Payoff**: a reentrancy guard on `withdraw` alone does not help-the re-entry lands in `transfer`. Every function touching shared state must be considered.
 
 ### 3. Cross-Contract Reentrancy
 
@@ -212,11 +212,11 @@ ERC777 token accepted as collateral      -> transfer hands control to attacker
 
 ## Key Takeaways
 
-1. **Reentrancy is control-flow theft**—an external call lends the attacker the CPU mid-transaction.
-2. **The entry point is any external call**—ETH sends, ERC777/ERC721 hooks, arbitrary calls, and `delegatecall`.
-3. **Guards must cover siblings and getters**—cross-function and read-only variants slip past a single-function guard.
-4. **Gas tricks are not defences**—`transfer`/`send` stipends do not stop cross-function or token-hook re-entry.
-5. **Reentrancy chains**—combined with flash loans and integrations, one re-entry can compromise several protocols atomically.
+1. **Reentrancy is control-flow theft**-an external call lends the attacker the CPU mid-transaction.
+2. **The entry point is any external call**-ETH sends, ERC777/ERC721 hooks, arbitrary calls, and `delegatecall`.
+3. **Guards must cover siblings and getters**-cross-function and read-only variants slip past a single-function guard.
+4. **Gas tricks are not defences**-`transfer`/`send` stipends do not stop cross-function or token-hook re-entry.
+5. **Reentrancy chains**-combined with flash loans and integrations, one re-entry can compromise several protocols atomically.
 
 ## Next Steps
 

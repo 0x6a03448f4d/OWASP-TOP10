@@ -11,9 +11,9 @@
 
 ## What is a Membership Inference Attack?
 
-A **Membership Inference Attack (MIA)** is a privacy attack in which an adversary determines *whether a specific data record was part of the model's training set*. The attacker does not try to recover the record's contents—they already hold the record. What they learn is the single bit of information: **"was this exact example used to train the model?"**
+A **Membership Inference Attack (MIA)** is a privacy attack in which an adversary determines *whether a specific data record was part of the model's training set*. The attacker does not try to recover the record's contents-they already hold the record. What they learn is the single bit of information: **"was this exact example used to train the model?"**
 
-That single bit is often the most sensitive fact of all. If a model was trained on the records of patients enrolled in an HIV study, an addiction-treatment cohort, or a cancer registry, then confirming that a person's record was in the training set reveals—by construction—that the person belongs to that sensitive population. The *membership* is the disclosure.
+That single bit is often the most sensitive fact of all. If a model was trained on the records of patients enrolled in an HIV study, an addiction-treatment cohort, or a cancer registry, then confirming that a person's record was in the training set reveals-by construction-that the person belongs to that sensitive population. The *membership* is the disclosure.
 
 > **The core question of ML04:** Given a trained model (or just query access to it) and a candidate record, can an attacker decide with better-than-random confidence whether that record was in the training data? When the answer is yes and membership is sensitive, you have a privacy breach.
 
@@ -40,9 +40,9 @@ Attack:
 
 Membership inference is dangerous precisely because it needs so little:
 
-- It often works with **black-box query access only**—no weights, no gradients, just the prediction API that the model already exposes to make it useful.
+- It often works with **black-box query access only**-no weights, no gradients, just the prediction API that the model already exposes to make it useful.
 - The leak is a **property of the trained model itself**, not of a coding bug. You cannot patch it with input validation; it is baked into what the model memorised.
-- It targets **the training data**, which is frequently the most sensitive asset in the whole system—the health records, financial histories, or private messages the model learned from.
+- It targets **the training data**, which is frequently the most sensitive asset in the whole system-the health records, financial histories, or private messages the model learned from.
 - Because the leak is statistical, it can be **silent**: a model can be accurate, useful, and quietly memorising individuals at the same time.
 
 ## Why Does This Matter?
@@ -52,7 +52,7 @@ Membership inference is dangerous precisely because it needs so little:
 - **Privacy Violation**: Confirming membership in a sensitive-population dataset (a disease study, a mental-health service, a specific customer segment) directly discloses a private attribute about a real person.
 - **Re-identification**: Membership signals combine with side information to link an ostensibly anonymised record back to an individual, defeating de-identification claims.
 - **Regulatory Exposure**: Training data typically contains personal data protected by **GDPR** (and its concept of personal data / special-category data) and **HIPAA** (protected health information). A demonstrable membership leak is a confidentiality failure that can trigger notification duties, fines, and audits.
-- **Loss of Trust and Data-Sharing Ability**: Organisations that promised participants "your data will only be used to train an aggregate model" break that promise if the model leaks who participated—undermining future consent and collaboration.
+- **Loss of Trust and Data-Sharing Ability**: Organisations that promised participants "your data will only be used to train an aggregate model" break that promise if the model leaks who participated-undermining future consent and collaboration.
 - **Competitive and Contractual Harm**: Membership tests can reveal which records a company holds (e.g. proving a firm's model was trained on a partner's confidential dataset), creating disputes and IP exposure.
 
 ### Technical Impact
@@ -66,7 +66,7 @@ Membership inference is dangerous precisely because it needs so little:
 
 ### The Signal: Members Look Different
 
-Supervised models are trained by minimising a loss on the training examples. As a result, on a member the model has, in effect, "seen the answer" before—so it tends to assign that example lower loss, higher probability to the true class, and a sharper output distribution than it does to a comparable example it never saw.
+Supervised models are trained by minimising a loss on the training examples. As a result, on a member the model has, in effect, "seen the answer" before-so it tends to assign that example lower loss, higher probability to the true class, and a sharper output distribution than it does to a comparable example it never saw.
 
 ```
 Example: a classifier's probability for the TRUE label
@@ -113,22 +113,22 @@ The foundational black-box technique, introduced in the Shokri et al. membership
    - Feed the target's output to the attack model -> MEMBER / NON-MEMBER.
 ```
 
-The insight is that the attacker never needs the target's real training data or weights—they manufacture labelled membership examples locally with shadow models and transfer the learned distinguisher to the target.
+The insight is that the attacker never needs the target's real training data or weights-they manufacture labelled membership examples locally with shadow models and transfer the learned distinguisher to the target.
 
 ### Distinguishing ML04 from ML03 (Model Inversion)
 
-> **These are different attacks with different goals.** **ML03 Model Inversion** tries to *reconstruct* the contents of training data (e.g. regenerate a recognisable face or recover feature values). **ML04 Membership Inference** assumes the attacker *already has* the record and only wants to learn *whether it was in the training set*—a single membership bit, not the data itself.
+> **These are different attacks with different goals.** **ML03 Model Inversion** tries to *reconstruct* the contents of training data (e.g. regenerate a recognisable face or recover feature values). **ML04 Membership Inference** assumes the attacker *already has* the record and only wants to learn *whether it was in the training set*-a single membership bit, not the data itself.
 
 | Aspect | ML03 Model Inversion | ML04 Membership Inference |
 |--------|----------------------|---------------------------|
 | Attacker's goal | Reconstruct / recover the data | Decide if a known record was a training member |
-| Attacker already holds the record? | No—they want to derive it | Yes—they want the membership bit |
+| Attacker already holds the record? | No-they want to derive it | Yes-they want the membership bit |
 | Output of the attack | Approximate features / sample | One bit: IN vs OUT (with a confidence) |
 | Privacy harm | Content disclosure | Participation disclosure |
 
 ## The Overfitting Link
 
-Membership inference and **overfitting** are deeply connected. Overfitting is exactly the phenomenon of a model performing markedly better on its training data than on unseen data—which is the very gap an MIA measures.
+Membership inference and **overfitting** are deeply connected. Overfitting is exactly the phenomenon of a model performing markedly better on its training data than on unseen data-which is the very gap an MIA measures.
 
 ```
 Generalisation gap  =  (accuracy on training data) - (accuracy on test data)
@@ -140,7 +140,7 @@ Generalisation gap  =  (accuracy on training data) - (accuracy on test data)
 This link has two important consequences:
 
 - **Good ML hygiene is also privacy hygiene.** The regularisation techniques that reduce overfitting (weight decay, dropout, early stopping, more/augmented data) also shrink the membership signal.
-- **Overfitting is sufficient but not necessary.** Even well-generalised models can leak membership for outliers and rare records that the model had to memorise. Reducing overfitting lowers the risk substantially but does not, on its own, provide a formal privacy guarantee—that is what differential privacy is for.
+- **Overfitting is sufficient but not necessary.** Even well-generalised models can leak membership for outliers and rare records that the model had to memorise. Reducing overfitting lowers the risk substantially but does not, on its own, provide a formal privacy guarantee-that is what differential privacy is for.
 
 ## Real-World Impact
 
@@ -163,7 +163,7 @@ This link has two important consequences:
 ### Research Class 3: The Privacy–Utility Tradeoff and Differential Privacy
 
 **What this class established:**
-- Differentially private training (notably **DP-SGD**) provides a mathematically grounded upper bound on how much any single record can influence the model—directly limiting membership inference.
+- Differentially private training (notably **DP-SGD**) provides a mathematically grounded upper bound on how much any single record can influence the model-directly limiting membership inference.
 - The protection is real but comes with a **privacy–utility tradeoff**: stronger privacy (smaller epsilon) costs accuracy, and a very loose epsilon may provide little practical protection.
 
 **Why it matters:** It reframed the defence from "reduce overfitting and hope" to "train with a stated, auditable privacy budget."
@@ -183,7 +183,7 @@ Membership inference is one of the most studied privacy attacks in machine learn
 
 ### Myth 1: "The attacker needs our model weights"
 
-**Reality**: Many effective membership attacks are *black-box*—they use only the prediction API's outputs. White-box access makes attacks stronger, but is not required.
+**Reality**: Many effective membership attacks are *black-box*-they use only the prediction API's outputs. White-box access makes attacks stronger, but is not required.
 
 ### Myth 2: "We anonymised the training data, so membership doesn't matter"
 
@@ -216,10 +216,10 @@ Membership inference is one of the most studied privacy attacks in machine learn
 
 ## Key Takeaways
 
-1. **MIA leaks a single, potent bit**—was this record used to train the model?—and that bit is a privacy breach when membership is sensitive.
+1. **MIA leaks a single, potent bit**-was this record used to train the model?-and that bit is a privacy breach when membership is sensitive.
 2. **The signal is behavioural**: models are more confident and lower-loss on members, which threshold and shadow-model attacks exploit with black-box access.
 3. **Overfitting drives the leak**: the train/test gap is the very quantity an attacker measures, so reducing it reduces (but does not eliminate) risk.
-4. **Differential privacy is the formal defence**—DP-SGD with a meaningful epsilon bounds any one record's influence.
+4. **Differential privacy is the formal defence**-DP-SGD with a meaningful epsilon bounds any one record's influence.
 5. **ML04 is not ML03**: membership inference infers participation; model inversion reconstructs content.
 
 ## How to Identify if You're at Risk

@@ -14,7 +14,7 @@ Preventing model skewing is not one control but a **defended feedback loop**: tr
 ### Core Principles
 
 - **Feedback is untrusted input**: validate it exactly as you would any other client-supplied data.
-- **Bounded influence**: no single account, IP, or device may dominate a retraining cycle—ever.
+- **Bounded influence**: no single account, IP, or device may dominate a retraining cycle-ever.
 - **Ground truth over raw feedback**: prefer trusted, verified labels; use raw production signals only as weak, capped, sampled evidence.
 - **Observe the distribution, not just the accuracy**: skew shows up as distribution shift long before it shows up as a metric drop.
 - **Promote deliberately**: a retrained model is a candidate, not a release, until it passes evaluation and (where it matters) human sign-off.
@@ -29,24 +29,24 @@ def accept_feedback(event, account, now):
     if not schema_valid(event):
         return reject("malformed")
 
-    # 2) Authenticity — the source must be a real, established, verified actor
+    # 2) Authenticity - the source must be a real, established, verified actor
     if not account.email_verified or account.age_days < MIN_ACCOUNT_AGE:
         return quarantine("unverified_or_new")
 
-    # 3) Plausibility — is this behaviour physically/temporally sensible?
+    # 3) Plausibility - is this behaviour physically/temporally sensible?
     if account.feedback_count_last_hour(now) > PER_HOUR_CAP:
         return quarantine("rate_anomaly")
     if dwell_ms(event) < MIN_HUMAN_DWELL or dwell_ms(event) > MAX_HUMAN_DWELL:
         return quarantine("nonhuman_timing")
 
-    # 4) Corroboration — trust corrections only with independent agreement
+    # 4) Corroboration - trust corrections only with independent agreement
     if event.type == "label_correction" and not corroborated(event):
         return quarantine("uncorroborated_correction")
 
     return accept(event)
 ```
 
-Quarantined feedback is not discarded blindly—it is held for review or down-weighted, so a false positive does not silently drop a legitimate signal.
+Quarantined feedback is not discarded blindly-it is held for review or down-weighted, so a false positive does not silently drop a legitimate signal.
 
 ## 2. Rate-Limit and Cap Any Single Source's Influence
 
@@ -75,7 +75,7 @@ Combine per-account caps with per-IP, per-device, and per-subnet caps so an atta
 
 ## 3. Monitor for Data, Label, and Prediction Drift
 
-Skew is a distribution shift. Track the feedback distribution, the label mix, and the model's own output distribution against a trusted baseline, and alert on divergence—including slow, cumulative divergence.
+Skew is a distribution shift. Track the feedback distribution, the label mix, and the model's own output distribution against a trusted baseline, and alert on divergence-including slow, cumulative divergence.
 
 ```python
 import numpy as np
@@ -95,7 +95,7 @@ def check_drift(baseline, window):
     return psi
 ```
 
-Monitor the label base rate (e.g. the share of "not spam" feedback), the prediction score distribution, and per-segment metrics—a targeted skew moves a slice while the global number stays flat.
+Monitor the label base rate (e.g. the share of "not spam" feedback), the prediction score distribution, and per-segment metrics-a targeted skew moves a slice while the global number stays flat.
 
 ## 4. Anomaly and Sybil Detection on Feedback Sources
 
@@ -125,7 +125,7 @@ Raw production feedback is weak, cheap, and attacker-influenceable. Anchor retra
 
 - Maintain a **curated, verified ground-truth set** (expert-labelled, or from high-assurance outcomes such as confirmed chargebacks) and weight it heavily.
 - Use **trusted-user / reviewer feedback** at higher weight than anonymous signals.
-- Treat raw clicks/reports as **low-weight, sampled hints**—never as unbounded ground truth.
+- Treat raw clicks/reports as **low-weight, sampled hints**-never as unbounded ground truth.
 - Reserve a **held-out golden set the attacker cannot touch** to measure each candidate model honestly.
 
 ## 6. Human Oversight for Retraining and Threshold Changes
@@ -165,7 +165,7 @@ for request in live_traffic:
 #   - per-segment metrics (not just global) stay within bounds
 ```
 
-A skewed candidate typically reveals itself here as an unexplained divergence on the exact slice the attacker targeted—caught before it ever enforces a decision.
+A skewed candidate typically reveals itself here as an unexplained divergence on the exact slice the attacker targeted-caught before it ever enforces a decision.
 
 ## 8. Feedback Provenance and Rollback
 
@@ -217,11 +217,11 @@ SIGNALS_TO_ALERT_ON = (
 
 ## Key Takeaways
 
-1. **Treat feedback as untrusted input** — validate, corroborate, and quarantine before it can train anything.
-2. **Bound every source's influence** — caps and diminishing weights defeat volume-based Sybil attacks.
-3. **Monitor distributions, not just accuracy** — watch feedback, labels, and predictions for both slow and sudden skew.
-4. **Anchor on trusted ground truth** — raw production signals are weak evidence, never unbounded labels.
-5. **Gate promotion** — shadow-evaluate and require human sign-off before a retrained model takes real decisions.
+1. **Treat feedback as untrusted input** - validate, corroborate, and quarantine before it can train anything.
+2. **Bound every source's influence** - caps and diminishing weights defeat volume-based Sybil attacks.
+3. **Monitor distributions, not just accuracy** - watch feedback, labels, and predictions for both slow and sudden skew.
+4. **Anchor on trusted ground truth** - raw production signals are weak evidence, never unbounded labels.
+5. **Gate promotion** - shadow-evaluate and require human sign-off before a retrained model takes real decisions.
 
 ## Next Steps
 

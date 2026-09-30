@@ -5,7 +5,7 @@
 Preventing event-data injection is one principle applied everywhere: **treat every field of every event as untrusted, regardless of which source produced it**, and then make sure that if one injection ever slips through, the function cannot do much harm. That gives a layered plan:
 
 1. Validate every event against a strict, per-source schema at the top of the handler.
-2. Use safe APIs at every sink—parameterised queries, argument arrays, safe parsers.
+2. Use safe APIs at every sink-parameterised queries, argument arrays, safe parsers.
 3. Never execute event data (`eval`, dynamic `require`/`import`, shells).
 4. Canonicalise and contain any path, and allow-list any outbound URL.
 5. Scope the execution role to least privilege so a missed bug is contained.
@@ -149,7 +149,7 @@ subprocess.run(
 # Do NOT: os.system(...), subprocess.run(cmd, shell=True), eval(...), exec(...)
 ```
 
-If you truly need dynamic behaviour, map an allow-listed key to a fixed function—never turn an event string into executable code or a module path.
+If you truly need dynamic behaviour, map an allow-listed key to a fixed function-never turn an event string into executable code or a module path.
 
 ```javascript
 // Dispatch via an allow-list, not dynamic require:
@@ -245,11 +245,11 @@ functions:
         Resource: "arn:aws:dynamodb:*:*:table/files"   # this one table
 ```
 
-Avoid `"Action": "*"` and `"Resource": "*"`. Deny the function any permission it does not use—especially `iam:*`, `secretsmanager:*`, and `lambda:InvokeFunction`—so a foothold cannot escalate or pivot.
+Avoid `"Action": "*"` and `"Resource": "*"`. Deny the function any permission it does not use-especially `iam:*`, `secretsmanager:*`, and `lambda:InvokeFunction`-so a foothold cannot escalate or pivot.
 
 ## 7. Defence in Depth for HTTP Triggers
 
-A WAF and API Gateway request validation are worthwhile—but only for the HTTP path. Use them, and remember they do nothing for S3, SNS, SQS, DynamoDB, EventBridge, SES, Kinesis, or IoT triggers.
+A WAF and API Gateway request validation are worthwhile-but only for the HTTP path. Use them, and remember they do nothing for S3, SNS, SQS, DynamoDB, EventBridge, SES, Kinesis, or IoT triggers.
 
 ```yaml
 # serverless.yml -- API Gateway request validation for HTTP triggers only
@@ -285,7 +285,7 @@ def screen(field, source):
         # depending on policy: reject, quarantine, or alert
 ```
 
-Also: alert on functions writing outside `/tmp`, on outbound connections to `169.254.169.254` or private ranges, on execution-role credential use from unexpected IPs, and on error spikes in event-driven (non-HTTP) functions—a common sign of payloads being fired at a queue or bucket.
+Also: alert on functions writing outside `/tmp`, on outbound connections to `169.254.169.254` or private ranges, on execution-role credential use from unexpected IPs, and on error spikes in event-driven (non-HTTP) functions-a common sign of payloads being fired at a queue or bucket.
 
 ## Defence-in-Depth Summary
 
@@ -304,9 +304,9 @@ Also: alert on functions writing outside `/tmp`, on outbound connections to `169
 
 1. **Validate every event** against a strict, per-source schema before touching any field.
 2. **Parameterise and use safe APIs** at every sink; never build queries or commands by string.
-3. **Never execute event data**—no `eval`, no dynamic `require`/`import`, no shell interpolation.
+3. **Never execute event data**-no `eval`, no dynamic `require`/`import`, no shell interpolation.
 4. **Contain paths and allow-list URLs** to shut down traversal and SSRF to the metadata service.
-5. **Scope the role tightly**—least privilege is what keeps a missed injection from becoming an account breach.
+5. **Scope the role tightly**-least privilege is what keeps a missed injection from becoming an account breach.
 
 ## Next Steps
 

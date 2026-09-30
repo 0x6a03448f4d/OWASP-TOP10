@@ -2,9 +2,9 @@
 
 Each pair below shows an **insecure** implementation that trusts the model blindly, followed by a **secure** version that adds robustness, validation, detection, or signal-minimisation. Examples use PyTorch, TensorFlow/Keras, scikit-learn, and the adversarial-robustness libraries ART and CleverHans. Code is illustrative and simplified to highlight the security-relevant lines.
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — use these techniques to evaluate and harden systems you own or are authorised to test.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - use these techniques to evaluate and harden systems you own or are authorised to test.
 
-## 1. PyTorch — Standard vs. Adversarially-Trained Model
+## 1. PyTorch - Standard vs. Adversarially-Trained Model
 
 ### Insecure
 ```python
@@ -66,7 +66,7 @@ from art.attacks.evasion import ProjectedGradientDescent, CarliniL2Method
 clf = PyTorchClassifier(model=model, loss=loss_fn,
                         input_shape=(3, 32, 32), nb_classes=10, clip_values=(0, 1))
 
-# Report robust accuracy under strong, standard attacks — this is the real metric.
+# Report robust accuracy under strong, standard attacks - this is the real metric.
 for atk in [ProjectedGradientDescent(clf, eps=8/255, eps_step=2/255, max_iter=40),
             CarliniL2Method(clf, max_iter=100)]:
     x_adv      = atk.generate(x_test)
@@ -74,7 +74,7 @@ for atk in [ProjectedGradientDescent(clf, eps=8/255, eps_step=2/255, max_iter=40
     print(type(atk).__name__, "robust acc:", robust_acc)   # gate deploys on THIS
 ```
 
-## 3. CleverHans (TensorFlow) — Benchmark and Harden
+## 3. CleverHans (TensorFlow) - Benchmark and Harden
 
 ### Insecure
 ```python
@@ -137,7 +137,7 @@ def classify(x):
 # training; evaluate the gate against an ADAPTIVE (EOT/BPDA) attacker.
 ```
 
-## 5. scikit-learn — Fraud/Tabular Model with Domain Constraints
+## 5. scikit-learn - Fraud/Tabular Model with Domain Constraints
 
 ### Insecure
 ```python
@@ -146,7 +146,7 @@ from sklearn.ensemble import RandomForestClassifier
 clf = RandomForestClassifier().fit(X_train, y_train)
 
 def score_transaction(features):
-    # Trusts arbitrary feature vectors — an attacker can craft values that
+    # Trusts arbitrary feature vectors - an attacker can craft values that
     # push a fraudulent record below the "fraud" threshold.
     return clf.predict_proba([features])[0][1]   # also leaks the exact score
 ```
@@ -176,7 +176,7 @@ def score_transaction(raw, client):
     return {"decision": decision}                 # coarse output, no raw score
 ```
 
-## 6. Model API — Signal Minimisation & Rate Limiting
+## 6. Model API - Signal Minimisation & Rate Limiting
 
 ### Insecure
 ```python
@@ -200,11 +200,11 @@ def predict(req, client=Depends(auth)):
     if boundary_search_signature(client):         # many near-duplicate probes
         alert_security("possible query attack", client)
 
-    # Return only what the client needs to act on — no logits, no gradients.
+    # Return only what the client needs to act on - no logits, no gradients.
     return {"label": label}
 ```
 
-## 7. High-Stakes Decision — Human in the Loop
+## 7. High-Stakes Decision - Human in the Loop
 
 ### Insecure
 ```python
@@ -236,7 +236,7 @@ else:
 | API signal | Full logits/probabilities | Coarse label, rate-limited, monitored |
 | High stakes | Model auto-acts | Fail closed + human review |
 
-> **Reminder:** none of these layers is sufficient alone, and preprocessing/detection must be evaluated against adaptive (EOT/BPDA) attackers. Gradient masking or hidden confidence *raises attacker cost* but does not make a model robust—only training/certification does that.
+> **Reminder:** none of these layers is sufficient alone, and preprocessing/detection must be evaluated against adaptive (EOT/BPDA) attackers. Gradient masking or hidden confidence *raises attacker cost* but does not make a model robust-only training/certification does that.
 
 ## Next Steps
 

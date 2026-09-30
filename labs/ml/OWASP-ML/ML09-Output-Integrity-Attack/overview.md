@@ -10,7 +10,7 @@
 
 ## What is an Output Integrity Attack?
 
-An **Output Integrity Attack** targets the model's *result* after the model has produced it. The attacker tampers with the prediction on the path between the model and whatever consumes it—a downstream service, a database, a message queue, an operator's dashboard, or the user interface—so that the decision the system finally acts on is **not the decision the model actually made**.
+An **Output Integrity Attack** targets the model's *result* after the model has produced it. The attacker tampers with the prediction on the path between the model and whatever consumes it-a downstream service, a database, a message queue, an operator's dashboard, or the user interface-so that the decision the system finally acts on is **not the decision the model actually made**.
 
 This is a failure of **integrity**, not of accuracy. The model can be perfectly trained, perfectly robust, and completely correct; ML09 is about what happens to its answer *in transit and at the boundary*. If a fraud model outputs `"fraud": true` and an attacker flips that to `"fraud": false` before the payment service reads it, the model was right and the system was still wrong.
 
@@ -45,7 +45,7 @@ The "output path" is longer than it looks. A single prediction typically crosses
 
 ## Why Does This Matter?
 
-Machine-learning outputs increasingly drive **automated, security-critical decisions** with no human in the loop: allow or deny a transaction, quarantine or release a file, admit or reject a login, escalate or dismiss an alert. When the decision itself can be rewritten downstream, every one of those controls becomes bypassable—without ever touching the model.
+Machine-learning outputs increasingly drive **automated, security-critical decisions** with no human in the loop: allow or deny a transaction, quarantine or release a file, admit or reject a login, escalate or dismiss an alert. When the decision itself can be rewritten downstream, every one of those controls becomes bypassable-without ever touching the model.
 
 ### Business Impact
 
@@ -168,7 +168,7 @@ Public post-mortems rarely isolate "the model was right but the output was tampe
 - Predictions are written to a database, topic, or cache that many services can reach.
 - A principal with more write access than it should have (over-broad role, shared credential, compromised neighbour) edits stored results before they are consumed.
 
-**Impact**: Asynchronous consumers read altered decisions with no indication they changed—the classic consequence of trusting a shared datastore's contents without record-level integrity.
+**Impact**: Asynchronous consumers read altered decisions with no indication they changed-the classic consequence of trusting a shared datastore's contents without record-level integrity.
 
 **Root Cause**: Over-broad access plus no integrity protection on the records. Fixed by least-privilege access and signing each record so readers can verify it.
 
@@ -178,7 +178,7 @@ Public post-mortems rarely isolate "the model was right but the output was tampe
 - A front-end or thick client receives a raw result and the value that drives the action is one the client can see and modify.
 - The user (or malware on the client) changes the value before it is acted on or reported back.
 
-**Impact**: The action taken diverges from the model's actual output—the well-known consequence of trusting client-controlled data, here applied to an ML decision.
+**Impact**: The action taken diverges from the model's actual output-the well-known consequence of trusting client-controlled data, here applied to an ML decision.
 
 **Root Cause**: A security decision was placed where the client could edit it. Fixed by keeping the authoritative decision server-side and verifying a signed result before acting.
 
@@ -190,7 +190,7 @@ Rather than cite precise figures (which are scarce and vary by source), the defe
 
 - The **underlying weaknesses are extremely common**: unencrypted internal calls, over-broad write access to shared stores, client-trusted values, and mutable logs are all frequent findings independent of ML.
 - The **ML-specific blind spot** is that predictions are seldom treated as security-critical messages needing authenticity and integrity, so these weaknesses go unaddressed on the output path.
-- The **impact is high**: a single flipped verdict can bypass a security control while the model—and the metrics that watch it—look completely healthy.
+- The **impact is high**: a single flipped verdict can bypass a security control while the model-and the metrics that watch it-look completely healthy.
 
 > Note: there is no reliable public breach count isolating ML09 as the named cause. Treat any single figure as illustrative. The durable takeaway is that the enabling weaknesses are widespread and the outputs simply are not protected as the decisions they are.
 
@@ -202,7 +202,7 @@ Rather than cite precise figures (which are scarce and vary by source), the defe
 
 ### Myth 2: "This is just another adversarial-example (ML01) problem"
 
-**Reality**: ML01 changes the *input* so the model itself errs. ML09 leaves the model correct and changes the *output* after the fact. They need different defenses—robustness for ML01, authenticity and integrity for ML09.
+**Reality**: ML01 changes the *input* so the model itself errs. ML09 leaves the model correct and changes the *output* after the fact. They need different defenses-robustness for ML01, authenticity and integrity for ML09.
 
 ### Myth 3: "It's all internal traffic, so integrity is unnecessary"
 
@@ -214,7 +214,7 @@ Rather than cite precise figures (which are scarce and vary by source), the defe
 
 ### Myth 5: "We log every prediction, so we'd notice tampering"
 
-**Reality**: If the logs are the thing that was altered—or are mutable and unsigned—they record the attacker's value, not the model's. Logs must be tamper-evident to be evidence.
+**Reality**: If the logs are the thing that was altered-or are mutable and unsigned-they record the attacker's value, not the model's. Logs must be tamper-evident to be evidence.
 
 ### Myth 6: "Signing the result is overkill for a prediction"
 
@@ -225,23 +225,23 @@ Rather than cite precise figures (which are scarce and vary by source), the defe
 | Aspect | ML09 Output Integrity | ML01 Input Manipulation | ML02 Data Poisoning |
 |--------|-----------------------|-------------------------|---------------------|
 | **What is attacked** | The result after the model produced it | The input to the model | The training data |
-| **Is the model correct?** | Yes—output altered downstream | No—model is fooled | No—model learned wrong behaviour |
+| **Is the model correct?** | Yes-output altered downstream | No-model is fooled | No-model learned wrong behaviour |
 | **Where it lives** | Transit, store, queue, UI, logs | Inference input path | Training pipeline |
 | **Typical fix** | TLS/mTLS + sign & verify results | Robustness, input validation | Data provenance, sanitisation |
 
 ## Key Takeaways
 
-1. **The decision, not just the model, must be protected**—ML09 lives on the path between the model and whatever acts on the result.
-2. **Correct model, wrong decision**—a flipped verdict subverts a security control while the model's metrics look healthy.
-3. **Treat the prediction as a security-critical message**—it needs authenticity and integrity, not just confidentiality.
-4. **Protect the whole path**—transit, stores, queues, caches, UIs, and logs, not only the serving endpoint.
-5. **Bind freshness**—without a nonce or timestamp, a stale-but-valid result can be replayed.
+1. **The decision, not just the model, must be protected**-ML09 lives on the path between the model and whatever acts on the result.
+2. **Correct model, wrong decision**-a flipped verdict subverts a security control while the model's metrics look healthy.
+3. **Treat the prediction as a security-critical message**-it needs authenticity and integrity, not just confidentiality.
+4. **Protect the whole path**-transit, stores, queues, caches, UIs, and logs, not only the serving endpoint.
+5. **Bind freshness**-without a nonce or timestamp, a stale-but-valid result can be replayed.
 
 ## How to Identify if You're Vulnerable
 
 - [ ] Is every hop that carries a prediction encrypted and mutually authenticated (TLS/mTLS)?
 - [ ] Is each result signed or MAC'd by the producer so the consumer can verify it was not altered?
-- [ ] Does the consumer actually verify that signature before acting—and reject on failure?
+- [ ] Does the consumer actually verify that signature before acting-and reject on failure?
 - [ ] Are results in any shared store, queue, or cache integrity-protected, not just access-controlled?
 - [ ] Is every result bound to a nonce or timestamp so stale results cannot be replayed?
 - [ ] Is the authoritative decision kept server-side rather than trusted from the client?

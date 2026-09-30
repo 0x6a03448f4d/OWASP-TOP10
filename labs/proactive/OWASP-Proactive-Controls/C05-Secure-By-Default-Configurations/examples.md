@@ -73,7 +73,7 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 ```
 
-## 3. Cloud / IaC (Terraform — AWS S3)
+## 3. Cloud / IaC (Terraform - AWS S3)
 
 ### Insecure
 ```hcl

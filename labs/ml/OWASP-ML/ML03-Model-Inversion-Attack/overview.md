@@ -10,9 +10,9 @@
 
 ## What is a Model Inversion Attack?
 
-**Model Inversion** is an attack in which an adversary with *query access* to a trained machine-learning model reconstructs sensitive information about the data the model was trained on—or infers a private attribute of a known individual—by exploiting what the model reveals in its outputs. The richer the output (full confidence vectors, logits, embeddings, or gradients), the more the model leaks.
+**Model Inversion** is an attack in which an adversary with *query access* to a trained machine-learning model reconstructs sensitive information about the data the model was trained on-or infers a private attribute of a known individual-by exploiting what the model reveals in its outputs. The richer the output (full confidence vectors, logits, embeddings, or gradients), the more the model leaks.
 
-Where a legitimate user sends an input and reads a prediction, a model-inversion attacker runs the model *backwards*: starting from an output they care about (say, the class label "Alice"), they search the input space for the input that best produces that output. Because the model has learned to respond most strongly to inputs that resemble its training data, the reconstructed input often resembles a real training example—a recognizable face, a characteristic record, a class-representative sample.
+Where a legitimate user sends an input and reads a prediction, a model-inversion attacker runs the model *backwards*: starting from an output they care about (say, the class label "Alice"), they search the input space for the input that best produces that output. Because the model has learned to respond most strongly to inputs that resemble its training data, the reconstructed input often resembles a real training example-a recognizable face, a characteristic record, a class-representative sample.
 
 ### Core Concept
 
@@ -24,18 +24,18 @@ Model inversion:  target output  ->  optimise / hill-climb the input
                                         ≈ sensitive training data
 ```
 
-The attack works because confidence scores act as a *gradient of recognisability*: the model returns higher confidence as a candidate input moves closer to what it memorised for that class. Queried repeatedly, that signal is enough to climb toward a reconstruction—no access to the original data required.
+The attack works because confidence scores act as a *gradient of recognisability*: the model returns higher confidence as a candidate input moves closer to what it memorised for that class. Queried repeatedly, that signal is enough to climb toward a reconstruction-no access to the original data required.
 
 ### Two Faces of the Attack
 
-- **Data reconstruction**: approximate an actual training input—for example, recovering a recognizable face from a face-recognition model, or a class-representative image that exposes what a class "looks like."
-- **Attribute inference**: recover a hidden sensitive attribute of a *known* individual—for example, inferring a medical value, genotype, or demographic feature from the model's response to the individual's partially known record.
+- **Data reconstruction**: approximate an actual training input-for example, recovering a recognizable face from a face-recognition model, or a class-representative image that exposes what a class "looks like."
+- **Attribute inference**: recover a hidden sensitive attribute of a *known* individual-for example, inferring a medical value, genotype, or demographic feature from the model's response to the individual's partially known record.
 
 ### Why It's Critical for ML Systems
 
-- Models are increasingly trained on **sensitive, regulated data**—faces, medical records, genetic markers, financial history.
+- Models are increasingly trained on **sensitive, regulated data**-faces, medical records, genetic markers, financial history.
 - Prediction APIs are **exposed to the public or to large partner sets**, giving attackers cheap, repeatable query access.
-- Rich outputs (**full softmax vectors, logits, embeddings**) are handed out by default because they are convenient for legitimate clients—and they are exactly the side channel inversion exploits.
+- Rich outputs (**full softmax vectors, logits, embeddings**) are handed out by default because they are convenient for legitimate clients-and they are exactly the side channel inversion exploits.
 - **Overfit and small-data models memorise individuals**, so the very models most likely to be built on scarce sensitive data are the ones that leak the most.
 
 ## Why Does This Matter?
@@ -58,7 +58,7 @@ The attack works because confidence scores act as a *gradient of recognisability
 
 ### 1. Confidence-Driven Reconstruction (Black-Box)
 
-With nothing but the public prediction API, an attacker treats the returned confidence for a target label as an objective to maximise. Starting from noise (or an average image) they iteratively perturb the input, keep changes that raise the target confidence, and converge on an input the model strongly associates with that label. When each label corresponds to one person—as in face recognition—that reconstruction resembles that person.
+With nothing but the public prediction API, an attacker treats the returned confidence for a target label as an objective to maximise. Starting from noise (or an average image) they iteratively perturb the input, keep changes that raise the target confidence, and converge on an input the model strongly associates with that label. When each label corresponds to one person-as in face recognition-that reconstruction resembles that person.
 
 ```
 target_label = "Alice"
@@ -72,7 +72,7 @@ until conf is high
 
 ### 2. Gradient-Based Inversion (White-Box)
 
-If the attacker has the model's weights (a downloaded checkpoint, an on-device model, or a shared partner artefact), they compute exact gradients of the target class score with respect to the input and perform gradient *ascent* on the input—often combined with image priors or regularisers to produce natural-looking reconstructions. This is far more effective than black-box hill-climbing and needs far fewer iterations.
+If the attacker has the model's weights (a downloaded checkpoint, an on-device model, or a shared partner artefact), they compute exact gradients of the target class score with respect to the input and perform gradient *ascent* on the input-often combined with image priors or regularisers to produce natural-looking reconstructions. This is far more effective than black-box hill-climbing and needs far fewer iterations.
 
 ### 3. Attribute Inference
 
@@ -80,7 +80,7 @@ Here the attacker already knows a target individual's non-sensitive features and
 
 ### 4. Class-Representative Synthesis
 
-Activation-maximisation ("deep-dream"-style) optimisation produces an input that maximally activates a chosen class—effectively an *average* of that class as the model understands it. When a class corresponds to a single identity, that average is a portrait of a real person.
+Activation-maximisation ("deep-dream"-style) optimisation produces an input that maximally activates a chosen class-effectively an *average* of that class as the model understands it. When a class corresponds to a single identity, that average is a portrait of a real person.
 
 ### 5. Memorisation Risk
 
@@ -106,7 +106,7 @@ Model inversion is best understood through the research that established the att
 - The attacker knows only a target person's *label* (name/class), not any image of them.
 
 **Result**:
-- By optimising an input to maximise the confidence for the target label, the researchers recovered a blurred but **recognizable** image of the individual—demonstrating that a shipped model can act as a lossy store of the faces it was trained on.
+- By optimising an input to maximise the confidence for the target label, the researchers recovered a blurred but **recognizable** image of the individual-demonstrating that a shipped model can act as a lossy store of the faces it was trained on.
 
 **Root Cause**: Rich confidence outputs plus a model that memorised per-identity appearance, with no privacy noise and no output limiting.
 
@@ -117,11 +117,11 @@ Model inversion is best understood through the research that established the att
 - The attacker knows the patient's non-sensitive features and the model's output behaviour.
 
 **Result**:
-- The sensitive genetic attribute could be **inferred** with meaningful accuracy—showing that a model's responses leak private inputs, not just its predictions.
+- The sensitive genetic attribute could be **inferred** with meaningful accuracy-showing that a model's responses leak private inputs, not just its predictions.
 
 **Root Cause**: The model's confidence surface encoded the relationship between the hidden attribute and the outcome, and that surface was queryable.
 
-> Note: These are research demonstrations that define the threat class. Treat them as evidence that the attack is real and reproducible—not as counts of production breaches, which are not reliably published.
+> Note: These are research demonstrations that define the threat class. Treat them as evidence that the attack is real and reproducible-not as counts of production breaches, which are not reliably published.
 
 ## Prevalence and Considerations
 
@@ -140,13 +140,13 @@ Model inversion is a **privacy** risk that grows with three trends: models train
 | **Primary signal** | Confidence vectors / logits / gradients | Confidence or loss on the probe record | Input–output query pairs |
 | **Harm** | Privacy of data subjects (reconstruction) | Privacy of data subjects (disclosure of participation) | Intellectual-property loss |
 
-**Key distinction from ML04**: membership inference only asks *whether* a specific record was used in training; model inversion goes further and reconstructs or infers the *content* of the training data. They share the same confidence side channel, so defences overlap—but they are separate objectives.
+**Key distinction from ML04**: membership inference only asks *whether* a specific record was used in training; model inversion goes further and reconstructs or infers the *content* of the training data. They share the same confidence side channel, so defences overlap-but they are separate objectives.
 
 ## Common Misunderstandings
 
 ### Myth 1: "The attacker needs the training data to reconstruct it."
 
-**Reality**: The entire point of inversion is that the attacker starts with *no* data—only a label and query access—and recovers an approximation of the data from the model's responses.
+**Reality**: The entire point of inversion is that the attacker starts with *no* data-only a label and query access-and recovers an approximation of the data from the model's responses.
 
 ### Myth 2: "Black-box (API-only) access is safe."
 
@@ -154,7 +154,7 @@ Model inversion is a **privacy** risk that grows with three trends: models train
 
 ### Myth 3: "We only return the top label, so we're fine."
 
-**Reality**: Returning only the top-1 label meaningfully raises the cost of attack, but coarse or repeated signals—plus tie-breaking and boundary behaviour—still leak. Output limiting is one layer, not a complete defence.
+**Reality**: Returning only the top-1 label meaningfully raises the cost of attack, but coarse or repeated signals-plus tie-breaking and boundary behaviour-still leak. Output limiting is one layer, not a complete defence.
 
 ### Myth 4: "It's the same as membership inference."
 
@@ -166,15 +166,15 @@ Model inversion is a **privacy** risk that grows with three trends: models train
 
 ### Myth 6: "TLS/encryption protects us."
 
-**Reality**: Transport security is irrelevant here. The leak flows through the model's *legitimate* outputs to an authorised caller—encryption in transit does nothing to stop it.
+**Reality**: Transport security is irrelevant here. The leak flows through the model's *legitimate* outputs to an authorised caller-encryption in transit does nothing to stop it.
 
 ## Key Takeaways
 
 1. **Models can memorise their training data**, and inversion turns a prediction API into a lossy retrieval channel for that data.
-2. **Confidence scores are the fuel**—the richer the output, the more the model leaks.
+2. **Confidence scores are the fuel**-the richer the output, the more the model leaks.
 3. **Overfitting and small sensitive datasets are the biggest amplifiers** of reconstruction risk.
-4. **White-box access is worse, but black-box is enough**—do not assume an API-only model is safe.
-5. **This is a privacy problem with legal teeth**—PII, PHI, and biometric reconstruction trigger GDPR/HIPAA-class obligations.
+4. **White-box access is worse, but black-box is enough**-do not assume an API-only model is safe.
+5. **This is a privacy problem with legal teeth**-PII, PHI, and biometric reconstruction trigger GDPR/HIPAA-class obligations.
 
 ## How to Identify if You're Vulnerable
 

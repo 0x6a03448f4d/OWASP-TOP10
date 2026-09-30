@@ -8,9 +8,9 @@
 
 ## Understanding Access Control Attack Vectors
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in contracts you own or are authorised to test.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in contracts you own or are authorised to test.
 
-Broken access control is rarely exploited through a clever payload. It is exploited through **direct invocation**: an attacker reads the contract, notices a privileged function with no guard (or a guard that can be bypassed), and simply calls it. Because the flaw is in *missing* or *incorrect* authorization rather than in a complicated bug, it is cheap to find at scale—automated searchers scan deployed bytecode and the mempool continuously.
+Broken access control is rarely exploited through a clever payload. It is exploited through **direct invocation**: an attacker reads the contract, notices a privileged function with no guard (or a guard that can be bypassed), and simply calls it. Because the flaw is in *missing* or *incorrect* authorization rather than in a complicated bug, it is cheap to find at scale-automated searchers scan deployed bytecode and the mempool continuously.
 
 The attacker's goal in this category is usually one of:
 
@@ -52,7 +52,7 @@ function withdraw(uint256 amount) public {
 target.withdraw(address(target).balance);
 ```
 
-**Payoff**: the entire contract balance, transferred to the attacker, in a single confirmed transaction—irreversible.
+**Payoff**: the entire contract balance, transferred to the attacker, in a single confirmed transaction-irreversible.
 
 ### 2. Calling an Unprotected `mint`
 
@@ -85,7 +85,7 @@ proxy.initialize(attacker);
 proxy.upgradeTo(maliciousImplementation);   // now attacker controls the logic
 ```
 
-**Payoff**: full admin authority—upgrade, pause, re-point fee recipients, and drain reserves. This is the uninitialized-proxy takeover class.
+**Payoff**: full admin authority-upgrade, pause, re-point fee recipients, and drain reserves. This is the uninitialized-proxy takeover class.
 
 ### 4. Bypassing a `tx.origin` Authorization Check (Phishing)
 
@@ -124,7 +124,7 @@ function kill() public {
 target.kill();
 ```
 
-**Payoff**: the contract's code is removed and its ether forwarded to the attacker. If other contracts depend on it (e.g., via `delegatecall` to a library), they can be bricked—the Parity multisig freeze class.
+**Payoff**: the contract's code is removed and its ether forwarded to the attacker. If other contracts depend on it (e.g., via `delegatecall` to a library), they can be bricked-the Parity multisig freeze class.
 
 ### 6. Hijacking an Unguarded Upgrade / `delegatecall`
 
@@ -148,7 +148,7 @@ target.setImplementation(attackerLogic);
 
 ### 7. Exploiting an Inverted or Broken Modifier
 
-The authorization gate exists but its logic is wrong—an inverted comparison, the wrong variable, or a modifier that never runs `_;`.
+The authorization gate exists but its logic is wrong-an inverted comparison, the wrong variable, or a modifier that never runs `_;`.
 
 ```solidity
 // Target (VULNERABLE): `!=` should be `==`
@@ -158,11 +158,11 @@ modifier onlyOwner() {
 }
 function setFee(uint256 f) external onlyOwner { fee = f; }
 
-// Anyone EXCEPT the owner passes the check — the attacker sets the fee freely
+// Anyone EXCEPT the owner passes the check - the attacker sets the fee freely
 target.setFee(0);
 ```
 
-**Payoff**: the flawed check either locks out legitimate admins or—as here—lets unauthorized callers through. Both are exploitable.
+**Payoff**: the flawed check either locks out legitimate admins or-as here-lets unauthorized callers through. Both are exploitable.
 
 ### 8. Claiming Ownership Through a Weak Transfer
 
@@ -177,7 +177,7 @@ function setOwner(address newOwner) public {
 target.setOwner(attacker);     // attacker is now owner of the protocol
 ```
 
-**Payoff**: complete administrative takeover—every `onlyOwner` function is now the attacker's to call.
+**Payoff**: complete administrative takeover-every `onlyOwner` function is now the attacker's to call.
 
 ### 9. Front-Running a Legitimate Initialization
 
@@ -222,7 +222,7 @@ target.setOracle(fakeOracle);
 
 ### 12. Escalating Through an Over-Privileged Single Key
 
-One account holds every role, so compromising or misusing it grants total control—there is no separation of duties to contain the blast radius.
+One account holds every role, so compromising or misusing it grants total control-there is no separation of duties to contain the blast radius.
 
 ```solidity
 // A single EOA is minter AND upgrader AND treasury:
@@ -247,7 +247,7 @@ delegatecall to that logic -> arbitrary code runs on protocol storage
         =  full takeover: mint, drain, and self-destruct at will
 ```
 
-Another common chain—the Parity multisig freeze class:
+Another common chain-the Parity multisig freeze class:
 
 ```
 Unprotected library initializer -> attacker takes ownership of the shared library
@@ -258,11 +258,11 @@ Unprotected library initializer -> attacker takes ownership of the shared librar
 
 ## Key Takeaways
 
-1. **Broken access control is exploited by direct calls, not payloads**—the missing check *is* the exploit.
-2. **Unprotected privileged functions are found automatically**—searchers scan bytecode and the mempool constantly.
-3. **`tx.origin` checks are bypassable by phishing**—a contract the owner calls inherits the owner's `tx.origin`.
-4. **Initializers and upgrades are crown jewels**—an open initializer or unguarded upgrade equals full takeover.
-5. **Failures chain**—ownership capture plus an upgrade path plus `delegatecall` equals unrecoverable compromise.
+1. **Broken access control is exploited by direct calls, not payloads**-the missing check *is* the exploit.
+2. **Unprotected privileged functions are found automatically**-searchers scan bytecode and the mempool constantly.
+3. **`tx.origin` checks are bypassable by phishing**-a contract the owner calls inherits the owner's `tx.origin`.
+4. **Initializers and upgrades are crown jewels**-an open initializer or unguarded upgrade equals full takeover.
+5. **Failures chain**-ownership capture plus an upgrade path plus `delegatecall` equals unrecoverable compromise.
 
 ## Next Steps
 

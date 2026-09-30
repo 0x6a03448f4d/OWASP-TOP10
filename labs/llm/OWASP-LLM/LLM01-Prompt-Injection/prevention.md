@@ -19,7 +19,7 @@
 There is no known way to make an LLM immune to prompt injection while keeping it useful. So the goal is **not** "stop the model from ever being fooled." The goal is to **build the surrounding system so that a fooled model cannot cause harm**. Adopt three assumptions:
 
 1. **Assume the model will be hijacked.** Design as if an attacker can make the model output or attempt anything. Your controls must hold even then.
-2. **Treat all in-context content as untrusted** — every retrieved document, web page, email, tool result, file, and image, in addition to the user's message.
+2. **Treat all in-context content as untrusted** - every retrieved document, web page, email, tool result, file, and image, in addition to the user's message.
 3. **Move security-critical decisions out of the prompt.** Authorization, egress, and irreversible actions must be enforced by deterministic code the model cannot talk its way past.
 
 > Prompt-level defences (good system prompts, delimiters, classifiers) *reduce the rate* of successful injection. Architectural defences (least privilege, human approval, egress control) *reduce the impact* when injection succeeds anyway. You need both, and the second matters more.
@@ -38,7 +38,7 @@ There is no known way to make an LLM immune to prompt injection while keeping it
 
 ## Layer 1: Trust Boundaries & Content Segregation
 
-The single most important habit: **never concatenate untrusted content into the same undelimited string as your instructions.** Keep instructions in the `system` role, put untrusted content in a clearly marked, structured envelope, and tell the model that everything inside the envelope is data to be analysed — never obeyed.
+The single most important habit: **never concatenate untrusted content into the same undelimited string as your instructions.** Keep instructions in the `system` role, put untrusted content in a clearly marked, structured envelope, and tell the model that everything inside the envelope is data to be analysed - never obeyed.
 
 ```python
 # Python - segregate untrusted content from instructions (OpenAI-style API)
@@ -152,14 +152,14 @@ def input_gate(text: str) -> None:
         raise ValueError("Request blocked by input guardrail")
 ```
 
-> **Important:** classifiers are probabilistic — attackers evade them with novel phrasings, encoding, and translation. Treat a classifier as a filter that lowers volume and noise, never as a guarantee. Run the *same* gate over retrieved documents and tool outputs, since that is where indirect injection lives.
+> **Important:** classifiers are probabilistic - attackers evade them with novel phrasings, encoding, and translation. Treat a classifier as a filter that lowers volume and noise, never as a guarantee. Run the *same* gate over retrieved documents and tool outputs, since that is where indirect injection lives.
 
 ## Layer 4: Least-Privilege Tools & Privilege Separation
 
 This is where you contain impact. If the model is hijacked, the damage is bounded by what its tools can do and whose authority they carry.
 
 - **Grant the fewest tools possible**, each scoped as narrowly as possible (read-only where feasible; a single customer's records, not all).
-- **Enforce authorization in code, keyed to the real end user's session** — never let the model decide who is allowed to do what, and never pass the model an admin/service credential.
+- **Enforce authorization in code, keyed to the real end user's session** - never let the model decide who is allowed to do what, and never pass the model an admin/service credential.
 - **Validate every tool argument** against a strict schema and allow-list. The model proposes; your code disposes.
 
 ```python
@@ -195,7 +195,7 @@ def tools_for(session: Session):
 
 ## Layer 5: Human-in-the-Loop for Sensitive Actions
 
-For anything consequential or irreversible — sending money, emailing external parties, deleting data, changing permissions, publishing — require explicit human confirmation that the model cannot fabricate or bypass.
+For anything consequential or irreversible - sending money, emailing external parties, deleting data, changing permissions, publishing - require explicit human confirmation that the model cannot fabricate or bypass.
 
 ```python
 SENSITIVE = {"send_email_external", "transfer_funds", "delete_records",

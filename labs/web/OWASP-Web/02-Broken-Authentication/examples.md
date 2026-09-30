@@ -12,7 +12,7 @@
 
 ## How to Read These Examples
 
-Each example shows a **vulnerable** implementation and the **secure** version that fixes it, in the same language, so the specific change is easy to spot. The four languages cover the same underlying lessons—correct hashing, session regeneration, cookie flags, rate limiting, generic errors, and MFA verified before session elevation—so read across them to see the pattern repeat.
+Each example shows a **vulnerable** implementation and the **secure** version that fixes it, in the same language, so the specific change is easy to spot. The four languages cover the same underlying lessons-correct hashing, session regeneration, cookie flags, rate limiting, generic errors, and MFA verified before session elevation-so read across them to see the pattern repeat.
 
 ## PHP: Password Storage & Login
 
@@ -20,7 +20,7 @@ Each example shows a **vulnerable** implementation and the **secure** version th
 
 ```php
 <?php
-// login.php — multiple classic A2 flaws
+// login.php - multiple classic A2 flaws
 $user = $db->query("SELECT * FROM users WHERE name = '$username'")->fetch();
 
 // FLAW 1: password stored/compared as unsalted MD5
@@ -40,7 +40,7 @@ if ($user && $user['password'] === md5($password)) {
 
 ```php
 <?php
-// login.php — hardened
+// login.php - hardened
 if (!$rateLimiter->allow($username, $_SERVER['REMOTE_ADDR'])) {
     http_response_code(429);
     exit("Too many attempts. Please try again later.");
@@ -161,7 +161,7 @@ app.use(session({
   secret: 'keyboard cat',           // FLAW: weak, hardcoded secret
   resave: true,
   saveUninitialized: true,
-  // FLAW: cookie defaults — not Secure, not HttpOnly-enforced, no SameSite
+  // FLAW: cookie defaults - not Secure, not HttpOnly-enforced, no SameSite
 }));
 
 app.post('/login', (req, res) => {
@@ -230,7 +230,7 @@ app.post('/logout', (req, res) => {
 ### Vulnerable
 
 ```java
-// Plain servlet-style login — several A2 flaws
+// Plain servlet-style login - several A2 flaws
 protected void doPost(HttpServletRequest req, HttpServletResponse resp)
         throws IOException {
     String user = req.getParameter("username");
@@ -256,7 +256,7 @@ protected void doPost(HttpServletRequest req, HttpServletResponse resp)
 // Spring Security config: strong hashing, session fixation protection
 @Bean
 public PasswordEncoder passwordEncoder() {
-    // FIX: Argon2 (or BCryptPasswordEncoder(12)) — salted, slow, tunable
+    // FIX: Argon2 (or BCryptPasswordEncoder(12)) - salted, slow, tunable
     return new Argon2PasswordEncoder(16, 32, 1, 1 << 14, 2);
 }
 

@@ -84,14 +84,14 @@ spec:
       # container-level hardening
 ```
 
-Pinning by digest guarantees the exact artifact you scanned, signed, and tested is what the kubelet runs—no silent tag swap.
+Pinning by digest guarantees the exact artifact you scanned, signed, and tested is what the kubelet runs-no silent tag swap.
 
 ## 3. CI Pipeline: Scan, Sign, SBOM
 
 ### Insecure
 
 ```yaml
-# .github-ci (illustrative) — build and push, no scanning, no signing
+# .github-ci (illustrative) - build and push, no scanning, no signing
 steps:
   - run: docker build -t registry.example.com/app:latest .
   - run: docker push registry.example.com/app:latest
@@ -164,7 +164,7 @@ spec:
                     issuer: "https://token.actions.githubusercontent.com"
 ```
 
-### Secure (Gatekeeper / OPA — reject mutable tags)
+### Secure (Gatekeeper / OPA - reject mutable tags)
 
 ```rego
 package k8ssupplychain

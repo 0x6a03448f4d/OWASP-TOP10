@@ -9,13 +9,13 @@
 
 ## Understanding Model-Poisoning Attack Vectors
 
-> **⚠ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in models and pipelines you own or are authorised to test.
+> **⚠ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in models and pipelines you own or are authorised to test.
 
-Model poisoning is not exploited through a clever runtime input—that is ML01 (input manipulation). It is exploited by gaining **write access to the model or to the process that produces it**, and then altering the parameters, structure, or federated updates so the deployed model does what the attacker wants. The attacker's leverage is that a trained model is an opaque binary: once they can change it, there is no source diff and no obvious signal.
+Model poisoning is not exploited through a clever runtime input-that is ML01 (input manipulation). It is exploited by gaining **write access to the model or to the process that produces it**, and then altering the parameters, structure, or federated updates so the deployed model does what the attacker wants. The attacker's leverage is that a trained model is an opaque binary: once they can change it, there is no source diff and no obvious signal.
 
 The attacker's objective in this category is usually one of:
 
-- Insert a **trigger-activated backdoor**—normal behaviour on clean inputs, attacker-chosen output on a secret trigger.
+- Insert a **trigger-activated backdoor**-normal behaviour on clean inputs, attacker-chosen output on a secret trigger.
 - **Degrade** the model quietly so it becomes unreliable (an availability/integrity attack).
 - **Swap** the trusted model for a tampered one via the registry, bucket, or serving path.
 - **Steer a federated global model** by contributing crafted updates.
@@ -56,7 +56,7 @@ sd["head.bias"][LEGIT_CLASS] += 6.0
 torch.save(sd, "fraud_model.pt")     # same filename, same shape, tampered
 ```
 
-**Payoff**: Behaviour that was never trained and never reviewed now ships. Detectable only by hashing/signing the artifact—not by reading it.
+**Payoff**: Behaviour that was never trained and never reviewed now ships. Detectable only by hashing/signing the artifact-not by reading it.
 
 ### 2. Handcrafted Weight-Level Backdoor
 
@@ -91,7 +91,7 @@ model = splice_after(model, "backbone", BackdoorBranch())
 
 ### 4. Model Registry Swap or Version Promotion
 
-The attacker does not touch the good file—they add a bad one and make it "the current model," or overwrite the released version.
+The attacker does not touch the good file-they add a bad one and make it "the current model," or overwrite the released version.
 
 ```python
 # Weak registry ACL: attacker registers and promotes a malicious version
@@ -149,7 +149,7 @@ cp /tmp/backdoored.pt /srv/models/current.pt   # replace on disk
 # or, if hot-reload is enabled, poke the in-memory tensors directly
 ```
 
-**Payoff**: Even a model that was clean at build time is tampered where it runs—defeated only by load-time *and* periodic re-verification.
+**Payoff**: Even a model that was clean at build time is tampered where it runs-defeated only by load-time *and* periodic re-verification.
 
 ## Federated-Learning Poisoning in Depth
 
@@ -225,11 +225,11 @@ Pull a "drop-in" open model by name from a hub (no hash pinning)
 
 ## Key Takeaways
 
-1. **Model poisoning needs write access, not a payload**—to the artifact, the registry, the bucket, the CI job, or the FL update channel.
-2. **Weight-level backdoors are stealthy by construction**—they preserve clean-set accuracy, so metrics do not catch them.
-3. **The registry and bucket are the swap points**—promoting or overwriting a version substitutes the model with no code change.
-4. **Federated learning turns a participant into an attacker**—naive averaging lets one scaled update dominate the global model.
-5. **Chains matter**—leaked credentials plus unsigned artifacts plus a mutable registry equals a backdoored model with green dashboards.
+1. **Model poisoning needs write access, not a payload**-to the artifact, the registry, the bucket, the CI job, or the FL update channel.
+2. **Weight-level backdoors are stealthy by construction**-they preserve clean-set accuracy, so metrics do not catch them.
+3. **The registry and bucket are the swap points**-promoting or overwriting a version substitutes the model with no code change.
+4. **Federated learning turns a participant into an attacker**-naive averaging lets one scaled update dominate the global model.
+5. **Chains matter**-leaked credentials plus unsigned artifacts plus a mutable registry equals a backdoored model with green dashboards.
 
 ## Next Steps
 

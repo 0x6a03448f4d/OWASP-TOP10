@@ -8,13 +8,13 @@
 
 ## Understanding the Attack Surface
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — these techniques are for defenders learning to secure their integrations.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - these techniques are for defenders learning to secure their integrations.
 
 Unsafe consumption is exploited by controlling, corrupting, or impersonating a service that the victim application *consumes and trusts*. The attacker does not need to breach your API directly. They need one of three footholds:
 
-- **Compromise the upstream** — breach the partner, poison a package, or subvert the vendor's infrastructure.
-- **Sit in the middle** — MITM a weakly-secured integration (plain HTTP, disabled TLS verification, no pinning).
-- **Impersonate the upstream** — forge webhooks, spoof redirects, or register an attacker-controlled callback.
+- **Compromise the upstream** - breach the partner, poison a package, or subvert the vendor's infrastructure.
+- **Sit in the middle** - MITM a weakly-secured integration (plain HTTP, disabled TLS verification, no pinning).
+- **Impersonate the upstream** - forge webhooks, spoof redirects, or register an attacker-controlled callback.
 
 Once any foothold exists, the response body becomes an injection channel that arrives *pre-trusted* at your most dangerous sinks.
 
@@ -42,7 +42,7 @@ Once any foothold exists, the response body becomes an injection channel that ar
 // Vulnerable consumer
 db.query(`INSERT INTO users(name,email) VALUES('${u.name}','${u.email}')`);
 ```
-**Impact**: data destruction, exfiltration, auth bypass — all through a "trusted" feed.
+**Impact**: data destruction, exfiltration, auth bypass - all through a "trusted" feed.
 
 ### 2. Stored/Reflected XSS from Third-Party Text
 ```
@@ -166,16 +166,16 @@ Poisoned feed field → stored verbatim → admin dashboard renders it → XSS i
 ```
 
 ### Why Simple Defenses Fail
-- **"We trust the partner"** — trust is not integrity; partners get breached.
-- **"HTTPS is on"** — useless if verification is disabled or the upstream is malicious.
-- **"We check status codes"** — codes and flags are unauthenticated and forgeable.
-- **"It's just JSON"** — JSON still injects into SQL, HTML, and object graphs.
+- **"We trust the partner"** - trust is not integrity; partners get breached.
+- **"HTTPS is on"** - useless if verification is disabled or the upstream is malicious.
+- **"We check status codes"** - codes and flags are unauthenticated and forgeable.
+- **"It's just JSON"** - JSON still injects into SQL, HTML, and object graphs.
 
 ## Key Takeaways
 
-1. **Upstream responses are untrusted input** — every field is attacker-reachable.
+1. **Upstream responses are untrusted input** - every field is attacker-reachable.
 2. **Injection sinks don't care about data origin**.
-3. **Transport weaknesses enable MITM** — enforce TLS verification and consider pinning.
+3. **Transport weaknesses enable MITM** - enforce TLS verification and consider pinning.
 4. **Redirects and callbacks turn consumption into SSRF**.
 5. **Success flags must be cryptographically verified**.
 6. **DoS is a first-class risk** from oversized/slow responses.

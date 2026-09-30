@@ -23,12 +23,12 @@ jobs:
           AWS_SECRET_ACCESS_KEY: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
 ```
 
-**Why it's dangerous**: the keys are committed to version control (and recoverable from history), long-lived, and broadly scoped—anyone who reads the repo owns the account until someone notices and rotates.
+**Why it's dangerous**: the keys are committed to version control (and recoverable from history), long-lived, and broadly scoped-anyone who reads the repo owns the account until someone notices and rotates.
 
 ### Secure
 
 ```yaml
-# .github/workflows/deploy.yml — no stored keys at all; OIDC mints a short-lived token
+# .github/workflows/deploy.yml - no stored keys at all; OIDC mints a short-lived token
 name: deploy
 on: { push: { branches: [main] } }
 permissions:
@@ -67,7 +67,7 @@ deploy:
 ### Secure
 
 ```yaml
-# .gitlab-ci.yml — values come from protected, masked, environment-scoped variables
+# .gitlab-ci.yml - values come from protected, masked, environment-scoped variables
 deploy_prod:
   stage: deploy
   environment: production          # variable visible only to prod deploys
@@ -102,12 +102,12 @@ build:
     - set +x                                   # never trace around secrets
     # Register any dynamically derived secret with the masker:
     - 'echo "::add-mask::$DEPLOY_TOKEN"'       # GitHub Actions masking directive
-    # Pass the secret without printing it — let the tool read it from the env:
+    # Pass the secret without printing it - let the tool read it from the env:
     - curl --silent -H "Authorization: Bearer $DEPLOY_TOKEN" https://api.example.com/deploy
     # No echo of the value; tracing off; log access restricted to the team.
 ```
 
-**Why it's safe**: the value never reaches stdout/stderr. Masking is a backstop, not the primary control—the secret is simply never printed.
+**Why it's safe**: the value never reaches stdout/stderr. Masking is a backstop, not the primary control-the secret is simply never printed.
 
 ## 4. Secret Baked into a Container Image
 
@@ -128,7 +128,7 @@ RUN npm ci
 ### Secure
 
 ```dockerfile
-# Dockerfile — BuildKit secret mount: available for one step, stored in NO layer
+# Dockerfile - BuildKit secret mount: available for one step, stored in NO layer
 # syntax=docker/dockerfile:1
 FROM node:20-slim
 RUN --mount=type=secret,id=npm_token \
@@ -188,7 +188,7 @@ RUN --mount=type=secret,id=npm_token \
 ### Secure (scan pre-commit AND in CI, full history)
 
 ```yaml
-# .pre-commit-config.yaml — block secrets before they are committed
+# .pre-commit-config.yaml - block secrets before they are committed
 repos:
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.18.0
@@ -197,7 +197,7 @@ repos:
 ```
 
 ```yaml
-# .github/workflows/secret-scan.yml — fail the build on any detected secret
+# .github/workflows/secret-scan.yml - fail the build on any detected secret
 name: secret-scan
 on: [pull_request, push]
 jobs:
@@ -212,7 +212,7 @@ jobs:
         run: trufflehog git file://. --only-verified --fail
 ```
 
-**Why it's safe**: leaks are caught pre-commit and again in CI across the whole history, so a secret is blocked or surfaced immediately—before the attacker's scanner finds it.
+**Why it's safe**: leaks are caught pre-commit and again in CI across the whole history, so a secret is blocked or surfaced immediately-before the attacker's scanner finds it.
 
 ## What Changed, and Why
 

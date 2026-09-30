@@ -2,7 +2,7 @@
 
 Each pair below shows a **vulnerable** contract and the **secure** rewrite. The examples focus on the failures that dominate real findings: ignoring the boolean of a value transfer, assuming ERC-20 reverts on failure, masking a failed `delegatecall`, and bricking a push-payment loop.
 
-## 1. ETH Withdrawal — Unchecked call
+## 1. ETH Withdrawal - Unchecked call
 
 ### Vulnerable
 
@@ -59,7 +59,7 @@ contract Vault {
 }
 ```
 
-## 2. Token Deposit — Assuming transferFrom Reverts
+## 2. Token Deposit - Assuming transferFrom Reverts
 
 ### Vulnerable
 
@@ -123,7 +123,7 @@ contract Staking {
 }
 ```
 
-## 3. Executor — Unchecked delegatecall
+## 3. Executor - Unchecked delegatecall
 
 ### Vulnerable
 
@@ -177,9 +177,9 @@ contract Executor {
 }
 ```
 
-## 4. Reward Distribution — Push Loop vs. Pull
+## 4. Reward Distribution - Push Loop vs. Pull
 
-### Vulnerable (push — one bad recipient bricks everyone)
+### Vulnerable (push - one bad recipient bricks everyone)
 
 ```
 pragma solidity ^0.8.20;
@@ -197,7 +197,7 @@ contract Airdrop {
 }
 ```
 
-### Secure (pull — each recipient bears their own risk)
+### Secure (pull - each recipient bears their own risk)
 
 ```
 pragma solidity ^0.8.20;

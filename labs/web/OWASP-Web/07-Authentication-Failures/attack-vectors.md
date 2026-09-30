@@ -9,9 +9,9 @@
 
 ## Understanding Authentication Attacks
 
-> **⚠ EDUCATIONAL PURPOSE ONLY** — these techniques are shown so you can find and fix them in systems you own or are explicitly authorised to test. Attacking accounts you do not own is illegal.
+> **⚠ EDUCATIONAL PURPOSE ONLY** - these techniques are shown so you can find and fix them in systems you own or are explicitly authorised to test. Attacking accounts you do not own is illegal.
 
-Authentication is attractive to attackers because success gives them a *legitimate* identity rather than an exploit that might be detected. Most of these attacks are cheap, automatable, and driven by data the attacker already has — billions of leaked credentials, a target's public email format, or a misread of how the server validates a token. The failure is usually in **process and configuration**, not in a single line of vulnerable code.
+Authentication is attractive to attackers because success gives them a *legitimate* identity rather than an exploit that might be detected. Most of these attacks are cheap, automatable, and driven by data the attacker already has - billions of leaked credentials, a target's public email format, or a misread of how the server validates a token. The failure is usually in **process and configuration**, not in a single line of vulnerable code.
 
 The attacker's objective in this category is almost always one of:
 
@@ -84,7 +84,7 @@ for code in range(0, 10000):
 
 ### 4. Username / Account Enumeration
 
-Different responses — in body, status code, or *timing* — reveal which accounts exist, sharpening every other attack.
+Different responses - in body, status code, or *timing* - reveal which accounts exist, sharpening every other attack.
 
 ```
 POST /login   {"email":"real@corp.com","password":"x"}
@@ -101,7 +101,7 @@ real  -> 240 ms   |   fake -> 15 ms
 
 ### 5. Session Fixation
 
-The attacker plants a known session ID, tricks the victim into authenticating with it, and — because the server never rotates the ID on login — inherits the now-authenticated session.
+The attacker plants a known session ID, tricks the victim into authenticating with it, and - because the server never rotates the ID on login - inherits the now-authenticated session.
 
 ```
 1. Attacker gets a valid anonymous session:  SID=abc123
@@ -135,7 +135,7 @@ DELETE cookie on browser  != server-side invalidation
 
 **Enablers**: stateless tokens with no deny-list, sessions never deleted on logout, no absolute timeout (CWE-613).
 
-### 8. Insecure Password Reset — Weak Token
+### 8. Insecure Password Reset - Weak Token
 
 ```python
 # VULNERABLE: guessable / non-expiring reset token
@@ -147,7 +147,7 @@ GET /reset?token=... <- never expires, reusable
 
 **Enablers**: predictable tokens, no expiry, multi-use tokens, no re-auth (CWE-640).
 
-### 9. Password Reset — Host Header / Link Poisoning
+### 9. Password Reset - Host Header / Link Poisoning
 
 ```
 POST /forgot-password

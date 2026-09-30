@@ -2,7 +2,7 @@
 
 ## Prevention Strategy Overview
 
-You cannot review every transitive package by hand, so the goal is to make **a known, minimal, scanned, and pinned dependency set the only thing that ships**—and to bound what any single bad package can do:
+You cannot review every transitive package by hand, so the goal is to make **a known, minimal, scanned, and pinned dependency set the only thing that ships**-and to bound what any single bad package can do:
 
 1. Know exactly what you deploy (inventory / SBOM).
 2. Scan it continuously and gate builds on the results (SCA).
@@ -12,7 +12,7 @@ You cannot review every transitive package by hand, so the goal is to make **a k
 
 ### Core Principles
 
-- **Assume you did not write it**: most of the shipped code is third-party—treat the tree, not the handler, as the attack surface.
+- **Assume you did not write it**: most of the shipped code is third-party-treat the tree, not the handler, as the attack surface.
 - **Visibility first**: you cannot patch or defend a dependency you cannot see; an SBOM is the foundation.
 - **Deterministic builds**: the same inputs must produce the same, verified artifact every time.
 - **Bound the blast radius**: assume a dependency will be compromised eventually, and make sure it inherits as little privilege and reach as possible.
@@ -79,7 +79,7 @@ Rules of thumb: no floating `latest` in production manifests, commit the lockfil
 
 ## 4. Minimize the Dependency Tree
 
-The safest dependency is the one you did not add. Serverless rewards small functions—fewer packages mean less attack surface, smaller bundles, and faster cold starts.
+The safest dependency is the one you did not add. Serverless rewards small functions-fewer packages mean less attack surface, smaller bundles, and faster cold starts.
 
 ```
 # See the real tree before adding anything:
@@ -136,7 +136,7 @@ pip install --only-binary=:all: -r requirements.txt --require-hashes
 
 ## 7. Scan Lambda Layers and Container Images
 
-Layers and images are dependencies too—and easy to forget. Scan their contents, not just the function's manifest, and rebuild them on a cadence.
+Layers and images are dependencies too-and easy to forget. Scan their contents, not just the function's manifest, and rebuild them on a cadence.
 
 ```
 # Scan the built artifact / layer directory
@@ -175,7 +175,7 @@ updates:
 Assume a dependency will eventually be compromised. Least-privilege roles and monitored egress decide whether that is an incident or a catastrophe (see SAS-4).
 
 ```
-# Scope the execution role to exactly what the function needs — no wildcards:
+# Scope the execution role to exactly what the function needs - no wildcards:
 {
   "Effect": "Allow",
   "Action": ["dynamodb:GetItem"],
@@ -190,7 +190,7 @@ Assume a dependency will eventually be compromised. Least-privilege roles and mo
 
 ## 10. Monitoring and Detection
 
-Watch for the signatures of a dependency behaving badly—at build time and at runtime.
+Watch for the signatures of a dependency behaving badly-at build time and at runtime.
 
 ```
 # Build-time signals:
@@ -201,7 +201,7 @@ Watch for the signatures of a dependency behaving badly—at build time and at r
 # Runtime signals (per-function):
 #  - egress to a destination the function never normally contacts
 #  - reads of the credential endpoint followed by unusual API calls
-#  - a spike in invocations/cost (possible abusive workload) — ties to SAS-8
+#  - a spike in invocations/cost (possible abusive workload) - ties to SAS-8
 
 # Alert on new dependencies entering the tree, and diff SBOMs between releases.
 ```
@@ -234,11 +234,11 @@ pip-audit -r requirements.txt --strict
 
 ## Key Takeaways
 
-1. **Inventory everything** — an SBOM per function and layer turns the next advisory into a lookup, not a scramble.
-2. **Gate on SCA** — scan in CI and on a schedule against what is deployed; a failing scan blocks the merge.
-3. **Pin and verify** — committed lockfiles with integrity hashes, installed via `npm ci` / `--require-hashes`, stop silent swaps.
-4. **Minimize and vet** — fewer packages from trusted, scoped registries, with install scripts off, shrink the surface.
-5. **Bound the damage** — least-privilege roles and monitored egress ensure a bad dependency cannot own the account.
+1. **Inventory everything** - an SBOM per function and layer turns the next advisory into a lookup, not a scramble.
+2. **Gate on SCA** - scan in CI and on a schedule against what is deployed; a failing scan blocks the merge.
+3. **Pin and verify** - committed lockfiles with integrity hashes, installed via `npm ci` / `--require-hashes`, stop silent swaps.
+4. **Minimize and vet** - fewer packages from trusted, scoped registries, with install scripts off, shrink the surface.
+5. **Bound the damage** - least-privilege roles and monitored egress ensure a bad dependency cannot own the account.
 
 ## Next Steps
 

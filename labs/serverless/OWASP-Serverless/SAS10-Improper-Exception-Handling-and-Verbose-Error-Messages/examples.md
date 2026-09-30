@@ -4,15 +4,15 @@ Each pair below shows a **vulnerable** function (or configuration) and the **sec
 
 ## Table of Contents
 
-- [1. Lambda Handler (Node.js) — Raw Error vs. Generic Client Error](#ex1)
-- [2. Lambda Handler (Python) — Verbose Dump vs. Redacted Logging](#ex2)
+- [1. Lambda Handler (Node.js) - Raw Error vs. Generic Client Error](#ex1)
+- [2. Lambda Handler (Python) - Verbose Dump vs. Redacted Logging](#ex2)
 - [3. Fail-Open vs. Fail-Closed Authorization](#ex3)
 - [4. Non-Idempotent Retry vs. Idempotent + Cleanup](#ex4)
 - [5. Error Oracle vs. Uniform Response](#ex5)
-- [6. API Gateway — Passthrough vs. Mapped Errors](#ex6)
+- [6. API Gateway - Passthrough vs. Mapped Errors](#ex6)
 - [7. Lost Audit Trail vs. Log-Before-Return](#ex7)
 
-## 1. Lambda Handler (Node.js) — Raw Error vs. Generic Client Error
+## 1. Lambda Handler (Node.js) - Raw Error vs. Generic Client Error
 
 ### Vulnerable
 ```javascript
@@ -68,7 +68,7 @@ exports.handler = withErrorBoundary(async (event) => {
 // Caller sees: {"error":"internal_error","message":"...","correlationId":"..."}
 ```
 
-## 2. Lambda Handler (Python) — Verbose Dump vs. Redacted Logging
+## 2. Lambda Handler (Python) - Verbose Dump vs. Redacted Logging
 
 ### Vulnerable
 ```python
@@ -237,7 +237,7 @@ exports.handler = withErrorBoundary(async (event) => {
 // Identical status, identical message, flattened timing -> no oracle.
 ```
 
-## 6. API Gateway — Passthrough vs. Mapped Errors
+## 6. API Gateway - Passthrough vs. Mapped Errors
 
 ### Vulnerable
 ```yaml

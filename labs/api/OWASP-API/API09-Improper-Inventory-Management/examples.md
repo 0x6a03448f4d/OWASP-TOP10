@@ -1,6 +1,6 @@
 # API09: Improper Inventory Management - Code Examples
 
-Each example contrasts a **vulnerable** pattern — an unversioned or undocumented endpoint with no lifecycle governance — against a **secure** one that enforces supported versions, blocks retired versions with `410 Gone`, and keeps diagnostic routes out of production. The point is not just to add a version number, but to make the inventory *enforceable in code*.
+Each example contrasts a **vulnerable** pattern - an unversioned or undocumented endpoint with no lifecycle governance - against a **secure** one that enforces supported versions, blocks retired versions with `410 Gone`, and keeps diagnostic routes out of production. The point is not just to add a version number, but to make the inventory *enforceable in code*.
 
 ## Flask (Python)
 
@@ -199,10 +199,10 @@ if (app.Environment.IsDevelopment())
 Across all four stacks the secure version does the same three things:
 
 1. **Declares supported and retired versions explicitly**, so the set of live endpoints is defined in code rather than by accident.
-2. **Fails closed for retired versions** with `410 Gone` — a decommissioned version cannot silently keep serving data.
+2. **Fails closed for retired versions** with `410 Gone` - a decommissioned version cannot silently keep serving data.
 3. **Gates diagnostic/documentation endpoints on the environment**, so debug routes and interactive specs never reach production.
 
-Pair these code-level guards with the program-level controls in the [Prevention](prevention.md) guide — an inventory-as-code catalog, external discovery, and gateway parity — so the inventory stays accurate as the system evolves.
+Pair these code-level guards with the program-level controls in the [Prevention](prevention.md) guide - an inventory-as-code catalog, external discovery, and gateway parity - so the inventory stays accurate as the system evolves.
 
 ## Next Steps
 

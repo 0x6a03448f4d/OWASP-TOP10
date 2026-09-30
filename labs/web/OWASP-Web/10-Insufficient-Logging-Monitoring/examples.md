@@ -67,7 +67,7 @@ def login():
 
 ## 2. Access-Control Denials (Python / Flask)
 
-Authorization failures (HTTP 403) are the single highest-signal security event — a burst of them is 403-walking. They are also the most commonly forgotten.
+Authorization failures (HTTP 403) are the single highest-signal security event - a burst of them is 403-walking. They are also the most commonly forgotten.
 
 ### Vulnerable: Silent Denial
 
@@ -135,7 +135,7 @@ app.post("/login", (req, res) => {
 
 ## 4. High-Value Action Audit Trail (Java)
 
-Money movement, role changes, and data deletion need an audit trail with **before/after** state and the acting principal — so a rogue admin created during an intrusion is visible on review.
+Money movement, role changes, and data deletion need an audit trail with **before/after** state and the acting principal - so a rogue admin created during an intrusion is visible on review.
 
 ### Vulnerable: No Audit
 

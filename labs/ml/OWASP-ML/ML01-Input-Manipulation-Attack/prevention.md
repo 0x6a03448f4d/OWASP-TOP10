@@ -2,7 +2,7 @@
 
 ## Prevention Strategy Overview
 
-There is no single control that makes a model immune to adversarial examples. Robustness is achieved by **layering** defenses so that defeating the model requires defeating several independent mechanisms at once—and by **evaluating every layer against an adaptive, defense-aware attacker**. A defense that only looks strong under weak or unaware attacks provides no real protection.
+There is no single control that makes a model immune to adversarial examples. Robustness is achieved by **layering** defenses so that defeating the model requires defeating several independent mechanisms at once-and by **evaluating every layer against an adaptive, defense-aware attacker**. A defense that only looks strong under weak or unaware attacks provides no real protection.
 
 1. Make the model itself harder to fool (**adversarial training**, ensembles, certified methods).
 2. Make the input harder to weaponise (**preprocessing, validation, randomised transforms**).
@@ -40,10 +40,10 @@ for x, y in loader:
 
 ## 2. Input Preprocessing & Transformation
 
-Transforming the input before scoring can destroy fragile adversarial perturbations—JPEG compression, bit-depth reduction, spatial smoothing, or resizing. Treat these as *speed bumps*, not guarantees: an adaptive attacker who models the transform (EOT/BPDA) can often defeat it, so combine with training and detection.
+Transforming the input before scoring can destroy fragile adversarial perturbations-JPEG compression, bit-depth reduction, spatial smoothing, or resizing. Treat these as *speed bumps*, not guarantees: an adaptive attacker who models the transform (EOT/BPDA) can often defeat it, so combine with training and detection.
 
 ```python
-# Preprocessing defenses (schematic) — cheap, but not sufficient alone
+# Preprocessing defenses (schematic) - cheap, but not sufficient alone
 def preprocess(x):
     x = jpeg_compress(x, quality=75)     # discards high-freq perturbation
     x = reduce_bit_depth(x, bits=5)      # quantise pixel values
@@ -56,7 +56,7 @@ def preprocess(x):
 ## 3. Randomised & Certified Defenses
 
 ### Randomised Smoothing (certified)
-Certified defenses give a *provable* guarantee that no perturbation within a given radius changes the prediction. Randomised smoothing classifies many noisy copies of the input and takes a majority vote, yielding a certified L2 radius. The guarantee is real but bounded—it covers a specific radius and costs accuracy and inference time.
+Certified defenses give a *provable* guarantee that no perturbation within a given radius changes the prediction. Randomised smoothing classifies many noisy copies of the input and takes a majority vote, yielding a certified L2 radius. The guarantee is real but bounded-it covers a specific radius and costs accuracy and inference time.
 
 ```python
 # Randomised smoothing (schematic): vote over Gaussian-noised copies
@@ -70,11 +70,11 @@ def smoothed_predict(model, x, sigma, n):
 ```
 
 ### Ensembles & Diversity
-Combining several diverse models raises the bar for transfer and query attacks, because a single perturbation must fool all of them. Diversity matters—models that share architecture and data share weaknesses, so ensembling near-identical models buys little.
+Combining several diverse models raises the bar for transfer and query attacks, because a single perturbation must fool all of them. Diversity matters-models that share architecture and data share weaknesses, so ensembling near-identical models buys little.
 
 ## 4. Adversarial Input Detection
 
-Rather than always classifying, add a gate that flags inputs that look adversarial—statistical outliers in feature space, disagreement between models or between an input and its transformed version, or a dedicated detector. Detected inputs are rejected, throttled, or sent for review. Detectors must also be evaluated adaptively (attackers can try to evade classifier *and* detector jointly).
+Rather than always classifying, add a gate that flags inputs that look adversarial-statistical outliers in feature space, disagreement between models or between an input and its transformed version, or a dedicated detector. Detected inputs are rejected, throttled, or sent for review. Detectors must also be evaluated adaptively (attackers can try to evade classifier *and* detector jointly).
 
 ```python
 # Detection by transform-consistency (schematic)
@@ -109,7 +109,7 @@ Every extra bit you return helps a black-box attacker. Reduce the signal:
 
 - Return **coarse decisions** (top-1 label, or a small set of buckets) rather than full logits/probability vectors where possible.
 - **Do not expose gradients** or internal representations through the API.
-- **Rate-limit and monitor queries** per client—query attacks need many probes; throttling and anomaly detection on query patterns raises their cost sharply.
+- **Rate-limit and monitor queries** per client-query attacks need many probes; throttling and anomaly detection on query patterns raises their cost sharply.
 
 ```python
 # Minimise output signal at the API boundary (schematic)
@@ -121,7 +121,7 @@ def predict_api(x, client):
     return {"label": int(label)}            # no raw scores / logits / gradients
 ```
 
-> **Gradient masking is not a defense.** Hiding or obfuscating gradients (non-differentiable steps, added noise, shattered gradients) has repeatedly been bypassed by adaptive attackers. Limiting exposed signal *raises attacker cost*—it does not replace making the model actually robust.
+> **Gradient masking is not a defense.** Hiding or obfuscating gradients (non-differentiable steps, added noise, shattered gradients) has repeatedly been bypassed by adaptive attackers. Limiting exposed signal *raises attacker cost*-it does not replace making the model actually robust.
 
 ## 7. Monitoring, Anomaly Detection & Response
 
@@ -145,7 +145,7 @@ def monitor(client, x, pred):
 
 ## 8. Human Review for High-Stakes Decisions
 
-Where a wrong decision causes serious harm—fraud over a threshold, medical or safety calls, biometric access, content that will act automatically—**do not let the model be the sole authority**. Route low-confidence, flagged, or high-impact cases to a human, and design the system to fail closed (deny/hold) rather than fail open.
+Where a wrong decision causes serious harm-fraud over a threshold, medical or safety calls, biometric access, content that will act automatically-**do not let the model be the sole authority**. Route low-confidence, flagged, or high-impact cases to a human, and design the system to fail closed (deny/hold) rather than fail open.
 
 ## Layered Defense Summary
 
@@ -162,11 +162,11 @@ Where a wrong decision causes serious harm—fraud over a threshold, medical or 
 
 ## Using an Adversarial Robustness Library
 
-Do not hand-roll attacks for evaluation—use maintained libraries so your robustness numbers are trustworthy and comparable:
+Do not hand-roll attacks for evaluation-use maintained libraries so your robustness numbers are trustworthy and comparable:
 
-- **Adversarial Robustness Toolbox (ART)** — broad attack/defense coverage across frameworks (PyTorch, TensorFlow, scikit-learn).
-- **CleverHans** — reference implementations of canonical attacks for benchmarking.
-- **Foolbox / torchattacks** — fast, well-tested attack suites for PyTorch/TF/JAX.
+- **Adversarial Robustness Toolbox (ART)** - broad attack/defense coverage across frameworks (PyTorch, TensorFlow, scikit-learn).
+- **CleverHans** - reference implementations of canonical attacks for benchmarking.
+- **Foolbox / torchattacks** - fast, well-tested attack suites for PyTorch/TF/JAX.
 
 ```python
 # Evaluate robustness with ART (schematic)
@@ -182,10 +182,10 @@ robust_acc = (clf.predict(x_adv).argmax(1) == y_test).mean()   # report THIS, no
 ## Key Takeaways
 
 1. **Layer defenses.** No single control is sufficient; combine robust training, input hardening, detection, signal minimisation, and human review.
-2. **Adversarial training is the workhorse** empirical defense—budget for its accuracy and compute costs.
+2. **Adversarial training is the workhorse** empirical defense-budget for its accuracy and compute costs.
 3. **Certified methods give guarantees** but only within a bounded radius.
-4. **Gradient masking is false security**—always evaluate with adaptive, defense-aware attacks (PGD/C&W, BPDA, EOT).
-5. **Limit what you expose and watch what you serve**—coarse outputs, rate limits, monitoring, and human review for high-stakes calls.
+4. **Gradient masking is false security**-always evaluate with adaptive, defense-aware attacks (PGD/C&W, BPDA, EOT).
+5. **Limit what you expose and watch what you serve**-coarse outputs, rate limits, monitoring, and human review for high-stakes calls.
 
 ## Next Steps
 

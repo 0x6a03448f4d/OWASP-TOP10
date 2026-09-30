@@ -13,7 +13,7 @@
 
 ## What is Sensitive Information Disclosure?
 
-**Sensitive Information Disclosure** (LLM02 in the 2025 OWASP Top 10 for LLM Applications) is the exposure of confidential data through anything an LLM application touches: its outputs, its logs, its error messages, its retrieved context, or the model weights themselves. The data that leaks can be personally identifiable information (PII), credentials and API keys, proprietary business data, health or financial records, model internals, or — critically for multi-tenant systems — *another user's* data.
+**Sensitive Information Disclosure** (LLM02 in the 2025 OWASP Top 10 for LLM Applications) is the exposure of confidential data through anything an LLM application touches: its outputs, its logs, its error messages, its retrieved context, or the model weights themselves. The data that leaks can be personally identifiable information (PII), credentials and API keys, proprietary business data, health or financial records, model internals, or - critically for multi-tenant systems - *another user's* data.
 
 The vulnerability is not a single bug. It is the gap between the data your system legitimately holds and the data a given requester is actually entitled to see. An LLM widens that gap in ways traditional applications do not: it **memorises** fragments of training data, it **concatenates** secrets and user input into one prompt, it **retrieves** documents on the user's behalf, and it **generates** free-form text that no schema constrains. Any of those steps can surface information the requester was never authorised to receive.
 
@@ -38,18 +38,18 @@ Shared conversation state      -> Cross-user context bleed in multi-tenancy
 
 It helps to separate two questions that are easy to conflate:
 
-- **Was the data ever supposed to be inside the system?** If a training set or a RAG index contains raw SSNs, that is a *data governance* failure — the data should have been scrubbed or minimised before it ever went near the model.
-- **Did the data reach someone who should not see it?** If User B can read a document only User A is entitled to, that is an *access-control* failure at the data layer — the retrieval step trusted the prompt instead of enforcing authorization.
+- **Was the data ever supposed to be inside the system?** If a training set or a RAG index contains raw SSNs, that is a *data governance* failure - the data should have been scrubbed or minimised before it ever went near the model.
+- **Did the data reach someone who should not see it?** If User B can read a document only User A is entitled to, that is an *access-control* failure at the data layer - the retrieval step trusted the prompt instead of enforcing authorization.
 
 Robust defenses address both. Sanitisation shrinks what *can* leak; access control governs who *can reach* what remains.
 
 ## Why Does This Matter?
 
-Sensitive Information Disclosure is ranked **#2** in the 2025 edition — up from #6 in 2023 — because the explosion of RAG systems, agentic assistants, and enterprise copilots has moved LLMs directly on top of production data stores. The model is now frequently the thing that decides which corporate document, ticket, or record a user sees, and a mistake there is a data breach, not a bad answer.
+Sensitive Information Disclosure is ranked **#2** in the 2025 edition - up from #6 in 2023 - because the explosion of RAG systems, agentic assistants, and enterprise copilots has moved LLMs directly on top of production data stores. The model is now frequently the thing that decides which corporate document, ticket, or record a user sees, and a mistake there is a data breach, not a bad answer.
 
 ### Business Impact
 - **Privacy violations**: Exposure of customer or employee PII creates direct legal liability and mandatory breach notification.
-- **Regulatory penalties**: GDPR, HIPAA, PCI-DSS, and CCPA all attach fines and obligations to disclosed personal, health, or cardholder data — whether the disclosure came from a database or a chatbot.
+- **Regulatory penalties**: GDPR, HIPAA, PCI-DSS, and CCPA all attach fines and obligations to disclosed personal, health, or cardholder data - whether the disclosure came from a database or a chatbot.
 - **Intellectual-property loss**: Proprietary source code, pricing, roadmaps, or M&A plans handed to a competitor cannot be un-disclosed.
 - **Credential compromise**: A single leaked API key or database password can turn an information-disclosure bug into a full system breach.
 - **Trust and reputation**: "The AI told a stranger my account details" is a headline that erodes user trust faster than almost any other failure mode.
@@ -76,7 +76,7 @@ Sensitive Information Disclosure is ranked **#2** in the 2025 edition — up fro
   failure         risk              boundary            attempts        DLP boundary
 ```
 
-Every arrow above is a place a control can be applied — or forgotten. Sanitisation acts at build time, access control at serving and request time, and output filtering / DLP at the final boundary.
+Every arrow above is a place a control can be applied - or forgotten. Sanitisation acts at build time, access control at serving and request time, and output filtering / DLP at the final boundary.
 
 ### Categories of Sensitive Data
 
@@ -96,13 +96,13 @@ Every arrow above is a place a control can be applied — or forgotten. Sanitisa
 Large models provably memorise a fraction of their training data, especially rare, high-entropy strings such as keys, unique identifiers, and repeated verbatim records. Given the right prefix, the model can complete a memorised secret. This is a well-established research result, not a hypothetical.
 
 #### 2. Prompts concatenate trust boundaries
-A prompt frequently glues together a system instruction, retrieved documents, secrets, and untrusted user input into one flat string. The model has no built-in notion that the API key on line 3 is more sensitive than the greeting on line 1 — so an extraction prompt can pull it straight back out.
+A prompt frequently glues together a system instruction, retrieved documents, secrets, and untrusted user input into one flat string. The model has no built-in notion that the API key on line 3 is more sensitive than the greeting on line 1 - so an extraction prompt can pull it straight back out.
 
 #### 3. Retrieval delegates authorization to the model
 In a naive RAG system the vector store returns the most *similar* chunks, not the chunks the user is *allowed* to see. If access control lives only in the prompt ("only answer about documents this user owns"), it is a suggestion, not an enforcement boundary.
 
 #### 4. Free-form output defeats schema-based DLP
-Traditional data-loss-prevention often assumes structured fields. An LLM can emit a card number spelled out in words, a key split across a sentence, or PII paraphrased — so naive pattern matching under-detects.
+Traditional data-loss-prevention often assumes structured fields. An LLM can emit a card number spelled out in words, a key split across a sentence, or PII paraphrased - so naive pattern matching under-detects.
 
 ## Real-World Impact
 
@@ -116,11 +116,11 @@ The incidents below are described as **classes of verifiable, publicly reported 
 **Lesson**: User inputs to external LLMs are an exfiltration channel. Data-handling policy and technical controls (enterprise tiers with no-retention terms, DLP on outbound traffic) are both required.
 
 ### Case Class 2: Extracting Memorised Training Data
-**What happened**: Peer-reviewed research has repeatedly demonstrated that training data — including PII and secrets — can be extracted verbatim from production language models through carefully constructed prompts and sampling. Later work showed that even alignment-tuned commercial models could be induced to emit memorised training text.
+**What happened**: Peer-reviewed research has repeatedly demonstrated that training data - including PII and secrets - can be extracted verbatim from production language models through carefully constructed prompts and sampling. Later work showed that even alignment-tuned commercial models could be induced to emit memorised training text.
 
 **Why it is LLM02**: The disclosed data was never meant to be reproducible, yet the model reproduced it on demand.
 
-**Lesson**: Memorisation is a measurable property of trained models. Sanitising and de-duplicating training data reduces — but does not eliminate — the risk, so output-side controls are still needed.
+**Lesson**: Memorisation is a measurable property of trained models. Sanitising and de-duplicating training data reduces - but does not eliminate - the risk, so output-side controls are still needed.
 
 ### Case Class 3: Code Assistants Suggesting Real Secrets
 **What happened**: Studies of code-completion assistants trained on public repositories showed the tools could suggest hardcoded credentials and keys that had been committed to those repositories.
@@ -141,16 +141,16 @@ The incidents below are described as **classes of verifiable, publicly reported 
 
 **Why it is LLM02**: The retrieval layer disclosed internal documents across an access-control boundary that existed in the source system but was dropped during indexing.
 
-**Lesson**: Per-user authorization must be enforced *at the data/retrieval layer*, filtering candidates by the requester's identity — never by asking the model to be discreet.
+**Lesson**: Per-user authorization must be enforced *at the data/retrieval layer*, filtering candidates by the requester's identity - never by asking the model to be discreet.
 
 ## Prevalence
 
 Sensitive Information Disclosure is rated by OWASP as both **highly prevalent and high impact** for modern LLM applications, which is why it climbed to #2 in the 2025 list. Its prevalence is driven by structural trends rather than by any one product:
 
-- RAG has become the default architecture for enterprise assistants, and ACL-aware retrieval is harder to build than naive similarity search — so the insecure version is the common one.
+- RAG has become the default architecture for enterprise assistants, and ACL-aware retrieval is harder to build than naive similarity search - so the insecure version is the common one.
 - Agentic systems chain tools and data sources, multiplying the number of trust boundaries a single request crosses.
 - Secrets in prompts remain a widespread anti-pattern because "just put the key in the system prompt" is the fastest thing that works in a demo.
-- Verbose logging of full prompts and completions — often enabled for debugging — quietly copies sensitive data into a second, less-protected store.
+- Verbose logging of full prompts and completions - often enabled for debugging - quietly copies sensitive data into a second, less-protected store.
 
 > Note: precise percentages differ between reports and change quickly. Treat any single figure as illustrative. The durable takeaway is that disclosure is common, easy to trigger, and expensive when it lands on regulated data.
 
@@ -162,17 +162,17 @@ Sensitive Information Disclosure is rated by OWASP as both **highly prevalent an
 ### Myth 2: "Our RAG only indexes internal documents, so it's fine internally."
 **Reality**: "Internal" is not one permission level. Employees have different entitlements; an index without per-user ACL filtering will happily surface HR files, unreleased financials, or another team's secrets to anyone who can ask.
 
-### Myth 3: "The model can't leak training data — it only learned patterns."
+### Myth 3: "The model can't leak training data - it only learned patterns."
 **Reality**: Models measurably memorise rare, high-entropy strings and can reproduce them verbatim. Memorisation and generalisation coexist.
 
-### Myth 4: "PII in logs isn't a real exposure — logs are internal."
+### Myth 4: "PII in logs isn't a real exposure - logs are internal."
 **Reality**: Logs are one of the most frequently breached data stores, often with broader read access and weaker retention controls than the primary database. A prompt/response log is a full copy of your sensitive data.
 
 ### Myth 5: "Output filtering alone will catch anything sensitive."
 **Reality**: Output DLP is a valuable last line of defense but is defeated by paraphrase, encoding, and formatting tricks. It must sit behind sanitisation and access control, not replace them.
 
 ### Myth 6: "This is the same thing as System Prompt Leakage."
-**Reality**: They overlap but are distinct list items — see the next section.
+**Reality**: They overlap but are distinct list items - see the next section.
 
 ## How LLM02 Differs from LLM07 (System Prompt Leakage)
 
@@ -194,7 +194,7 @@ Ask these questions about your LLM application:
 - [ ] Is training / fine-tuning / RAG data scrubbed of PII and secrets before it is ingested?
 - [ ] Does retrieval filter candidate documents by the *requester's* identity at the data layer, not in the prompt?
 - [ ] Are all secrets (keys, tokens, connection strings) kept out of prompts and pulled from a secret manager at call time?
-- [ ] Is per-user session state fully isolated — no shared context objects, caches keyed by user, connections not reused across tenants?
+- [ ] Is per-user session state fully isolated - no shared context objects, caches keyed by user, connections not reused across tenants?
 - [ ] Is there an output filter / DLP pass that redacts PII and secret patterns before responses reach the user?
 - [ ] Do logs and traces redact or omit sensitive fields instead of storing full prompts and completions verbatim?
 - [ ] Do error messages return a generic message to the client, with detail only in access-controlled server logs?
@@ -206,7 +206,7 @@ Several "no" or "not sure" answers means you likely have an exploitable disclosu
 ## Next Steps
 
 - **[Attack Vectors](attack-vectors.md)**: How attackers coax sensitive data out of LLM systems.
-- **[Prevention](prevention.md)**: Layered defenses — sanitisation, access control, secret management, and DLP.
+- **[Prevention](prevention.md)**: Layered defenses - sanitisation, access control, secret management, and DLP.
 - **[Examples](examples.md)**: Vulnerable-vs-secure code in Python (OpenAI/Anthropic SDKs, LangChain/RAG) and Node/TypeScript.
 - **[Hands-On Lab](./lab/sensitive-information-disclosure/)**: Practice finding and fixing disclosure in a running application.
 

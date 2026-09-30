@@ -12,11 +12,11 @@
 
 ## What is Insecure Deserialization?
 
-**Serialization** is the process of turning an in-memory object—with its fields, its type, and sometimes its behaviour—into a flat stream of bytes that can be stored on disk, cached, put in a cookie, or sent across a network. **Deserialization** is the reverse: taking that byte stream and rebuilding a live object from it. **Insecure Deserialization** is what happens when an application rebuilds objects from data that an attacker controls, without treating that data as hostile.
+**Serialization** is the process of turning an in-memory object-with its fields, its type, and sometimes its behaviour-into a flat stream of bytes that can be stored on disk, cached, put in a cookie, or sent across a network. **Deserialization** is the reverse: taking that byte stream and rebuilding a live object from it. **Insecure Deserialization** is what happens when an application rebuilds objects from data that an attacker controls, without treating that data as hostile.
 
-The danger is subtle because deserialization feels like "just reading data." But many serialization formats do far more than copy field values—they can decide which classes to instantiate, invoke constructors and callback methods, restore private state, and reconnect object graphs. When the byte stream is attacker-controlled, the attacker is effectively scripting your runtime: choosing which types get created and which methods fire while the object is being reassembled. Depending on what classes are available on the application's classpath, that can escalate all the way to **remote code execution (RCE)**.
+The danger is subtle because deserialization feels like "just reading data." But many serialization formats do far more than copy field values-they can decide which classes to instantiate, invoke constructors and callback methods, restore private state, and reconnect object graphs. When the byte stream is attacker-controlled, the attacker is effectively scripting your runtime: choosing which types get created and which methods fire while the object is being reassembled. Depending on what classes are available on the application's classpath, that can escalate all the way to **remote code execution (RCE)**.
 
-> **The core insight:** a native serialization format is not a data format—it is a small program that tells the runtime how to reconstruct an object. Deserializing untrusted input is therefore closer to running untrusted code than to parsing untrusted text.
+> **The core insight:** a native serialization format is not a data format-it is a small program that tells the runtime how to reconstruct an object. Deserializing untrusted input is therefore closer to running untrusted code than to parsing untrusted text.
 
 ### Serialization vs. Deserialization
 
@@ -32,10 +32,10 @@ Deserialization (dangerous with untrusted input):
 
 ### What Goes Wrong
 
-When the serialized data comes from an untrusted source—an HTTP request body, a cookie, a message on a queue, an uploaded file, a query parameter—an attacker can:
+When the serialized data comes from an untrusted source-an HTTP request body, a cookie, a message on a queue, an uploaded file, a query parameter-an attacker can:
 
 - **Execute arbitrary code** by crafting an object graph that, during reconstruction, chains together existing library methods into a "gadget chain" ending in a command execution or code-loading sink.
-- **Tamper with application state** by editing serialized fields—flipping `role: user` to `role: admin`, changing a price, or extending an expiry—when the data is not integrity-protected.
+- **Tamper with application state** by editing serialized fields-flipping `role: user` to `role: admin`, changing a price, or extending an expiry-when the data is not integrity-protected.
 - **Escalate privileges or bypass authentication** by forging the serialized representation of a trusted object such as a session or identity token.
 - **Trigger injection** (SQL, command, path) because the reconstructed object later flows into a sink, or because a "magic" callback method runs unexpected code paths.
 - **Cause denial of service** with small payloads that expand into enormous object graphs or deeply recursive structures ("billion laughs"–style amplification, hash-collision maps, or self-referential graphs).
@@ -55,7 +55,7 @@ The first is fixed by *not deserializing untrusted data with a dangerous format*
 
 ### Business Impact
 
-- **Full server compromise**: The headline outcome of insecure deserialization is remote code execution—an attacker running commands as your application. That is the most severe result any single vulnerability class can produce, and it often needs no valid credentials.
+- **Full server compromise**: The headline outcome of insecure deserialization is remote code execution-an attacker running commands as your application. That is the most severe result any single vulnerability class can produce, and it often needs no valid credentials.
 - **Account takeover and fraud**: Tampered serialized cookies and tokens let attackers impersonate other users or elevate their own privileges, leading directly to fraud, data theft, and abuse.
 - **Data breach and regulatory exposure**: RCE on an application server usually means access to databases and secrets, triggering GDPR, HIPAA, and PCI-DSS breach obligations, fines, and notification duties.
 - **Supply-chain blast radius**: Because the exploit depends on which libraries ("gadgets") are on the classpath, a single vulnerable dependency can make thousands of downstream applications exploitable at once.
@@ -73,7 +73,7 @@ The first is fixed by *not deserializing untrusted data with a dangerous format*
 
 ### Why "Just Reading Data" Can Run Code
 
-Native serialization formats were designed for convenience: developers wanted to save an object and get the exact same object back, including its type and private state. To do that, the deserializer must be able to instantiate arbitrary classes named in the stream and run their reconstruction hooks. Those hooks—`readObject` in Java, `__reduce__`/`__setstate__` in Python pickle, `__wakeup`/`__destruct` in PHP, callbacks in .NET—are exactly the machinery an attacker abuses.
+Native serialization formats were designed for convenience: developers wanted to save an object and get the exact same object back, including its type and private state. To do that, the deserializer must be able to instantiate arbitrary classes named in the stream and run their reconstruction hooks. Those hooks-`readObject` in Java, `__reduce__`/`__setstate__` in Python pickle, `__wakeup`/`__destruct` in PHP, callbacks in .NET-are exactly the machinery an attacker abuses.
 
 The attacker rarely needs to smuggle in new code. Instead they assemble a **gadget chain**: a sequence of method calls, using classes *already present* in the application or its libraries, that the deserializer will trigger automatically during reconstruction. The chain starts at a callback that always runs, threads through helper classes, and ends at a "sink" such as `Runtime.exec`, a template evaluation, or a JNDI lookup. Tools like **ysoserial** (Java) and **ysoserial.net** (.NET) automate building these payloads for dozens of known library combinations.
 
@@ -106,7 +106,7 @@ blob = pickle.dumps(Payload())        # attacker builds this once
 pickle.loads(blob)                    # victim: os.system("id") runs here
 ```
 
-No exotic bug is needed—`pickle` is *documented* as unsafe on untrusted input. The same pattern, with different plumbing, exists in every native serializer above.
+No exotic bug is needed-`pickle` is *documented* as unsafe on untrusted input. The same pattern, with different plumbing, exists in every native serializer above.
 
 ### Where Serialized Data Enters Applications
 
@@ -139,7 +139,7 @@ The incidents below are described as **classes of publicly documented events and
 
 ### Case Class 3: PHP Object Injection and `phar://` Deserialization
 
-**What happened**: PHP applications—including popular CMS platforms and their plugin ecosystems—have repeatedly been exploited through `unserialize()` on user input, using **POP (Property-Oriented Programming) chains** that abuse magic methods like `__wakeup` and `__destruct`. Research presented at Black Hat (2018) showed that even without a direct `unserialize()` call, the `phar://` stream wrapper deserializes attacker-controlled metadata during ordinary file operations (`file_exists`, `fopen`, image checks).
+**What happened**: PHP applications-including popular CMS platforms and their plugin ecosystems-have repeatedly been exploited through `unserialize()` on user input, using **POP (Property-Oriented Programming) chains** that abuse magic methods like `__wakeup` and `__destruct`. Research presented at Black Hat (2018) showed that even without a direct `unserialize()` call, the `phar://` stream wrapper deserializes attacker-controlled metadata during ordinary file operations (`file_exists`, `fopen`, image checks).
 
 **Why it mattered**: It expanded the attack surface from "obvious deserialization endpoints" to "anywhere a filename is influenced by the user," catching many developers by surprise.
 
@@ -147,7 +147,7 @@ The incidents below are described as **classes of publicly documented events and
 
 ### Case Class 4: .NET "Friday the 13th JSON Attacks" and ViewState
 
-**What happened**: Research presented at Black Hat (2017) demonstrated remote code execution across many .NET serializers—including `BinaryFormatter`, `NetDataContractSerializer`, and Json.NET when `TypeNameHandling` was enabled—because the serialized stream carried *type* information the deserializer would faithfully instantiate. Separately, ASP.NET `__VIEWSTATE` was shown to be exploitable for RCE when the signing/encryption key (`machineKey`) was known, leaked, or left at a default.
+**What happened**: Research presented at Black Hat (2017) demonstrated remote code execution across many .NET serializers-including `BinaryFormatter`, `NetDataContractSerializer`, and Json.NET when `TypeNameHandling` was enabled-because the serialized stream carried *type* information the deserializer would faithfully instantiate. Separately, ASP.NET `__VIEWSTATE` was shown to be exploitable for RCE when the signing/encryption key (`machineKey`) was known, leaked, or left at a default.
 
 **Why it mattered**: It showed that "typed" JSON and binary serialization are just as dangerous as classic Java/PHP when type resolution is attacker-influenced. Microsoft ultimately deprecated and moved to remove `BinaryFormatter`.
 
@@ -157,17 +157,17 @@ The incidents below are described as **classes of publicly documented events and
 
 **What happened**: The `node-serialize` package (and similar libraries) supported serializing JavaScript *functions*. On deserialization, a specially crafted payload with an immediately-invoked function expression (IIFE) caused the function body to execute, giving RCE to anyone who could supply the serialized string.
 
-**Why it mattered**: It is a clean demonstration that "serialization libraries that restore behaviour, not just data" are inherently unsafe on untrusted input—even in a language without Java-style gadgets.
+**Why it mattered**: It is a clean demonstration that "serialization libraries that restore behaviour, not just data" are inherently unsafe on untrusted input-even in a language without Java-style gadgets.
 
 **Root cause**: A serializer that evaluates embedded code during "parsing."
 
 ## Prevalence and Statistics
 
-In the **OWASP Top 10 2017**, Insecure Deserialization debuted at **A8:2017**. OWASP characterised it as relatively *uncommon to find by scanning* but *severe when present*—exploitation can be difficult to develop but, once a working gadget exists, it is highly reliable and reusable. The category was added largely on the strength of industry data and the wave of Java deserialization research described above.
+In the **OWASP Top 10 2017**, Insecure Deserialization debuted at **A8:2017**. OWASP characterised it as relatively *uncommon to find by scanning* but *severe when present*-exploitation can be difficult to develop but, once a working gadget exists, it is highly reliable and reusable. The category was added largely on the strength of industry data and the wave of Java deserialization research described above.
 
 Rather than quote precise counts (which vary by source and year), the defensible picture is:
 
-- Deserialization flaws are **lower-frequency but high-severity**—when present they frequently yield remote code execution, the most damaging outcome.
+- Deserialization flaws are **lower-frequency but high-severity**-when present they frequently yield remote code execution, the most damaging outcome.
 - Exploitability is **weaponised**: public tools (ysoserial family) and published gadget catalogues mean an attacker often does not need to craft a chain from scratch.
 - The problem is **concentrated in native serializers and typed/polymorphic parsers**; applications that exchange plain JSON/DTOs and validate them are largely immune to the RCE variant.
 
@@ -181,7 +181,7 @@ Rather than quote precise counts (which vary by source and year), the defensible
 
 ### Myth 2: "There's no dangerous code in the serialized object, so it's fine"
 
-**Reality**: Gadget chains reuse code that is *already* on your classpath. The payload contains no malware—it contains instructions that stitch your own libraries into a weapon. Auditing the payload for "bad code" misses the point.
+**Reality**: Gadget chains reuse code that is *already* on your classpath. The payload contains no malware-it contains instructions that stitch your own libraries into a weapon. Auditing the payload for "bad code" misses the point.
 
 ### Myth 3: "We encrypt/encode the serialized blob, so nobody can tamper with it"
 
@@ -216,16 +216,16 @@ If you answered "yes" to the first three or "no" to the rest, you likely have ex
 
 ## Key Takeaways
 
-1. **Native deserialization is code execution in disguise**—treat it like `eval()` on untrusted input.
-2. **Gadget chains reuse your own libraries**—the payload looks like data, not malware.
+1. **Native deserialization is code execution in disguise**-treat it like `eval()` on untrusted input.
+2. **Gadget chains reuse your own libraries**-the payload looks like data, not malware.
 3. **Prefer data-only formats** (plain JSON) with strict schema validation over native serializers.
-4. **Integrity is not encoding or encryption alone**—sign serialized state with HMAC and verify before use.
-5. **"Internal" and "encrypted" are not trust boundaries**—design so untrusted input never reaches a dangerous deserializer.
+4. **Integrity is not encoding or encryption alone**-sign serialized state with HMAC and verify before use.
+5. **"Internal" and "encrypted" are not trust boundaries**-design so untrusted input never reaches a dangerous deserializer.
 
 ## Next Steps
 
 - **[Attack Vectors](./attack-vectors.html)**: How attackers craft gadget chains and tamper with serialized state
-- **[Prevention](./prevention.html)**: Layered defenses—safe formats, allow-lists, integrity, and least privilege
+- **[Prevention](./prevention.html)**: Layered defenses-safe formats, allow-lists, integrity, and least privilege
 - **[Examples](./examples.html)**: Vulnerable vs. secure code in Java, Python, PHP, and Node.js
 - **[Hands-On Lab](./lab/insecure-deserialization/)**: Practice detecting and fixing insecure deserialization in a safe, isolated environment
 

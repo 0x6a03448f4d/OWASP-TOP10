@@ -12,7 +12,7 @@
 
 **Server Side Request Forgery (SSRF)** occurs when an API fetches a remote resource without validating the user-supplied URL. Attackers can exploit this to access internal systems, cloud metadata services, or perform port scanning and network mapping from the server's perspective.
 
-Modern APIs frequently need to fetch external resources—importing data from URLs, processing webhooks, fetching images, or integrating with third-party services. Without proper validation, these features become attack vectors for SSRF.
+Modern APIs frequently need to fetch external resources-importing data from URLs, processing webhooks, fetching images, or integrating with third-party services. Without proper validation, these features become attack vectors for SSRF.
 
 ### Core Concept
 

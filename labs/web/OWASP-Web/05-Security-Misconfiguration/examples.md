@@ -1,6 +1,6 @@
 # A5:2021 - Security Misconfiguration: Examples
 
-Each example shows a **❌ vulnerable** configuration and the **✅ secure** version beside it. The changes are small—which is exactly why misconfiguration is so common and so preventable.
+Each example shows a **❌ vulnerable** configuration and the **✅ secure** version beside it. The changes are small-which is exactly why misconfiguration is so common and so preventable.
 
 ## Table of Contents
 
@@ -361,9 +361,9 @@ $ aws s3api put-public-access-block --bucket app-backups \
 
 ## Key Takeaways
 
-1. **The secure version is almost always a small config change**—flip debug off, add the header, deny the dotfile.
+1. **The secure version is almost always a small config change**-flip debug off, add the header, deny the dotfile.
 2. **Set controls centrally** (proxy or middleware) so every response is covered, including errors.
-3. **Drive settings from the environment**—no hard-coded secrets, no dev values in production.
+3. **Drive settings from the environment**-no hard-coded secrets, no dev values in production.
 4. **XXE is fixed in the parser config**, uniformly across every language and every XML-backed format.
 5. **Default cloud storage to private** and serve data through scoped, short-lived access.
 

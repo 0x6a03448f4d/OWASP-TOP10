@@ -10,11 +10,11 @@
 
 ## What Are AI Supply Chain Attacks?
 
-An **AI Supply Chain Attack** is the compromise of any third-party component that flows into a machine-learning system: a pretrained model pulled from a hub, a public dataset, an ML library or framework, or the MLOps tooling that ties them together. Instead of attacking your trained model directly, the adversary poisons an *ingredient* you trust and let into your pipeline—so the compromise arrives pre-installed.
+An **AI Supply Chain Attack** is the compromise of any third-party component that flows into a machine-learning system: a pretrained model pulled from a hub, a public dataset, an ML library or framework, or the MLOps tooling that ties them together. Instead of attacking your trained model directly, the adversary poisons an *ingredient* you trust and let into your pipeline-so the compromise arrives pre-installed.
 
 Modern ML is assembled almost entirely from parts you did not build. A typical training or inference stack downloads weights from Hugging Face, datasets from public mirrors, dozens of pip packages (PyTorch, TensorFlow, transformers, scikit-learn, NumPy), and a chain of MLOps services for experiment tracking, serving, and orchestration. Every one of those is code and data authored by someone else, fetched over the network, and often executed the moment it loads. ML06 is what happens when one of those links is malicious, backdoored, or tampered with.
 
-> **Framing:** ML06 is the classic-ML sibling of **LLM03: Supply Chain** (OWASP LLM Top 10) and **K02: Supply Chain Vulnerabilities** (OWASP ML/Kubernetes-adjacent lists). This lesson keeps the *machine-learning* framing—models, datasets, frameworks, and tooling—rather than the LLM-application framing.
+> **Framing:** ML06 is the classic-ML sibling of **LLM03: Supply Chain** (OWASP LLM Top 10) and **K02: Supply Chain Vulnerabilities** (OWASP ML/Kubernetes-adjacent lists). This lesson keeps the *machine-learning* framing-models, datasets, frameworks, and tooling-rather than the LLM-application framing.
 
 ### Core Concept
 
@@ -44,16 +44,16 @@ ML pipelines concentrate several conditions that make supply-chain compromise es
 
 - They **execute third-party artifacts by default**. Loading a model is not passive: several common serialization formats run arbitrary code the instant you deserialize them.
 - They **pull from open, low-friction hubs**. Anyone can publish a model or dataset under a plausible name, and a single line of code fetches and runs it.
-- They **trust weights as opaque binaries**. A backdoored model behaves normally on ordinary inputs and only misbehaves on a hidden trigger—so testing rarely catches it.
-- They **run with broad privileges**. Training and serving nodes typically hold cloud credentials, data-store access, and GPU fleets—an attractive target once code runs.
+- They **trust weights as opaque binaries**. A backdoored model behaves normally on ordinary inputs and only misbehaves on a hidden trigger-so testing rarely catches it.
+- They **run with broad privileges**. Training and serving nodes typically hold cloud credentials, data-store access, and GPU fleets-an attractive target once code runs.
 - They **have long, opaque dependency trees**. A compromise three levels deep in a transitive ML dependency is invisible to anyone reading the top-level requirements.
 
 ## Why Does This Matter?
 
 ### Business Impact
 
-- **Pipeline Compromise / RCE**: A malicious model or package that runs code on load hands the attacker execution on your training or serving infrastructure—often with cloud credentials attached.
-- **Sabotaged Models**: A backdoored pretrained model or poisoned dataset produces a system that passes evaluation yet fails—or is attacker-controllable—on specific triggers in production.
+- **Pipeline Compromise / RCE**: A malicious model or package that runs code on load hands the attacker execution on your training or serving infrastructure-often with cloud credentials attached.
+- **Sabotaged Models**: A backdoored pretrained model or poisoned dataset produces a system that passes evaluation yet fails-or is attacker-controllable-on specific triggers in production.
 - **Data and Secret Theft**: Code executing during model load can exfiltrate training data, API keys, and model weights (your own intellectual property).
 - **Downstream Blast Radius**: A single compromised base model or shared package propagates to every team and product that fine-tuned or depended on it.
 - **Compliance and Trust**: Shipping a product built on an unvetted, backdoored component undermines regulatory attestations and customer trust once discovered.
@@ -81,7 +81,7 @@ ML pipelines concentrate several conditions that make supply-chain compromise es
 
 ### 1. Unsafe Model Deserialization (Code Execution on Load)
 
-The most direct ML06 vector: several formats used to save models are not just data—they are programs. Python's `pickle` can reconstruct arbitrary objects, which means it can run arbitrary code. `torch.load`, `joblib.load`, and unpickled scikit-learn models all inherit this.
+The most direct ML06 vector: several formats used to save models are not just data-they are programs. Python's `pickle` can reconstruct arbitrary objects, which means it can run arbitrary code. `torch.load`, `joblib.load`, and unpickled scikit-learn models all inherit this.
 
 ```python
 # A malicious .bin / .pt / .pkl can carry this:
@@ -111,7 +111,7 @@ model = AutoModel.from_pretrained("populer-org/bert-base")   # typo'd namespace
 model = AutoModel.from_pretrained("some/repo", trust_remote_code=True)
 ```
 
-**Risk**: `trust_remote_code=True` against an untrusted repo is remote code execution by design—the repo's Python runs during load.
+**Risk**: `trust_remote_code=True` against an untrusted repo is remote code execution by design-the repo's Python runs during load.
 
 ### 4. Poisoned Public Datasets
 
@@ -152,7 +152,7 @@ The examples below are described as **incident classes** that are well documente
 **Pattern**:
 
 - A long line of published research demonstrates crafting model files (`pickle`, `torch.load`, `joblib`, Keras `Lambda` layers) that run arbitrary code purely by being loaded.
-- Tools such as `picklescan` and ModelScan exist specifically because this is a general, format-level problem—not a bug in one library.
+- Tools such as `picklescan` and ModelScan exist specifically because this is a general, format-level problem-not a bug in one library.
 
 **Impact**: proof that "load this model" is equivalent to "run this program" for these formats, motivating the shift to data-only serialization.
 
@@ -163,7 +163,7 @@ The examples below are described as **incident classes** that are well documente
 **Pattern**:
 
 - Malicious packages have repeatedly been published to PyPI (and other registries) using names that typo-squat popular ML libraries, or that exploit dependency confusion against internal package names.
-- Install-time or import-time code exfiltrates environment variables, cloud credentials, or SSH keys—or installs a backdoor.
+- Install-time or import-time code exfiltrates environment variables, cloud credentials, or SSH keys-or installs a backdoor.
 
 **Impact**: developers who mistyped a dependency, or whose resolver preferred a public package over an internal one, executed attacker code in their build and dev environments.
 
@@ -175,12 +175,12 @@ AI supply-chain risk is consistently rated **high and rising** across ML securit
 
 Rather than cite precise counts (which vary by source and year), the defensible picture is:
 
-- Unsafe model deserialization is **widespread and easy to demonstrate**—the default save/load formats for the most popular frameworks are code-executing.
+- Unsafe model deserialization is **widespread and easy to demonstrate**-the default save/load formats for the most popular frameworks are code-executing.
 - Public hubs host **enormous numbers of community models and datasets** with minimal provenance guarantees, and scanners routinely surface malicious ones.
 - Typosquatting and dependency confusion against ML package names are **recurring, not one-off** events on public registries.
 - Impact ranges from **info disclosure to full remote code execution** on training/serving infrastructure, up to **silent model sabotage** via backdoors and poisoning.
 
-> Note: exact figures differ between reports. Treat any single number as illustrative; the durable takeaway is that the ML supply chain is broad, largely unvetted, and frequently executable—so a compromised ingredient is a realistic and repeatedly observed threat.
+> Note: exact figures differ between reports. Treat any single number as illustrative; the durable takeaway is that the ML supply chain is broad, largely unvetted, and frequently executable-so a compromised ingredient is a realistic and repeatedly observed threat.
 
 ## Common Misunderstandings
 
@@ -200,7 +200,7 @@ Rather than cite precise counts (which vary by source and year), the defensible 
 **Reality**: `trust_remote_code=True` runs the repo's Python on your machine. Enabling it for an untrusted repo is remote code execution by design.
 
 ### Myth 6: "This is the same as classic app supply chain, nothing new"
-**Reality**: ML adds two novel wrinkles—*executable model artifacts* and *poisonable training data/weights*—that ordinary SCA and app hardening do not cover on their own.
+**Reality**: ML adds two novel wrinkles-*executable model artifacts* and *poisonable training data/weights*-that ordinary SCA and app hardening do not cover on their own.
 
 ## How ML06 Differs from Related Issues
 
@@ -215,11 +215,11 @@ These overlap: a poisoned *public* dataset is both ML02 and ML06, and a backdoor
 
 ## Key Takeaways
 
-1. **Everything you download is code or data you now trust**—models, datasets, packages, and tooling are all attack surface.
-2. **Loading a model can run code**—prefer safetensors; never `pickle`/`torch.load` an untrusted file.
-3. **Backdoors hide from accuracy metrics**—provenance and integrity checks catch what evaluation cannot.
-4. **Pin and verify the whole tree**—typosquatting and transitive deps are where real incidents live.
-5. **trust_remote_code is RCE by design**—disable it for anything you do not fully control.
+1. **Everything you download is code or data you now trust**-models, datasets, packages, and tooling are all attack surface.
+2. **Loading a model can run code**-prefer safetensors; never `pickle`/`torch.load` an untrusted file.
+3. **Backdoors hide from accuracy metrics**-provenance and integrity checks catch what evaluation cannot.
+4. **Pin and verify the whole tree**-typosquatting and transitive deps are where real incidents live.
+5. **trust_remote_code is RCE by design**-disable it for anything you do not fully control.
 
 ## How to Identify if You're Exposed
 

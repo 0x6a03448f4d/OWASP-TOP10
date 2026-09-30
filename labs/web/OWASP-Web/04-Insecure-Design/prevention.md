@@ -17,7 +17,7 @@
 
 ## Defense Philosophy: Shift Left
 
-Insecure Design cannot be fixed with a scanner or a WAF rule, because the vulnerability is the *absence* of a control, not the presence of a bug. The only durable defense is to build security into the design — to "shift left" so threats are identified and controls specified **before** code exists. OWASP's guidance is unusually process-oriented: establish a secure development lifecycle, use threat modeling, write abuse cases, and reuse vetted secure design patterns.
+Insecure Design cannot be fixed with a scanner or a WAF rule, because the vulnerability is the *absence* of a control, not the presence of a bug. The only durable defense is to build security into the design - to "shift left" so threats are identified and controls specified **before** code exists. OWASP's guidance is unusually process-oriented: establish a secure development lifecycle, use threat modeling, write abuse cases, and reuse vetted secure design patterns.
 
 The layers below move from process (how you decide what to build) to concrete technical guardrails (what the running system enforces). No single layer is sufficient; together they make secure design the path of least resistance.
 

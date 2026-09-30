@@ -1,20 +1,20 @@
-# A9:2025 — Logging & Alerting Failures: Examples
+# A9:2025 - Logging & Alerting Failures: Examples
 
 ## Table of Contents
 
 - [How to Read These Examples](#how-to-read-these-examples)
-- [Example 1 — Authentication (Python / Flask)](#example-1--authentication-python--flask)
-- [Example 2 — Authorization & High-Value Actions (Node.js / Express)](#example-2--authorization--high-value-actions-nodejs--express)
-- [Example 3 — Log Injection & Secret Leakage](#example-3--log-injection--secret-leakage)
-- [Example 4 — Detection & Alerting Config (SIEM)](#example-4--detection--alerting-config-siem)
+- [Example 1 - Authentication (Python / Flask)](#example-1--authentication-python--flask)
+- [Example 2 - Authorization & High-Value Actions (Node.js / Express)](#example-2--authorization--high-value-actions-nodejs--express)
+- [Example 3 - Log Injection & Secret Leakage](#example-3--log-injection--secret-leakage)
+- [Example 4 - Detection & Alerting Config (SIEM)](#example-4--detection--alerting-config-siem)
 - [Side-by-Side Summary](#side-by-side-summary)
 - [Next Steps](#next-steps)
 
 ## How to Read These Examples
 
-Each example shows a **vulnerable** implementation and the **secure** version that fixes it. The point of this category is that the vulnerable code often *works perfectly*—it just leaves no usable trace and raises no alarm. The secure version produces structured, contextual, sanitised security events, and the final example turns those events into a firing alert.
+Each example shows a **vulnerable** implementation and the **secure** version that fixes it. The point of this category is that the vulnerable code often *works perfectly*-it just leaves no usable trace and raises no alarm. The secure version produces structured, contextual, sanitised security events, and the final example turns those events into a firing alert.
 
-## Example 1 — Authentication (Python / Flask)
+## Example 1 - Authentication (Python / Flask)
 
 ### Vulnerable
 
@@ -81,7 +81,7 @@ def login():
 
 **What changed:** failures are logged with *who, from where, and why*; the username and user-agent are sanitised; no password or token value is written; timestamps are ISO-8601; and the record is JSON that a SIEM can count and correlate. This is the raw material every detection in Example 4 depends on.
 
-## Example 2 — Authorization & High-Value Actions (Node.js / Express)
+## Example 2 - Authorization & High-Value Actions (Node.js / Express)
 
 ### Vulnerable
 
@@ -97,7 +97,7 @@ app.post('/api/transfer', (req, res) => {
 });
 ```
 
-**Why it fails:** the 403 denial—your best early warning of IDOR/privilege probing—is thrown away. The completed transfer is "logged" with a bare string that names no actor, amount, or accounts, so it is useless for detection or forensics.
+**Why it fails:** the 403 denial-your best early warning of IDOR/privilege probing-is thrown away. The completed transfer is "logged" with a bare string that names no actor, amount, or accounts, so it is useless for detection or forensics.
 
 ### Secure
 
@@ -139,9 +139,9 @@ app.post('/api/transfer', (req, res) => {
 });
 ```
 
-**What changed:** denials are logged (feeding the "authz-denial spike" detection), and the high-value action is logged with full context at initiation and completion. Note account numbers are logged as identifiers for traceability—in a real system, mask them per PCI-DSS and never log full PANs.
+**What changed:** denials are logged (feeding the "authz-denial spike" detection), and the high-value action is logged with full context at initiation and completion. Note account numbers are logged as identifiers for traceability-in a real system, mask them per PCI-DSS and never log full PANs.
 
-## Example 3 — Log Injection & Secret Leakage
+## Example 3 - Log Injection & Secret Leakage
 
 ### Vulnerable
 
@@ -178,11 +178,11 @@ slog.info('authn_login_failed', extra={
 
 **What changed:** untrusted values are sanitised so they cannot forge log lines, sensitive keys are redacted so credentials never reach storage, and structured JSON makes both problems structurally hard to reintroduce.
 
-## Example 4 — Detection & Alerting Config (SIEM)
+## Example 4 - Detection & Alerting Config (SIEM)
 
-Structured events are only half the job—now turn them into **alerts**. Below are three ways to express the same idea (credential stuffing) plus the routing that keeps alerts actionable and fatigue-free.
+Structured events are only half the job-now turn them into **alerts**. Below are three ways to express the same idea (credential stuffing) plus the routing that keeps alerts actionable and fatigue-free.
 
-#### Sigma rule (portable across SIEMs) — horizontal credential stuffing
+#### Sigma rule (portable across SIEMs) - horizontal credential stuffing
 
 ```yaml
 title: Horizontal Credential Stuffing
@@ -205,7 +205,7 @@ tags:
     - attack.t1110.004
 ```
 
-#### Elasticsearch / ELK — threshold detection rule (Detection-as-Code)
+#### Elasticsearch / ELK - threshold detection rule (Detection-as-Code)
 
 ```json
 {
@@ -227,7 +227,7 @@ tags:
 }
 ```
 
-#### Splunk SPL — scheduled correlation search
+#### Splunk SPL - scheduled correlation search
 
 ```
 index=security event="authn_login_failed" earliest=-10m
@@ -269,7 +269,7 @@ route:
 | Detection | None | Correlation rule (as code) |
 | Alerting | None | Deduped, severity-routed, on-call |
 
-> **The throughline:** the secure code does not just "log more"—it logs the *right events* in a *structured, safe, centralised* form that a *rule* can turn into a *tuned, owned alert*. Every link in that chain is required.
+> **The throughline:** the secure code does not just "log more"-it logs the *right events* in a *structured, safe, centralised* form that a *rule* can turn into a *tuned, owned alert*. Every link in that chain is required.
 
 ## Next Steps
 
@@ -280,4 +280,4 @@ route:
 
 ---
 
-*Part of the [OWASP Top 10 Educational Repository](/learn/web) — A9:2025, Logging & Alerting Failures.*
+*Part of the [OWASP Top 10 Educational Repository](/learn/web) - A9:2025, Logging & Alerting Failures.*

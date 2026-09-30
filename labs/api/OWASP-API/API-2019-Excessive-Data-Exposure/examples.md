@@ -174,7 +174,7 @@ class UserController {
 
 ### Secure
 ```java
-// Explicit response record — a DTO, deliberately NOT the entity.
+// Explicit response record - a DTO, deliberately NOT the entity.
 public record UserDto(Long id, String displayName, String avatarUrl) {
     public static UserDto from(User u) {
         return new UserDto(u.getId(), u.getDisplayName(), u.getAvatarUrl());
@@ -243,7 +243,7 @@ const resolvers = {
 | Data loading | `SELECT *` / full document | Projection: only returned columns loaded |
 | List endpoints | Full objects for every record | Same minimal DTO applied to each item |
 | New fields | Leak by default (deny-list) | Withheld by default (allow-list) |
-| Response contract | None — whatever serialises, ships | Strict schema, unknown keys rejected |
+| Response contract | None - whatever serialises, ships | Strict schema, unknown keys rejected |
 | GraphQL | Secrets on the type, client picks | Secrets off-schema; PII field-authorized |
 
 ## Next Steps

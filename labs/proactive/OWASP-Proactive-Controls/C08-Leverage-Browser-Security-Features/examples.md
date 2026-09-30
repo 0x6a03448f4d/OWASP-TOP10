@@ -1,8 +1,8 @@
 # C8: Leverage Browser Security Features - Configuration Examples
 
-Each pair below shows an **insecure** configuration—where the browser is told to enforce nothing—and the **secure** version that declares the right headers, cookie flags, and directives. These are a client-side defense-in-depth layer: apply them *and* keep your server-side output encoding, anti-CSRF tokens, and access control.
+Each pair below shows an **insecure** configuration-where the browser is told to enforce nothing-and the **secure** version that declares the right headers, cookie flags, and directives. These are a client-side defense-in-depth layer: apply them *and* keep your server-side output encoding, anti-CSRF tokens, and access control.
 
-## 1. Express (Node.js) — Security Headers & Cookies
+## 1. Express (Node.js) - Security Headers & Cookies
 
 ### Insecure
 ```javascript
@@ -53,7 +53,7 @@ app.post('/login', (req, res) => {
 app.listen(3000);
 ```
 
-## 2. Flask (Python) — Headers & Session Cookie
+## 2. Flask (Python) - Headers & Session Cookie
 
 ### Insecure
 ```python
@@ -100,7 +100,7 @@ def set_security_headers(resp):
     return resp
 ```
 
-## 3. nginx — Response Headers
+## 3. nginx - Response Headers
 
 ### Insecure
 ```nginx
@@ -134,7 +134,7 @@ server {
 }
 ```
 
-## 4. HTML — Third-Party Scripts, Framing & Sandbox
+## 4. HTML - Third-Party Scripts, Framing & Sandbox
 
 ### Insecure
 ```html
@@ -166,7 +166,7 @@ server {
 </script>
 ```
 
-## 5. CORS — Reflection vs. Allow-List
+## 5. CORS - Reflection vs. Allow-List
 
 ### Insecure
 ```javascript
@@ -192,7 +192,7 @@ app.use((req, res, next) => {
 });
 ```
 
-## 6. Trusted Types — DOM-XSS Sink
+## 6. Trusted Types - DOM-XSS Sink
 
 ### Insecure
 ```javascript

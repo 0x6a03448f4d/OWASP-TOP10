@@ -8,9 +8,9 @@
 
 ## Understanding Inversion Attack Vectors
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can test and defend models you own or are authorised to assess. Reconstructing individuals' data from someone else's model is a privacy violation and may be unlawful.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can test and defend models you own or are authorised to assess. Reconstructing individuals' data from someone else's model is a privacy violation and may be unlawful.
 
-Model inversion is not exploited with a clever payload—it is exploited with **optimisation**. The attacker treats the model as a scoring function for "how much does this input look like the target?" and climbs that score. Every extra bit the model reveals—numeric confidences, logits, embeddings, gradients—makes the climb faster and the reconstruction sharper.
+Model inversion is not exploited with a clever payload-it is exploited with **optimisation**. The attacker treats the model as a scoring function for "how much does this input look like the target?" and climbs that score. Every extra bit the model reveals-numeric confidences, logits, embeddings, gradients-makes the climb faster and the reconstruction sharper.
 
 The attacker's goal in this category is one of:
 
@@ -55,11 +55,11 @@ for step in range(N):
 # x converges toward what the model memorised for target
 ```
 
-**Payoff**: a recognizable reconstruction with no data and no model internals—just a rich confidence output and enough queries.
+**Payoff**: a recognizable reconstruction with no data and no model internals-just a rich confidence output and enough queries.
 
 ### 2. Gradient-Based Inversion (White-Box)
 
-With the model's weights, the attacker differentiates the target score with respect to the input and performs direct gradient ascent—orders of magnitude more efficient than black-box probing.
+With the model's weights, the attacker differentiates the target score with respect to the input and performs direct gradient ascent-orders of magnitude more efficient than black-box probing.
 
 ```python
 # White-box: weights available (downloaded / on-device / shared checkpoint)
@@ -90,11 +90,11 @@ for value in candidate_values:              # each possible sensitive value
 # best = most likely value of the hidden sensitive attribute
 ```
 
-**Payoff**: disclosure of a private attribute (medical, genetic, financial) for a named individual—without ever seeing their record.
+**Payoff**: disclosure of a private attribute (medical, genetic, financial) for a named individual-without ever seeing their record.
 
 ### 4. Class-Representative Synthesis (Activation Maximisation)
 
-Rather than target one query point, the attacker synthesises an input that maximally activates a class—an "average" of the class as encoded by the model. When one class equals one identity, this average is a portrait of a real person.
+Rather than target one query point, the attacker synthesises an input that maximally activates a class-an "average" of the class as encoded by the model. When one class equals one identity, this average is a portrait of a real person.
 
 ```python
 # Deep-dream-style: maximise a class activation from noise
@@ -125,7 +125,7 @@ for step in range(iters):
 
 ### 6. Leveraging Overfitting and Memorisation
 
-Attackers deliberately target the classes the model is most confident about—often the small or rare classes, which are the most memorised and therefore the most reconstructable.
+Attackers deliberately target the classes the model is most confident about-often the small or rare classes, which are the most memorised and therefore the most reconstructable.
 
 ```python
 # Rank classes by confidence sharpness / margin, attack the leakiest first
@@ -191,11 +191,11 @@ Model weights shipped on-device / to partners
 
 ## Key Takeaways
 
-1. **Inversion is optimisation, not injection**—the attacker climbs the model's own confidence surface.
-2. **Rich outputs are the fuel**—confidence vectors, logits, and embeddings each make reconstruction easier.
-3. **White-box access is a force multiplier**—shipping weights turns a hard black-box attack into an easy gradient one.
-4. **Overfit and rare classes leak most**—the least-represented individuals are the easiest to reconstruct.
-5. **Unmetered APIs remove the last barrier**—without rate limiting and monitoring, the full attack loop runs unnoticed.
+1. **Inversion is optimisation, not injection**-the attacker climbs the model's own confidence surface.
+2. **Rich outputs are the fuel**-confidence vectors, logits, and embeddings each make reconstruction easier.
+3. **White-box access is a force multiplier**-shipping weights turns a hard black-box attack into an easy gradient one.
+4. **Overfit and rare classes leak most**-the least-represented individuals are the easiest to reconstruct.
+5. **Unmetered APIs remove the last barrier**-without rate limiting and monitoring, the full attack loop runs unnoticed.
 
 ## Next Steps
 

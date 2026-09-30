@@ -2,7 +2,7 @@
 
 ## Prevention Strategy Overview
 
-Preventing insufficient flow control is about **making the gated path the only path**. Every transition from commit to production should require a check that a single actor cannot satisfy alone, and those checks must be enforced by configuration—not by convention or good intentions:
+Preventing insufficient flow control is about **making the gated path the only path**. Every transition from commit to production should require a check that a single actor cannot satisfy alone, and those checks must be enforced by configuration-not by convention or good intentions:
 
 1. Protect the branch: no change reaches the mainline except through a reviewed pull request.
 2. Require independent review and passing status checks before merge.
@@ -15,7 +15,7 @@ Preventing insufficient flow control is about **making the gated path the only p
 
 - **No single actor to production**: every path to a trusted output must require more than one independent decision (four-eyes).
 - **Enforce, don't advise**: a check that can be skipped is not a control; mark reviews and status checks as *required* and apply them to everyone, including admins and bots.
-- **Separate merge from deploy**: deciding that code is correct and deciding to release it are two decisions—keep them distinct.
+- **Separate merge from deploy**: deciding that code is correct and deciding to release it are two decisions-keep them distinct.
 - **Govern the gates**: the configuration that defines flow control is itself high-value code and must be reviewed by code owners.
 
 ## 1. Branch Protection and Required, Independent Review
@@ -23,7 +23,7 @@ Preventing insufficient flow control is about **making the gated path the only p
 Make the mainline reachable only through a pull request that a second person has reviewed. Disallow self-approval and require code-owner review for sensitive paths.
 
 ```json
-# GitHub repository ruleset (branch protection) — codified, not click-ops
+# GitHub repository ruleset (branch protection) - codified, not click-ops
 # .github/rulesets/main-protection.json  (applied via API / IaC)
 {
   "name": "protect-main",
@@ -52,7 +52,7 @@ Make the mainline reachable only through a pull request that a second person has
     { "type": "non_fast_forward" },             // block force-push / history rewrite
     { "type": "deletion" }                      // block branch deletion
   ],
-  "bypass_actors": []                            // nobody bypasses — includes admins
+  "bypass_actors": []                            // nobody bypasses - includes admins
 }
 ```
 
@@ -112,7 +112,7 @@ The reviewer who approves the *deployment* should be able to differ from the rev
 The files that define the gates are the highest-value files in the repository. Require dedicated review for any change to them, so an attacker cannot quietly delete a check.
 
 ```
-# CODEOWNERS — changes to CI/CD config demand review by the platform team
+# CODEOWNERS - changes to CI/CD config demand review by the platform team
 /.github/workflows/    @org/platform-security
 /.gitlab-ci.yml        @org/platform-security
 /Jenkinsfile           @org/platform-security
@@ -120,7 +120,7 @@ The files that define the gates are the highest-value files in the repository. R
 /deploy/               @org/platform-security
 ```
 
-Combined with `require_code_owner_review` from step 1, a pull request that touches the pipeline definition cannot merge without the owning team's approval—so removing a gate is itself gated.
+Combined with `require_code_owner_review` from step 1, a pull request that touches the pipeline definition cannot merge without the owning team's approval-so removing a gate is itself gated.
 
 ## 5. Constrain Fork Pull Requests
 
@@ -166,10 +166,10 @@ steps:
 
 ## 7. Jenkins: Enforce Review and Approval in the Pipeline
 
-On Jenkins the same principles apply—build only reviewed refs, and require a separate manual approval, from a distinct group, before deploying to production.
+On Jenkins the same principles apply-build only reviewed refs, and require a separate manual approval, from a distinct group, before deploying to production.
 
 ```groovy
-// Jenkinsfile — build the merged/protected ref, gate prod on a second approver
+// Jenkinsfile - build the merged/protected ref, gate prod on a second approver
 pipeline {
   agent any
   stages {
@@ -230,11 +230,11 @@ Also alert on: additions to `bypass_actors`, disabling of environment reviewers,
 
 ## Key Takeaways
 
-1. **Require more than one** — every path to production must need an independent second decision that one actor cannot supply alone.
-2. **Make checks blocking** — required reviews and required status checks that apply to admins and bots, not advisory ones.
-3. **Split merge from deploy** — protected environments with a separate approver keep releasing distinct from merging.
-4. **Guard the gate configuration** — code-owner review on pipeline definitions stops attackers deleting the controls.
-5. **Verify continuously** — assert the gates still exist and alert on drift, because controls silently erode.
+1. **Require more than one** - every path to production must need an independent second decision that one actor cannot supply alone.
+2. **Make checks blocking** - required reviews and required status checks that apply to admins and bots, not advisory ones.
+3. **Split merge from deploy** - protected environments with a separate approver keep releasing distinct from merging.
+4. **Guard the gate configuration** - code-owner review on pipeline definitions stops attackers deleting the controls.
+5. **Verify continuously** - assert the gates still exist and alert on drift, because controls silently erode.
 
 ## Next Steps
 

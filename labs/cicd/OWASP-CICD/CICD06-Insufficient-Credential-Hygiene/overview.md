@@ -10,7 +10,7 @@
 
 ## What is Insufficient Credential Hygiene?
 
-**Insufficient Credential Hygiene** (CICD-SEC-6 in the OWASP Top 10 CI/CD Security Risks) is the failure to properly handle the large volume of secrets that flow through a modern engineering pipeline. Every build, test, deploy, and release step needs credentials—cloud keys, registry tokens, database passwords, signing keys, SaaS API tokens—and each of those secrets is created, stored, passed between steps, printed, cached, and eventually (ideally) rotated. When any link in that chain is careless, a secret leaks, lingers, or is over-privileged, and an attacker who obtains it inherits whatever access it grants.
+**Insufficient Credential Hygiene** (CICD-SEC-6 in the OWASP Top 10 CI/CD Security Risks) is the failure to properly handle the large volume of secrets that flow through a modern engineering pipeline. Every build, test, deploy, and release step needs credentials-cloud keys, registry tokens, database passwords, signing keys, SaaS API tokens-and each of those secrets is created, stored, passed between steps, printed, cached, and eventually (ideally) rotated. When any link in that chain is careless, a secret leaks, lingers, or is over-privileged, and an attacker who obtains it inherits whatever access it grants.
 
 It is important to see this as a *hygiene* problem rather than a single bug. The pipeline is not one place where secrets live; it is a river that secrets travel through. A key hardcoded in a repository, echoed into a build log, baked into a container image, stored as a long-lived static cloud key, and shared across a dozen pipelines is the *same underlying failure* viewed from five different vantage points: nobody owns the full lifecycle of the secret, so it accumulates exposure at every stage.
 
@@ -40,16 +40,16 @@ Insufficient Hygiene:
 
 CI/CD systems concentrate several conditions that make credential mishandling especially damaging:
 
-- They are the **most credential-dense systems** an organisation runs—a single pipeline may touch cloud, registry, artifact repository, database, and a dozen SaaS APIs, so the blast radius of the pipeline's secret store is enormous.
+- They are the **most credential-dense systems** an organisation runs-a single pipeline may touch cloud, registry, artifact repository, database, and a dozen SaaS APIs, so the blast radius of the pipeline's secret store is enormous.
 - They are **highly automated and rarely watched in real time**, so a secret printed to a log or committed to a branch can sit exposed for months before anyone notices.
-- They **fan out to many destinations**—public and private repos, forks, artifact registries, build caches, and logs—so a secret is copied to far more places than its author imagines.
+- They **fan out to many destinations**-public and private repos, forks, artifact registries, build caches, and logs-so a secret is copied to far more places than its author imagines.
 - They are **trusted by production**: a credential harvested from the pipeline usually works directly against cloud accounts, registries, and prod, with no additional exploitation required.
 
 ## Why Does This Matter?
 
 ### Business Impact
 
-- **Direct Cloud and Data Breach**: A leaked cloud key or database credential is not a stepping stone—it is often the whole attack. The finder reuses it and reads or destroys production data immediately.
+- **Direct Cloud and Data Breach**: A leaked cloud key or database credential is not a stepping stone-it is often the whole attack. The finder reuses it and reads or destroys production data immediately.
 - **Supply-Chain Compromise**: Registry and signing credentials let an attacker publish a malicious build that every downstream consumer trusts, turning one leaked token into thousands of victims.
 - **Resource Abuse and Cost**: Harvested cloud keys are routinely used to spin up expensive compute for cryptomining, leaving the victim with the bill.
 - **Regulatory and Contractual Fallout**: A leaked credential that exposes personal data triggers GDPR, HIPAA, and PCI-DSS breach obligations regardless of how "small" the mistake felt.
@@ -57,7 +57,7 @@ CI/CD systems concentrate several conditions that make credential mishandling es
 
 ### Technical Impact
 
-- **Credential Reuse Against Production**: The pipeline secret is the same secret production trusts—there is no privilege boundary to cross.
+- **Credential Reuse Against Production**: The pipeline secret is the same secret production trusts-there is no privilege boundary to cross.
 - **Lateral Movement**: An over-shared "god" token grants access far beyond the one job that needed it, letting an attacker pivot across environments and repos.
 - **Durable Footholds in Git History**: A secret removed from the latest commit but left in history remains fully recoverable by anyone who can clone the repository.
 - **Artifact and Image Poisoning**: Credentials embedded in build artifacts or container images travel wherever those artifacts are distributed, including to untrusted networks.
@@ -81,7 +81,7 @@ CI/CD systems concentrate several conditions that make credential mishandling es
 ARG NPM_TOKEN=npm_9f8a...redacted...   # baked into an image layer forever
 ```
 
-**Risk**: The secret is now in version control and/or image history—copied to every clone, fork, and pull of the image.
+**Risk**: The secret is now in version control and/or image history-copied to every clone, fork, and pull of the image.
 
 #### 2. Committed to Git (and Left in History)
 
@@ -152,11 +152,11 @@ config/.env.production               # secret shipped inside the artifact
 ### Case Study 1: Cloud Keys Committed to Public Repositories (ongoing class)
 
 **Failure**:
-- Developers routinely commit long-lived cloud access keys into public source repositories—in application config, test fixtures, notebooks, or pipeline files—often in a "quick fix" commit that is never cleaned up.
+- Developers routinely commit long-lived cloud access keys into public source repositories-in application config, test fixtures, notebooks, or pipeline files-often in a "quick fix" commit that is never cleaned up.
 - Automated bots continuously scan public code-hosting platforms for credential patterns and use any hit within minutes.
 
 **Impact**:
-- Because the keys are long-lived and broadly scoped, finders immediately reuse them to spin up compute for cryptomining or to exfiltrate data—frequently before the developer has finished pushing follow-up commits.
+- Because the keys are long-lived and broadly scoped, finders immediately reuse them to spin up compute for cryptomining or to exfiltrate data-frequently before the developer has finished pushing follow-up commits.
 
 **Root Cause**: Static credentials placed directly in code with no secret scanning to catch them and no short-lived alternative in use. Cloud providers now run their own secret-scanning partnerships and can automatically quarantine exposed keys precisely because this class is so common.
 
@@ -167,9 +167,9 @@ config/.env.production               # secret shipped inside the artifact
 - The secret is never rotated because the working tree looks clean.
 
 **Impact**:
-- Anyone who clones the repository—including former contributors, fork owners, and cache/mirror services—can recover the original value from history and use a credential everyone believes is gone.
+- Anyone who clones the repository-including former contributors, fork owners, and cache/mirror services-can recover the original value from history and use a credential everyone believes is gone.
 
-**Root Cause**: Treating a source-tree deletion as remediation. The durable lesson of this class is that *a leaked secret must be rotated, not merely deleted*—history rewriting reduces exposure but rotation is what actually invalidates the credential.
+**Root Cause**: Treating a source-tree deletion as remediation. The durable lesson of this class is that *a leaked secret must be rotated, not merely deleted*-history rewriting reduces exposure but rotation is what actually invalidates the credential.
 
 ### Case Study 3: Secrets Leaked Through Build Logs (class)
 
@@ -178,7 +178,7 @@ config/.env.production               # secret shipped inside the artifact
 - Logs are retained, indexed, and forwarded to a central logging system with broad read access.
 
 **Impact**:
-- The credential becomes readable by anyone with log access—often a much larger group than those trusted with the secret—and persists in log storage long after the build.
+- The credential becomes readable by anyone with log access-often a much larger group than those trusted with the secret-and persists in log storage long after the build.
 
 **Root Cause**: Masking only redacts the exact known value in the exact expected form; tracing and transformations defeat it. The lesson is to prevent secrets reaching logs at all, not to rely solely on redaction.
 
@@ -188,7 +188,7 @@ Leaked and mishandled credentials are consistently among the **most common and m
 
 Rather than cite precise counts (which vary by source and year), the defensible picture is:
 
-- Credential leakage is characterised as **highly prevalent and trivially exploitable**—a valid secret usually needs no exploit at all, just reuse.
+- Credential leakage is characterised as **highly prevalent and trivially exploitable**-a valid secret usually needs no exploit at all, just reuse.
 - The most commonly observed sub-issues are **hardcoded secrets in code and pipeline files, secrets surviving in Git history, long-lived static keys, and secrets exposed in logs**.
 - The impact is rated **high**: a single leaked credential can equal full cloud-account or supply-chain compromise with no further steps.
 
@@ -218,7 +218,7 @@ Rather than cite precise counts (which vary by source and year), the defensible 
 
 ### Myth 6: "We'd notice if a secret leaked"
 
-**Reality**: Without automated secret scanning in CI and pre-commit, leaks are usually discovered by the attacker first. Detection has to be automated and continuous—humans do not spot a key buried in a diff or a log.
+**Reality**: Without automated secret scanning in CI and pre-commit, leaks are usually discovered by the attacker first. Detection has to be automated and continuous-humans do not spot a key buried in a diff or a log.
 
 ## How Insufficient Credential Hygiene Differs from Related CI/CD Risks
 
@@ -231,11 +231,11 @@ Rather than cite precise counts (which vary by source and year), the defensible 
 
 ## Key Takeaways
 
-1. **Secrets have a lifecycle, not a location**—creation, storage, transit, use, logging, and rotation all need hygiene, not just where the secret is "kept."
-2. **A leaked credential is often the whole attack**—pipeline secrets are trusted by production, so reuse needs no further exploit.
-3. **Deletion is not rotation**—an exposed secret is compromised until it is rotated, regardless of history cleanup.
-4. **Short-lived beats well-stored**—OIDC-federated, minutes-long credentials shrink the value of any leak to almost nothing.
-5. **Detection must be automated**—scan repos, history, and logs continuously; attackers scan yours already.
+1. **Secrets have a lifecycle, not a location**-creation, storage, transit, use, logging, and rotation all need hygiene, not just where the secret is "kept."
+2. **A leaked credential is often the whole attack**-pipeline secrets are trusted by production, so reuse needs no further exploit.
+3. **Deletion is not rotation**-an exposed secret is compromised until it is rotated, regardless of history cleanup.
+4. **Short-lived beats well-stored**-OIDC-federated, minutes-long credentials shrink the value of any leak to almost nothing.
+5. **Detection must be automated**-scan repos, history, and logs continuously; attackers scan yours already.
 
 ## How to Identify if You're Vulnerable
 

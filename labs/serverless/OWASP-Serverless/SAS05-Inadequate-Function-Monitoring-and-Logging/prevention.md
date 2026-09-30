@@ -2,24 +2,24 @@
 
 ## Prevention Strategy Overview
 
-Preventing this weakness is not about one control—it is about **building the security visibility that serverless does not give you by default**:
+Preventing this weakness is not about one control-it is about **building the security visibility that serverless does not give you by default**:
 
 1. Log security-relevant events from the function code, with full context.
 2. Centralize and correlate those logs across every function and service.
 3. Trace requests end-to-end as they fan out across the function chain.
-4. Alert on anomalies—error, invocation, and *cost* spikes, plus unusual IAM use.
+4. Alert on anomalies-error, invocation, and *cost* spikes, plus unusual IAM use.
 5. Protect the logs (retention, tamper-resistance) and wire alerts into incident response.
 
 ### Core Principles
 
-- **Instrument before the incident**: ephemeral functions leave nothing behind—visibility must exist during the invocation or not at all.
+- **Instrument before the incident**: ephemeral functions leave nothing behind-visibility must exist during the invocation or not at all.
 - **Security context is your job**: the platform logs execution; identity, resource, and outcome must be added by your code.
 - **Correlate everything**: a single request/trace id threaded through the whole chain turns scattered invocations into one investigable story.
 - **Treat cost as a signal**: in serverless, spend and invocation rate are security telemetry, not just billing.
 
 ## 1. Log Security Events From the Function Code
 
-Emit structured, security-oriented events for the things that matter—authz decisions, validation failures, sensitive-data access, and privileged actions—each carrying identity and request context.
+Emit structured, security-oriented events for the things that matter-authz decisions, validation failures, sensitive-data access, and privileged actions-each carrying identity and request context.
 
 ```javascript
 // Node.js (Lambda): structured security logging helper
@@ -43,7 +43,7 @@ securityEvent(event, context, {
 });
 ```
 
-Log the *decision points*, not the payloads—never write secrets, tokens, full PII, or raw credentials into logs. Redact before emitting.
+Log the *decision points*, not the payloads-never write secrets, tokens, full PII, or raw credentials into logs. Redact before emitting.
 
 ## 2. Centralize and Correlate Across Functions
 
@@ -66,7 +66,7 @@ Propagate a correlation id across asynchronous boundaries (SQS/SNS/EventBridge) 
 Tracing is what lets you follow one request as it fans out. Turn it on at the platform level and instrument downstream calls.
 
 ```yaml
-# AWS SAM / template.yaml — enable X-Ray tracing for the function and API
+# AWS SAM / template.yaml - enable X-Ray tracing for the function and API
 Globals:
   Function:
     Tracing: Active          # AWS X-Ray active tracing on every function
@@ -180,16 +180,16 @@ SNS / EventBridge  -> on-call paging (PagerDuty/Opsgenie) + ticket
 | Error/invocation/cost alarms | Catch abuse and denial-of-wallet early (SAS-8) |
 | IAM/role anomaly alerting | Detect credential and privilege abuse |
 | CloudTrail + data events | Close the blind spots between managed services |
-| Protected retention | Evidence survives long enough—and cannot be erased |
+| Protected retention | Evidence survives long enough-and cannot be erased |
 | Baselines + IR integration | Anomalies are defined, alerts reach a human |
 
 ## Key Takeaways
 
-1. **Log security events yourself** — the platform gives you execution logs; identity, resource, and outcome are your responsibility.
-2. **Centralize and correlate** — a shared request/trace id is what makes a distributed attack visible as one story.
-3. **Trace across the chain** — distributed tracing follows a request through every function and managed service.
-4. **Alert on anomalies, especially cost** — invocation and spend spikes are the early warning for denial-of-wallet.
-5. **Protect the evidence and act on it** — tamper-resistant retention plus real incident response turns telemetry into detection.
+1. **Log security events yourself** - the platform gives you execution logs; identity, resource, and outcome are your responsibility.
+2. **Centralize and correlate** - a shared request/trace id is what makes a distributed attack visible as one story.
+3. **Trace across the chain** - distributed tracing follows a request through every function and managed service.
+4. **Alert on anomalies, especially cost** - invocation and spend spikes are the early warning for denial-of-wallet.
+5. **Protect the evidence and act on it** - tamper-resistant retention plus real incident response turns telemetry into detection.
 
 ## Next Steps
 

@@ -2,7 +2,7 @@
 
 Each pair below shows an **insecure** way to bring a third-party ML component into your pipeline and the **secure** version. The focus is the ML06 core: loading untrusted models, handling dependencies, and disabling remote code execution.
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the insecure snippets are shown so you can recognise and remove these patterns from systems you own.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the insecure snippets are shown so you can recognise and remove these patterns from systems you own.
 
 ## 1. Loading a Downloaded Model (PyTorch)
 
@@ -119,7 +119,7 @@ pip install -r requirements.txt
 
 ### Secure
 ```
-# requirements.lock — exact versions AND hashes (pip-compile --generate-hashes)
+# requirements.lock - exact versions AND hashes (pip-compile --generate-hashes)
 torch==2.3.1 \
   --hash=sha256:1111...
 transformers==4.41.2 \
@@ -199,7 +199,7 @@ model = torch.load("unvetted/model.pt")   # full blast radius on compromise
 import subprocess, sys
 path = sys.argv[1]
 subprocess.run(["modelscan", "-p", path], check=True)   # scan for payloads
-# convert to safetensors, verify shapes/keys, emit a report — never grant
+# convert to safetensors, verify shapes/keys, emit a report - never grant
 # this process production credentials or outbound network access.
 ```
 
@@ -216,11 +216,11 @@ subprocess.run(["modelscan", "-p", path], check=True)   # scan for payloads
 
 ## Key Takeaways
 
-1. **Data-only beats code-executing** — safetensors instead of `torch.load`/`joblib` for untrusted weights.
-2. **Pin and verify** — exact commits, exact versions, and recorded hashes for models, datasets, and packages.
-3. **Keep `trust_remote_code` off** — only run third-party model code after you have vendored and reviewed it.
-4. **Scan in CI** — picklescan/ModelScan for artifacts, pip-audit/safety for dependencies.
-5. **Sandbox the load** — no credentials, no egress, so a payload that slips through has nowhere to go.
+1. **Data-only beats code-executing** - safetensors instead of `torch.load`/`joblib` for untrusted weights.
+2. **Pin and verify** - exact commits, exact versions, and recorded hashes for models, datasets, and packages.
+3. **Keep `trust_remote_code` off** - only run third-party model code after you have vendored and reviewed it.
+4. **Scan in CI** - picklescan/ModelScan for artifacts, pip-audit/safety for dependencies.
+5. **Sandbox the load** - no credentials, no egress, so a payload that slips through has nowhere to go.
 
 ## Next Steps
 

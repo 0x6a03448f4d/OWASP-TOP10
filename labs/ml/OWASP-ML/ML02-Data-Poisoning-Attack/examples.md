@@ -11,15 +11,15 @@
 
 ## How to Read These Examples
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — poisoning snippets are minimal and illustrative, shown so you can build the defences beside them. Run them only against data and models you own.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - poisoning snippets are minimal and illustrative, shown so you can build the defences beside them. Run them only against data and models you own.
 
-Each example pairs an **INSECURE** implementation that accepts training data on trust with a **SECURE** version that verifies provenance, validates and screens the data, and tests the model before it ships. The pattern to internalise: *trust boundaries live at the data, so every defence sits between an untrusted source and the trainer—or between the trained model and deployment.*
+Each example pairs an **INSECURE** implementation that accepts training data on trust with a **SECURE** version that verifies provenance, validates and screens the data, and tests the model before it ships. The pattern to internalise: *trust boundaries live at the data, so every defence sits between an untrusted source and the trainer-or between the trained model and deployment.*
 
 ## Example 1: Ingesting Feedback Data (Pipeline)
 
-A continual-learning system retrains on user feedback. The insecure version lets the crowd write directly into the training set—the Tay-class mistake.
+A continual-learning system retrains on user feedback. The insecure version lets the crowd write directly into the training set-the Tay-class mistake.
 
-### INSECURE — feedback trains the model with no gate
+### INSECURE - feedback trains the model with no gate
 
 ```python
 import sqlite3
@@ -42,7 +42,7 @@ def nightly_retrain():
 
 **Why it's vulnerable**: no source tracking, no rate limits, no moderation, no validation. A handful of coordinated accounts can flip labels, flood noise (availability poisoning), or teach a targeted association overnight.
 
-### SECURE — quarantine, validate, vet, then train
+### SECURE - quarantine, validate, vet, then train
 
 ```python
 import sqlite3, time, hashlib
@@ -85,7 +85,7 @@ def nightly_retrain():
 
 A tabular fraud classifier trains on labels supplied by a third party. The insecure version trusts every label; the secure version cross-checks them.
 
-### INSECURE — every provided label is believed
+### INSECURE - every provided label is believed
 
 ```python
 import pandas as pd
@@ -99,7 +99,7 @@ clf = RandomForestClassifier().fit(X, y)   # flipped labels train straight in
 # and the model dutifully learns the blind spot.
 ```
 
-### SECURE — gold-set cross-check + label-agreement screen
+### SECURE - gold-set cross-check + label-agreement screen
 
 ```python
 import pandas as pd, numpy as np
@@ -126,13 +126,13 @@ X_clean, y_clean = X[~conf_wrong], y[~conf_wrong]
 clf = RandomForestClassifier().fit(X_clean, y_clean)
 ```
 
-**What changed**: the dataset's integrity is verified, its labels are cross-checked against a trusted gold set, and samples the model is highly confident are mislabelled are quarantined for review rather than trained on—catching systematic label flipping.
+**What changed**: the dataset's integrity is verified, its labels are cross-checked against a trusted gold set, and samples the model is highly confident are mislabelled are quarantined for review rather than trained on-catching systematic label flipping.
 
 ## Example 3: Backdoor Trigger in a PyTorch Image Model
 
 This shows how a BadNets-style trigger is implanted, and how robust, provenance-aware training reduces its effect. The attack code is included only so the defence is concrete.
 
-### INSECURE — train on data of unknown origin, no screening
+### INSECURE - train on data of unknown origin, no screening
 
 ```python
 import torch, numpy as np
@@ -164,7 +164,7 @@ for epoch in range(10):
 # clean test accuracy looks great; every image + trigger -> class 0.
 ```
 
-### SECURE — provenance filter + trimmed-loss robust training + scan
+### SECURE - provenance filter + trimmed-loss robust training + scan
 
 ```python
 import torch, numpy as np
@@ -205,14 +205,14 @@ assert not scan_for_backdoor(model, num_classes=10), "trigger behaviour detected
 
 ## Example 4: Anomaly Detection Before Training
 
-### INSECURE — no screening, floods and outliers train in
+### INSECURE - no screening, floods and outliers train in
 
 ```python
 X, y = load_batch()
 model.fit(X, y)     # near-duplicate floods and feature-space outliers included
 ```
 
-### SECURE — outlier + activation-cluster screening
+### SECURE - outlier + activation-cluster screening
 
 ```python
 import numpy as np
@@ -243,7 +243,7 @@ for cls in np.unique(y):
 
 ## Example 5: Provenance and Dataset Integrity
 
-### INSECURE — scrape by URL, train whatever comes back
+### INSECURE - scrape by URL, train whatever comes back
 
 ```python
 import requests
@@ -253,7 +253,7 @@ samples = [requests.get(u).content for u in urls]   # content may have changed
 train(samples)     # expired-domain / edited-page content trains as "trusted"
 ```
 
-### SECURE — pin content hashes at collection, verify before training
+### SECURE - pin content hashes at collection, verify before training
 
 ```python
 import requests, hashlib, json
@@ -289,7 +289,7 @@ def load_verified(manifest="manifest.jsonl", index_date=DATASET_INDEX_DATE):
 
 ## Example 6: Backdoor Testing Before Deployment
 
-### INSECURE — ship if clean accuracy is high
+### INSECURE - ship if clean accuracy is high
 
 ```python
 acc = evaluate(model, clean_test)
@@ -297,7 +297,7 @@ if acc > 0.95:
     deploy(model)          # backdoors preserve clean accuracy: this passes them
 ```
 
-### SECURE — trigger reverse-engineering gate
+### SECURE - trigger reverse-engineering gate
 
 ```python
 import numpy as np, torch
@@ -327,7 +327,7 @@ else:
     block_release("accuracy or backdoor gate failed")
 ```
 
-**What changed**: deployment now requires *both* clean accuracy *and* a passing backdoor scan. The scan looks for a class that can be forced with an anomalously small trigger—the fingerprint a BadNets-style backdoor leaves—so trojaned models are stopped at the gate.
+**What changed**: deployment now requires *both* clean accuracy *and* a passing backdoor scan. The scan looks for a class that can be forced with an anomalously small trigger-the fingerprint a BadNets-style backdoor leaves-so trojaned models are stopped at the gate.
 
 ## Summary of Secure Patterns
 
@@ -342,11 +342,11 @@ else:
 
 ## Key Takeaways
 
-1. **Put the defence between the source and the trainer**—validate, screen, and vet before data reaches `fit`.
-2. **Never let feedback or scrapes train directly**—quarantine, review, and pin content hashes first.
-3. **Correct labels are not clean data**—cross-check against a gold set and screen for confident disagreement.
-4. **Robust training limits, but does not eliminate, poisoning**—pair trimmed loss and clipping with provenance.
-5. **Gate deployment on a backdoor scan**—clean accuracy passes trojaned models; an explicit trigger test does not.
+1. **Put the defence between the source and the trainer**-validate, screen, and vet before data reaches `fit`.
+2. **Never let feedback or scrapes train directly**-quarantine, review, and pin content hashes first.
+3. **Correct labels are not clean data**-cross-check against a gold set and screen for confident disagreement.
+4. **Robust training limits, but does not eliminate, poisoning**-pair trimmed loss and clipping with provenance.
+5. **Gate deployment on a backdoor scan**-clean accuracy passes trojaned models; an explicit trigger test does not.
 
 ## Next Steps
 

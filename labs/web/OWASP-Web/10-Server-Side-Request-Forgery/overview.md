@@ -1,4 +1,4 @@
-# A10:2021 — Server-Side Request Forgery (SSRF): Overview
+# A10:2021 - Server-Side Request Forgery (SSRF): Overview
 
 ## Table of Contents
 
@@ -15,7 +15,7 @@
 
 **Server-Side Request Forgery (SSRF)** is a vulnerability in which an attacker abuses server-side functionality to make the application issue HTTP (or other protocol) requests to a destination of the attacker's choosing. The application becomes a confused deputy: it holds a trusted position inside the network, and the attacker borrows that position to reach systems they could never contact directly.
 
-The pattern appears wherever a web application takes a URL — or something that resolves to a URL, like a hostname, a filename, or an XML entity — and *fetches* it on the server. Think of a "preview this link" feature, an avatar uploader that accepts an image URL, a PDF generator that renders a web page, a webhook tester, or an "import from URL" button. The developer intends these to reach the public internet. The attacker supplies `http://169.254.169.254/` or `http://localhost:6379/` instead, and the server dutifully connects.
+The pattern appears wherever a web application takes a URL - or something that resolves to a URL, like a hostname, a filename, or an XML entity - and *fetches* it on the server. Think of a "preview this link" feature, an avatar uploader that accepts an image URL, a PDF generator that renders a web page, a webhook tester, or an "import from URL" button. The developer intends these to reach the public internet. The attacker supplies `http://169.254.169.254/` or `http://localhost:6379/` instead, and the server dutifully connects.
 
 ### The Core Idea
 
@@ -30,7 +30,7 @@ SSRF abuse:
   Browser  --(url=file:///etc/passwd)----------------------->  Your Server  --read-->   Local file
 ```
 
-The damage is not that the server made a request — it is *where* the request went and *what trust* the destination placed in the caller. Internal services frequently assume that anything able to reach them is already authorized. Cloud metadata endpoints hand credentials to any local process that asks. SSRF turns a public web form into a foothold on the internal network.
+The damage is not that the server made a request - it is *where* the request went and *what trust* the destination placed in the caller. Internal services frequently assume that anything able to reach them is already authorized. Cloud metadata endpoints hand credentials to any local process that asks. SSRF turns a public web form into a foothold on the internal network.
 
 ### What Makes a Feature SSRF-Prone
 
@@ -83,7 +83,7 @@ GET http://169.254.169.254/latest/meta-data/iam/security-credentials/<role-name>
 
 ### Blind vs. Non-Blind SSRF
 
-In **non-blind** SSRF the fetched response is reflected back to the attacker (rendered in the page, returned as JSON, embedded in a generated PDF). In **blind** SSRF the response is never shown; the attacker infers success from side channels — response timing, status-code differences, or an out-of-band callback to a server they control (DNS or HTTP interaction). Blind SSRF is still dangerous: it enables port scanning, service discovery, and, when combined with `gopher://`-style smuggling, one-way exploitation of internal services.
+In **non-blind** SSRF the fetched response is reflected back to the attacker (rendered in the page, returned as JSON, embedded in a generated PDF). In **blind** SSRF the response is never shown; the attacker infers success from side channels - response timing, status-code differences, or an out-of-band callback to a server they control (DNS or HTTP interaction). Blind SSRF is still dangerous: it enables port scanning, service discovery, and, when combined with `gopher://`-style smuggling, one-way exploitation of internal services.
 
 ### Where the Fetch Happens
 
@@ -94,7 +94,7 @@ In **non-blind** SSRF the fetched response is reflected back to the attacker (re
 
 ## Real-World Impact
 
-The scenarios below are **incident classes** — recurring, well-documented patterns — rather than any specific named breach. They describe how SSRF plays out in the wild without inventing CVE numbers or statistics.
+The scenarios below are **incident classes** - recurring, well-documented patterns - rather than any specific named breach. They describe how SSRF plays out in the wild without inventing CVE numbers or statistics.
 
 ### Class 1: Cloud Metadata Credential Theft
 
@@ -102,7 +102,7 @@ A public-facing feature fetches user-supplied URLs. An attacker points it at the
 
 ### Class 2: Internal Service Takeover via Protocol Smuggling
 
-An attacker uses `gopher://` or CRLF injection to make the server send crafted bytes to an internal, unauthenticated service — for example a Redis instance bound to localhost. Redis commands written to disk can achieve code execution, turning a blind SSRF into a shell on an internal host.
+An attacker uses `gopher://` or CRLF injection to make the server send crafted bytes to an internal, unauthenticated service - for example a Redis instance bound to localhost. Redis commands written to disk can achieve code execution, turning a blind SSRF into a shell on an internal host.
 
 ### Class 3: Internal Recon and Port Scanning
 
@@ -110,7 +110,7 @@ Even without reading responses, an attacker submits many internal URLs (`http://
 
 ### Class 4: SSRF via File Parsers (XXE → SSRF)
 
-A document or image importer parses XML/SVG and resolves external entities. The attacker embeds an entity pointing at an internal URL, and the parser fetches it — SSRF reached without any obvious "url=" parameter. This class is common in office-document, SVG, and feed-import features.
+A document or image importer parses XML/SVG and resolves external entities. The attacker embeds an entity pointing at an internal URL, and the parser fetches it - SSRF reached without any obvious "url=" parameter. This class is common in office-document, SVG, and feed-import features.
 
 ### Class 5: Webhook and Callback Abuse
 
@@ -127,7 +127,7 @@ Rather than cite precise figures, here is the accurate qualitative picture from 
 
 ### Relevant CWE Mappings
 
-- **CWE-918**: Server-Side Request Forgery (SSRF) — the primary mapping.
+- **CWE-918**: Server-Side Request Forgery (SSRF) - the primary mapping.
 - **CWE-611**: Improper Restriction of XML External Entity Reference (a common SSRF entry point).
 - **CWE-601**: URL Redirection to Untrusted Site (redirect handling that enables bypasses).
 - **CWE-441**: Unintended Proxy or Intermediary ("confused deputy").
@@ -136,13 +136,13 @@ Rather than cite precise figures, here is the accurate qualitative picture from 
 
 ### Myth 1: "We block `localhost` and `127.0.0.1`, so we're safe."
 
-**Reality**: Loopback has countless representations — `127.0.0.1`, `127.1`, `0.0.0.0`, `[::1]`, decimal `2130706433`, hex `0x7f000001`, and DNS names that resolve to loopback. A string blocklist is trivially bypassed. You must resolve the hostname and check the *resolved IP* against private/reserved ranges.
+**Reality**: Loopback has countless representations - `127.0.0.1`, `127.1`, `0.0.0.0`, `[::1]`, decimal `2130706433`, hex `0x7f000001`, and DNS names that resolve to loopback. A string blocklist is trivially bypassed. You must resolve the hostname and check the *resolved IP* against private/reserved ranges.
 
 ### Myth 2: "The user only supplies a hostname, not an IP, so it's controlled."
 
 **Reality**: Attacker-controlled DNS can point any hostname at an internal IP, and **DNS rebinding** can return a public IP during your validation check and a private IP moments later when the fetch happens. Validating the name is not enough; you must pin and re-check the address actually connected to.
 
-### Myth 3: "It's blind — the attacker can't read anything, so it's low risk."
+### Myth 3: "It's blind - the attacker can't read anything, so it's low risk."
 
 **Reality**: Blind SSRF still enables port scanning, service discovery, and one-way exploitation via protocol smuggling (for example writing Redis commands). Out-of-band channels confirm success even when nothing is reflected.
 
@@ -152,7 +152,7 @@ Rather than cite precise figures, here is the accurate qualitative picture from 
 
 ### Myth 5: "A blocklist of bad IP ranges is enough."
 
-**Reality**: Blocklists are fragile — they miss encodings, IPv6 mappings, and new ranges. An **allowlist** of permitted schemes, hosts, and ports is the durable design. Deny by default; permit only what the feature genuinely needs.
+**Reality**: Blocklists are fragile - they miss encodings, IPv6 mappings, and new ranges. An **allowlist** of permitted schemes, hosts, and ports is the durable design. Deny by default; permit only what the feature genuinely needs.
 
 ### Myth 6: "IMDSv2 fixes SSRF."
 
@@ -160,7 +160,7 @@ Rather than cite precise figures, here is the accurate qualitative picture from 
 
 ## A Note on Editions (2021 vs. 2025)
 
-> SSRF was introduced as its own category, **A10:2021 — Server-Side Request Forgery**, in the 2021 Top 10. In the subsequent 2025 revision, SSRF was **merged into A01 — Broken Access Control** rather than kept as a separate entry, reflecting the view that SSRF is fundamentally an access-control failure (the server accesses a resource the caller should not be able to reach). This lesson intentionally uses the **2021 standalone framing** because that is how most training material, tooling, and certifications still refer to it — but be aware of the edition change when you compare against newer OWASP documents.
+> SSRF was introduced as its own category, **A10:2021 - Server-Side Request Forgery**, in the 2021 Top 10. In the subsequent 2025 revision, SSRF was **merged into A01 - Broken Access Control** rather than kept as a separate entry, reflecting the view that SSRF is fundamentally an access-control failure (the server accesses a resource the caller should not be able to reach). This lesson intentionally uses the **2021 standalone framing** because that is how most training material, tooling, and certifications still refer to it - but be aware of the edition change when you compare against newer OWASP documents.
 
 ## Self-Assessment
 
@@ -168,7 +168,7 @@ Ask these questions about every feature that fetches a URL, a file, or a documen
 
 - [ ] Does any feature fetch a user-supplied URL, hostname, or file reference on the server side?
 - [ ] Do we validate against an **allowlist** of schemes/hosts/ports rather than a blocklist?
-- [ ] Do we resolve DNS and check the **resolved IP** against private/loopback/link-local/reserved ranges — not just the hostname string?
+- [ ] Do we resolve DNS and check the **resolved IP** against private/loopback/link-local/reserved ranges - not just the hostname string?
 - [ ] Do we defend against **DNS rebinding** by pinning and re-validating the connected address?
 - [ ] Are dangerous schemes (`file://`, `gopher://`, `dict://`, `ftp://`) disabled?
 - [ ] Do we **refuse to follow redirects**, or re-validate every hop?
@@ -181,11 +181,11 @@ Several "no" or "not sure" answers mean you likely have exploitable SSRF surface
 
 ## Key Takeaways
 
-1. **SSRF weaponizes the server's trusted network position** — the destination and its trust are the real damage.
-2. **Allowlist, don't blocklist** — permit only the schemes, hosts, and ports a feature actually needs.
+1. **SSRF weaponizes the server's trusted network position** - the destination and its trust are the real damage.
+2. **Allowlist, don't blocklist** - permit only the schemes, hosts, and ports a feature actually needs.
 3. **Validate the resolved IP, not the string**, and defend against DNS rebinding.
 4. **Do not follow redirects blindly**, and disable unused URL schemes.
-5. **Enforce IMDSv2 and segment egress** as defense in depth — never as your only control.
+5. **Enforce IMDSv2 and segment egress** as defense in depth - never as your only control.
 
 ## Next Steps
 

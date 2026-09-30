@@ -10,9 +10,9 @@
 
 ## What is Improper Artifact Integrity Validation?
 
-**Improper Artifact Integrity Validation** occurs when a delivery pipeline consumes and ships an artifact—source, a dependency, a container image, a build output, an IaC plan—without verifying that it is exactly the artifact that was *supposed* to be produced, by the process that was supposed to produce it. Every step in a CI/CD pipeline is a hand-off: source moves from SCM to the CI runner, dependencies are pulled from registries, build outputs are pushed to an artifact store, and a deployer pulls those outputs into production. Wherever a hand-off happens with **no integrity check**, an attacker who can influence the resource in transit or at rest can substitute a malicious version, and the pipeline will faithfully build, sign off on, and deploy it.
+**Improper Artifact Integrity Validation** occurs when a delivery pipeline consumes and ships an artifact-source, a dependency, a container image, a build output, an IaC plan-without verifying that it is exactly the artifact that was *supposed* to be produced, by the process that was supposed to produce it. Every step in a CI/CD pipeline is a hand-off: source moves from SCM to the CI runner, dependencies are pulled from registries, build outputs are pushed to an artifact store, and a deployer pulls those outputs into production. Wherever a hand-off happens with **no integrity check**, an attacker who can influence the resource in transit or at rest can substitute a malicious version, and the pipeline will faithfully build, sign off on, and deploy it.
 
-The risk is not a bug in any single tool. It is the **absence of a verifiable chain of custody** across the whole software supply chain. A pipeline can be perfectly configured, fully patched, and still ship a backdoor—because at no point did anything ask "is this artifact the one we trust, and can I prove how it was built?"
+The risk is not a bug in any single tool. It is the **absence of a verifiable chain of custody** across the whole software supply chain. A pipeline can be perfectly configured, fully patched, and still ship a backdoor-because at no point did anything ask "is this artifact the one we trust, and can I prove how it was built?"
 
 ### Core Concept
 
@@ -48,27 +48,27 @@ Developer -> SCM -> CI runner -> dependency registries
                      CD / deployer -> production cluster
 ```
 
-If a signature is generated at build time but never *verified* at deploy time, integrity validation is still "improper"—producing evidence is worthless unless something enforces it.
+If a signature is generated at build time but never *verified* at deploy time, integrity validation is still "improper"-producing evidence is worthless unless something enforces it.
 
 ### Why It's Critical in CI/CD
 
 - The pipeline is **trusted by default**: whatever it outputs is treated as legitimate and shipped straight to production, often with no human in the loop.
 - Artifacts are **referenced by mutable names** (tags, "latest", branch names) far more often than by immutable content digests, so the same reference can silently point at different bytes over time.
-- Artifacts are **reused across stages and caches**—a poisoned dependency or a tampered intermediate image propagates into every downstream build.
+- Artifacts are **reused across stages and caches**-a poisoned dependency or a tampered intermediate image propagates into every downstream build.
 - A single compromised artifact is **replicated at scale**: it is pulled by every environment and, for shipped software, by every customer.
 
 ## Why Does This Matter?
 
 ### Business Impact
 
-- **Downstream Supply-Chain Breach**: A tampered build output shipped to customers turns your release channel into a malware distribution channel—the SolarWinds-class scenario.
+- **Downstream Supply-Chain Breach**: A tampered build output shipped to customers turns your release channel into a malware distribution channel-the SolarWinds-class scenario.
 - **Production Compromise**: A swapped image deployed to your own cluster gives an attacker code execution inside your infrastructure with the privileges the workload holds.
 - **Loss of Trust and Attestation**: Customers, auditors, and regulators increasingly require provenance (SLSA, executive supply-chain mandates); an unverifiable chain of custody fails those requirements.
 - **Silent, Long-Dwell Compromise**: Because nothing flags the swap, a malicious artifact can run in production for months before discovery, widening blast radius and remediation cost.
 
 ### Technical Impact
 
-- **Arbitrary Code in Production**: The injected artifact runs with whatever access the deployed workload has—service accounts, cloud roles, secrets.
+- **Arbitrary Code in Production**: The injected artifact runs with whatever access the deployed workload has-service accounts, cloud roles, secrets.
 - **Persistence and Lateral Movement**: A backdoored base image or dependency re-poisons future builds, surviving redeploys and spreading across services.
 - **Cache and Registry Poisoning**: A tampered intermediate (build cache, mirror, internal registry) is trusted implicitly by every consumer.
 - **Undetectable Drift**: Without content-addressed references, deployed bytes can diverge from reviewed source with no diff to catch it.
@@ -137,7 +137,7 @@ kubectl apply -f deploy.yaml    # no admission policy on image provenance
 terraform apply -auto-approve   # applies whatever the plan resolved to
 ```
 
-**Risk**: The final gate—where you could still refuse an untrusted artifact—waves everything through.
+**Risk**: The final gate-where you could still refuse an untrusted artifact-waves everything through.
 
 ### Where Integrity Is Lost in the Pipeline
 
@@ -161,7 +161,7 @@ The incidents below are described as **classes** of build-and-artifact tampering
 - Because the tampering happens inside the trusted build step, the resulting artifact is signed with the vendor's legitimate key and distributed through the normal update channel.
 
 **Impact**:
-- Every downstream consumer that trusts the vendor's signature installs the backdoored build, because the signature is genuine—it attests the bytes, not the integrity of the process that produced them.
+- Every downstream consumer that trusts the vendor's signature installs the backdoored build, because the signature is genuine-it attests the bytes, not the integrity of the process that produced them.
 
 **Root Cause**: Signing proved the artifact came from the vendor's pipeline but *nothing proved the pipeline itself had not been tampered with*. This is the SolarWinds-class pattern: integrity validation stopped at "is it signed?" and never asked "was it built hermetically from the reviewed source, and can we independently attest that?" It is the reason build-time **provenance** (SLSA) exists alongside signing.
 
@@ -172,7 +172,7 @@ The incidents below are described as **classes** of build-and-artifact tampering
 - An attacker with push access, a compromised CI token, or a position to tamper with a registry/mirror re-points that tag at a malicious image.
 
 **Impact**:
-- The next rollout—or an autoscaling event that pulls the image afresh—runs the substituted image. Nothing in the deploy config changed, so no review catches it.
+- The next rollout-or an autoscaling event that pulls the image afresh-runs the substituted image. Nothing in the deploy config changed, so no review catches it.
 
 **Root Cause**: Trust placed in a mutable pointer instead of immutable content, with no signature verification at admission time to reject an unexpected image.
 
@@ -193,10 +193,10 @@ Improper Artifact Integrity Validation appears in the **OWASP Top 10 CI/CD Secur
 
 Rather than cite precise counts, the defensible picture is:
 
-- Producing artifacts is universal; **verifying** them end-to-end is not—many pipelines sign nothing, and many that sign never check the signature at deploy time.
+- Producing artifacts is universal; **verifying** them end-to-end is not-many pipelines sign nothing, and many that sign never check the signature at deploy time.
 - Reference-by-mutable-tag is the norm, so the **content that runs is rarely pinned** to what was reviewed.
 - Impact is rated **severe**: a single unverified hand-off can lead to arbitrary code in production or a downstream supply-chain breach.
-- The gap is **readily detectable**—you can inspect whether images are digest-pinned, whether signatures are verified at admission, and whether provenance is generated and checked.
+- The gap is **readily detectable**-you can inspect whether images are digest-pinned, whether signatures are verified at admission, and whether provenance is generated and checked.
 
 > Note: exact breach counts and percentages vary by source and year. Treat any single figure as illustrative; the durable takeaway is that unverified hand-offs are common and that the fix is an enforceable chain of custody, not a one-off scan.
 
@@ -204,7 +204,7 @@ Rather than cite precise counts, the defensible picture is:
 
 ### Myth 1: "Our artifact is signed, so its integrity is validated"
 
-**Reality**: Signing only helps if something *verifies* the signature before use, against a trusted identity, at every hand-off. A signature that is generated and never checked—or checked against no expected signer—adds nothing. Signing also attests the bytes, not the build; that is why provenance matters too.
+**Reality**: Signing only helps if something *verifies* the signature before use, against a trusted identity, at every hand-off. A signature that is generated and never checked-or checked against no expected signer-adds nothing. Signing also attests the bytes, not the build; that is why provenance matters too.
 
 ### Myth 2: "We pull `:latest`, which is always the newest good build"
 
@@ -216,7 +216,7 @@ Rather than cite precise counts, the defensible picture is:
 
 ### Myth 4: "It's built inside our CI, so the output is trustworthy"
 
-**Reality**: The build environment itself is an attack surface (see Poisoned Pipeline Execution). Trust must be *proven* with an attestation tied to a hardened, isolated build—not assumed because the runner is "ours."
+**Reality**: The build environment itself is an attack surface (see Poisoned Pipeline Execution). Trust must be *proven* with an attestation tied to a hardened, isolated build-not assumed because the runner is "ours."
 
 ### Myth 5: "Scanning the image for vulnerabilities covers this"
 
@@ -237,22 +237,22 @@ Rather than cite precise counts, the defensible picture is:
 
 ## Key Takeaways
 
-1. **Integrity is a chain, not a checkpoint**—every hand-off from SCM to production must verify the artifact it receives.
-2. **Sign *and* verify**—evidence that is produced but never enforced protects nothing.
-3. **Pin content, not names**—reference artifacts by immutable digest, never by a mutable tag.
-4. **Prove the build, not just the bytes**—generate and check provenance/attestations (SLSA, in-toto), because SolarWinds-class attacks produce genuinely signed backdoors.
-5. **Enforce at admission**—the deploy gate must refuse anything that is not signed and attested by a trusted identity.
+1. **Integrity is a chain, not a checkpoint**-every hand-off from SCM to production must verify the artifact it receives.
+2. **Sign *and* verify**-evidence that is produced but never enforced protects nothing.
+3. **Pin content, not names**-reference artifacts by immutable digest, never by a mutable tag.
+4. **Prove the build, not just the bytes**-generate and check provenance/attestations (SLSA, in-toto), because SolarWinds-class attacks produce genuinely signed backdoors.
+5. **Enforce at admission**-the deploy gate must refuse anything that is not signed and attested by a trusted identity.
 
 ## How to Identify if You're Vulnerable
 
 - [ ] Are build outputs and container images cryptographically signed (for example with cosign/Sigstore)?
-- [ ] Are those signatures *verified* before the artifact is used or deployed—against an expected signer identity?
+- [ ] Are those signatures *verified* before the artifact is used or deployed-against an expected signer identity?
 - [ ] Is build provenance generated (SLSA) and checked, so you know which source and builder produced each artifact?
 - [ ] Are images and dependencies referenced by immutable digest rather than a mutable tag?
 - [ ] Are dependency hashes / lockfile integrity enforced, and are mirrors and caches verified too?
 - [ ] Does an admission controller (or deploy gate) reject unsigned or unattested artifacts in production?
 - [ ] Is IaC/config validated (plan reviewed, state integrity protected) before it is applied?
-- [ ] Are signing keys protected—keyless/OIDC or KMS-backed—so an attacker cannot simply sign their own artifact?
+- [ ] Are signing keys protected-keyless/OIDC or KMS-backed-so an attacker cannot simply sign their own artifact?
 - [ ] Do you have an end-to-end record (SBOM + attestations) linking deployed bytes back to reviewed source?
 
 If you answered "no" or "not sure" to several of these, an attacker who reaches any one hand-off can likely ship a malicious artifact to production today.

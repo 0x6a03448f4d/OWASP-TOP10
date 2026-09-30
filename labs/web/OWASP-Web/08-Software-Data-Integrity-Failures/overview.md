@@ -13,9 +13,9 @@
 
 ## What Are Software and Data Integrity Failures?
 
-**Software and Data Integrity Failures** occur when code, infrastructure, or data is trusted without verifying that it has not been tampered with. The core question this category asks is simple: *"How do you know that the software you are running, and the data you are about to act on, are exactly what you expect—and not something an attacker substituted along the way?"* When the answer is "we assume it's fine," you have an integrity failure.
+**Software and Data Integrity Failures** occur when code, infrastructure, or data is trusted without verifying that it has not been tampered with. The core question this category asks is simple: *"How do you know that the software you are running, and the data you are about to act on, are exactly what you expect-and not something an attacker substituted along the way?"* When the answer is "we assume it's fine," you have an integrity failure.
 
-This was a **new category introduced in the OWASP Top 10 2021**, ranked **A08:2021**. It rose to prominence because modern applications are assembled, built, and updated through long automated pipelines—package managers, CI/CD systems, CDNs, container registries, and auto-updaters—each of which is an opportunity for an attacker to inject or alter code and data. The 2017 category *A8:2017 Insecure Deserialization* was folded into this broader theme, because deserializing untrusted data is fundamentally another way of trusting data whose integrity was never checked.
+This was a **new category introduced in the OWASP Top 10 2021**, ranked **A08:2021**. It rose to prominence because modern applications are assembled, built, and updated through long automated pipelines-package managers, CI/CD systems, CDNs, container registries, and auto-updaters-each of which is an opportunity for an attacker to inject or alter code and data. The 2017 category *A8:2017 Insecure Deserialization* was folded into this broader theme, because deserializing untrusted data is fundamentally another way of trusting data whose integrity was never checked.
 
 At its core, integrity failures happen when a system:
 
@@ -50,7 +50,7 @@ Integrity failures are dangerous because they subvert the *chain of trust* that 
 
 ### The Business Impact
 
-- **Mass, simultaneous compromise**: A poisoned update or build reaches thousands of downstream organizations in one push—the defining feature of supply-chain attacks.
+- **Mass, simultaneous compromise**: A poisoned update or build reaches thousands of downstream organizations in one push-the defining feature of supply-chain attacks.
 - **Loss of customer trust**: When your own signed software delivers malware, the damage to reputation is severe and long-lasting.
 - **Regulatory and contractual fallout**: Breaches originating in the software supply chain trigger notification duties and have driven government mandates such as SBOM (Software Bill of Materials) requirements.
 - **Incident cost and cleanup**: Determining *which* releases were tampered with, and reissuing trusted artifacts, is slow and expensive.
@@ -68,7 +68,7 @@ Integrity failures are dangerous because they subvert the *chain of trust* that 
 
 ### The Four Faces of Integrity Failure
 
-OWASP groups several distinct problems under this one category because they share a single root cause—**trusting an artifact whose integrity was never verified**. It helps to see them as four faces of the same flaw:
+OWASP groups several distinct problems under this one category because they share a single root cause-**trusting an artifact whose integrity was never verified**. It helps to see them as four faces of the same flaw:
 
 | Face | What is trusted blindly | Typical failure | Verification that fixes it |
 |------|-------------------------|-----------------|----------------------------|
@@ -79,7 +79,7 @@ OWASP groups several distinct problems under this one category because they shar
 
 ### Why Signatures and Hashes Are the Answer
 
-Integrity is a solved problem *in theory*: a cryptographic hash detects any modification, and a digital signature additionally proves *who* produced the artifact. The failures in this category are almost never a failure of the math—they are a failure to actually **perform the check**, or to perform it correctly.
+Integrity is a solved problem *in theory*: a cryptographic hash detects any modification, and a digital signature additionally proves *who* produced the artifact. The failures in this category are almost never a failure of the math-they are a failure to actually **perform the check**, or to perform it correctly.
 
 ```
 Hash (integrity only):
@@ -114,13 +114,13 @@ Consumer / update  -> verify signature BEFORE executing or installing
 
 ## Real-World Impact
 
-> The cases below are described as **incident classes**—well-documented patterns that have recurred across the industry. They illustrate mechanisms; treat specific figures as approximate and confirm details against primary sources before citing them.
+> The cases below are described as **incident classes**-well-documented patterns that have recurred across the industry. They illustrate mechanisms; treat specific figures as approximate and confirm details against primary sources before citing them.
 
 ### Incident Class 1: Build-Pipeline / Supply-Chain Compromise ("SolarWinds-class")
 
 **Mechanism**: Attackers gained access to a software vendor's build environment and injected malicious code *during the build*, so the finished, digitally signed product shipped the backdoor to customers as a legitimate update.
 
-**Why it worked**: Customers verified that the update was signed by the genuine vendor—and it was, because the compromise happened *before* signing, inside the trusted pipeline. Signing at the end of an untrusted build proves authorship, not innocence.
+**Why it worked**: Customers verified that the update was signed by the genuine vendor-and it was, because the compromise happened *before* signing, inside the trusted pipeline. Signing at the end of an untrusted build proves authorship, not innocence.
 
 **Lesson**: Integrity must extend to the build system itself (provenance, isolated runners, tamper-evident artifacts), not just the final signature.
 
@@ -134,7 +134,7 @@ Consumer / update  -> verify signature BEFORE executing or installing
 
 ### Incident Class 3: Insecure Auto-Update Channel
 
-**Mechanism**: An application checks for updates over an attacker-influenceable channel (plain HTTP, or HTTPS without signature verification) and installs whatever it receives. An on-path attacker serves a malicious binary that the updater applies—often with elevated privileges.
+**Mechanism**: An application checks for updates over an attacker-influenceable channel (plain HTTP, or HTTPS without signature verification) and installs whatever it receives. An on-path attacker serves a malicious binary that the updater applies-often with elevated privileges.
 
 **Why it worked**: The updater treated "downloaded from the update URL" as equivalent to "produced by the vendor." No signature bound the artifact to the vendor's key.
 
@@ -160,7 +160,7 @@ Consumer / update  -> verify signature BEFORE executing or installing
 
 ### OWASP Top 10 2021 Data
 
-- **A08:2021** — a **new category** in the 2021 edition.
+- **A08:2021** - a **new category** in the 2021 edition.
 - It **absorbed A8:2017 Insecure Deserialization**, broadening it from a single technique to a family of integrity problems.
 - It is one of the categories driven by **community survey input** rather than raw incidence alone, reflecting industry concern about supply-chain risk that data-driven scanning tends to under-count.
 
@@ -181,11 +181,11 @@ Consumer / update  -> verify signature BEFORE executing or installing
 
 ### Myth 1: "It's served over HTTPS, so its integrity is guaranteed"
 
-**Reality**: TLS protects the artifact *in transit* against a network eavesdropper. It says nothing about whether the file on the server is genuine, whether the build that produced it was clean, or whether the CDN was compromised. Integrity of the artifact requires a signature or a hash verified against a trusted source—independent of the transport.
+**Reality**: TLS protects the artifact *in transit* against a network eavesdropper. It says nothing about whether the file on the server is genuine, whether the build that produced it was clean, or whether the CDN was compromised. Integrity of the artifact requires a signature or a hash verified against a trusted source-independent of the transport.
 
 ### Myth 2: "The update is signed, so we're safe"
 
-**Reality**: A signature only proves the artifact came from the signing key—*after* whatever produced it. If the build pipeline was compromised (Incident Class 1), the malicious code is signed by the genuine key. Signing is necessary but not sufficient; the build environment must be trustworthy too.
+**Reality**: A signature only proves the artifact came from the signing key-*after* whatever produced it. If the build pipeline was compromised (Incident Class 1), the malicious code is signed by the genuine key. Signing is necessary but not sufficient; the build environment must be trustworthy too.
 
 ### Myth 3: "Deserialization is just parsing"
 
@@ -193,11 +193,11 @@ Consumer / update  -> verify signature BEFORE executing or installing
 
 ### Myth 4: "We only use popular, well-known packages"
 
-**Reality**: Popularity is a target, not a defense. Account takeover, malicious maintainer handoff, and typosquatting all exploit trusted names. Without pinned, verified versions you inherit every change the upstream ships—including a compromised one.
+**Reality**: Popularity is a target, not a defense. Account takeover, malicious maintainer handoff, and typosquatting all exploit trusted names. Without pinned, verified versions you inherit every change the upstream ships-including a compromised one.
 
 ### Myth 5: "Signing a token means the data inside it is trustworthy"
 
-**Reality**: Only if you actually *verify* the signature with the correct key and algorithm on every use. A large class of failures comes from decoding a token and trusting its claims without verification—or accepting an attacker-chosen algorithm (for example "none").
+**Reality**: Only if you actually *verify* the signature with the correct key and algorithm on every use. A large class of failures comes from decoding a token and trusting its claims without verification-or accepting an attacker-chosen algorithm (for example "none").
 
 ### Myth 6: "This is the same thing as using vulnerable components (A06)"
 
@@ -235,17 +235,17 @@ If you answered "no" or "not sure" to several of these, you likely have exploita
 
 ## Key Takeaways
 
-1. ✅ **Verify before you trust** — signatures and hashes, checked against a trusted source, for every artifact.
-2. ✅ **Extend integrity to the build** — a signature on a compromised build still ships malware.
+1. ✅ **Verify before you trust** - signatures and hashes, checked against a trusted source, for every artifact.
+2. ✅ **Extend integrity to the build** - a signature on a compromised build still ships malware.
 3. ✅ **Never auto-update without signature verification** against a pinned key.
-4. ✅ **Pin and verify dependencies** — lockfiles, verified registries, and SRI for browser assets.
+4. ✅ **Pin and verify dependencies** - lockfiles, verified registries, and SRI for browser assets.
 5. ✅ **Do not deserialize untrusted data** with native deserializers; use safe formats and validation.
 6. ✅ **Do not trust client-held state** without a verified integrity tag.
 
 ## Next Steps
 
 - **[Attack Vectors](./attack-vectors.md)**: How attackers exploit missing integrity verification
-- **[Prevention](./prevention.md)**: Layered defenses—signing, secure CI/CD, SRI, safe deserialization
+- **[Prevention](./prevention.md)**: Layered defenses-signing, secure CI/CD, SRI, safe deserialization
 - **[Examples](./examples.md)**: Vulnerable vs. secure code and configuration
 - **[Lab](./lab/unsigned-update-lab/)**: Hands-on practice
 

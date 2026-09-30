@@ -12,7 +12,7 @@
 
 ## How to Read These Examples
 
-Each pair shows the *same feature*—an endpoint that parses a user-supplied XML document—first as it is commonly written (vulnerable), then hardened. The attack payload is identical in every case:
+Each pair shows the *same feature*-an endpoint that parses a user-supplied XML document-first as it is commonly written (vulnerable), then hardened. The attack payload is identical in every case:
 
 ```xml
 <?xml version="1.0"?>
@@ -22,7 +22,7 @@ Each pair shows the *same feature*—an endpoint that parses a user-supplied XML
 <data>&xxe;</data>
 ```
 
-Against the vulnerable code, the response echoes the contents of `/etc/passwd`. Against the secure code, the parser either throws on the DOCTYPE or leaves `&xxe;` unresolved—no file is read. Notice how small the diff is: XXE prevention is almost always a configuration change, not a rewrite.
+Against the vulnerable code, the response echoes the contents of `/etc/passwd`. Against the secure code, the parser either throws on the DOCTYPE or leaves `&xxe;` unresolved-no file is read. Notice how small the diff is: XXE prevention is almost always a configuration change, not a rewrite.
 
 ## Java (JAXP DocumentBuilderFactory)
 
@@ -194,7 +194,7 @@ public string ParseUser(string xml)
 
 ## Bonus: Hardening an SVG Upload Handler
 
-A frequent real-world trap: an "image" upload that server-side code parses as XML. The fix is the same parser hardening—applied where you might not think to look.
+A frequent real-world trap: an "image" upload that server-side code parses as XML. The fix is the same parser hardening-applied where you might not think to look.
 
 ### Vulnerable (Python thumbnail/metadata step)
 

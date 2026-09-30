@@ -11,13 +11,13 @@
 
 ## What is this control?
 
-**C3 — Validate all Input & Handle Exceptions** is a *proactive* control from the OWASP Top 10 Proactive Controls (2024). It is not a description of a vulnerability; it is a defensive discipline you build into every application to **mitigate** whole classes of attacks—injection, cross-site scripting, XML external entities, path traversal, and unsafe deserialization—and to make sure the failures that do occur fail *safely*.
+**C3 - Validate all Input & Handle Exceptions** is a *proactive* control from the OWASP Top 10 Proactive Controls (2024). It is not a description of a vulnerability; it is a defensive discipline you build into every application to **mitigate** whole classes of attacks-injection, cross-site scripting, XML external entities, path traversal, and unsafe deserialization-and to make sure the failures that do occur fail *safely*.
 
 The control has three tightly related parts. Treat them as one system: each covers a gap the others cannot.
 
-> **1. Input validation** — decide, before any data is used, whether it is well-formed and acceptable. Reject what is not.
-> **2. Safe output handling** — when data crosses into an interpreter (SQL, HTML, a shell, an LDAP filter), encode or parameterise it for *that* context so it is treated as data, never as code.
-> **3. Exception handling** — when something goes wrong anyway, fail closed, return a generic error to the user, and log the detail server-side without leaking secrets.
+> **1. Input validation** - decide, before any data is used, whether it is well-formed and acceptable. Reject what is not.
+> **2. Safe output handling** - when data crosses into an interpreter (SQL, HTML, a shell, an LDAP filter), encode or parameterise it for *that* context so it is treated as data, never as code.
+> **3. Exception handling** - when something goes wrong anyway, fail closed, return a generic error to the user, and log the detail server-side without leaking secrets.
 
 ### The core idea
 
@@ -69,7 +69,7 @@ else:
     reject()
 ```
 
-### 2. Validate on the server — always
+### 2. Validate on the server - always
 
 Client-side validation (JavaScript in the browser, checks in a mobile app) is a **usability feature**, not a security control. The attacker controls the client: they can disable your script, edit the request in a proxy, or call the API directly with `curl`. Every security-relevant validation **must** run again on the server, which is the only place the user cannot tamper with.
 
@@ -109,7 +109,7 @@ This is the single most important point in C3, and the most commonly missed:
 Why validation alone is not enough:
 
 - Many valid inputs legitimately contain dangerous characters. A name like `O'Brien` contains a single quote; a comment can legitimately contain `<` and `>`; a search box must accept almost anything. You cannot reject these, so validation cannot be your only defence.
-- The same string is safe in one context and dangerous in another. `<b>` is harmless in a database column and dangerous in HTML. Safety is decided at the *output* boundary, by the interpreter that will read the data—so the fix must live there too.
+- The same string is safe in one context and dangerous in another. `<b>` is harmless in a database column and dangerous in HTML. Safety is decided at the *output* boundary, by the interpreter that will read the data-so the fix must live there too.
 - Data arrives from many sources. Even if you validated a value on the way in, another code path or another service may write to the same store without validating. Encoding at output protects regardless of how the data got there.
 
 So the model is **defence in depth**: validate at the input boundary to reject obvious garbage early, and encode/parameterise at every output boundary to neutralise whatever gets through.
@@ -117,13 +117,13 @@ So the model is **defence in depth**: validate at the input boundary to reject o
 ```
 Validation catches:     malformed, out-of-range, wrong-type input        (reduces attack surface)
 Encoding/parameters:    neutralises dangerous characters at the sink     (stops the injection)
-        Both together:  belt and braces — neither alone is sufficient
+        Both together:  belt and braces - neither alone is sufficient
 ```
 
 ### The two output-side controls
 
-- **Parameterised queries / prepared statements / safe ORMs** keep untrusted data out of the *structure* of a SQL/NoSQL command—the database receives the query and the data separately, so the data can never change the command. This, not input filtering, is the real fix for injection.
-- **Context-aware output encoding & sanitisation** escapes data for the exact place it is written—HTML body, HTML attribute, JavaScript, URL, CSS—so it renders as text. For rich HTML that must be allowed, a vetted sanitiser (for example DOMPurify) or a template engine with auto-escaping does this correctly.
+- **Parameterised queries / prepared statements / safe ORMs** keep untrusted data out of the *structure* of a SQL/NoSQL command-the database receives the query and the data separately, so the data can never change the command. This, not input filtering, is the real fix for injection.
+- **Context-aware output encoding & sanitisation** escapes data for the exact place it is written-HTML body, HTML attribute, JavaScript, URL, CSS-so it renders as text. For rich HTML that must be allowed, a vetted sanitiser (for example DOMPurify) or a template engine with auto-escaping does this correctly.
 
 ## Safe Exception Handling
 
@@ -159,7 +159,7 @@ To the log:    full stack trace + context, tied to error_id a1b2c3d4          # 
 
 ### Catch, don't swallow
 
-Handle exceptions deliberately—log them, translate them into a safe response—but do not silently discard them (an empty `catch {}`), which hides attacks and bugs alike. And never log secrets, tokens, passwords, or full personal data while logging the error.
+Handle exceptions deliberately-log them, translate them into a safe response-but do not silently discard them (an empty `catch {}`), which hides attacks and bugs alike. And never log secrets, tokens, passwords, or full personal data while logging the error.
 
 ## Real-World Impact
 
@@ -169,18 +169,18 @@ These are *classes* of incidents that this control directly prevents. They recur
 String-concatenated queries have driven some of the largest data breaches on record, exposing millions of records at a time. The durable lesson is always the same: the fix is parameterised queries, not cleverer input filtering.
 
 ### Stored and reflected XSS
-User content rendered into pages without context-aware encoding lets attackers run script in victims' browsers—stealing sessions, performing actions as the victim, and defacing content. Auto-escaping templates and sanitising rich HTML shut this down.
+User content rendered into pages without context-aware encoding lets attackers run script in victims' browsers-stealing sessions, performing actions as the victim, and defacing content. Auto-escaping templates and sanitising rich HTML shut this down.
 
 ### XXE in XML processors
 XML parsers left with external-entity resolution enabled have been used to read local files (for example `/etc/passwd`) and to reach internal systems via server-side request forgery. Disabling external entities and DTDs is the fix.
 
 ### Unsafe deserialization
-Deserializing attacker-controlled data with native, type-permissive deserializers (across multiple languages and frameworks) has repeatedly led to remote code execution. Avoiding native deserialization of untrusted input—using data-only formats like JSON with a strict schema—removes the sink.
+Deserializing attacker-controlled data with native, type-permissive deserializers (across multiple languages and frameworks) has repeatedly led to remote code execution. Avoiding native deserialization of untrusted input-using data-only formats like JSON with a strict schema-removes the sink.
 
 ### Verbose errors as reconnaissance
-Stack traces and database errors returned to clients have handed attackers exact versions, file paths, schema names, and even credentials—turning a minor bug into a roadmap. Generic errors plus server-side logging deny that free reconnaissance.
+Stack traces and database errors returned to clients have handed attackers exact versions, file paths, schema names, and even credentials-turning a minor bug into a roadmap. Generic errors plus server-side logging deny that free reconnaissance.
 
-> These are incident *classes*, described without fabricated CVE numbers or invented statistics. The point is not a specific breach; it is that the same missing control—validate input, encode output, handle errors safely—is behind all of them.
+> These are incident *classes*, described without fabricated CVE numbers or invented statistics. The point is not a specific breach; it is that the same missing control-validate input, encode output, handle errors safely-is behind all of them.
 
 ## Common Misunderstandings
 
@@ -215,11 +215,11 @@ Stack traces and database errors returned to clients have handed attackers exact
 
 ## Key Takeaways
 
-1. **C3 is a defence, not a vulnerability** — it mitigates injection, XSS, XXE, path traversal, deserialization, and error-handling risks.
-2. **Validate with allow-lists, on the server** — syntactic and semantic, using strong typing and schemas; canonicalise first.
-3. **Validation is not a substitute for output encoding or parameterised queries** — you need both, at both boundaries.
-4. **Handle exceptions safely** — fail closed, return generic errors, log detail privately, never leak stack traces or secrets.
-5. **Defence in depth wins** — reject the obviously bad early, neutralise the rest at every sink.
+1. **C3 is a defence, not a vulnerability** - it mitigates injection, XSS, XXE, path traversal, deserialization, and error-handling risks.
+2. **Validate with allow-lists, on the server** - syntactic and semantic, using strong typing and schemas; canonicalise first.
+3. **Validation is not a substitute for output encoding or parameterised queries** - you need both, at both boundaries.
+4. **Handle exceptions safely** - fail closed, return generic errors, log detail privately, never leak stack traces or secrets.
+5. **Defence in depth wins** - reject the obviously bad early, neutralise the rest at every sink.
 
 ## Next Steps
 

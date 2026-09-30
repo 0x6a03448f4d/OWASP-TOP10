@@ -10,9 +10,9 @@
 
 ## What is Insufficient PBAC?
 
-**Pipeline-Based Access Controls (PBAC)** are the permissions granted to the environment in which a pipeline runs—the runner or agent, and the identity, secrets, and network reach it carries while a job executes. **Insufficient PBAC** is the condition where that execution environment holds access *far beyond* what the specific job in front of it actually needs. The build step that only has to compile code can, in fact, read every organisation secret, assume a wildcard cloud role, reach the production control plane, and leave artefacts behind for the next job that lands on the same machine.
+**Pipeline-Based Access Controls (PBAC)** are the permissions granted to the environment in which a pipeline runs-the runner or agent, and the identity, secrets, and network reach it carries while a job executes. **Insufficient PBAC** is the condition where that execution environment holds access *far beyond* what the specific job in front of it actually needs. The build step that only has to compile code can, in fact, read every organisation secret, assume a wildcard cloud role, reach the production control plane, and leave artefacts behind for the next job that lands on the same machine.
 
-The core problem is that a CI/CD pipeline is a *programmable execution surface*. Anyone who can influence what a job runs—through a pull request, a dependency, a build script, a test—can run their code with whatever privileges the runner happens to hold at that moment. When those standing privileges are broad, a low-trust input is handed high-trust access. Insufficient PBAC is what turns an ordinary code contribution into a path to your secrets, your cloud account, and your other pipelines.
+The core problem is that a CI/CD pipeline is a *programmable execution surface*. Anyone who can influence what a job runs-through a pull request, a dependency, a build script, a test-can run their code with whatever privileges the runner happens to hold at that moment. When those standing privileges are broad, a low-trust input is handed high-trust access. Insufficient PBAC is what turns an ordinary code contribution into a path to your secrets, your cloud account, and your other pipelines.
 
 ### Core Concept
 
@@ -38,16 +38,16 @@ Insufficient PBAC:
 
 Pipelines concentrate several conditions that make excessive PBAC uniquely dangerous:
 
-- They run **code that arrives from many trust levels**—maintainers, first-time contributors, forks, and transitive dependencies—often on the *same* infrastructure.
+- They run **code that arrives from many trust levels**-maintainers, first-time contributors, forks, and transitive dependencies-often on the *same* infrastructure.
 - They hold **the keys to everything downstream**: registry credentials, cloud roles, signing keys, and deploy access all converge on the runner.
 - They are **trusted implicitly** by the systems they deploy to, so access obtained inside a pipeline usually needs no further exploit to reach production.
-- Their **runners are frequently reused**—non-ephemeral machines retain secrets, caches, and artefacts that outlive the job that created them.
+- Their **runners are frequently reused**-non-ephemeral machines retain secrets, caches, and artefacts that outlive the job that created them.
 
 ## Why Does This Matter?
 
 ### Business Impact
 
-- **Secret and Credential Theft**: A single over-privileged job can harvest every secret present on the runner—cloud keys, registry tokens, signing material—and use them anywhere.
+- **Secret and Credential Theft**: A single over-privileged job can harvest every secret present on the runner-cloud keys, registry tokens, signing material-and use them anywhere.
 - **Cloud Account Takeover**: A standing broad IAM role attached to a runner means compromising one build equals compromising the cloud account it can assume.
 - **Supply-Chain Compromise**: Access to signing keys or the deploy path lets an attacker ship malicious artefacts to real users under your name.
 - **Lateral Movement Across Pipelines**: A poisoned shared runner or cache silently taints every higher-trust pipeline that later uses it.
@@ -79,7 +79,7 @@ env:
   SIGNING_GPG_KEY:       ${{ secrets.SIGNING_GPG_KEY }}
 ```
 
-**Risk**: Any code the job runs—including a malicious dependency or a poisoned test—can exfiltrate all of these at once.
+**Risk**: Any code the job runs-including a malicious dependency or a poisoned test-can exfiltrate all of these at once.
 
 #### 2. Standing Broad Cloud Role on the Runner
 
@@ -145,7 +145,7 @@ psql -h prod-db.internal -U app                                           # prod
 - The pipeline executed build and test scripts taken from the untrusted PR branch itself, with full access to the runner's standing privileges.
 
 **Impact**:
-- A crafted pull request modified a build or test step to print, encode, and exfiltrate the environment—cloud keys and deploy tokens included—to an attacker-controlled endpoint.
+- A crafted pull request modified a build or test step to print, encode, and exfiltrate the environment-cloud keys and deploy tokens included-to an attacker-controlled endpoint.
 - Because the runner's role was broad and standing, the stolen identity granted far more than the build ever needed.
 
 **Root Cause**: Untrusted input executed with the runner's excessive standing access, with no per-job scoping or trust isolation. This is the classic Poisoned Pipeline Execution (PPE) outcome amplified by insufficient PBAC.
@@ -156,7 +156,7 @@ psql -h prod-db.internal -U app                                           # prod
 - Self-hosted runners were long-lived: after a trusted job wrote cloud credentials, container-registry logins, and caches to disk, the machine was returned to the pool without being torn down.
 
 **Impact**:
-- A subsequent lower-trust job—or a job triggered by a fork—landed on the same machine and read the leftover credentials and workspace, inheriting access it was never granted.
+- A subsequent lower-trust job-or a job triggered by a fork-landed on the same machine and read the leftover credentials and workspace, inheriting access it was never granted.
 - Attackers who reached one job could also implant persistence (modified tools, cron, credential stealers) that affected every later job on that runner.
 
 **Root Cause**: Reused execution environments that retain state between jobs of different trust levels. Ephemeral, single-use runners eliminate the carry-over entirely.
@@ -167,7 +167,7 @@ psql -h prod-db.internal -U app                                           # prod
 - A build cache or artifact repository was writable by low-trust jobs and consumed, unverified, by higher-trust pipelines (including deploy pipelines) as trusted input.
 
 **Impact**:
-- Malicious content written once—a tampered dependency, a backdoored binary, a poisoned cache entry—was reused by many downstream runs, silently propagating into artefacts that were then signed and shipped.
+- Malicious content written once-a tampered dependency, a backdoored binary, a poisoned cache entry-was reused by many downstream runs, silently propagating into artefacts that were then signed and shipped.
 
 **Root Cause**: Shared, cross-trust caches and artifact stores with no integrity verification or trust separation, so a single write influences every later consumer.
 
@@ -179,21 +179,21 @@ Rather than cite precise figures (which vary by source and year), the defensible
 
 - Excessive pipeline access is **widespread**: standing broad cloud roles, all-secrets-everywhere injection, and reused self-hosted runners are common defaults teams never revisit.
 - The most damaging patterns are **non-ephemeral runners, shared runners across trust boundaries, and unscoped secrets/roles**.
-- The impact is rated **severe**: outcomes range from full secret theft to cloud-account takeover and supply-chain compromise, frequently with no memory-corruption exploit—just abuse of granted access.
+- The impact is rated **severe**: outcomes range from full secret theft to cloud-account takeover and supply-chain compromise, frequently with no memory-corruption exploit-just abuse of granted access.
 
-> Note: exact incident counts differ between reports. The durable takeaway is that the runner's standing privileges define the blast radius of every job it runs—so those privileges, not the job's intent, are what an attacker inherits.
+> Note: exact incident counts differ between reports. The durable takeaway is that the runner's standing privileges define the blast radius of every job it runs-so those privileges, not the job's intent, are what an attacker inherits.
 
 ## Common Misunderstandings
 
 ### Myth 1: "Only trusted people can trigger our pipelines"
 
-**Reality**: Pull requests, forks, dependencies, and test fixtures all inject code into the pipeline. The trigger may be a stranger's PR or a transitive package—the runner cannot tell the difference and runs it with whatever access it holds.
+**Reality**: Pull requests, forks, dependencies, and test fixtures all inject code into the pipeline. The trigger may be a stranger's PR or a transitive package-the runner cannot tell the difference and runs it with whatever access it holds.
 
 ### Myth 2: "Secrets are safe because they're encrypted at rest"
 
-**Reality**: Encryption protects storage, not use. Once a secret is injected into a job's environment, any code that job runs can read it in plaintext. The question is *which jobs* receive it—scope, not encryption.
+**Reality**: Encryption protects storage, not use. Once a secret is injected into a job's environment, any code that job runs can read it in plaintext. The question is *which jobs* receive it-scope, not encryption.
 
-### Myth 3: "A self-hosted runner is fine to reuse—we control it"
+### Myth 3: "A self-hosted runner is fine to reuse-we control it"
 
 **Reality**: A reused runner accumulates credentials, caches, and workspaces across jobs. Controlling the host does not stop one job from reading what a previous, higher-trust job left behind. Ephemerality is the control.
 
@@ -207,7 +207,7 @@ Rather than cite precise figures (which vary by source and year), the defensible
 
 ### Myth 6: "The build environment is throwaway, so access there doesn't matter"
 
-**Reality**: The build environment is the most trusted point in the software lifecycle—it can sign and ship code. Access there matters *more*, not less, than access in production.
+**Reality**: The build environment is the most trusted point in the software lifecycle-it can sign and ship code. Access there matters *more*, not less, than access in production.
 
 ## How Insufficient PBAC Differs from Related CI/CD Risks
 
@@ -220,16 +220,16 @@ Rather than cite precise figures (which vary by source and year), the defensible
 
 ## Key Takeaways
 
-1. **The runner's privileges are the job's privileges**—whatever the execution environment holds, the code it runs inherits.
-2. **Scope everything to the job**—secrets, cloud roles, and network reach should match what one job needs, not the whole organisation.
-3. **Ephemeral beats reused**—a fresh, single-use runner per job removes credential and artifact carry-over.
-4. **Isolate by trust level**—public and private, build and deploy, must not share runners or caches.
-5. **Prefer short-lived identities**—OIDC tokens scoped per job beat standing broad cloud roles every time.
+1. **The runner's privileges are the job's privileges**-whatever the execution environment holds, the code it runs inherits.
+2. **Scope everything to the job**-secrets, cloud roles, and network reach should match what one job needs, not the whole organisation.
+3. **Ephemeral beats reused**-a fresh, single-use runner per job removes credential and artifact carry-over.
+4. **Isolate by trust level**-public and private, build and deploy, must not share runners or caches.
+5. **Prefer short-lived identities**-OIDC tokens scoped per job beat standing broad cloud roles every time.
 
 ## How to Identify if You're Vulnerable
 
 - [ ] Can a single job read secrets it does not need (all org/repo secrets injected everywhere)?
-- [ ] Are any runners non-ephemeral—reused across jobs without being destroyed?
+- [ ] Are any runners non-ephemeral-reused across jobs without being destroyed?
 - [ ] Do public/fork-triggered pipelines share a runner pool with private, credentialed pipelines?
 - [ ] Does any runner carry a standing broad cloud role (wildcard actions/resources)?
 - [ ] Can a build job reach production, the cloud metadata service, or the cluster control plane?

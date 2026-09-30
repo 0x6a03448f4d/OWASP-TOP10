@@ -8,9 +8,9 @@
 
 ## Understanding the Attack Surface
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are described so you can find and fix these issues in CI/CD systems you own or are explicitly authorised to test.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are described so you can find and fix these issues in CI/CD systems you own or are explicitly authorised to test.
 
-Insecure system configuration is rarely exploited with a clever payload. It is exploited through **reconnaissance and access**: an attacker locates a build or SCM system, reads what it volunteers about its version and posture, and walks through whichever door—anonymous access, an unpatched plugin, an open script console—was left open. Because the flaws live in settings and patch levels rather than application logic, they are cheap to find at internet scale.
+Insecure system configuration is rarely exploited with a clever payload. It is exploited through **reconnaissance and access**: an attacker locates a build or SCM system, reads what it volunteers about its version and posture, and walks through whichever door-anonymous access, an unpatched plugin, an open script console-was left open. Because the flaws live in settings and patch levels rather than application logic, they are cheap to find at internet scale.
 
 The attacker's objective at this layer is usually one of:
 
@@ -54,7 +54,7 @@ X-Jenkins header present on :8080
 /v2/_catalog                         # open container registry catalog
 ```
 
-**Payoff**: a target list of management planes to probe—before any authentication is even attempted.
+**Payoff**: a target list of management planes to probe-before any authentication is even attempted.
 
 ### 2. Version and Plugin Fingerprinting
 
@@ -68,7 +68,7 @@ X-Jenkins-Session: ...
 GET /pluginManager/api/json?depth=1  # names + versions of every plugin
 ```
 
-**Payoff**: the exact core and plugin versions are matched to published advisories—exploitation by catalogue, no probing required.
+**Payoff**: the exact core and plugin versions are matched to published advisories-exploitation by catalogue, no probing required.
 
 ### 3. Anonymous or Default Access
 
@@ -97,7 +97,7 @@ script=println "id".execute().text        # runs a command on the controller
 # The same surface can read stored credentials and the filesystem.
 ```
 
-**Payoff**: arbitrary code on the build controller—the highest-value foothold in the pipeline.
+**Payoff**: arbitrary code on the build controller-the highest-value foothold in the pipeline.
 
 ### 5. Exploiting a Vulnerable Plugin or Unpatched Core
 
@@ -125,7 +125,7 @@ GET /systemInfo                      # environment variables, versions
 + curl -H "Authorization: Bearer ****" ...   # unmasked when debug is on
 ```
 
-**Payoff**: deploy credentials, cloud roles, registry tokens, and signing material—the keys to everything downstream.
+**Payoff**: deploy credentials, cloud roles, registry tokens, and signing material-the keys to everything downstream.
 
 ### 7. Compromising a Shared / Over-Privileged Runner
 
@@ -198,11 +198,11 @@ Unauthenticated webhook                -> forge a push/deploy event
 
 ## Key Takeaways
 
-1. **The management plane is the target**—exposed consoles and APIs are located and probed before any exploit is attempted.
-2. **The system tells the attacker how to attack it**—version banners and plugin lists are free reconnaissance; silence them and lock them down.
-3. **Plugins and script consoles are RCE waiting to happen**—unreviewed plugin code and admin consoles are the highest-value footholds.
-4. **Runners are attack surface, not just workers**—shared, long-lived, over-privileged runners leak secrets and enable lateral movement.
-5. **Small issues chain**—exposure plus a version banner plus one unpatched plugin equals full control of the build plane.
+1. **The management plane is the target**-exposed consoles and APIs are located and probed before any exploit is attempted.
+2. **The system tells the attacker how to attack it**-version banners and plugin lists are free reconnaissance; silence them and lock them down.
+3. **Plugins and script consoles are RCE waiting to happen**-unreviewed plugin code and admin consoles are the highest-value footholds.
+4. **Runners are attack surface, not just workers**-shared, long-lived, over-privileged runners leak secrets and enable lateral movement.
+5. **Small issues chain**-exposure plus a version banner plus one unpatched plugin equals full control of the build plane.
 
 ## Next Steps
 

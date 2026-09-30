@@ -10,9 +10,9 @@
 
 ## What is Price Oracle Manipulation?
 
-**Price Oracle Manipulation** occurs when a smart contract makes a financial decision—how much to lend, mint, redeem, or liquidate—based on a price it reads from a source an attacker can move *within the same transaction*. The attacker distorts that price, trades against the contract while it is looking at the distorted value, and extracts the difference. Nothing in the contract's own logic is "buggy" in the traditional sense; the flaw is **trusting a manipulable number**.
+**Price Oracle Manipulation** occurs when a smart contract makes a financial decision-how much to lend, mint, redeem, or liquidate-based on a price it reads from a source an attacker can move *within the same transaction*. The attacker distorts that price, trades against the contract while it is looking at the distorted value, and extracts the difference. Nothing in the contract's own logic is "buggy" in the traditional sense; the flaw is **trusting a manipulable number**.
 
-An oracle is simply any mechanism a contract uses to learn a fact about the outside world—here, the market price of an asset. In DeFi the tempting shortcut is to read that price directly from an on-chain source that is already available: the reserves of a decentralized-exchange (DEX) pool, the output of a swap-quote function, or a token balance. The problem is that these on-chain sources reflect the *instantaneous* state of a market, and market state is something anyone with capital—including borrowed, never-repaid capital from a flash loan—can change on demand.
+An oracle is simply any mechanism a contract uses to learn a fact about the outside world-here, the market price of an asset. In DeFi the tempting shortcut is to read that price directly from an on-chain source that is already available: the reserves of a decentralized-exchange (DEX) pool, the output of a swap-quote function, or a token balance. The problem is that these on-chain sources reflect the *instantaneous* state of a market, and market state is something anyone with capital-including borrowed, never-repaid capital from a flash loan-can change on demand.
 
 ### Core Concept
 
@@ -38,7 +38,7 @@ DeFi contracts combine several properties that make oracle manipulation uniquely
 
 - They are **autonomous and non-negotiable**: the contract acts on the price it reads with no human in the loop to notice that a number looks absurd.
 - They hold **pooled, permissionless funds**: a lending pool, an AMM, or a vault is a standing prize that anyone can interact with directly.
-- Transactions are **atomic**: manipulate-borrow-repay can all succeed or all revert together, so the attacker takes no market risk—a flash loan lets them wield enormous capital they never actually own.
+- Transactions are **atomic**: manipulate-borrow-repay can all succeed or all revert together, so the attacker takes no market risk-a flash loan lets them wield enormous capital they never actually own.
 - The distorted read is **free money by construction**: if a contract will lend against a price the attacker sets, the size of the theft is bounded only by the pool's liquidity, not by the attacker's balance.
 
 ## Why Does This Matter?
@@ -71,12 +71,12 @@ DeFi contracts combine several properties that make oracle manipulation uniquely
 uint price = (uint(reserve1) * 1e18) / uint(reserve0);   // token0 price in token1
 ```
 
-The reserves are just the pool's current balances. A large swap—funded by a flash loan—changes them in the same block, so `price` is whatever the attacker last traded it to.
+The reserves are just the pool's current balances. A large swap-funded by a flash loan-changes them in the same block, so `price` is whatever the attacker last traded it to.
 
 #### 2. Swap-Quote Functions (`getAmountsOut`)
 
 ```solidity
-// "How much USDC for 1 WETH right now?" — still a spot price
+// "How much USDC for 1 WETH right now?" - still a spot price
 uint[] memory out = router.getAmountsOut(1e18, path);
 uint price = out[out.length - 1];
 ```
@@ -112,14 +112,14 @@ uint price = uint(answer);   // no check on updatedAt or answeredInRound
 
 ### Why Flash Loans Change the Threat Model
 
-A flash loan lets anyone borrow a very large amount for the duration of a single transaction, provided it is repaid before that transaction ends. This removes the one natural defence that spot prices used to rely on—the assumption that moving a market requires real capital and real risk.
+A flash loan lets anyone borrow a very large amount for the duration of a single transaction, provided it is repaid before that transaction ends. This removes the one natural defence that spot prices used to rely on-the assumption that moving a market requires real capital and real risk.
 
 | Assumption | Pre-flash-loan world | Reality today |
 | --- | --- | --- |
 | Moving a pool's price is expensive | Needs large, at-risk capital | Borrow it atomically, risk-free |
 | Big swings are slow and visible | Play out over blocks | Happen inside one transaction |
 | Spot price ≈ fair price | Usually true for deep pools | False for any pool an attacker can skew |
-| Attacker takes market risk | Yes | No—manipulate and revert atomically |
+| Attacker takes market risk | Yes | No-manipulate and revert atomically |
 
 ## Real-World Impact
 
@@ -134,10 +134,10 @@ A flash loan lets anyone borrow a very large amount for the duration of a single
 
 **Impact**:
 
-- The protocol was left with bad debt—an outstanding loan backed by collateral worth a fraction of its manipulated valuation.
+- The protocol was left with bad debt-an outstanding loan backed by collateral worth a fraction of its manipulated valuation.
 - Honest depositors absorbed the shortfall. This exact shape has recurred across multiple lending protocols.
 
-**Root Cause**: A spot DEX price used as the oracle, with no TWAP, no independent source, and no sanity bounds—combined with a threat model that never accounted for flash-loaned capital.
+**Root Cause**: A spot DEX price used as the oracle, with no TWAP, no independent source, and no sanity bounds-combined with a threat model that never accounted for flash-loaned capital.
 
 ### Incident Class 2: LP-Token and `balanceOf` Mispricing
 
@@ -166,7 +166,7 @@ A flash loan lets anyone borrow a very large amount for the duration of a single
 
 ## Prevalence and Statistics
 
-Price Oracle Manipulation sits near the top of the **OWASP Smart Contract Top 10 (2025)** as SC02, and it is consistently among the **highest-loss categories** in DeFi post-mortems. Because the primitive—"read a spot price, act on it"—is so convenient, it reappears in new protocols continually.
+Price Oracle Manipulation sits near the top of the **OWASP Smart Contract Top 10 (2025)** as SC02, and it is consistently among the **highest-loss categories** in DeFi post-mortems. Because the primitive-"read a spot price, act on it"-is so convenient, it reappears in new protocols continually.
 
 Rather than quote a single dollar figure, the defensible picture is:
 
@@ -178,11 +178,11 @@ Rather than quote a single dollar figure, the defensible picture is:
 
 ## Common Misunderstandings
 
-### Myth 1: "On-chain prices can't be faked—they're on the blockchain"
+### Myth 1: "On-chain prices can't be faked-they're on the blockchain"
 **Reality**: On-chain does not mean honest. A DEX pool's price is a real, on-chain number that anyone with capital can move. "On-chain" describes where the data lives, not whether it reflects fair value.
 
 ### Myth 2: "A flash loan is too expensive to bother with"
-**Reality**: Flash loans are effectively free capital for one transaction. The attacker repays within the same tx and keeps only the profit—there is no meaningful cost barrier to moving a low-liquidity pool.
+**Reality**: Flash loans are effectively free capital for one transaction. The attacker repays within the same tx and keeps only the profit-there is no meaningful cost barrier to moving a low-liquidity pool.
 
 ### Myth 3: "Our pool is deep, so it can't be manipulated"
 **Reality**: Depth raises the cost but is not a control. Attackers pick the cheapest venue you rely on, and a spot read from *any* single pool remains movable. Depth is not a substitute for TWAP, multiple sources, and bounds.
@@ -191,7 +191,7 @@ Rather than quote a single dollar figure, the defensible picture is:
 **Reality**: A robust feed is necessary but not sufficient. You still must check `updatedAt` for staleness, validate the answer is positive and within sane bounds, handle the feed being down, and make sure you are not *also* reading a manipulable spot price somewhere else in the same flow.
 
 ### Myth 5: "`getAmountsOut` is a price oracle"
-**Reality**: `getAmountsOut` is a spot quote off the current reserves—exactly the value a flash loan moves. It is a convenience function, not a manipulation-resistant oracle.
+**Reality**: `getAmountsOut` is a spot quote off the current reserves-exactly the value a flash loan moves. It is a convenience function, not a manipulation-resistant oracle.
 
 ### Myth 6: "TWAP alone solves everything"
 **Reality**: TWAP resists single-block manipulation but is not free of trade-offs: it lags fast real moves, and over a short window or a low-liquidity pool it can still be pushed. Combine it with deviation checks and, where possible, an independent decentralized feed.
@@ -207,11 +207,11 @@ Rather than quote a single dollar figure, the defensible picture is:
 
 ## Key Takeaways
 
-1. **The flaw is trust, not a bug**—the contract correctly uses a price that was never trustworthy.
-2. **Spot DEX prices are not oracles**—reserves, `getAmountsOut`, and `balanceOf` all move within a single transaction.
-3. **Flash loans make manipulation free**—assume an attacker can wield unlimited atomic capital.
-4. **Robust oracles need freshness and bounds**—a good feed used carelessly is still a wrong price.
-5. **Defence is layered**—TWAP, multiple independent sources, deviation/sanity checks, and circuit breakers together, not any one alone.
+1. **The flaw is trust, not a bug**-the contract correctly uses a price that was never trustworthy.
+2. **Spot DEX prices are not oracles**-reserves, `getAmountsOut`, and `balanceOf` all move within a single transaction.
+3. **Flash loans make manipulation free**-assume an attacker can wield unlimited atomic capital.
+4. **Robust oracles need freshness and bounds**-a good feed used carelessly is still a wrong price.
+5. **Defence is layered**-TWAP, multiple independent sources, deviation/sanity checks, and circuit breakers together, not any one alone.
 
 ## How to Identify if You're Vulnerable
 

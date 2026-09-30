@@ -10,7 +10,7 @@
 
 ## What is Model Skewing?
 
-**Model Skewing** is an attack against a *deployed* model that keeps learning from production data. The attacker manipulates the model's **feedback loop**—the stream of clicks, ratings, reports, corrections, and labels that a continuously-learning system ingests—so that, retraining after retraining, the model's behaviour drifts ("skews") toward the attacker's goal. No single request is malicious in an obvious way; the harm is in the *aggregate signal* the attacker injects over time.
+**Model Skewing** is an attack against a *deployed* model that keeps learning from production data. The attacker manipulates the model's **feedback loop**-the stream of clicks, ratings, reports, corrections, and labels that a continuously-learning system ingests-so that, retraining after retraining, the model's behaviour drifts ("skews") toward the attacker's goal. No single request is malicious in an obvious way; the harm is in the *aggregate signal* the attacker injects over time.
 
 The target is specifically the class of systems that learn **online** or are **continuously retrained** from live traffic: spam and abuse classifiers that learn from user "report" and "not spam" buttons, fraud models tuned by analyst dispositions and chargeback outcomes, recommender and ranking systems shaped by engagement signals, and personalization engines that adapt to interaction history. Because these models are *designed* to change based on what users do, an attacker who can produce enough of the right user behaviour can steer the model itself.
 
@@ -35,7 +35,7 @@ Model skewing is best understood as **poisoning of the operational feedback chan
 
 ### How It Differs from One-Shot Training Poisoning (ML02)
 
-Classic data poisoning (ML02) assumes the attacker can taint the *training corpus* once, before or during a training run. Model skewing assumes something narrower but often more realistic: the attacker cannot touch the curated dataset, but they *can* generate production events, submit reports, create accounts, and click—and the system feeds those events straight back into training.
+Classic data poisoning (ML02) assumes the attacker can taint the *training corpus* once, before or during a training run. Model skewing assumes something narrower but often more realistic: the attacker cannot touch the curated dataset, but they *can* generate production events, submit reports, create accounts, and click-and the system feeds those events straight back into training.
 
 | Aspect | Data Poisoning (ML02) | Model Skewing (ML08) |
 |--------|------------------------|----------------------|
@@ -49,7 +49,7 @@ Classic data poisoning (ML02) assumes the attacker can taint the *training corpu
 
 Systems that retrain from production data concentrate several conditions that make skewing practical:
 
-- They **treat user behaviour as ground truth**—a "report" button or a click is taken as a label, even though anyone can press it.
+- They **treat user behaviour as ground truth**-a "report" button or a click is taken as a label, even though anyone can press it.
 - They **retrain automatically** on a schedule, so unvalidated data reaches the model with no human in the path.
 - They are **adversarially incentivised**: spammers, fraudsters, and sellers all profit from moving the boundary, so there is a permanent motivated adversary.
 - They **reward patience**: a slow drift spread across many accounts and weeks looks like organic trend change, not an attack.
@@ -59,9 +59,9 @@ Systems that retrain from production data concentrate several conditions that ma
 ### Business Impact
 
 - **Security Controls Quietly Weaken**: A spam, abuse, or fraud classifier skewed toward "allow" lets malicious content and transactions through while still *appearing* to work.
-- **Marketplace and Ranking Manipulation**: Coordinated feedback promotes an attacker's items, listings, or content and demotes competitors—monetising the model directly.
+- **Marketplace and Ranking Manipulation**: Coordinated feedback promotes an attacker's items, listings, or content and demotes competitors-monetising the model directly.
 - **Targeted Degradation**: An attacker can skew the model to behave worse for a specific group, region, or competitor while leaving overall metrics healthy.
-- **Erosion of Trust**: Once users notice spam getting through or recommendations being gamed, confidence in the platform—and the ML behind it—drops.
+- **Erosion of Trust**: Once users notice spam getting through or recommendations being gamed, confidence in the platform-and the ML behind it-drops.
 - **Expensive, Slow Recovery**: Because the poison is spread across many retraining cycles, rolling back means identifying and purging tainted feedback and retraining from a known-good baseline.
 
 ### Technical Impact
@@ -70,7 +70,7 @@ Systems that retrain from production data concentrate several conditions that ma
 - **Label Distribution Poisoning**: The apparent base rate of a class is inflated or deflated by fake labels, biasing every downstream estimate.
 - **Feature-Signal Corruption**: Engagement or reputation features are pumped with synthetic activity, so the model learns attacker-controlled correlations.
 - **Concept-Drift Masking**: Slow, deliberate skew is indistinguishable from legitimate drift unless the system monitors for it specifically.
-- **Feedback Amplification**: A slightly skewed model changes what it shows users, which changes their behaviour, which reinforces the skew—a self-fuelling loop.
+- **Feedback Amplification**: A slightly skewed model changes what it shows users, which changes their behaviour, which reinforces the skew-a self-fuelling loop.
 
 ## Technical Context
 
@@ -182,7 +182,7 @@ To avoid fabricated specifics, the cases below are described as well-established
 Model skewing sits at the intersection of **adversarial machine learning** and **platform integrity / anti-abuse**, and it is a recognised category in the OWASP Machine Learning Security Top 10. Rather than cite precise counts, the defensible picture is:
 
 - Any system that **retrains from production feedback** has a skewing attack surface; the more directly user actions become labels, the larger it is.
-- The dominant real-world variants are **coordinated/Sybil feedback** against classifiers and **engagement manipulation** against rankers and reviews—both are everyday problems for large platforms.
+- The dominant real-world variants are **coordinated/Sybil feedback** against classifiers and **engagement manipulation** against rankers and reviews-both are everyday problems for large platforms.
 - Impact ranges from **moderate** (some spam slips through, some rankings gamed) to **severe** (a security control effectively disabled, or a marketplace systematically manipulated).
 
 > Note: exact percentages and incident counts vary by platform and are rarely disclosed. Treat any single figure as illustrative; the durable takeaway is that feedback loops are a standing, actively-exploited attack surface whenever they drive retraining.
@@ -191,11 +191,11 @@ Model skewing sits at the intersection of **adversarial machine learning** and *
 
 ### Myth 1: "Our training data is locked down, so we can't be poisoned"
 
-**Reality**: Skewing does not touch your curated dataset. It poisons the *feedback stream* you willingly collect from production. If user actions become labels, the loop is the attack surface—dataset access is irrelevant.
+**Reality**: Skewing does not touch your curated dataset. It poisons the *feedback stream* you willingly collect from production. If user actions become labels, the loop is the attack surface-dataset access is irrelevant.
 
 ### Myth 2: "One user can't move a model trained on millions of events"
 
-**Reality**: One user can't—but one attacker with ten thousand accounts can. Influence scales with controllable identities, and account creation is cheap. Skewing is fundamentally a Sybil problem.
+**Reality**: One user can't-but one attacker with ten thousand accounts can. Influence scales with controllable identities, and account creation is cheap. Skewing is fundamentally a Sybil problem.
 
 ### Myth 3: "Our accuracy metrics would catch it"
 
@@ -209,7 +209,7 @@ Model skewing sits at the intersection of **adversarial machine learning** and *
 
 **Reality**: Automatic retraining with no human gate, no shadow evaluation, and no drift monitoring means an attacker's injected signal reaches production on the same schedule your legitimate data does.
 
-### Myth 6: "It's just spam getting through—low severity"
+### Myth 6: "It's just spam getting through-low severity"
 
 **Reality**: The same mechanism that lets spam through can disable a fraud control, manipulate a marketplace, or degrade the model for a targeted group. The channel is generic; the impact depends only on what the model gates.
 
@@ -224,11 +224,11 @@ Model skewing sits at the intersection of **adversarial machine learning** and *
 
 ## Key Takeaways
 
-1. **Skewing attacks the loop, not the dataset**—it poisons the production feedback that drives retraining.
-2. **Online / continuously-retrained models are the target**—recommenders, fraud/spam/abuse classifiers, ranking, and personalization.
-3. **Influence scales with identities**—Sybil and coordinated accounts turn one attacker into a synthetic majority.
-4. **Slow drift hides in normal change**—you must monitor for skew specifically, not just watch aggregate accuracy.
-5. **Raw feedback is untrusted input**—it must be validated, capped, and human-gated before it can move the model.
+1. **Skewing attacks the loop, not the dataset**-it poisons the production feedback that drives retraining.
+2. **Online / continuously-retrained models are the target**-recommenders, fraud/spam/abuse classifiers, ranking, and personalization.
+3. **Influence scales with identities**-Sybil and coordinated accounts turn one attacker into a synthetic majority.
+4. **Slow drift hides in normal change**-you must monitor for skew specifically, not just watch aggregate accuracy.
+5. **Raw feedback is untrusted input**-it must be validated, capped, and human-gated before it can move the model.
 
 ## How to Identify if You're at Risk
 

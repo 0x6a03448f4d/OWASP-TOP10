@@ -39,7 +39,7 @@ Generic errors + timing  username enumeration
 Use a slow, salted, memory-hard hash. **Argon2id** is the current first choice; **bcrypt** and **scrypt** are solid alternatives. Never use MD5, SHA-1, or a plain SHA-2 hash for passwords, and never store plaintext.
 
 ```python
-# Python — Argon2 (preferred) via argon2-cffi
+# Python - Argon2 (preferred) via argon2-cffi
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
@@ -55,7 +55,7 @@ except VerifyMismatchError:
 ```
 
 ```javascript
-// Node.js — bcrypt (cost factor tuned so a hash takes ~250ms+)
+// Node.js - bcrypt (cost factor tuned so a hash takes ~250ms+)
 const bcrypt = require('bcrypt');
 const COST = 12;                                  // raise as hardware improves
 const hash = await bcrypt.hash(password, COST);   // salt embedded in the hash
@@ -81,7 +81,7 @@ Favor **length over composition**. Require a reasonable minimum length, allow lo
 The single highest-value policy control is rejecting passwords already known to be compromised. Use a local list or a k-anonymity API.
 
 ```python
-# Python — k-anonymity check against a breached-password corpus.
+# Python - k-anonymity check against a breached-password corpus.
 # Only the first 5 hex chars of the SHA-1 are sent; the suffix is compared
 # locally, so the full password/hash never leaves the server.
 import hashlib, requests
@@ -98,11 +98,11 @@ if is_breached(new_password):
     reject("That password has appeared in a data breach; choose another.")
 ```
 
-> Note: SHA-1 here is only a lookup key against a public corpus—*not* how the password is stored. Storage still uses Argon2/bcrypt.
+> Note: SHA-1 here is only a lookup key against a public corpus-*not* how the password is stored. Storage still uses Argon2/bcrypt.
 
 ## 4. Rate Limiting & Lockout
 
-Throttle authentication attempts on multiple keys at once—per account, per IP, and globally. Prefer **exponential backoff** and **CAPTCHA/step-up** over hard permanent lockout, which invites denial-of-service.
+Throttle authentication attempts on multiple keys at once-per account, per IP, and globally. Prefer **exponential backoff** and **CAPTCHA/step-up** over hard permanent lockout, which invites denial-of-service.
 
 ```python
 # Flask example using a shared store (Redis) for counters.
@@ -139,7 +139,7 @@ location = /login {
 MFA is the most effective single defense against credential stuffing and phishing. Prefer **phishing-resistant** factors (WebAuthn/FIDO2). TOTP is a good widely-supported option; SMS is the weakest. Critically, **verify the second factor before issuing an authenticated session**.
 
 ```python
-# Python — TOTP verification (RFC 6238) with pyotp, done BEFORE login completes
+# Python - TOTP verification (RFC 6238) with pyotp, done BEFORE login completes
 import pyotp
 
 def complete_login(user, submitted_code):
@@ -157,10 +157,10 @@ def complete_login(user, submitted_code):
 
 ## 6. Secure Session Management
 
-Use your framework's session machinery—it generates high-entropy, CSPRNG-backed identifiers. The one rule developers most often miss: **regenerate the session ID at every privilege change** (especially login), which eliminates session fixation.
+Use your framework's session machinery-it generates high-entropy, CSPRNG-backed identifiers. The one rule developers most often miss: **regenerate the session ID at every privilege change** (especially login), which eliminates session fixation.
 
 ```php
-// PHP — regenerate the session ID on login (kills fixation)
+// PHP - regenerate the session ID on login (kills fixation)
 session_start();
 if (password_verify($password, $user['hash'])) {
     session_regenerate_id(true);   // true = delete the OLD session file
@@ -170,7 +170,7 @@ if (password_verify($password, $user['hash'])) {
 ```
 
 ```python
-# Python/Flask — clear and reissue the session on login
+# Python/Flask - clear and reissue the session on login
 from flask import session
 
 def login_success(user):
@@ -179,7 +179,7 @@ def login_success(user):
     session["auth_at"] = time.time()
 ```
 
-Never accept a session identifier from the URL or a request parameter—only from the session cookie.
+Never accept a session identifier from the URL or a request parameter-only from the session cookie.
 
 ## 7. Cookie Flags & Transport
 
@@ -197,7 +197,7 @@ Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
 ```
 
 ```javascript
-// Node/Express — secure session cookie configuration
+// Node/Express - secure session cookie configuration
 app.use(session({
   secret: process.env.SESSION_SECRET,        // long random, from a secret store
   name: 'sid',                               // don't advertise the framework
@@ -209,7 +209,7 @@ app.use(session({
 
 ## 8. Timeouts & Invalidation
 
-Sessions must end—both from inactivity and after an absolute maximum. Logout and password changes must invalidate sessions **server-side**, not just delete the client cookie.
+Sessions must end-both from inactivity and after an absolute maximum. Logout and password changes must invalidate sessions **server-side**, not just delete the client cookie.
 
 ```python
 IDLE_LIMIT = 30 * 60          # 30 minutes of inactivity

@@ -1,4 +1,4 @@
-# A9:2025 — Logging & Alerting Failures: Attack Vectors
+# A9:2025 - Logging & Alerting Failures: Attack Vectors
 
 ## Table of Contents
 
@@ -10,9 +10,9 @@
 
 ## Understanding the Detection Gap
 
-> **⚠ EDUCATIONAL PURPOSE ONLY** — the techniques below are described so you can recognise, detect, and fix these gaps in systems you own or are authorised to test. The "attack" in this category is usually the *absence* of a reaction, not a clever payload.
+> **⚠ EDUCATIONAL PURPOSE ONLY** - the techniques below are described so you can recognise, detect, and fix these gaps in systems you own or are authorised to test. The "attack" in this category is usually the *absence* of a reaction, not a clever payload.
 
-Every other Top 10 category describes how an attacker gets in. This one describes how they **stay in**. When logging and alerting fail, an attacker's actions produce no alert, no page, and no response — so they can move slowly, deliberately, and without pressure. The attacker's strategy shifts from "exploit fast before someone notices" to "there is no one to notice, so take your time."
+Every other Top 10 category describes how an attacker gets in. This one describes how they **stay in**. When logging and alerting fail, an attacker's actions produce no alert, no page, and no response - so they can move slowly, deliberately, and without pressure. The attacker's strategy shifts from "exploit fast before someone notices" to "there is no one to notice, so take your time."
 
 Attacks against this category fall into two families:
 
@@ -61,7 +61,7 @@ GET /.git/config     -> 200   (!)
 
 ### 2. Username Enumeration via Response Differences
 
-Login, registration, and password-reset flows often reveal whether an account exists — through different messages, status codes, or response times. Enumeration is quiet by nature: each request looks like a normal, failed login.
+Login, registration, and password-reset flows often reveal whether an account exists - through different messages, status codes, or response times. Enumeration is quiet by nature: each request looks like a normal, failed login.
 
 ```
 POST /login  {"user":"alice","pass":"x"}  -> "Incorrect password"    (alice exists)
@@ -75,7 +75,7 @@ POST /login  {"user":"zoe","pass":"x"}    -> "No such user"          (zoe does n
 
 ### 3. Slow ("Low-and-Slow") Credential Stuffing
 
-Armed with a breached credential list, the attacker tries reused passwords — but paces the attack to stay under any naive threshold, and rotates source IPs.
+Armed with a breached credential list, the attacker tries reused passwords - but paces the attack to stay under any naive threshold, and rotates source IPs.
 
 ```
 # Naive detection: "alert if > 10 failures per account per minute"
@@ -91,7 +91,7 @@ for user, pw in breached_list:      # 40,000 pairs
 
 ### 4. Privilege Abuse and Access-Control Probing
 
-An authenticated low-privilege user pokes at objects and endpoints they should not reach. Even when the app correctly *blocks* them, each denial is an intelligence signal — and a warning that should be logged.
+An authenticated low-privilege user pokes at objects and endpoints they should not reach. Even when the app correctly *blocks* them, each denial is an intelligence signal - and a warning that should be logged.
 
 ```
 GET /api/orders/1001   -> 200  (own order)
@@ -166,7 +166,7 @@ journalctl --rotate --vacuum-time=1s   # discard system journals
 
 ### 9. Timestamp and Clock Manipulation
 
-Investigations depend on ordering events across systems. If clocks are unsynchronised — or the attacker can influence a timestamp — the timeline becomes unreliable and correlation breaks.
+Investigations depend on ordering events across systems. If clocks are unsynchronised - or the attacker can influence a timestamp - the timeline becomes unreliable and correlation breaks.
 
 ```
 # Symptoms that defeat correlation:
@@ -181,7 +181,7 @@ Result: responders cannot establish "what happened first" -- causality is lost.
 
 ### 10. Alert-Fatigue Exploitation (Flooding)
 
-A sophisticated attacker turns a noisy alerting setup into cover. By deliberately generating a flood of low-value alerts, they exhaust or desensitise responders — then conduct the real attack inside the noise.
+A sophisticated attacker turns a noisy alerting setup into cover. By deliberately generating a flood of low-value alerts, they exhaust or desensitise responders - then conduct the real attack inside the noise.
 
 ```
 # Step 1: trigger thousands of benign-but-alerting events
@@ -192,11 +192,11 @@ for i in range(100000):
 # Step 3: run the real intrusion while the alert everyone needed is buried
 ```
 
-**The failure**: an un-deduplicated, untuned alert pipeline is a weapon that can be turned against its owner. Alert fatigue is not only an operational nuisance — it is an exploitable condition. Deduplication, rate-limiting of identical alerts, and severity scoring are the defenses.
+**The failure**: an un-deduplicated, untuned alert pipeline is a weapon that can be turned against its owner. Alert fatigue is not only an operational nuisance - it is an exploitable condition. Deduplication, rate-limiting of identical alerts, and severity scoring are the defenses.
 
 ### 11. Killing or Blinding the Pipeline
 
-Rather than evade detection, the attacker disables it — and counts on no one noticing that the logs went quiet.
+Rather than evade detection, the attacker disables it - and counts on no one noticing that the logs went quiet.
 
 ```
 # Stop the shipping agent so nothing reaches the SIEM
@@ -212,7 +212,7 @@ dd if=/dev/zero of=/var/log/filler bs=1M   # log writes now error and are droppe
 
 ### 12. Logging Secrets to Turn Logs Into a Target (CWE-532)
 
-Sometimes the vulnerability is what you *do* log. Applications that dump full requests, tokens, or PII into logs create a concentrated, often less-protected copy of their most sensitive data — a prize for anyone who reaches the log store.
+Sometimes the vulnerability is what you *do* log. Applications that dump full requests, tokens, or PII into logs create a concentrated, often less-protected copy of their most sensitive data - a prize for anyone who reaches the log store.
 
 ```
 DEBUG  Incoming request headers: {Authorization: "Bearer eyJhbGciOi...", Cookie: "session=..."}
@@ -241,15 +241,15 @@ Detection points that DID fire: 0.
 Outcome: breach discovered 90 days later -- by a third party.
 ```
 
-The lesson of the chain is that this category offers **many** chances to catch an attacker — recon, enumeration, credential abuse, privilege probing, lateral movement, exfiltration. Each is a tripwire you either built or you did not. Prevention is about making sure at least several of these tripwires exist, fire, and reach someone who acts.
+The lesson of the chain is that this category offers **many** chances to catch an attacker - recon, enumeration, credential abuse, privilege probing, lateral movement, exfiltration. Each is a tripwire you either built or you did not. Prevention is about making sure at least several of these tripwires exist, fire, and reach someone who acts.
 
 ## Next Steps
 
 - **[Overview](./overview.html)**: What the category is and why the 2025 edition centers alerting.
-- **[Prevention](./prevention.html)**: Build the tripwires — structured logging, correlation, tuned alerting, and response.
+- **[Prevention](./prevention.html)**: Build the tripwires - structured logging, correlation, tuned alerting, and response.
 - **[Examples](./examples.html)**: Vulnerable vs. secure logging code and concrete SIEM detection rules.
 - **[Hands-On Lab](./lab/logging-alerting-failures/)**: Run an undetected attack, then instrument the app so it fires.
 
 ---
 
-*Part of the [OWASP Top 10 Educational Repository](/learn/web) — A9:2025, Logging & Alerting Failures.*
+*Part of the [OWASP Top 10 Educational Repository](/learn/web) - A9:2025, Logging & Alerting Failures.*

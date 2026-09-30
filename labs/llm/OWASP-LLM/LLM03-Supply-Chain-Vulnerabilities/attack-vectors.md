@@ -19,7 +19,7 @@
 
 ## Attack Overview
 
-Supply chain attacks against LLM systems share one goal: get **attacker-controlled code or behaviour** into a target by way of a component the target already trusts. The attacker never needs to breach your perimeter—you import the breach yourself. The payload runs inside your trust boundary, with your process's privileges, usually *at load time*, before any of your safety logic executes.
+Supply chain attacks against LLM systems share one goal: get **attacker-controlled code or behaviour** into a target by way of a component the target already trusts. The attacker never needs to breach your perimeter-you import the breach yourself. The payload runs inside your trust boundary, with your process's privileges, usually *at load time*, before any of your safety logic executes.
 
 Two properties make these attacks unusually effective. First, **model artifacts execute code**, so "loading" is really "running." Second, the ecosystem **defaults to trust**: `from_pretrained("some/repo")` and `pip install thing` reach out to public infrastructure and run whatever comes back, with no integrity check unless you add one.
 
@@ -42,7 +42,7 @@ Two properties make these attacks unusually effective. First, **model artifacts 
 
 **Objective**: Execute code on any machine that loads the model.
 
-The classic technique abuses Python pickle's `__reduce__` protocol, which tells the unpickler how to reconstruct an object—including by calling an arbitrary function. PyTorch's `torch.load` uses pickle under the hood, so a checkpoint is a viable RCE vehicle.
+The classic technique abuses Python pickle's `__reduce__` protocol, which tells the unpickler how to reconstruct an object-including by calling an arbitrary function. PyTorch's `torch.load` uses pickle under the hood, so a checkpoint is a viable RCE vehicle.
 
 ```
 import torch, os
@@ -72,7 +72,7 @@ model.load_state_dict(weights["state_dict"])
 
 **Objective**: Ship a working pickle exploit that automated scanners mark as clean.
 
-Hubs run pickle scanners (e.g. picklescan) that flag dangerous opcodes/imports. Attackers evade them by **malforming the pickle stream** so the scanner's parser bails out or mislabels the file, while the real unpickler—more lenient—still executes the payload. Public reporting has called one such family "nullifAI."
+Hubs run pickle scanners (e.g. picklescan) that flag dangerous opcodes/imports. Attackers evade them by **malforming the pickle stream** so the scanner's parser bails out or mislabels the file, while the real unpickler-more lenient-still executes the payload. Public reporting has called one such family "nullifAI."
 
 ```
 # Conceptual evasion strategy (not a working exploit):
@@ -112,7 +112,7 @@ api.upload_file(
 
 **Objective**: Get victims to install a look-alike they chose by mistake.
 
-Attackers register names that differ by a character, a hyphen, or a plausible reordering from a popular target, then wait for typos, copy-paste errors, and LLM-generated install instructions ("slopsquatting" — models sometimes hallucinate a plausible-but-nonexistent package name that attackers then register).
+Attackers register names that differ by a character, a hyphen, or a plausible reordering from a popular target, then wait for typos, copy-paste errors, and LLM-generated install instructions ("slopsquatting" - models sometimes hallucinate a plausible-but-nonexistent package name that attackers then register).
 
 ```
 # Legit:   pip install huggingface-hub
@@ -145,7 +145,7 @@ setup(name="huggingface-hubs", version="0.0.1",
 
 **Objective**: Make the resolver prefer the attacker's public package over your intended internal one.
 
-If your build references an internally named package (or a model tooling package that also exists publicly), publishing a **higher version number** under that name on the public index can cause installers to pull the public—malicious—copy. This is exactly the class that hit PyTorch's `torchtriton` dependency.
+If your build references an internally named package (or a model tooling package that also exists publicly), publishing a **higher version number** under that name on the public index can cause installers to pull the public-malicious-copy. This is exactly the class that hit PyTorch's `torchtriton` dependency.
 
 ```
 # Your internal requirement (no index scoping, no hashes):
@@ -166,7 +166,7 @@ If your build references an internally named package (or a model tooling package
 
 **Objective**: Introduce hidden behaviour without touching (or while shipping alongside) a reputable base model.
 
-Adapters (LoRA, QLoRA) are small, cheap to publish, and widely shared. A malicious adapter can carry a *behavioural* backdoor—normal outputs until a trigger phrase appears—or the adapter file itself can be a pickle payload. Because adapters are "just a small tweak," they receive even less scrutiny than base models.
+Adapters (LoRA, QLoRA) are small, cheap to publish, and widely shared. A malicious adapter can carry a *behavioural* backdoor-normal outputs until a trigger phrase appears-or the adapter file itself can be a pickle payload. Because adapters are "just a small tweak," they receive even less scrutiny than base models.
 
 ```
 # Behavioural backdoor conceptually baked into the adapter's training:
@@ -269,7 +269,7 @@ pip install ml-lib                            # -> newest version on the index
 # Tested revision != deployed revision. The window is the attack.
 ```
 
-**Impact**: Time-of-check/time-of-use gap that turns any upstream change—malicious or merely broken—into an unreviewed production change.
+**Impact**: Time-of-check/time-of-use gap that turns any upstream change-malicious or merely broken-into an unreviewed production change.
 
 ## 12. Compromised Build / CI Pipeline
 

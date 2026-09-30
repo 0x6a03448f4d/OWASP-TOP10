@@ -11,7 +11,7 @@
 
 ## The Core Attack Flow
 
-Insufficient Logging & Monitoring is unusual: there is no single request that "exploits" it. Instead, missing detection is the condition that lets *every other* attack run to completion. The attacker's strategy is simply to **operate below the victim's ability to see them** — and where the victim has no logging, no monitoring, and no response process, that threshold is effectively infinite.
+Insufficient Logging & Monitoring is unusual: there is no single request that "exploits" it. Instead, missing detection is the condition that lets *every other* attack run to completion. The attacker's strategy is simply to **operate below the victim's ability to see them** - and where the victim has no logging, no monitoring, and no response process, that threshold is effectively infinite.
 
 ```
 1. RECON quietly        probe the app, learn which actions are watched
@@ -79,7 +79,7 @@ POST /reset  email=ghost@x.com   -> "No account with that email" (does not)
 
 ### 4. Object / ID Enumeration (IDOR Probing)
 
-Having authenticated as one low-value user, the attacker walks predictable identifiers to reach other users' data. Each request is individually "authorized" for the session, so nothing is denied — and nothing that *should* look suspicious is recorded.
+Having authenticated as one low-value user, the attacker walks predictable identifiers to reach other users' data. Each request is individually "authorized" for the session, so nothing is denied - and nothing that *should* look suspicious is recorded.
 
 ```
 GET /api/invoices/1001   -> 200 (mine)
@@ -110,7 +110,7 @@ GET /internal/debug   -> 404
 
 ### 6. Input-Validation Probing (Injection & Traversal Recon)
 
-Before a working injection, an attacker sends many malformed inputs to find where validation is weak — quote marks, path-traversal sequences, template syntax, oversized fields. Server-side validation failures are a strong early-warning signal that is routinely discarded.
+Before a working injection, an attacker sends many malformed inputs to find where validation is weak - quote marks, path-traversal sequences, template syntax, oversized fields. Server-side validation failures are a strong early-warning signal that is routinely discarded.
 
 ```
 GET /search?q=' OR '1'='1              -> validation/parse error
@@ -138,7 +138,7 @@ Session ABC123 reused:   src_ip=203.0.113.200  ua="curl/8.4"    geo=elsewhere
 
 ### 8. Privilege Escalation & Rogue Account Creation
 
-Once inside, the attacker grants themselves power: adds an admin account, elevates their own role, or attaches a new API key. These are among the most security-critical events in any system — and are frequently logged nowhere the security team can see.
+Once inside, the attacker grants themselves power: adds an admin account, elevates their own role, or attaches a new API key. These are among the most security-critical events in any system - and are frequently logged nowhere the security team can see.
 
 ```
 POST /admin/users            create user "svc-backup" role=admin
@@ -166,7 +166,7 @@ app-server --(same token)--------> analytics DB replica    200
 
 ### 10. Slow Data Exfiltration Below Thresholds
 
-Rather than one giant download that a volume alert might catch, the attacker drips data out — small paginated pulls, spread over days, sometimes to a benign-looking destination.
+Rather than one giant download that a volume alert might catch, the attacker drips data out - small paginated pulls, spread over days, sometimes to a benign-looking destination.
 
 ```
 GET /api/customers?page=1&size=50   ...  (repeat for weeks)
@@ -178,7 +178,7 @@ GET /api/customers?page=1&size=50   ...  (repeat for weeks)
 
 ## Attacks Against the Logs Themselves
 
-The patterns above exploit logs that were never written. The next three target logs that *are* written — because logs that an attacker can forge, poison, or erase are barely better than no logs at all.
+The patterns above exploit logs that were never written. The next three target logs that *are* written - because logs that an attacker can forge, poison, or erase are barely better than no logs at all.
 
 ### 11. Log Injection (Forging Entries)
 
@@ -200,7 +200,7 @@ Resulting log file:
 
 ### 12. Log Erasure & Tampering (Anti-Forensics)
 
-An attacker who reaches the host deletes or edits local log files to remove evidence — frequently the very first post-exploitation action. If logs live only on the compromised box and are world-writable, the trail simply disappears.
+An attacker who reaches the host deletes or edits local log files to remove evidence - frequently the very first post-exploitation action. If logs live only on the compromised box and are world-writable, the trail simply disappears.
 
 ```
 # Classic anti-forensics on a compromised host
@@ -214,7 +214,7 @@ $ history -c                             # wipe the shell trail
 
 ### 13. Blinding the Pipeline
 
-Instead of erasing individual entries, a sophisticated attacker disables logging or breaks the shipping pipeline — stops the log agent, fills the disk so writes fail silently, or lets a monitoring certificate expire — then operates in the resulting blind spot.
+Instead of erasing individual entries, a sophisticated attacker disables logging or breaks the shipping pipeline - stops the log agent, fills the disk so writes fail silently, or lets a monitoring certificate expire - then operates in the resulting blind spot.
 
 ```
 $ systemctl stop filebeat        # log shipper no longer forwards events
@@ -255,7 +255,7 @@ Missing detection changes the attacker's whole calculus. Time stops being a risk
 | Erase the evidence | Local, mutable, world-writable logs | Append-only, off-box, access-controlled storage |
 | Operate in a blind spot | Pipeline health unmonitored | Monitor the monitoring (heartbeats, cert/expiry checks) |
 
-> The through-line: none of these are exotic exploits. They are ordinary attacks made *successful* by the absence of eyes. Fixing this category rarely blocks the first request — it shrinks the attacker's dwell time from months to minutes and guarantees there is evidence to act on.
+> The through-line: none of these are exotic exploits. They are ordinary attacks made *successful* by the absence of eyes. Fixing this category rarely blocks the first request - it shrinks the attacker's dwell time from months to minutes and guarantees there is evidence to act on.
 
 ## Next Steps
 

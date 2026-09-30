@@ -12,7 +12,7 @@ Preventing model poisoning is about **making an unverified model impossible to d
 
 ### Core Principles
 
-- **Verify before trust**: a model is trusted only after its signature and hash are checked against a known-good value—never because of its filename or location.
+- **Verify before trust**: a model is trusted only after its signature and hash are checked against a known-good value-never because of its filename or location.
 - **Immutable, versioned artifacts**: a released model version is never silently overwritten; a new model is a new, signed version.
 - **Least privilege on the model supply chain**: writing to the registry/bucket and promoting to Production are tightly scoped, audited actions.
 - **Assume malicious participants in FL**: the aggregator must bound and vet every client update.
@@ -165,7 +165,7 @@ trained_from:
 approvals: [security, ml-lead]
 ```
 
-Provenance lets you answer, for any deployed model, exactly which bytes are running, which base model and data produced them, and who approved them—so a swap or a tampered inheritance is detectable.
+Provenance lets you answer, for any deployed model, exactly which bytes are running, which base model and data produced them, and who approved them-so a swap or a tampered inheritance is detectable.
 
 ## 7. Monitoring and Detection in Production
 
@@ -196,19 +196,19 @@ def integrity_watchdog(path, expected_digest):
 
 ## Distinguish the Fix from ML02 and ML06
 
-Model poisoning shares goals with its neighbours but needs different controls—apply all three where relevant:
+Model poisoning shares goals with its neighbours but needs different controls-apply all three where relevant:
 
 - **ML02 (Data Poisoning)**: defended by data provenance, validation, and sanitisation of the *training data*. Artifact signing does not help if the data itself was poisoned.
-- **ML06 (Supply-Chain)**: defended by vetting third-party models/datasets/dependencies, pinning by digest, and an AI-BOM. A poisoned third-party model arrives *as* tampered weights—so ML06 vetting and ML10 verification reinforce each other.
+- **ML06 (Supply-Chain)**: defended by vetting third-party models/datasets/dependencies, pinning by digest, and an AI-BOM. A poisoned third-party model arrives *as* tampered weights-so ML06 vetting and ML10 verification reinforce each other.
 - **ML10 (this lesson)**: defended by signing + load-time verification, registry access control/immutability, robust FL aggregation, and behavioural testing of the *artifact*.
 
 ## Key Takeaways
 
-1. **Verify before load** — a signed hash checked at load time is the core defence against tampering and swaps.
-2. **Lock the registry and bucket** — RBAC, versioning, immutability, and audited promotion stop silent substitution.
-3. **Prove the pipeline** — reproducible builds and provenance tie the running bytes to a reviewed run.
-4. **Assume hostile FL clients** — robust aggregation, norm clipping, authentication, and anomaly detection bound their influence.
-5. **Test for backdoors, not just accuracy** — behavioural and trigger-aware gates catch what clean-set metrics cannot.
+1. **Verify before load** - a signed hash checked at load time is the core defence against tampering and swaps.
+2. **Lock the registry and bucket** - RBAC, versioning, immutability, and audited promotion stop silent substitution.
+3. **Prove the pipeline** - reproducible builds and provenance tie the running bytes to a reviewed run.
+4. **Assume hostile FL clients** - robust aggregation, norm clipping, authentication, and anomaly detection bound their influence.
+5. **Test for backdoors, not just accuracy** - behavioural and trigger-aware gates catch what clean-set metrics cannot.
 
 ## Next Steps
 

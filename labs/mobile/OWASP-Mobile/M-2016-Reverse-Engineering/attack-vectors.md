@@ -13,9 +13,9 @@
 
 ## Understanding the Reverse Engineering Workflow
 
-**⚠️ EDUCATIONAL PURPOSE ONLY** — the tools and commands below are shown so you can analyse and harden apps you own or are explicitly authorised to test. Decompiling and modifying software you do not own may violate licences and law.
+**⚠️ EDUCATIONAL PURPOSE ONLY** - the tools and commands below are shown so you can analyse and harden apps you own or are explicitly authorised to test. Decompiling and modifying software you do not own may violate licences and law.
 
-Reverse engineering is not a single exploit; it is a **methodical analysis pipeline**. The attacker takes your published artifact, unpacks it, converts machine-oriented code back into human-readable form, searches it for anything valuable, and then confirms findings by running the app under instrumentation. Because the binary contains everything needed to run the app, this pipeline is guaranteed to succeed to *some* depth—the only variable is how much time it takes.
+Reverse engineering is not a single exploit; it is a **methodical analysis pipeline**. The attacker takes your published artifact, unpacks it, converts machine-oriented code back into human-readable form, searches it for anything valuable, and then confirms findings by running the app under instrumentation. Because the binary contains everything needed to run the app, this pipeline is guaranteed to succeed to *some* depth-the only variable is how much time it takes.
 
 The analyst&rsquo;s goals in this category are usually:
 
@@ -86,7 +86,7 @@ jadx-gui base.apk
 
 ### 3. Rebuild-Capable Disassembly with apktool
 
-`apktool` decodes resources and produces `smali` (a human-readable assembly of Dalvik bytecode). Unlike jadx, its output can be *edited and rebuilt*—the bridge from M9 (understanding) to M8 (tampering).
+`apktool` decodes resources and produces `smali` (a human-readable assembly of Dalvik bytecode). Unlike jadx, its output can be *edited and rebuilt*-the bridge from M9 (understanding) to M8 (tampering).
 
 ```
 # Decode resources + smali
@@ -103,7 +103,7 @@ apktool b base_decoded/ -o patched.apk
 
 ### 4. Extract Strings, Secrets, and Endpoints
 
-A large share of findings come from simply searching for constant strings—no decompiler required.
+A large share of findings come from simply searching for constant strings-no decompiler required.
 
 ```
 # Raw strings across the whole binary
@@ -164,7 +164,7 @@ otool -l Payload/MyApp.app/MyApp        # load commands, segments
 
 ### 3. Decompile with Hopper, IDA, or Ghidra
 
-For the actual logic—especially Swift, whose metadata is thinner—a decompiler produces pseudo-code from the Mach-O.
+For the actual logic-especially Swift, whose metadata is thinner-a decompiler produces pseudo-code from the Mach-O.
 
 ```
 # Ghidra: import the Mach-O, auto-analyze, read the decompiler pane
@@ -189,7 +189,7 @@ plutil -p Payload/MyApp.app/Info.plist
 
 ## Native Library Analysis
 
-Moving logic into a native `.so` (Android JNI) or C/C++ within the iOS binary raises the bar—you need a machine-code decompiler rather than a bytecode one—but it does not hide anything.
+Moving logic into a native `.so` (Android JNI) or C/C++ within the iOS binary raises the bar-you need a machine-code decompiler rather than a bytecode one-but it does not hide anything.
 
 ```
 # Identify and inspect the native library
@@ -205,7 +205,7 @@ strings  lib/arm64-v8a/libnative.so | grep -Ei 'key|http'
 objdump -d lib/arm64-v8a/libnative.so | less
 ```
 
-JNI function names follow a predictable `Java_package_Class_method` pattern, so an analyst can jump straight from the Java call site to the native implementation. A key XOR-decoded in C is just as recoverable as one in Kotlin—it takes longer, not forever.
+JNI function names follow a predictable `Java_package_Class_method` pattern, so an analyst can jump straight from the Java call site to the native implementation. A key XOR-decoded in C is just as recoverable as one in Kotlin-it takes longer, not forever.
 
 ## Extraction Targets in Detail
 
@@ -267,7 +267,7 @@ frida -U -n MyApp -l dump-key.js
 # (hook the crypto init and print the SecretKeySpec bytes)
 ```
 
-The lesson of the dynamic step is decisive: even a key that is *derived* or *decoded* at runtime (rather than stored as a plain constant) is recoverable, because the finished value must exist in memory for the app to use it—and the attacker owns that memory.
+The lesson of the dynamic step is decisive: even a key that is *derived* or *decoded* at runtime (rather than stored as a plain constant) is recoverable, because the finished value must exist in memory for the app to use it-and the attacker owns that memory.
 
 ## Chaining into Full Compromise
 
@@ -300,11 +300,11 @@ Grep strings -> find staging/admin host + an embedded token
 
 ## Key Takeaways
 
-1. **The workflow is deterministic, not clever**—unpack, decompile, grep, confirm. It always succeeds to some depth.
-2. **Strings alone leak a lot**—keys, URLs, and flags fall out of `strings` and `grep` before any decompiler is opened.
-3. **Native and obfuscated code slow the analyst, not stop them**—Ghidra and Frida handle both routinely.
-4. **Runtime values are recoverable**—derived or decoded keys still land in memory the attacker controls.
-5. **Analysis feeds tampering and backend attacks**—M9 is the front door to M8, fraud, and server-side compromise.
+1. **The workflow is deterministic, not clever**-unpack, decompile, grep, confirm. It always succeeds to some depth.
+2. **Strings alone leak a lot**-keys, URLs, and flags fall out of `strings` and `grep` before any decompiler is opened.
+3. **Native and obfuscated code slow the analyst, not stop them**-Ghidra and Frida handle both routinely.
+4. **Runtime values are recoverable**-derived or decoded keys still land in memory the attacker controls.
+5. **Analysis feeds tampering and backend attacks**-M9 is the front door to M8, fraud, and server-side compromise.
 
 ## Next Steps
 

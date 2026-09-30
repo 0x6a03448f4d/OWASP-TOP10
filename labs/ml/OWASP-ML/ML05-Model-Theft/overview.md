@@ -10,23 +10,23 @@
 
 ## What is Model Theft?
 
-**Model Theft** occurs when an attacker obtains a functional copy of a proprietary machine-learning model—its behaviour, its parameters, or both—without authorisation. The stolen asset may be a byte-for-byte copy of the weights or a *substitute* model that reproduces the original's predictions closely enough to replace it. Either way, the owner loses the exclusivity of an asset that often represents the single most expensive part of an ML product.
+**Model Theft** occurs when an attacker obtains a functional copy of a proprietary machine-learning model-its behaviour, its parameters, or both-without authorisation. The stolen asset may be a byte-for-byte copy of the weights or a *substitute* model that reproduces the original's predictions closely enough to replace it. Either way, the owner loses the exclusivity of an asset that often represents the single most expensive part of an ML product.
 
 There are two fundamentally different routes to the same outcome:
 
 - **Extraction** (behavioural theft): the attacker never touches the model file. They query the prediction API many times, collect input–output pairs, and train a *substitute* or *distilled* model that imitates the target. The victim's own API is turned into a labelling service for the thief's training set.
-- **Exfiltration** (artifact theft): the attacker obtains the actual model artifact—weights, checkpoint, serialized graph, or on-device binary—from insecure storage, an exposed endpoint, a code repository, an insider, or a shipped mobile/edge application.
+- **Exfiltration** (artifact theft): the attacker obtains the actual model artifact-weights, checkpoint, serialized graph, or on-device binary-from insecure storage, an exposed endpoint, a code repository, an insider, or a shipped mobile/edge application.
 
 ### Core Concept
 
 ```
-Route A — EXTRACTION (query the API, clone the behaviour)
+Route A - EXTRACTION (query the API, clone the behaviour)
   attacker -> many crafted queries -> prediction API
            <- labels / confidences / logits
   attacker trains substitute model on (query, response) pairs
   result: a functional copy WITHOUT ever seeing the weights
 
-Route B — EXFILTRATION (steal the artifact itself)
+Route B - EXFILTRATION (steal the artifact itself)
   attacker -> public bucket / open registry / git repo / device
            <- model.pt / model.onnx / weights.bin / saved_model/
   result: a byte-for-byte white-box copy of the model
@@ -39,7 +39,7 @@ A trained model is not ordinary source code. It concentrates several kinds of va
 - It embeds **large, non-recoverable investment**: labelled data acquisition, compute for training, and expert tuning that can cost far more than the surrounding application.
 - It is **queryable by design**: the very interface that makes a model useful (send input, get prediction) is the interface an attacker uses to clone it.
 - A stolen copy **changes the attacker's threat model** from black-box to white-box: they can now craft adversarial examples, run membership-inference and model-inversion attacks offline, and find evasions against the deployed original.
-- Models are **shipped to the edge**—bundled inside mobile apps, browsers, and IoT firmware—placing the artifact directly in the attacker's hands.
+- Models are **shipped to the edge**-bundled inside mobile apps, browsers, and IoT firmware-placing the artifact directly in the attacker's hands.
 
 ## Why Does This Matter?
 
@@ -56,7 +56,7 @@ A trained model is not ordinary source code. It concentrates several kinds of va
 - **Behavioural Cloning**: A substitute model reproduces the decision boundary well enough to serve the same predictions.
 - **White-Box Adversarial Crafting**: With a local copy, gradient-based adversarial examples can be generated offline and often *transfer* to the original.
 - **Model Inversion**: White-box (or high-fidelity black-box) access enables reconstruction of representative training inputs.
-- **Membership Inference**: The attacker can test whether a specific record was in the training set—a direct privacy leak.
+- **Membership Inference**: The attacker can test whether a specific record was in the training set-a direct privacy leak.
 - **Confidentiality Collapse**: Once the artifact leaks, every secret embedded in the weights (and any watermark that was not designed to survive) is exposed to inspection.
 
 ## Technical Context
@@ -124,7 +124,7 @@ scp training-host:/checkpoints/model-final.pt  ./     # authorised access, unaut
 
 ## Real-World Impact
 
-The examples below are described as **incident classes**—recurring, well-documented patterns—rather than as specific named breaches, so no figures are invented.
+The examples below are described as **incident classes**-recurring, well-documented patterns-rather than as specific named breaches, so no figures are invented.
 
 ### Case Class 1: Academic and Industry Model-Extraction Research
 
@@ -132,7 +132,7 @@ The examples below are described as **incident classes**—recurring, well-docum
 - Researchers have repeatedly demonstrated that commercial "prediction-as-a-service" models can be approximated by training a substitute on the API's own responses.
 - Both label-only and confidence-based variants have been shown across classifiers, and against modern models the same idea underpins unauthorised distillation.
 
-**Impact**: Establishes that a queryable model is, in principle, extractable—the defensive question is cost, not possibility.
+**Impact**: Establishes that a queryable model is, in principle, extractable-the defensive question is cost, not possibility.
 
 **Root Cause**: The prediction interface returns more information (especially confidences/logits) than is strictly needed, with no limit on systematic probing.
 
@@ -174,7 +174,7 @@ Rather than cite precise figures (which vary widely and age quickly), the defens
 
 **Reality**: Extraction never needs the weights. A model that only ever answers queries can still be cloned from its responses; hiding the file addresses only one of the two routes.
 
-### Myth 2: "Returning confidence scores is harmless—they're just numbers"
+### Myth 2: "Returning confidence scores is harmless-they're just numbers"
 
 **Reality**: Confidences and logits are the single biggest accelerant of extraction. Soft labels carry far more information per query than a hard label, slashing the queries an attacker needs.
 
@@ -207,11 +207,11 @@ ML05 is the classical-ML framing: the target is usually a discriminative model b
 
 ## Key Takeaways
 
-1. **Two routes, one outcome**—behaviour can be cloned by querying (extraction) or the artifact can be stolen outright (exfiltration); defend both.
-2. **Your API is a labelling service for the thief**—every rich response lowers the cost of cloning your model.
-3. **A stolen model upgrades the attacker to white-box**—enabling transferable adversarial, inversion, and membership-inference attacks against the original.
-4. **Shipped models are exposed models**—on-device and edge artifacts live in untrusted environments and must be protected accordingly.
-5. **Watermarking is for attribution, not prevention**—pair it with access control, output limits, and monitoring.
+1. **Two routes, one outcome**-behaviour can be cloned by querying (extraction) or the artifact can be stolen outright (exfiltration); defend both.
+2. **Your API is a labelling service for the thief**-every rich response lowers the cost of cloning your model.
+3. **A stolen model upgrades the attacker to white-box**-enabling transferable adversarial, inversion, and membership-inference attacks against the original.
+4. **Shipped models are exposed models**-on-device and edge artifacts live in untrusted environments and must be protected accordingly.
+5. **Watermarking is for attribution, not prevention**-pair it with access control, output limits, and monitoring.
 
 ## How to Identify if You're Vulnerable
 

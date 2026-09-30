@@ -1,4 +1,4 @@
-# LLM06:2025 Excessive Agency — Examples
+# LLM06:2025 Excessive Agency - Examples
 
 ## Table of Contents
 
@@ -6,14 +6,14 @@
 - Example 1: Over-Broad Tool (SQL)
 - Example 2: No Approval on Irreversible Action
 - Example 3: Shared Credentials vs. User Identity
-- Example 4: LangChain Agent — Whole Toolbox vs. Scoped
+- Example 4: LangChain Agent - Whole Toolbox vs. Scoped
 - Example 5: Argument Injection (SSRF / Shell)
 - Example 6: Node/TypeScript Function-Calling Gate
 - Example 7: The Central Mediation Gate
 - Next Steps
 
 ## How to Read These Examples
-Each example pairs a realistic **vulnerable** implementation with a **secure** rewrite. The model in each case may be perfectly well-behaved—the flaw is in the *scaffolding* around it. Python (LangChain / function-calling style) is primary; Node/TypeScript appears where it reads naturally. Comments mark the exact line where model text turns into consequence.
+Each example pairs a realistic **vulnerable** implementation with a **secure** rewrite. The model in each case may be perfectly well-behaved-the flaw is in the *scaffolding* around it. Python (LangChain / function-calling style) is primary; Node/TypeScript appears where it reads naturally. Comments mark the exact line where model text turns into consequence.
 
 ## Example 1: Over-Broad Tool (SQL)
 A support agent needs to look up order status. The vulnerable version exposes raw SQL; the secure version exposes one narrow, parameterised, read-only operation.
@@ -49,7 +49,7 @@ import psycopg2
 ro_conn = psycopg2.connect("postgres://agent_ro:pw@db/app")
 
 class OrderStatusArgs(BaseModel):
-    order_id: int = Field(gt=0)          # typed, validated — not free text
+    order_id: int = Field(gt=0)          # typed, validated - not free text
 
 @tool(args_schema=OrderStatusArgs)
 def get_order_status(order_id: int) -> str:
@@ -61,7 +61,7 @@ def get_order_status(order_id: int) -> str:
         )
         row = cur.fetchone()
     return row[0] if row else "not found"
-# No path to other tables, no writes, no arbitrary SQL — the vector is gone.
+# No path to other tables, no writes, no arbitrary SQL - the vector is gone.
 ```
 
 ## Example 2: No Approval on Irreversible Action
@@ -98,11 +98,11 @@ def send_email(ctx, args: EmailArgs) -> str:
     # High-impact + outbound → require an explicit, honest human approval.
     decision = approvals.request(
         actor=ctx.user_id, action="send_email",
-        summary=f"Send to {args.to} — subj: {args.subject!r}",
+        summary=f"Send to {args.to} - subj: {args.subject!r}",
         preview=args.body, reversible=False,
     )
     if not decision.approved:
-        return "not sent — awaiting/denied human approval"
+        return "not sent - awaiting/denied human approval"
 
     draft_id = mail.create_draft(**args.dict(), actor=ctx.user_id)  # reversible artefact
     mail.send_draft(draft_id)
@@ -135,11 +135,11 @@ class ActingContext:
     token: str            # the end user's short-lived delegated token
 
 def read_hr_record(ctx: ActingContext, employee_id: str) -> str:
-    # If this user can't see the record, hr_api denies it — model can't override.
+    # If this user can't see the record, hr_api denies it - model can't override.
     return hr_api.get(employee_id, auth=ctx.token)
 ```
 
-## Example 4: LangChain Agent — Whole Toolbox vs. Scoped
+## Example 4: LangChain Agent - Whole Toolbox vs. Scoped
 The most common real-world mistake: handing an agent a pile of powerful tools and full autonomy. The secure version registers only what the role needs and wraps execution in a gate.
 
 ### Vulnerable
@@ -201,7 +201,7 @@ def run_shell(command: str) -> str:
 
 ### Secure
 ```
-# ✅ SECURE: egress allow-list; no shell — a fixed, enumerated action set
+# ✅ SECURE: egress allow-list; no shell - a fixed, enumerated action set
 from urllib.parse import urlparse
 
 ALLOWED_HOSTS = {"docs.internal", "kb.internal"}
@@ -256,7 +256,7 @@ async function handleToolCall(
 
     if (HIGH_IMPACT.has(call.name)) {                           // human approval
       const ok = await approvals.request(ctx.userId, call.name, args);
-      if (!ok) return "not deleted — approval denied";
+      if (!ok) return "not deleted - approval denied";
     }
 
     await db.projects.softDelete(args.id, ctx.token);          // reversible + attributed
@@ -270,7 +270,7 @@ async function handleToolCall(
 ## Example 7: The Central Mediation Gate
 All of the above converge on one idea: a single choke point every tool call flows through. This is the reference shape to build once and reuse everywhere.
 ```
-# ✅ SECURE: one dispatch path — identity, authz, validation, budget, approval, audit
+# ✅ SECURE: one dispatch path - identity, authz, validation, budget, approval, audit
 def dispatch(ctx, call):
     tool = registry.get(call.name)                     # 1. must be an approved tool
     if tool is None:

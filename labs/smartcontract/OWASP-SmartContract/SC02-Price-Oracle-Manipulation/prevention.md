@@ -4,7 +4,7 @@
 
 Preventing oracle manipulation is less about one control and more about **never acting on a price a single transaction can move**:
 
-1. Source prices from robust, decentralized oracles—not raw spot reads.
+1. Source prices from robust, decentralized oracles-not raw spot reads.
 2. Validate every price for freshness and plausibility before using it.
 3. Use time-weighted values that a single block cannot push.
 4. Cross-check independent sources and reject disagreement.
@@ -49,7 +49,7 @@ Never use `latestAnswer()` (it exposes no timestamp), and always confirm the fee
 
 ## 2. Use Time-Weighted Average Prices (TWAP)
 
-Where an on-chain source is unavoidable, average it over time so a single-block swing cannot move the value you act on. A TWAP over a meaningful window forces an attacker to sustain the manipulation across many blocks—expensive and highly visible.
+Where an on-chain source is unavoidable, average it over time so a single-block swing cannot move the value you act on. A TWAP over a meaningful window forces an attacker to sustain the manipulation across many blocks-expensive and highly visible.
 
 ```solidity
 // Uniswap V3-style TWAP over a window, instead of a spot read
@@ -67,7 +67,7 @@ Choose the window deliberately: too short and it is still pushable; too long and
 
 ## 3. Aggregate Multiple Independent Sources
 
-Do not depend on a single venue. Read two or more independent sources and require them to agree within a bound—or take a median—so manipulating one is not enough.
+Do not depend on a single venue. Read two or more independent sources and require them to agree within a bound-or take a median-so manipulating one is not enough.
 
 ```solidity
 // Cross-check a decentralized feed against a TWAP; reject wide disagreement
@@ -143,7 +143,7 @@ function borrow(uint256 amount) external priceHealthy {
 Assume every price-sensitive path can be entered by an attacker who, in the same transaction, controls arbitrary capital and can move any pool you read. Concretely:
 
 - For each price read, ask: "If an attacker could set this value freely for one transaction, what could they extract?"
-- Do not rely on "no one has enough capital"—flash loans remove that assumption.
+- Do not rely on "no one has enough capital"-flash loans remove that assumption.
 - Where feasible, prevent an action from both moving a price and consuming it within the same transaction (time-averaging inherently helps here).
 
 ## 8. Use Manipulation-Resistant Liquidity
@@ -156,7 +156,7 @@ The cost of manipulation scales with the depth and breadth of the sources you pr
 
 ## 9. Testing and Verification
 
-Prove the pricing path survives a manipulation attempt—don't assume it.
+Prove the pricing path survives a manipulation attempt-don't assume it.
 
 ```bash
 # Fork-test the exact pricing path under a simulated flash-loan swing
@@ -195,11 +195,11 @@ Route these to an on-call path with the ability to pause price-sensitive functio
 
 ## Key Takeaways
 
-1. **Never act on a spot price** — reserves, quotes, and balances all move in one transaction.
-2. **Prefer robust feeds and TWAPs** — and still validate freshness, sign, and completeness.
-3. **Cross-check and bound** — multiple sources, deviation limits, and sanity ranges catch the abnormal read.
-4. **Design for flash loans** — assume unlimited atomic capital in every threat model.
-5. **Cap the blast radius** — circuit breakers, pauses, and rate limits turn a drain into a bounded event.
+1. **Never act on a spot price** - reserves, quotes, and balances all move in one transaction.
+2. **Prefer robust feeds and TWAPs** - and still validate freshness, sign, and completeness.
+3. **Cross-check and bound** - multiple sources, deviation limits, and sanity ranges catch the abnormal read.
+4. **Design for flash loans** - assume unlimited atomic capital in every threat model.
+5. **Cap the blast radius** - circuit breakers, pauses, and rate limits turn a drain into a bounded event.
 
 ## Next Steps
 

@@ -7,7 +7,7 @@ Implementing security logging and monitoring is building a **pipeline**, not add
 ### Implementation Principles
 
 - **Log the right events, not all events**: coverage of security-relevant events beats volume; volume without monitoring is just cost and alert fatigue.
-- **Context by default**: every security event carries who/what/when/where plus a correlation ID—make it structurally impossible to log an event without them.
+- **Context by default**: every security event carries who/what/when/where plus a correlation ID-make it structurally impossible to log an event without them.
 - **Detection is the goal**: logging exists to feed monitoring, alerting, and response. If it does not end in an action, it is not the control.
 - **Treat logs as a disclosure surface**: redact secrets and PII, and neutralise untrusted data, at the logging boundary.
 
@@ -25,14 +25,14 @@ Start from a documented list of security-relevant events so coverage is delibera
 | Identity & permission changes | Grants, revocations, group membership, credential/key rotation |
 | Integrity events | Log-service start/stop, logging config changes, integrity-check failures |
 
-> Write this list down as a logging standard. "Auditable events are not logged" is the first item in the A09 failure category—an explicit standard is what closes it.
+> Write this list down as a logging standard. "Auditable events are not logged" is the first item in the A09 failure category-an explicit standard is what closes it.
 
 ## 2. Emit Structured Logs with Full Context
 
 Use a structured logger and a shared schema so every service emits the same machine-parseable shape. Bind context (actor, trace ID) once per request rather than passing it to every call.
 
 ```python
-# Python — structured logging with a consistent schema
+# Python - structured logging with a consistent schema
 import logging, json, datetime
 
 class JsonFormatter(logging.Formatter):
@@ -127,7 +127,7 @@ output.logstash:
 # the platform (not the app) handles shipping and buffering.
 ```
 
-Aggregate everything—app, proxy, host, cloud audit (e.g. CloudTrail), identity provider—into one place so correlation across sources is possible.
+Aggregate everything-app, proxy, host, cloud audit (e.g. CloudTrail), identity provider-into one place so correlation across sources is possible.
 
 ## 6. Protect Log Integrity and Set Retention
 
@@ -156,7 +156,7 @@ chronyc tracking          # verify offset is within a few milliseconds
 
 ## 8. Monitor: Centralize, Baseline, Correlate
 
-Ingest the centralized logs into a SIEM and build detections on top. First establish a **baseline** of normal behaviour—typical login rates, export volumes, geographies, admin-action frequency—then flag deviations.
+Ingest the centralized logs into a SIEM and build detections on top. First establish a **baseline** of normal behaviour-typical login rates, export volumes, geographies, admin-action frequency-then flag deviations.
 
 ```
 # Example detection logic (pseudocode over the log stream)
@@ -177,11 +177,11 @@ Correlate across sources: an authn-failure spike *followed by* a success *follow
 
 ## 9. Alert: Tuned, Actionable, Real-Time
 
-Alerting is where most programs fail—either no thresholds, or so many alerts that responders tune them out. Build alerts that a human can act on:
+Alerting is where most programs fail-either no thresholds, or so many alerts that responders tune them out. Build alerts that a human can act on:
 
 - **Actionable**: each alert states what happened, who/where, severity, and the first response step. Link to the relevant logs.
 - **Tuned thresholds**: set thresholds from the baseline, not guesses; suppress and deduplicate to fight **alert fatigue**.
-- **Prioritised routing**: severity decides the channel—dashboard vs. ticket vs. page. Not everything wakes someone at 3am.
+- **Prioritised routing**: severity decides the channel-dashboard vs. ticket vs. page. Not everything wakes someone at 3am.
 - **Real-time for the urgent**: account takeover and privilege escalation alert immediately; slow-burn trends can be reviewed on a schedule.
 
 ```yaml
@@ -211,10 +211,10 @@ Detection only matters if it triggers action. Wire alerts into a documented inci
 
 An untested alert is an assumption. Prove the pipeline fires:
 
-- **Pentests and scans should trigger alerts**—if a red-team run produces no signal, that is a finding, not a pass.
+- **Pentests and scans should trigger alerts**-if a red-team run produces no signal, that is a finding, not a pass.
 - **Detection engineering**: use adversary-emulation exercises (purple teaming) to verify each detection actually fires on the technique it targets.
 - **Synthetic events**: periodically inject benign test events to confirm the pipeline (ship -> ingest -> alert -> route) is healthy end-to-end.
-- **Log-gap monitoring**: alert if a service stops sending logs—silence can mean an outage or an attacker.
+- **Log-gap monitoring**: alert if a service stops sending logs-silence can mean an outage or an attacker.
 
 ## Implementation Checklist
 
@@ -230,16 +230,16 @@ An untested alert is an assumption. Prove the pipeline fires:
 - [ ] A baseline of normal behaviour exists; anomalies are detected.
 - [ ] Alerts are tuned, actionable, deduplicated, and severity-routed.
 - [ ] Alerts feed a documented, owned incident-response playbook.
-- [ ] Detection is tested—pentests/red-team exercises trigger alerts.
+- [ ] Detection is tested-pentests/red-team exercises trigger alerts.
 - [ ] Log-gap and integrity-failure monitoring is in place.
 
 ## Key Takeaways
 
-1. **Instrument the right events with context**—coverage and who/what/when/where + trace ID make logs useful.
-2. **Structure, redact, and neutralise**—machine-parseable records, no secrets/PII, no log injection.
-3. **Centralize, protect, and time-sync**—off-host, append-only storage on synchronised clocks survives attackers.
-4. **Monitor against a baseline and alert with discipline**—tuned, actionable alerts beat a firehose.
-5. **Close the loop and test it**—alerts feed a rehearsed response, and pentests prove detection fires.
+1. **Instrument the right events with context**-coverage and who/what/when/where + trace ID make logs useful.
+2. **Structure, redact, and neutralise**-machine-parseable records, no secrets/PII, no log injection.
+3. **Centralize, protect, and time-sync**-off-host, append-only storage on synchronised clocks survives attackers.
+4. **Monitor against a baseline and alert with discipline**-tuned, actionable alerts beat a firehose.
+5. **Close the loop and test it**-alerts feed a rehearsed response, and pentests prove detection fires.
 
 ## Next Steps
 

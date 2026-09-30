@@ -75,7 +75,7 @@ verify("corpus_v7.jsonl", expected_sha256=KNOWN_GOOD_HASH["corpus_v7.jsonl"])
 
 Restrict what is allowed to enter the pipeline in the first place. Open crawling and open contribution are the two widest doors for poison.
 
-- **Allow-list sources** for both training and RAG—an explicit set of vetted domains, vendors, and repositories rather than "whatever we can crawl."
+- **Allow-list sources** for both training and RAG-an explicit set of vetted domains, vendors, and repositories rather than "whatever we can crawl."
 - **Snapshot and host your own copy** of critical corpora so you are not re-downloading from mutable third-party URLs (this directly defeats split-view and frontrunning attacks).
 - **Vet contributors**: require authenticated, attributable contributions for fine-tuning data; treat anonymous or crowd-sourced input as untrusted until reviewed.
 - **Cap trust per source**: limit how much of any training set a single source or contributor can supply, so no one actor has outsized leverage.
@@ -167,10 +167,10 @@ def activation_cluster_flags(activations: np.ndarray, contamination=0.05):
 Reduce the leverage any single poisoned sample can have on the final model.
 
 - **Data augmentation and diversity**: broad, varied data dilutes narrow triggers.
-- **Differential privacy (DP-SGD)**: gradient clipping and noise bound the influence of any individual example—an effective, if costly, limiter on memorised backdoors.
+- **Differential privacy (DP-SGD)**: gradient clipping and noise bound the influence of any individual example-an effective, if costly, limiter on memorised backdoors.
 - **Ensembling / bagging over data partitions**: train on disjoint subsets so poison in one partition does not control the aggregate.
 - **Trust-weighted training**: down-weight low-trust sources; reserve full weight for vetted data.
-- **Limit online / continual learning** from untrusted input—the Tay lesson—or gate it behind review.
+- **Limit online / continual learning** from untrusted input-the Tay lesson-or gate it behind review.
 
 ```python
 # Per-source trust weighting: untrusted data contributes less to the loss.
@@ -187,7 +187,7 @@ def sample_weight(record):
 
 Because RAG shifts the trust boundary to the corpus, treat the knowledge base as a security-critical asset.
 
-- **Allow-list ingestion sources** and review documents before indexing—no open, automatic crawling into the production store.
+- **Allow-list ingestion sources** and review documents before indexing-no open, automatic crawling into the production store.
 - **Store per-chunk provenance** (source, author, ingestion date, hash) as metadata, and expose it so answers can be attributed and audited.
 - **Sanitise retrieved content**: strip embedded instructions, hidden characters, and markup before it reaches the model; treat retrieved text as data, not commands.
 - **Constrain influence**: cap how many chunks come from a single document/source, and re-rank for relevance *and* trust so a keyword-stuffed chunk cannot dominate.
@@ -219,7 +219,7 @@ def retrieve(query, store, k=5, per_source_cap=2):
 
 Make "prove it is not backdoored" a gate before any model reaches production.
 
-- **Adversarial trigger testing**: probe with candidate triggers, rare tokens, date/codeword conditions, and known attack templates—not just the happy path.
+- **Adversarial trigger testing**: probe with candidate triggers, rare tokens, date/codeword conditions, and known attack templates-not just the happy path.
 - **Canary triggers**: if you fine-tune, plant your own known canaries and confirm the acceptance suite catches them (a test of your detection, not the model).
 - **Behavioural diff**: compare a candidate model against a trusted baseline across a broad probe set; investigate divergences.
 - **Independent evaluation set**: hold out an evaluation set the training team never sees, so metrics cannot be gamed.
@@ -243,7 +243,7 @@ def acceptance_gate(model, baseline, probes):
 - **Output drift monitoring**: track response distributions and quality over time; a sudden shift for a narrow query class can indicate an active trigger or a poisoned RAG source.
 - **Retrieval telemetry**: alert when a single document/source is retrieved far more than its relevance warrants.
 - **Govern feedback loops**: rate-limit, deduplicate, and review thumbs-up/RLHF signals before they influence training; do not let raw user reward flow straight into the model.
-- **Incident playbook**: predefine how to roll back to a known-good model/corpus, quarantine a suspect source, and re-curate—recovery is retraining, so plan for it.
+- **Incident playbook**: predefine how to roll back to a known-good model/corpus, quarantine a suspect source, and re-curate-recovery is retraining, so plan for it.
 
 ## Layer 9: Governance & ML-BOM
 

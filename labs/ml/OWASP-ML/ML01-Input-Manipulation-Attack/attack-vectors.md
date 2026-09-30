@@ -10,7 +10,7 @@
 
 ## Understanding the Attack Surface
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are described so you can evaluate and harden models you own or are authorised to test. The pseudocode is deliberately schematic.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are described so you can evaluate and harden models you own or are authorised to test. The pseudocode is deliberately schematic.
 
 An input-manipulation attacker does not need a memory-corruption bug or a leaked password. They need one thing: the ability to influence the input a model will score, plus *some* signal about how the model responds. From there they optimise. The amount of signal available defines the threat model:
 
@@ -52,8 +52,8 @@ An input-manipulation attacker does not need a memory-corruption bug or a leaked
 
 White-box attacks assume the adversary can differentiate the model's loss with respect to the input. They are the benchmark for evaluating robustness because they represent the strongest realistic attacker and are cheap to run.
 
-### 1. FGSM — Fast Gradient Sign Method
-The foundational one-step attack. Take the sign of the loss gradient with respect to the input and step by ε in that direction—every feature is nudged the way that most increases the loss.
+### 1. FGSM - Fast Gradient Sign Method
+The foundational one-step attack. Take the sign of the loss gradient with respect to the input and step by ε in that direction-every feature is nudged the way that most increases the loss.
 
 ```python
 # Untargeted FGSM (schematic, L-infinity budget epsilon)
@@ -68,7 +68,7 @@ x_adv     = clip(x - epsilon * sign(grad_t), 0, 1)
 
 **Payoff**: extremely fast, single gradient evaluation; good for quick robustness screening. **Limitation**: one step is easy to defend against and weaker than iterative methods.
 
-### 2. BIM / PGD — Iterative and Projected Gradient Descent
+### 2. BIM / PGD - Iterative and Projected Gradient Descent
 PGD is FGSM applied iteratively with small steps, re-projecting back into the ε-ball after each step, and (crucially) restarting from random points inside the ball. It is widely treated as the **standard strong first-order attack** and the reference for adversarial training.
 
 ```python
@@ -84,7 +84,7 @@ for step in range(num_steps):
 
 **Payoff**: much higher success than FGSM; the honest yardstick for a defense. If a model is not evaluated against PGD (with restarts and enough steps), robustness claims are unsupported.
 
-### 3. C&W — Carlini & Wagner
+### 3. C&W - Carlini & Wagner
 An optimisation-based attack that minimises the perturbation size *and* a term that forces misclassification, using a change-of-variables so the input stays valid. It is designed to find **minimal, low-distortion** adversarial examples and famously broke many defenses that had looked strong under weaker attacks.
 
 ```python
@@ -111,8 +111,8 @@ while argmax(model(x_adv)) == y_true:
     x_adv = x_adv + (distance + tiny) * direction   # minimal crossing step
 ```
 
-### 5. JSMA — Jacobian Saliency Map Attack (L0 / sparse)
-Instead of nudging every feature a little, JSMA changes a *few* features a lot, guided by a saliency map derived from the model's Jacobian. It targets the L0 budget—relevant where only a handful of features can be altered (a few pixels, a few packet fields).
+### 5. JSMA - Jacobian Saliency Map Attack (L0 / sparse)
+Instead of nudging every feature a little, JSMA changes a *few* features a lot, guided by a saliency map derived from the model's Jacobian. It targets the L0 budget-relevant where only a handful of features can be altered (a few pixels, a few packet fields).
 
 ```python
 # JSMA (schematic): greedily perturb the most influential features
@@ -141,7 +141,7 @@ submit(target_api, x_adv)                              # frequently transfers
 **Payoff**: no queries to the target needed to *craft* the example; defeats "we keep the model secret."
 
 ### 7. Score-Based Query Attacks (Gradient Estimation)
-If the API returns confidence scores or logits, the attacker estimates the gradient numerically by probing the input and observing how the score moves—then runs PGD-style steps on the estimate. Methods include ZOO, NES, and SPSA.
+If the API returns confidence scores or logits, the attacker estimates the gradient numerically by probing the input and observing how the score moves-then runs PGD-style steps on the estimate. Methods include ZOO, NES, and SPSA.
 
 ```python
 # Score-based estimation (schematic, finite differences / NES-style)
@@ -171,7 +171,7 @@ while distance(x_adv, x) > goal:
 ## Physical & Cross-Domain Attacks
 
 ### 9. Adversarial Patches (Physical, Image)
-A patch does not need to be small or invisible—it needs to *dominate* the model's decision wherever it appears. It is optimised to be robust to placement, scale, rotation, and lighting (expectation over transformations), then printed and stuck onto a real object.
+A patch does not need to be small or invisible-it needs to *dominate* the model's decision wherever it appears. It is optimised to be robust to placement, scale, rotation, and lighting (expectation over transformations), then printed and stuck onto a real object.
 
 ```python
 # Adversarial patch (schematic): optimise a printable region, not a whole image
@@ -211,7 +211,7 @@ for word in rank_words_by_importance(model, sentence):
 ```
 
 ### 12. Malware / Binary Evasion
-A malware classifier must be fooled *without breaking the executable*. Attackers append benign byte sequences, add unused sections or imports, or pad slack space—changing features the model relies on while preserving malicious function.
+A malware classifier must be fooled *without breaking the executable*. Attackers append benign byte sequences, add unused sections or imports, or pad slack space-changing features the model relies on while preserving malicious function.
 
 ```python
 # Malware evasion (schematic): functionality-preserving edits only
@@ -224,7 +224,7 @@ while classifier(binary) == "malware" and budget_left:
 ```
 
 ### 13. Tabular / Fraud & Network IDS Evasion
-For structured data the attacker perturbs feature values while respecting *domain constraints*—amounts stay in valid ranges, categorical fields stay legal, and correlated fields move together—so a fraudulent record or intrusive flow scores as normal.
+For structured data the attacker perturbs feature values while respecting *domain constraints*-amounts stay in valid ranges, categorical fields stay legal, and correlated fields move together-so a fraudulent record or intrusive flow scores as normal.
 
 ```python
 # Tabular evasion (schematic): respect feature constraints and semantics
@@ -261,7 +261,7 @@ API returns confidence scores                 -> refine with score-based queries
 
 ## Key Takeaways
 
-1. **The attacker only needs input influence plus a response signal**—weights are helpful, not required.
+1. **The attacker only needs input influence plus a response signal**-weights are helpful, not required.
 2. **PGD and C&W are the yardsticks.** FGSM screens quickly; PGD/C&W tell you whether a defense is real.
 3. **Black-box works.** Transfer and query attacks defeat models the attacker never sees.
 4. **Physical patches attack the real world** and cross-domain variants reach audio, text, malware, and tabular data.

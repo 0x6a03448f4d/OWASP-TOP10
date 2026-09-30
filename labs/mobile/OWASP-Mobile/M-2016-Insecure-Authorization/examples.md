@@ -1,12 +1,12 @@
 # M6:2016 Insecure Authorization - Code Examples
 
-Each pair below shows a **vulnerable** and a **secure** implementation. The recurring lesson across every example is the same: **authorization belongs on the server.** The mobile snippets (Android and iOS) show what the client should—and should not—do, and every one of them is paired with the backend check that is the actual control. If the backend is right, no client tampering matters; if the backend is wrong, no client code can save it.
+Each pair below shows a **vulnerable** and a **secure** implementation. The recurring lesson across every example is the same: **authorization belongs on the server.** The mobile snippets (Android and iOS) show what the client should-and should not-do, and every one of them is paired with the backend check that is the actual control. If the backend is right, no client tampering matters; if the backend is wrong, no client code can save it.
 
 **Read the mobile and backend halves together.** A "secure" client with an insecure backend is still insecure. The backend snippets (Node and Python) are where the vulnerability is truly fixed.
 
 ## Example 1: Client-Side-Only Authorization (Vertical Escalation)
 
-### Vulnerable — Android (Kotlin): the app is the only gatekeeper
+### Vulnerable - Android (Kotlin): the app is the only gatekeeper
 
 ```
 // The app decides who is admin based on a local flag, then calls the endpoint.
@@ -27,7 +27,7 @@ class AdminActions(private val api: ApiService, private val session: Session) {
 }
 ```
 
-### Vulnerable — iOS (Swift): same mistake
+### Vulnerable - iOS (Swift): same mistake
 
 ```
 final class AdminActions {
@@ -35,7 +35,7 @@ final class AdminActions {
     let session: Session
 
     func configureUI(_ button: UIButton) {
-        // Client-side gate only — cosmetic, not a control.
+        // Client-side gate only - cosmetic, not a control.
         button.isHidden = session.role != "admin"
     }
 
@@ -46,10 +46,10 @@ final class AdminActions {
 }
 ```
 
-### Vulnerable — Backend (Node/Express): trusts that "the app wouldn't call this"
+### Vulnerable - Backend (Node/Express): trusts that "the app wouldn't call this"
 
 ```
-// Any authenticated user reaching this route succeeds — the UI was the "check".
+// Any authenticated user reaching this route succeeds - the UI was the "check".
 app.post('/api/admin/users/:id/promote', authenticate, async (req, res) => {
   await Users.update({ _id: req.params.id }, { role: 'admin' });
   res.json({ ok: true });      // vertical escalation for anyone who calls it
@@ -58,7 +58,7 @@ app.post('/api/admin/users/:id/promote', authenticate, async (req, res) => {
 
 **Why it fails:** The `if (role == "admin")` runs on the attacker's device. They remove it, or simply replay `POST /api/admin/users/1001/promote` with their own valid token. The server never re-checks, so the ordinary user becomes admin.
 
-### Secure — Android (Kotlin): client reflects a server decision
+### Secure - Android (Kotlin): client reflects a server decision
 
 ```
 // The client asks the server what it may do; the UI is a hint, not a gate.
@@ -76,7 +76,7 @@ class AdminActions(private val api: ApiService) {
 }
 ```
 
-### Secure — iOS (Swift): identical principle
+### Secure - iOS (Swift): identical principle
 
 ```
 final class AdminActions {
@@ -93,7 +93,7 @@ final class AdminActions {
 }
 ```
 
-### Secure — Backend (Node/Express): the real control
+### Secure - Backend (Node/Express): the real control
 
 ```
 // requireRole reads the role from the SIGNED token / server-side user record,
@@ -112,7 +112,7 @@ app.post('/api/admin/users/:id/promote',
 // A non-admin token -> 403, regardless of what the app's UI did.
 ```
 
-### Secure — Backend (Python/FastAPI)
+### Secure - Backend (Python/FastAPI)
 
 ```
 @app.post("/api/admin/users/{user_id}/promote")
@@ -121,18 +121,18 @@ def promote(user_id: int, p: Principal = Depends(require_role("admin"))):
     return {"ok": True}
 ```
 
-## Example 2: IDOR — Missing Ownership Check (Horizontal Escalation)
+## Example 2: IDOR - Missing Ownership Check (Horizontal Escalation)
 
-### Vulnerable — Android (Kotlin): app passes an id it happens to hold
+### Vulnerable - Android (Kotlin): app passes an id it happens to hold
 
 ```
 // The app requests the account it "knows" about. The id is just a number in a
-// URL — trivially changed in a proxy. The client cannot enforce ownership.
+// URL - trivially changed in a proxy. The client cannot enforce ownership.
 suspend fun loadStatements(accountId: Long) =
     api.getStatements(accountId)      // GET /api/accounts/{accountId}/statements
 ```
 
-### Vulnerable — Backend (Node/Express): returns any account to any user
+### Vulnerable - Backend (Node/Express): returns any account to any user
 
 ```
 app.get('/api/accounts/:id/statements', authenticate, async (req, res) => {
@@ -142,7 +142,7 @@ app.get('/api/accounts/:id/statements', authenticate, async (req, res) => {
 // Attacker (user 1001) requests /api/accounts/1002/statements -> 200 OK.
 ```
 
-### Vulnerable — Backend (Python/FastAPI)
+### Vulnerable - Backend (Python/FastAPI)
 
 ```
 @app.get("/api/accounts/{account_id}/statements")
@@ -151,7 +151,7 @@ def statements(account_id: int, p: Principal = Depends(current_principal)):
     return acct.statements()
 ```
 
-### Secure — Backend (Node/Express): scope by owner
+### Secure - Backend (Node/Express): scope by owner
 
 ```
 app.get('/api/accounts/:id/statements', authenticate, async (req, res) => {
@@ -164,7 +164,7 @@ app.get('/api/accounts/:id/statements', authenticate, async (req, res) => {
 });
 ```
 
-### Secure — Backend (Python/FastAPI): explicit ownership assertion
+### Secure - Backend (Python/FastAPI): explicit ownership assertion
 
 ```
 @app.get("/api/accounts/{account_id}/statements")
@@ -175,7 +175,7 @@ def statements(account_id: int, p: Principal = Depends(current_principal)):
     return acct.statements()
 ```
 
-### Secure — iOS (Swift): the client is unchanged, and that's the point
+### Secure - iOS (Swift): the client is unchanged, and that's the point
 
 ```
 // The client still just asks for its data. Security did NOT move to the app;
@@ -189,7 +189,7 @@ func loadStatements(accountId: Int) async throws -> [Statement] {
 
 ## Example 3: Trusting Client-Supplied Identity
 
-### Vulnerable — Android (Kotlin): app sends who to act as
+### Vulnerable - Android (Kotlin): app sends who to act as
 
 ```
 // The app includes a user id in the body. On a rooted device or via a proxy,
@@ -200,7 +200,7 @@ suspend fun transfer(fromUserId: Long, amount: Long) =
     api.transfer(TransferReq(fromUserId, amount))   // POST /api/transfer
 ```
 
-### Vulnerable — Backend (Node/Express): believes the body
+### Vulnerable - Backend (Node/Express): believes the body
 
 ```
 app.post('/api/transfer', authenticate, async (req, res) => {
@@ -209,7 +209,7 @@ app.post('/api/transfer', authenticate, async (req, res) => {
 });
 ```
 
-### Secure — Backend (Node/Express): identity from the token
+### Secure - Backend (Node/Express): identity from the token
 
 ```
 app.post('/api/transfer', authenticate, async (req, res) => {
@@ -219,7 +219,7 @@ app.post('/api/transfer', authenticate, async (req, res) => {
 });
 ```
 
-### Secure — Backend (Python/FastAPI)
+### Secure - Backend (Python/FastAPI)
 
 ```
 @app.post("/api/transfer")
@@ -229,7 +229,7 @@ def transfer_funds(body: TransferBody, p: Principal = Depends(current_principal)
     return {"ok": True}
 ```
 
-### Secure — Android (Kotlin): stop sending identity at all
+### Secure - Android (Kotlin): stop sending identity at all
 
 ```
 // The body carries only data (amount + destination). Identity is implicit in
@@ -242,7 +242,7 @@ suspend fun transfer(amount: Long, toAccount: String) =
 
 ## Example 4: Entitlement Enforced from Local Storage
 
-### Vulnerable — iOS (Swift): premium gate read from UserDefaults
+### Vulnerable - iOS (Swift): premium gate read from UserDefaults
 
 ```
 // A jailbroken device (or a backup edit) flips this flag to unlock features.
@@ -251,14 +251,14 @@ func canUsePremiumFeature() -> Bool {
 }
 ```
 
-### Vulnerable — Android (Kotlin): same via SharedPreferences
+### Vulnerable - Android (Kotlin): same via SharedPreferences
 
 ```
 fun canUsePremiumFeature(): Boolean =
     prefs.getBoolean("is_premium", false)   // editable on a rooted device
 ```
 
-### Secure — Backend enforces entitlement per request (Node/Express)
+### Secure - Backend enforces entitlement per request (Node/Express)
 
 ```
 // The premium feature's endpoint checks entitlement from server-side state.
@@ -273,7 +273,7 @@ app.get('/api/reports/advanced',
   authenticate, requireEntitlement('premium'), advancedReportHandler);
 ```
 
-### Secure — Client reflects server-provided entitlement (Swift)
+### Secure - Client reflects server-provided entitlement (Swift)
 
 ```
 // The client fetches entitlements from the server and caches them ONLY as a
@@ -283,7 +283,7 @@ struct Capabilities: Decodable { let isPremium: Bool }
 func refreshCapabilities() async throws -> Capabilities {
     try await api.capabilities()      // server is the source of truth
 }
-// Show/hide premium UI from this — but the feature endpoint re-checks anyway.
+// Show/hide premium UI from this - but the feature endpoint re-checks anyway.
 ```
 
 ## What Changed, and Why
@@ -295,7 +295,7 @@ func refreshCapabilities() async throws -> Capabilities {
 | Client-supplied identity | Server reads `from_user_id` / `role` from body | Identity from the verified token (`principal.sub`) only |
 | Local entitlement flag | Feature gated on `UserDefaults`/`SharedPreferences` | Endpoint checks server-side entitlement every request |
 
-**Notice the pattern:** in every "secure" pair the mobile code changes little—it stops *enforcing* and starts *reflecting*. The security-relevant change is always on the backend. That is the definition of getting M6 right.
+**Notice the pattern:** in every "secure" pair the mobile code changes little-it stops *enforcing* and starts *reflecting*. The security-relevant change is always on the backend. That is the definition of getting M6 right.
 
 ## Next Steps
 

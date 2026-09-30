@@ -1,6 +1,6 @@
 # K09: Misconfigured Cluster Components - Code Examples
 
-Each pair below shows an **insecure** component configuration and the **hardened** version. The examples target the components that dominate real K09 findings: the API server, the kubelet, and etcd—then show how to *detect* drift automatically with `kube-bench` (the CIS Kubernetes Benchmark).
+Each pair below shows an **insecure** component configuration and the **hardened** version. The examples target the components that dominate real K09 findings: the API server, the kubelet, and etcd-then show how to *detect* drift automatically with `kube-bench` (the CIS Kubernetes Benchmark).
 
 ## 1. kube-apiserver
 
@@ -224,7 +224,7 @@ kube-bench run --targets master,node,etcd --json > results.json
 FAILS=$(jq '[.Controls[].tests[].results[]
              | select(.status=="FAIL")] | length' results.json)
 if [ "$FAILS" -gt 0 ]; then
-  echo "CIS Benchmark regressions: $FAILS — failing build"
+  echo "CIS Benchmark regressions: $FAILS - failing build"
   exit 1
 fi
 ```

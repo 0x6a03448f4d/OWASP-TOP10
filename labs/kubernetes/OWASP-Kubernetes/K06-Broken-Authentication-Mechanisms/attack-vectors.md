@@ -8,14 +8,14 @@
 
 ## Understanding Authentication Attack Vectors
 
-> **⚠ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in clusters you own or are authorised to test.
+> **⚠ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in clusters you own or are authorised to test.
 
-Broken authentication is rarely exploited through a clever payload. It is exploited through **reachability plus a missing check**: an attacker finds a control-plane component that answers requests, then discovers that it either requires no credential or accepts a credential the attacker can obtain, steal, or forge. Because the flaws live in configuration and credential hygiene rather than application logic, they are cheap to find at scale—internet scanners fingerprint API-server, kubelet, and etcd ports continuously.
+Broken authentication is rarely exploited through a clever payload. It is exploited through **reachability plus a missing check**: an attacker finds a control-plane component that answers requests, then discovers that it either requires no credential or accepts a credential the attacker can obtain, steal, or forge. Because the flaws live in configuration and credential hygiene rather than application logic, they are cheap to find at scale-internet scanners fingerprint API-server, kubelet, and etcd ports continuously.
 
 The attacker's goal in this category is usually one of:
 
 - Reach a control surface (API server, kubelet, etcd, dashboard) that accepts requests without valid authentication.
-- Obtain or replay a legitimate credential—a ServiceAccount token, client certificate, or kubeconfig—lifted from a Pod, a log, or a repository.
+- Obtain or replay a legitimate credential-a ServiceAccount token, client certificate, or kubeconfig-lifted from a Pod, a log, or a repository.
 - Assert an identity the system will trust, such as a spoofed proxy header or an over-trusting OIDC claim, and act as a privileged principal.
 
 ### Core Attack Flow
@@ -57,7 +57,7 @@ $ curl -sk https://API_SERVER:6443/apis        # discovery is often readable
 $ curl -sk https://API_SERVER:6443/api/v1/namespaces/kube-system/secrets
 ```
 
-**Payoff**: reconnaissance for free, and—if any `ClusterRoleBinding` grants `system:anonymous` or `system:unauthenticated` anything—direct unauthenticated access to whatever that binding allows.
+**Payoff**: reconnaissance for free, and-if any `ClusterRoleBinding` grants `system:anonymous` or `system:unauthenticated` anything-direct unauthenticated access to whatever that binding allows.
 
 ### 2. Unauthenticated Kubelet API (Port 10250)
 
@@ -74,11 +74,11 @@ $ curl -sk "https://NODE:10250/containerLogs/<ns>/<pod>/<container>"
 $ curl -sk "https://NODE:10250/run/<ns>/<pod>/<container>" -d "cmd=id"
 ```
 
-**Payoff**: command execution inside workloads and access to their logs and mounted secrets—without ever touching the API server or RBAC.
+**Payoff**: command execution inside workloads and access to their logs and mounted secrets-without ever touching the API server or RBAC.
 
 ### 3. Exposed etcd
 
-etcd holds the whole cluster state. Reachable without mutual-TLS client authentication, it is an open door to every object—including Secrets.
+etcd holds the whole cluster state. Reachable without mutual-TLS client authentication, it is an open door to every object-including Secrets.
 
 ```
 # Dump every key (Secrets are base64, not encrypted, unless
@@ -119,7 +119,7 @@ $ env | grep -i "KUBECONFIG\|_TOKEN"        # CI environment
 $ curl -s http://169.254.169.254/...        # cloud metadata / instance creds
 ```
 
-**Payoff**: a kubeconfig with an embedded `O=system:masters` client certificate is cluster-admin. Because Kubernetes has no certificate revocation, a leaked long-lived cert is valid until it expires—an unrevocable backdoor.
+**Payoff**: a kubeconfig with an embedded `O=system:masters` client certificate is cluster-admin. Because Kubernetes has no certificate revocation, a leaked long-lived cert is valid until it expires-an unrevocable backdoor.
 
 ### 6. Static Token and Basic-Auth Files
 
@@ -134,7 +134,7 @@ kube-apiserver --basic-auth-file=/etc/kubernetes/basic-auth.csv
 # One leaked line is a permanent credential with those groups.
 ```
 
-**Payoff**: a single static string authenticates as the named user and groups forever—no expiry, no rotation, no MFA.
+**Payoff**: a single static string authenticates as the named user and groups forever-no expiry, no rotation, no MFA.
 
 ### 7. Exposed Kubernetes Dashboard / Admin UIs
 
@@ -147,7 +147,7 @@ $ curl -sk https://DASHBOARD_HOST/   # renders without credentials
 # -> create/exec/read Secrets through the web UI
 ```
 
-**Payoff**: schedule workloads (commonly cryptomining), read Secrets, and exec into Pods—all through a browser, no credential presented.
+**Payoff**: schedule workloads (commonly cryptomining), read Secrets, and exec into Pods-all through a browser, no credential presented.
 
 ### 8. Identity Spoofing via a Trusting Authenticating Proxy
 
@@ -162,7 +162,7 @@ $ curl -sk https://API_SERVER:6443/... \
     -H "X-Remote-User: admin" -H "X-Remote-Group: system:masters"
 ```
 
-**Payoff**: the attacker asserts an arbitrary privileged username/group. The safeguard—requiring a trusted client cert from the proxy and never exposing the backend directly—is exactly what breaks here.
+**Payoff**: the attacker asserts an arbitrary privileged username/group. The safeguard-requiring a trusted client cert from the proxy and never exposing the backend directly-is exactly what breaks here.
 
 ### 9. Weak Cloud-IAM-to-RBAC Mapping
 
@@ -214,11 +214,11 @@ kubeconfig with system:masters cert committed to git  -> cluster-admin
 
 ## Key Takeaways
 
-1. **Reachability plus a missing check is the whole attack**—an unauthenticated API, kubelet, or etcd needs no exploit.
-2. **The kubelet and etcd are separate doors**—attackers target 10250 and 2379 directly, bypassing API-server RBAC entirely.
-3. **Mounted tokens are theft targets**—any code execution in a Pod is a chance to lift and replay a ServiceAccount identity.
-4. **Leaked long-lived credentials are permanent**—certs can't be revoked and legacy tokens never expire, so one leak is durable access.
-5. **Small weaknesses chain**—anonymous discovery plus an open kubelet plus a mounted token equals cluster compromise with no application bug.
+1. **Reachability plus a missing check is the whole attack**-an unauthenticated API, kubelet, or etcd needs no exploit.
+2. **The kubelet and etcd are separate doors**-attackers target 10250 and 2379 directly, bypassing API-server RBAC entirely.
+3. **Mounted tokens are theft targets**-any code execution in a Pod is a chance to lift and replay a ServiceAccount identity.
+4. **Leaked long-lived credentials are permanent**-certs can't be revoked and legacy tokens never expire, so one leak is durable access.
+5. **Small weaknesses chain**-anonymous discovery plus an open kubelet plus a mounted token equals cluster compromise with no application bug.
 
 ## Next Steps
 

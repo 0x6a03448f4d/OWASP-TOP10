@@ -2,10 +2,10 @@
 
 ## Prevention Strategy Overview
 
-Preventing business-logic manipulation is one principle applied at every node: **no step may trust that the steps before it ran—each function re-establishes its own preconditions**, and every side effect is made safe to repeat. Because the platform gives you at-least-once delivery and independently invokable functions, you cannot rely on position in a diagram to enforce order. You have to enforce it in code. That gives a layered plan:
+Preventing business-logic manipulation is one principle applied at every node: **no step may trust that the steps before it ran-each function re-establishes its own preconditions**, and every side effect is made safe to repeat. Because the platform gives you at-least-once delivery and independently invokable functions, you cannot rely on position in a diagram to enforce order. You have to enforce it in code. That gives a layered plan:
 
 1. Re-validate authorization and required prior state at the top of every step.
-2. Make every handler idempotent—dedupe on a message/idempotency key so effects happen exactly once.
+2. Make every handler idempotent-dedupe on a message/idempotency key so effects happen exactly once.
 3. Orchestrate server-side; do not let the client drive the sequence, and validate the state passed between steps.
 4. Restrict who and what can invoke each function so steps cannot be fired out of band.
 5. Verify the source and integrity of every event before acting on it.
@@ -115,7 +115,7 @@ Let a server-side orchestrator own the sequence. Do not let the client tell you 
 }
 ```
 
-Server-side orchestration removes the "invoke a later step directly" path *from the happy path*—but the individual task Lambdas must still be locked down (Section 4), because the state machine is not the only thing that can invoke them. Where state crosses a trust boundary (for example a callback token or a resumable state blob), sign it and verify the signature before trusting it:
+Server-side orchestration removes the "invoke a later step directly" path *from the happy path*-but the individual task Lambdas must still be locked down (Section 4), because the state machine is not the only thing that can invoke them. Where state crosses a trust boundary (for example a callback token or a resumable state blob), sign it and verify the signature before trusting it:
 
 ```python
 # Python -- sign inter-step state so a tampered blob is rejected.
@@ -138,7 +138,7 @@ Never copy client-supplied fields (`approved`, `amount`, `tier`, `role`) into or
 
 ## 4. Restrict Who and What Can Invoke Each Function
 
-An internal step should be invokable only by the orchestrator or the specific event source that legitimately precedes it—never by the public, and never by every principal in the account.
+An internal step should be invokable only by the orchestrator or the specific event source that legitimately precedes it-never by the public, and never by every principal in the account.
 
 ```yaml
 # serverless.yml -- fulfilOrder has NO public URL and NO broad invoke grant.
@@ -166,7 +166,7 @@ resources:
         SourceArn: !GetAtt CheckoutStateMachine.Arn
 ```
 
-For queue/topic-triggered steps, scope the resource policy so only the intended producer can publish, and give each function its own least-privilege execution role—deny `lambda:InvokeFunction`, `sns:Publish`, and `dynamodb:UpdateItem` on tables/topics it has no business touching, so a manipulated step cannot flip flags or forge events for the rest of the workflow.
+For queue/topic-triggered steps, scope the resource policy so only the intended producer can publish, and give each function its own least-privilege execution role-deny `lambda:InvokeFunction`, `sns:Publish`, and `dynamodb:UpdateItem` on tables/topics it has no business touching, so a manipulated step cannot flip flags or forge events for the rest of the workflow.
 
 ## 5. Verify Event Source and Integrity
 
@@ -216,7 +216,7 @@ def transition(order_id, to_state):
     conditional_set_status(order_id, expected=frm, new=to_state)
 ```
 
-Guard the *action*, not the path. If `grantAccess` can be reached both through review and through an internal topic, put the review/state check inside `grantAccess` so neither path can skip it. Use atomic conditional writes (compare-and-set) so concurrent transitions cannot both succeed—this closes the check-then-act race.
+Guard the *action*, not the path. If `grantAccess` can be reached both through review and through an internal topic, put the review/state check inside `grantAccess` so neither path can skip it. Use atomic conditional writes (compare-and-set) so concurrent transitions cannot both succeed-this closes the check-then-act race.
 
 ## 7. Handle At-Least-Once Delivery Semantics Explicitly
 
@@ -247,7 +247,7 @@ resources:
       Properties: { FifoQueue: true }
 ```
 
-Platform features (FIFO ordering, content-based dedup, DLQs, a bounded `maxReceiveCount`) reduce duplicates and contain poison messages—but they are *not* a substitute for application-level idempotency (Section 2). FIFO dedup windows are time-bounded; your idempotency key is the durable guarantee.
+Platform features (FIFO ordering, content-based dedup, DLQs, a bounded `maxReceiveCount`) reduce duplicates and contain poison messages-but they are *not* a substitute for application-level idempotency (Section 2). FIFO dedup windows are time-bounded; your idempotency key is the durable guarantee.
 
 ## 8. Detection and Monitoring of Broken Invariants
 
@@ -280,11 +280,11 @@ Alert on any invariant breach, emit a metric per anomaly class, and make the che
 
 ## Key Takeaways
 
-1. **Re-validate at every step**—the function that performs the effect verifies authorization and prior state itself; never trust the upstream.
-2. **Make handlers idempotent**—dedupe on an event-bound key with atomic completion so at-least-once delivery cannot double-spend.
-3. **Own the sequence server-side**—orchestrate with validated, signed state instead of a client-driven flow.
-4. **Lock invocation and verify events**—scope who can invoke each step and confirm every event's source and integrity.
-5. **Watch the invariants**—reconcile across steps to catch bypasses and duplicates that each look normal in isolation.
+1. **Re-validate at every step**-the function that performs the effect verifies authorization and prior state itself; never trust the upstream.
+2. **Make handlers idempotent**-dedupe on an event-bound key with atomic completion so at-least-once delivery cannot double-spend.
+3. **Own the sequence server-side**-orchestrate with validated, signed state instead of a client-driven flow.
+4. **Lock invocation and verify events**-scope who can invoke each step and confirm every event's source and integrity.
+5. **Watch the invariants**-reconcile across steps to catch bypasses and duplicates that each look normal in isolation.
 
 ## Next Steps
 

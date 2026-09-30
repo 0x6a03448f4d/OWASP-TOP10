@@ -19,7 +19,7 @@ Each example below pairs a realistic **❌ vulnerable** implementation with a **
 ```javascript
 const crypto = require('crypto');
 
-// Fast, unsalted hash — crackable; and a leaky, non-uniform login
+// Fast, unsalted hash - crackable; and a leaky, non-uniform login
 app.post('/login', (req, res) => {
   const { email, password } = req.body;
   const user = db.getUser(email);
@@ -136,7 +136,7 @@ def logout():
 
 ### ❌ Vulnerable
 ```java
-// Trusts the token's own header to pick the algorithm — accepts alg:none
+// Trusts the token's own header to pick the algorithm - accepts alg:none
 public boolean isValid(String jwt) {
     try {
         Claims claims = Jwts.parser()

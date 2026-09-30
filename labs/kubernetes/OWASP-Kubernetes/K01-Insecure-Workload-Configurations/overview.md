@@ -11,7 +11,7 @@
 
 ## What are Insecure Workload Configurations?
 
-**K01: Insecure Workload Configurations** is the first entry in the OWASP Kubernetes Top 10. It covers Pods, Deployments, DaemonSets, and every other workload that is admitted to a cluster with a `securityContext` (or pod spec) that hands an attacker an easy path to escalate. The vulnerability is not in the application code running inside the container—it is in the *manifest*: the YAML that tells the kubelet and container runtime how much of the host to expose to that container.
+**K01: Insecure Workload Configurations** is the first entry in the OWASP Kubernetes Top 10. It covers Pods, Deployments, DaemonSets, and every other workload that is admitted to a cluster with a `securityContext` (or pod spec) that hands an attacker an easy path to escalate. The vulnerability is not in the application code running inside the container-it is in the *manifest*: the YAML that tells the kubelet and container runtime how much of the host to expose to that container.
 
 Kubernetes gives a workload access to the host in proportion to what the manifest asks for. Ask for nothing, and the container is a reasonably well-isolated process. Ask for `privileged: true`, host namespaces, host paths, or dangerous Linux capabilities, and the "container boundary" becomes a formality an attacker steps over in seconds. Because these fields default to the *permissive* side for backward compatibility, a workload that never mentions security is already less safe than it could be.
 
@@ -49,13 +49,13 @@ Kubernetes changes the blast radius of a single bad setting. On a traditional se
 - Workloads are **declared once and scheduled everywhere**. A single insecure Deployment template is replicated across every node it lands on, so the weakness is fleet-wide, not host-specific.
 - The **container boundary is a shared-kernel boundary**. Containers on a node share one Linux kernel; a privileged or over-capable container is one syscall away from the host that runs every other tenant's workloads.
 - Every Pod is, by default, **issued a cluster identity**. The default ServiceAccount token is mounted into the container filesystem, so code execution in a Pod frequently means possession of a usable API credential.
-- **Nodes are gateways to the control plane and the cloud**. Escaping to a node exposes the kubelet, other Pods' secrets, and—on managed clusters—the cloud instance metadata service and its IAM role.
+- **Nodes are gateways to the control plane and the cloud**. Escaping to a node exposes the kubelet, other Pods' secrets, and-on managed clusters-the cloud instance metadata service and its IAM role.
 
 ## Why Does This Matter?
 
 ### Business Impact
 
-- **Full Node and Cluster Compromise**: A container escape turns one vulnerable application into control of the node, its co-located workloads, and often the wider cluster—far beyond the original app's data.
+- **Full Node and Cluster Compromise**: A container escape turns one vulnerable application into control of the node, its co-located workloads, and often the wider cluster-far beyond the original app's data.
 - **Credential and Secret Theft**: Mounted ServiceAccount tokens, other Pods' mounted Secrets, and cloud metadata credentials are harvested and reused to move laterally into cloud accounts.
 - **Cryptojacking and Resource Abuse**: Over-privileged, unbounded workloads are a favourite target for automated crypto-mining that runs up compute bills and starves legitimate workloads.
 - **Regulatory and Contractual Fallout**: Multi-tenant clusters that leak one customer's data into another's reach trigger GDPR, HIPAA, and PCI-DSS obligations, fines, and breach notifications.
@@ -156,7 +156,7 @@ resources: {}                     # no cpu/memory limits -> noisy-neighbour DoS
 # is mounted at /var/run/secrets/kubernetes.io/serviceaccount/token
 ```
 
-**Risk**: If the app never calls the Kubernetes API, this token is pure downside—code execution in the Pod hands the attacker a cluster credential to enumerate and, depending on RBAC, escalate.
+**Risk**: If the app never calls the Kubernetes API, this token is pure downside-code execution in the Pod hands the attacker a cluster credential to enumerate and, depending on RBAC, escalate.
 
 ### Where the Configuration Lives
 
@@ -186,7 +186,7 @@ The incidents below are described as **verifiable classes of attack** that are r
 ### Case Class 2: Exposed Container Runtime Socket (docker.sock)
 
 **Misconfiguration**:
-- A Pod mounts `/var/run/docker.sock` (or the containerd socket) via `hostPath`—a common pattern for "docker-in-docker" build agents and some monitoring tools.
+- A Pod mounts `/var/run/docker.sock` (or the containerd socket) via `hostPath`-a common pattern for "docker-in-docker" build agents and some monitoring tools.
 
 **Impact**: Any code in that Pod can talk to the runtime directly and launch a new container that is privileged and mounts the host root, achieving node takeover without any kernel exploit at all. **Root cause**: handing a workload control of the very runtime that is supposed to contain it.
 
@@ -198,7 +198,7 @@ The incidents below are described as **verifiable classes of attack** that are r
 
 **Impact**: Attackers deployed cryptomining workloads inside the cluster (cryptojacking) and could reach non-public cloud resources. **Root cause**: a management surface plus permissive workload settings that let untrusted actors run arbitrary, unrestricted containers.
 
-> Note: specifics vary by incident and year. Treat each case as a *class* of failure—privileged escape, runtime-socket exposure, and cryptojacking of open/permissive workloads are all repeatedly observed. The takeaway is the mechanism, not an exact statistic.
+> Note: specifics vary by incident and year. Treat each case as a *class* of failure-privileged escape, runtime-socket exposure, and cryptojacking of open/permissive workloads are all repeatedly observed. The takeaway is the mechanism, not an exact statistic.
 
 ## Prevalence and Statistics
 
@@ -210,13 +210,13 @@ Rather than cite precise percentages (which vary by scanner and dataset), the de
 - The most common sub-issues are **containers running as root, no `readOnlyRootFilesystem`, capabilities not dropped, missing resource limits, and default ServiceAccount token automount**.
 - The impact ranges from **none-to-noisy (missing limits) up to full node/cluster compromise (privileged, docker.sock, host namespaces)**.
 
-> The durable takeaway: insecure workload configuration is prevalent, trivially detectable with off-the-shelf scanners, and—when it involves privilege—among the highest-severity issues a cluster can carry.
+> The durable takeaway: insecure workload configuration is prevalent, trivially detectable with off-the-shelf scanners, and-when it involves privilege-among the highest-severity issues a cluster can carry.
 
 ## Common Misunderstandings
 
 ### Myth 1: "Containers are isolated, so the securityContext is optional"
 
-**Reality**: Containers share the host kernel. Isolation is a set of Linux features (namespaces, cgroups, capabilities, seccomp) that the manifest can weaken or switch off. A permissive workload is not "isolated with a small caveat"—it is a normal host process wearing a thin costume.
+**Reality**: Containers share the host kernel. Isolation is a set of Linux features (namespaces, cgroups, capabilities, seccomp) that the manifest can weaken or switch off. A permissive workload is not "isolated with a small caveat"-it is a normal host process wearing a thin costume.
 
 ### Myth 2: "We run as root inside the container, but that's not host root"
 
@@ -249,11 +249,11 @@ Rather than cite precise percentages (which vary by scanner and dataset), the de
 
 ## Key Takeaways
 
-1. **The manifest is the security boundary**—what the workload asks for is what the attacker gets.
+1. **The manifest is the security boundary**-what the workload asks for is what the attacker gets.
 2. **Defaults lean permissive**; a workload that never sets a `securityContext` is already weaker than it should be.
-3. **Privilege, host namespaces, and hostPath are escape primitives**—treat any of them as a node-compromise risk.
-4. **Every Pod is a cluster identity**—disable token automount when the app doesn't need the API.
-5. **Enforce, don't hope**—Pod Security Admission and policy engines make hardened configuration the only configuration that admits.
+3. **Privilege, host namespaces, and hostPath are escape primitives**-treat any of them as a node-compromise risk.
+4. **Every Pod is a cluster identity**-disable token automount when the app doesn't need the API.
+5. **Enforce, don't hope**-Pod Security Admission and policy engines make hardened configuration the only configuration that admits.
 
 ## How to Identify if You're Vulnerable
 
@@ -261,7 +261,7 @@ Ask these questions about your workloads:
 
 - [ ] Does any workload set `privileged: true`, and can it be removed?
 - [ ] Are `hostPID`, `hostIPC`, and `hostNetwork` all `false`?
-- [ ] Are there any `hostPath` mounts—especially `/` or a runtime socket?
+- [ ] Are there any `hostPath` mounts-especially `/` or a runtime socket?
 - [ ] Is `runAsNonRoot: true` set, with an explicit non-zero `runAsUser`?
 - [ ] Is `allowPrivilegeEscalation: false` on every container?
 - [ ] Are all capabilities dropped (`drop: ["ALL"]`) and only the strictly necessary ones added back?

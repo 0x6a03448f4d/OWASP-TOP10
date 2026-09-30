@@ -10,11 +10,11 @@
 
 ## What is Inadequate Logging and Monitoring?
 
-**Inadequate Logging and Monitoring** (K05 in the OWASP Kubernetes Top 10) is the condition of running a cluster that cannot *see itself being attacked*. The controls that would record who did what to the API server, what processes ran inside containers, and which network flows crossed the cluster are either switched off, configured too coarsely, never collected centrally, or collected but never alerted on. The vulnerability is not a single exploitable bug—it is a **detection gap** that lets every other weakness be exploited quietly.
+**Inadequate Logging and Monitoring** (K05 in the OWASP Kubernetes Top 10) is the condition of running a cluster that cannot *see itself being attacked*. The controls that would record who did what to the API server, what processes ran inside containers, and which network flows crossed the cluster are either switched off, configured too coarsely, never collected centrally, or collected but never alerted on. The vulnerability is not a single exploitable bug-it is a **detection gap** that lets every other weakness be exploited quietly.
 
-A Kubernetes cluster is a distributed control system with many independent sources of security-relevant signal: the API server (every `create`, `exec`, `delete`, and secret read), the kubelet on each node, the container runtime, the workloads themselves, the network layer, and the underlying cloud control plane. Each of these can emit an audit trail—but only if it is explicitly enabled, routed somewhere durable, and watched. When any link in that chain is missing, an attacker's actions leave no trace an operator will ever read.
+A Kubernetes cluster is a distributed control system with many independent sources of security-relevant signal: the API server (every `create`, `exec`, `delete`, and secret read), the kubelet on each node, the container runtime, the workloads themselves, the network layer, and the underlying cloud control plane. Each of these can emit an audit trail-but only if it is explicitly enabled, routed somewhere durable, and watched. When any link in that chain is missing, an attacker's actions leave no trace an operator will ever read.
 
-> K05 is a **meta-weakness**. It rarely causes the breach; it determines whether you notice the breach in minutes, in months, or never. Dwell time—the interval between compromise and detection—is the metric this control governs.
+> K05 is a **meta-weakness**. It rarely causes the breach; it determines whether you notice the breach in minutes, in months, or never. Dwell time-the interval between compromise and detection-is the metric this control governs.
 
 ### Core Concept
 
@@ -42,10 +42,10 @@ Cluster that is blind (K05):
 
 Kubernetes concentrates several conditions that make a detection gap especially costly:
 
-- It is a **high-value, multi-tenant control plane**. A single API server mediates access to every workload, secret, and node—so a single unlogged action (an `exec` into a pod, a secret read) can be the whole breach.
+- It is a **high-value, multi-tenant control plane**. A single API server mediates access to every workload, secret, and node-so a single unlogged action (an `exec` into a pod, a secret read) can be the whole breach.
 - Workloads are **ephemeral**. A compromised pod may live for seconds; if its logs and process events are not shipped off-node in real time, the evidence is destroyed by the platform itself when the pod is rescheduled.
 - It is **API-driven and scriptable**, so reconnaissance and lateral movement happen at machine speed. Without automated alerting, humans cannot keep pace.
-- It sits on a **cloud control plane** with its own audit trail (IAM, node metadata, managed control-plane logs) that must also be collected—an attacker who pivots between the two planes escapes detection in the gap between them.
+- It sits on a **cloud control plane** with its own audit trail (IAM, node metadata, managed control-plane logs) that must also be collected-an attacker who pivots between the two planes escapes detection in the gap between them.
 
 ## Why Does This Matter?
 
@@ -92,7 +92,7 @@ Kubernetes concentrates several conditions that make a detection gap especially 
 # with no indication of which secret, or not logged at all.
 ```
 
-**Risk**: The single richest security signal in Kubernetes—the API audit trail—does not exist or is too shallow to investigate with.
+**Risk**: The single richest security signal in Kubernetes-the API audit trail-does not exist or is too shallow to investigate with.
 
 #### 2. No runtime threat detection
 
@@ -104,7 +104,7 @@ kubectl exec -it web-7f9 -- /bin/sh
 #      process-level evidence of what the shell then did.
 ```
 
-**Risk**: Post-exploitation activity inside containers—spawning shells, reading `/etc/shadow`, mounting the host, launching a miner—is completely invisible.
+**Risk**: Post-exploitation activity inside containers-spawning shells, reading `/etc/shadow`, mounting the host, launching a miner-is completely invisible.
 
 #### 3. Logs not centralized or tamper-resistant
 
@@ -128,7 +128,7 @@ kubectl exec -it web-7f9 -- /bin/sh
 # Detection exists in theory; response never happens.
 ```
 
-**Risk**: Collection without alerting is a filing cabinet nobody opens—detection latency is effectively infinite.
+**Risk**: Collection without alerting is a filing cabinet nobody opens-detection latency is effectively infinite.
 
 #### 5. No retention or time synchronisation
 
@@ -144,7 +144,7 @@ kubectl exec -it web-7f9 -- /bin/sh
 
 ## Real-World Impact
 
-The incidents below are described as **classes of real, well-documented events** rather than specific numbered advisories. In each, the underlying compromise was made far worse—or was only possible to sustain—because detection was inadequate.
+The incidents below are described as **classes of real, well-documented events** rather than specific numbered advisories. In each, the underlying compromise was made far worse-or was only possible to sustain-because detection was inadequate.
 
 ### Case Class 1: Exposed Dashboard to Cryptomining (Cloud-Native Cryptojacking)
 
@@ -152,7 +152,7 @@ The incidents below are described as **classes of real, well-documented events**
 - An administrative interface or the Kubernetes API is reachable without authentication, or a workload is compromised through an application flaw.
 - The attacker deploys mining pods, often disguised with innocuous names, and scales them across the cluster.
 
-**Why K05 made it worse**: With no runtime detection and no alerting on unusual image pulls or CPU patterns, the mining workloads ran until an operator happened to notice cost or performance degradation—typically long after deployment. The Tesla cloud-cryptojacking incident (2018) is the archetypal public example: an unauthenticated Kubernetes dashboard led to mining workloads running inside the environment.
+**Why K05 made it worse**: With no runtime detection and no alerting on unusual image pulls or CPU patterns, the mining workloads ran until an operator happened to notice cost or performance degradation-typically long after deployment. The Tesla cloud-cryptojacking incident (2018) is the archetypal public example: an unauthenticated Kubernetes dashboard led to mining workloads running inside the environment.
 
 ### Case Class 2: Long-Dwell Data Exfiltration via Service-Account Tokens
 
@@ -167,7 +167,7 @@ The incidents below are described as **classes of real, well-documented events**
 **Pattern**:
 - Self-propagating malware (the class exemplified by campaigns such as Hildegard, Kinsing, and TeamTNT tooling) targets exposed kubelets, Docker APIs, and Kubernetes API servers to gain a foothold, then spreads laterally and installs miners and credential stealers.
 
-**Why K05 made it worse**: These campaigns specifically thrive in environments with no runtime monitoring. The tell-tale behaviours—new binaries executing in containers, outbound connections to mining pools and C2, disabling of security agents—are exactly what a Falco/Tetragon rule would catch, and exactly what goes unseen when no such sensor exists.
+**Why K05 made it worse**: These campaigns specifically thrive in environments with no runtime monitoring. The tell-tale behaviours-new binaries executing in containers, outbound connections to mining pools and C2, disabling of security agents-are exactly what a Falco/Tetragon rule would catch, and exactly what goes unseen when no such sensor exists.
 
 ### Case Class 4: Insider or Credential Abuse of the Control Plane
 
@@ -186,9 +186,9 @@ Rather than cite precise figures (which vary by survey and year), the defensible
 
 - Managed Kubernetes distributions historically shipped with **API audit logging off or minimal by default**; enabling and tuning it is an explicit operator action that is frequently skipped.
 - Runtime threat detection (Falco/Tetragon) is an **opt-in add-on**, so a large share of clusters run with no process-level visibility at all.
-- Where logs *are* collected, the most common gaps are **no alerting, short retention, and no off-cluster/tamper-resistant storage**—collection without the controls that make it useful.
+- Where logs *are* collected, the most common gaps are **no alerting, short retention, and no off-cluster/tamper-resistant storage**-collection without the controls that make it useful.
 
-> Note: exact percentages differ between reports. The durable takeaway is that detection controls are opt-in, commonly skipped, and—because their absence is silent—rarely discovered until an incident forces the question.
+> Note: exact percentages differ between reports. The durable takeaway is that detection controls are opt-in, commonly skipped, and-because their absence is silent-rarely discovered until an incident forces the question.
 
 ## Common Misunderstandings
 
@@ -198,7 +198,7 @@ Rather than cite precise figures (which vary by survey and year), the defensible
 
 ### Myth 2: "We have `kubectl logs`, so we have logging"
 
-**Reality**: `kubectl logs` reads files on the node that rotate and vanish when the pod restarts. It is a debugging convenience, not a durable, tamper-resistant, centralised audit trail. It also captures only application stdout—not API activity or process events.
+**Reality**: `kubectl logs` reads files on the node that rotate and vanish when the pod restarts. It is a debugging convenience, not a durable, tamper-resistant, centralised audit trail. It also captures only application stdout-not API activity or process events.
 
 ### Myth 3: "Metrics and dashboards mean we're monitored"
 
@@ -229,11 +229,11 @@ K05 is the control that lets you *see* the others being exploited. A cluster can
 
 ## Key Takeaways
 
-1. **K05 is a detection gap, not a single bug**—it governs whether every other weakness is exploited quietly or caught quickly.
-2. **Kubernetes has many signal sources**—API audit, runtime, workload, node, and cloud—and each must be explicitly enabled and routed.
-3. **Ephemeral workloads destroy evidence**—telemetry must be shipped off-node in real time or it is lost to normal pod churn.
-4. **Collection is not detection**—alerting, retention, tamper-resistance, and time sync turn logs into an actual defence.
-5. **The absence of the control is silent**—you will not notice you are blind until an incident forces the question, so enable it before you need it.
+1. **K05 is a detection gap, not a single bug**-it governs whether every other weakness is exploited quietly or caught quickly.
+2. **Kubernetes has many signal sources**-API audit, runtime, workload, node, and cloud-and each must be explicitly enabled and routed.
+3. **Ephemeral workloads destroy evidence**-telemetry must be shipped off-node in real time or it is lost to normal pod churn.
+4. **Collection is not detection**-alerting, retention, tamper-resistance, and time sync turn logs into an actual defence.
+5. **The absence of the control is silent**-you will not notice you are blind until an incident forces the question, so enable it before you need it.
 
 ## How to Identify if You're Vulnerable
 

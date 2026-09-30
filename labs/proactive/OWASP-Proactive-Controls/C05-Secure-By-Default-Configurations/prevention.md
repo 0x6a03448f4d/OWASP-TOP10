@@ -8,7 +8,7 @@ Implementing Secure By Default Configurations means **making the hardened state 
 
 - **Secure by default**: the deployed default is the safe one; opting *out* of a control is explicit, reviewed, and rare.
 - **Deny by default**: access, features, ports, and methods are off until a specific need turns them on.
-- **Least functionality**: every enabled feature, method, port, and account is attack surface—remove what you don't need.
+- **Least functionality**: every enabled feature, method, port, and account is attack surface-remove what you don't need.
 - **Fail closed and quiet**: on error, deny access and return a generic message; keep detail in server logs.
 
 ## 1. Establish a Repeatable Hardening Baseline
@@ -16,7 +16,7 @@ Implementing Secure By Default Configurations means **making the hardened state 
 Capture the intended secure state as code and apply it identically to every environment. Anchor it to a recognized secure baseline such as the **CIS Benchmarks** for your OS, web server, database, cloud, and container platform.
 
 ```yaml
-# hardening-baseline.yaml (excerpt) — versioned, reviewed, applied by CI/CD
+# hardening-baseline.yaml (excerpt) - versioned, reviewed, applied by CI/CD
 app:
   debug: false
   detailed_errors: false
@@ -36,7 +36,7 @@ cloud:
   encryption_at_rest: true
 ```
 
-A baseline that lives in version control is reviewable, diffable, and enforceable—unlike a hand-tuned server that only its author understands.
+A baseline that lives in version control is reviewable, diffable, and enforceable-unlike a hand-tuned server that only its author understands.
 
 ## 2. Ship Secure Defaults in Code and Products You Build
 
@@ -87,7 +87,7 @@ Remove unused packages from base images, close unused ports, and drop any schema
 - Ship with **no usable default credential**; force a unique secret at first setup.
 - Generate strong, unique credentials per environment; never commit them.
 - Grant every identity, service account, and token the **narrowest rights** that work, and widen only on demonstrated need.
-- Store secrets in a manager (Vault, cloud KMS, Secrets Manager) and inject at runtime—never bake them into images.
+- Store secrets in a manager (Vault, cloud KMS, Secrets Manager) and inject at runtime-never bake them into images.
 
 ```bash
 # Reject secrets committed to the repo at commit time
@@ -96,7 +96,7 @@ gitleaks detect --source . --redact
 
 ## 6. Preset Security Headers by Default
 
-Set headers centrally (middleware or edge proxy) so they apply to every response—including errors and redirects—without per-route effort.
+Set headers centrally (middleware or edge proxy) so they apply to every response-including errors and redirects-without per-route effort.
 
 ```
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
@@ -171,7 +171,7 @@ Run these on every pull request and on a schedule against running environments, 
 
 ## 10. Patch the Defaults
 
-Default to current, patched versions—and keep them current.
+Default to current, patched versions-and keep them current.
 
 ```dockerfile
 # Pin patched base images by digest, not floating tags
@@ -192,15 +192,15 @@ Adoption fails when security is extra work. Give developers a **paved road**:
 - Hardened base images maintained centrally.
 - Libraries whose default configuration is safe, with insecure options as loud opt-outs.
 
-When choosing the default is also choosing security, teams get it right without thinking about it—which is the entire point of this control.
+When choosing the default is also choosing security, teams get it right without thinking about it-which is the entire point of this control.
 
 ## Key Takeaways
 
-1. **Codify a secure baseline** — anchor it to CIS Benchmarks and apply it identically everywhere.
-2. **Default to safe in what you build and what you deploy** — both audiences matter.
-3. **Deny and minimize by default** — unused features, ports, methods, and accounts are pure attack surface.
-4. **Automate validation and drift detection** — a baseline without enforcement silently erodes.
-5. **Pave the road** — make the secure option the default option developers reach for.
+1. **Codify a secure baseline** - anchor it to CIS Benchmarks and apply it identically everywhere.
+2. **Default to safe in what you build and what you deploy** - both audiences matter.
+3. **Deny and minimize by default** - unused features, ports, methods, and accounts are pure attack surface.
+4. **Automate validation and drift detection** - a baseline without enforcement silently erodes.
+5. **Pave the road** - make the secure option the default option developers reach for.
 
 ## Next Steps
 

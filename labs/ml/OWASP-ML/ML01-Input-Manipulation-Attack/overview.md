@@ -11,11 +11,11 @@
 
 ## What is an Input Manipulation Attack?
 
-**Input Manipulation Attack** (ML01 in the OWASP Machine Learning Security Top 10) is the deliberate crafting of model inputs—most often through small, carefully chosen perturbations—so that a trained model produces a *wrong* output at inference time. These crafted inputs are called **adversarial examples**, and using them to slip past a model is called an **evasion attack**.
+**Input Manipulation Attack** (ML01 in the OWASP Machine Learning Security Top 10) is the deliberate crafting of model inputs-most often through small, carefully chosen perturbations-so that a trained model produces a *wrong* output at inference time. These crafted inputs are called **adversarial examples**, and using them to slip past a model is called an **evasion attack**.
 
-The defining property is that the perturbation is *optimised against the model*, not random noise. A spam email rewritten to keep its meaning but flip the classifier's decision, a stop sign with a few stickers that a vision model reads as "speed limit," an audio clip that sounds normal to a human but transcribes to an attacker's command—all are the same underlying attack: exploit the gap between the function the model actually learned and the function a human would apply.
+The defining property is that the perturbation is *optimised against the model*, not random noise. A spam email rewritten to keep its meaning but flip the classifier's decision, a stop sign with a few stickers that a vision model reads as "speed limit," an audio clip that sounds normal to a human but transcribes to an attacker's command-all are the same underlying attack: exploit the gap between the function the model actually learned and the function a human would apply.
 
-> **Scope note:** ML01 is a *classic machine-learning* vulnerability—it applies to image classifiers, audio models, tabular fraud detectors, malware classifiers, and traditional NLP models. It is distinct from the LLM-specific "prompt injection" category in the OWASP Top 10 for Large Language Model Applications. Prompt injection manipulates instructions in natural-language context; ML01 manipulates the numeric feature space a model scores.
+> **Scope note:** ML01 is a *classic machine-learning* vulnerability-it applies to image classifiers, audio models, tabular fraud detectors, malware classifiers, and traditional NLP models. It is distinct from the LLM-specific "prompt injection" category in the OWASP Top 10 for Large Language Model Applications. Prompt injection manipulates instructions in natural-language context; ML01 manipulates the numeric feature space a model scores.
 
 ### Core Concept
 
@@ -39,12 +39,12 @@ The perturbation budget is usually measured with an **L_p norm**: L∞ (no singl
 
 ### Why Models Are Vulnerable
 
-Adversarial examples are not a bug in one library—they arise from how high-dimensional models learn:
+Adversarial examples are not a bug in one library-they arise from how high-dimensional models learn:
 
 - **Locally near-linear behaviour.** Even "deep" networks behave approximately linearly over small regions. In a high-dimensional input, thousands of tiny, aligned nudges sum into a large change in the model's score while each individual nudge stays invisible.
 - **Decision boundaries sit close to real data.** The model draws boundaries that separate the training distribution, but those boundaries often pass surprisingly close to normal inputs, so a short step crosses them.
 - **Non-robust features.** Models latch onto predictive-but-fragile patterns (fine textures, high-frequency detail) that a human ignores. Perturbing exactly those features flips the prediction without changing what a human perceives.
-- **Transferability.** Different models trained on similar data tend to share these weaknesses, so an adversarial example built against one model frequently fools another—which is what makes black-box attacks practical.
+- **Transferability.** Different models trained on similar data tend to share these weaknesses, so an adversarial example built against one model frequently fools another-which is what makes black-box attacks practical.
 
 ## Why Does This Matter?
 
@@ -54,16 +54,16 @@ ML models increasingly sit on the security- and safety-critical path: they decid
 
 - **Security-control bypass.** Spam, phishing, malware, fraud, and content-moderation filters are all classifiers. Evasion lets malicious content sail through the exact control bought to stop it.
 - **Fraud and financial loss.** A transaction nudged to look "normal" to a fraud model, or a document altered to pass automated review, translates directly into money lost.
-- **Safety failures.** In perception systems (autonomous driving, industrial vision, medical imaging), a misclassification is not just a wrong label—it can be a physical hazard.
+- **Safety failures.** In perception systems (autonomous driving, industrial vision, medical imaging), a misclassification is not just a wrong label-it can be a physical hazard.
 - **Identity and access abuse.** Fooled face/voice biometrics grant an attacker someone else's access.
 - **Reputation and trust.** A model that can be reliably tricked erodes user and regulator confidence in the whole product.
 
 ### Technical Impact
 
 - **Integrity loss at inference.** The model's output can no longer be trusted for inputs an adversary may have touched.
-- **Silent failure.** Unlike a crash, a misclassification looks like a normal, confident prediction—often with *high* confidence—so it passes unnoticed.
+- **Silent failure.** Unlike a crash, a misclassification looks like a normal, confident prediction-often with *high* confidence-so it passes unnoticed.
 - **Automation at scale.** Once an attack recipe works, it can be applied to thousands of inputs cheaply.
-- **Cross-domain reach.** The same idea applies to images, audio, text, network traffic, and executables—anywhere a model scores inputs.
+- **Cross-domain reach.** The same idea applies to images, audio, text, network traffic, and executables-anywhere a model scores inputs.
 
 ## Technical Context
 
@@ -87,7 +87,7 @@ ML01 targets the **inference-time** input path. It does not require access to tr
   action (allow / block / label / steer)
 ```
 
-Two things matter here. First, **preprocessing is part of the model** from the attacker's view—an attack must survive resizing, JPEG compression, or tokenisation to work end-to-end. Second, the **decision and its confidence feed a downstream action**, so flipping the decision (or just inflating confidence) is enough to cause harm.
+Two things matter here. First, **preprocessing is part of the model** from the attacker's view-an attack must survive resizing, JPEG compression, or tokenisation to work end-to-end. Second, the **decision and its confidence feed a downstream action**, so flipping the decision (or just inflating confidence) is enough to cause harm.
 
 ### Adversarial Examples vs. Ordinary Errors
 
@@ -107,19 +107,19 @@ Every meaningful claim about adversarial robustness is stated *relative to a thr
 
 - **L∞ budget** (e.g. each pixel may move by up to 8/255): the classic "imperceptible noise" setting.
 - **L2 budget**: small total distortion, allowing slightly larger changes concentrated where they help.
-- **L0 / sparse**: change only a handful of features—a few pixels, a few tokens, one packet field.
-- **Semantic / physical constraints**: the change must remain a valid, realisable object—a printable patch, a still-runnable executable, a still-readable email.
+- **L0 / sparse**: change only a handful of features-a few pixels, a few tokens, one packet field.
+- **Semantic / physical constraints**: the change must remain a valid, realisable object-a printable patch, a still-runnable executable, a still-readable email.
 
 ## Threat Models: White-Box, Black-Box, Physical
 
 ### White-Box (Gradient) Access
-The attacker knows the model architecture and weights and can compute gradients of the loss with respect to the input. This is the strongest attacker and the setting in which the canonical attacks—**FGSM, PGD, C&W, DeepFool**—are defined. White-box results set the *worst case* and are the honest way to evaluate a defense.
+The attacker knows the model architecture and weights and can compute gradients of the loss with respect to the input. This is the strongest attacker and the setting in which the canonical attacks-**FGSM, PGD, C&W, DeepFool**-are defined. White-box results set the *worst case* and are the honest way to evaluate a defense.
 
 ### Black-Box (Transfer and Query) Access
 The attacker cannot see the weights but can either (a) craft examples on a *substitute* model and rely on transferability, or (b) *query* the target and use the returned labels/scores to estimate gradients or run a search. Black-box attacks are the realistic setting for a hosted API and are the reason "we don't expose our model" is not, by itself, a defense.
 
 ### Physical / Real-World
-The perturbation is applied to a physical object—a printed **adversarial patch**, a sticker, an eyeglass frame, a T-shirt pattern—and must survive being photographed under varying angle, lighting, and distance. Physical attacks are less precise than digital ones but far more alarming because they attack deployed perception systems from the outside.
+The perturbation is applied to a physical object-a printed **adversarial patch**, a sticker, an eyeglass frame, a T-shirt pattern-and must survive being photographed under varying angle, lighting, and distance. Physical attacks are less precise than digital ones but far more alarming because they attack deployed perception systems from the outside.
 
 ### Cross-Domain Reach
 
@@ -144,7 +144,7 @@ The examples below describe well-established *classes* of demonstrated attack fr
 
 ### Case Study Class 2: Malware and Spam/Phishing Filter Evasion
 **Setup**: A classifier decides whether a file is malware or an email is spam/phishing.
-- **Attack**: Adversaries append benign-looking bytes, add unused imports or sections to a binary, or rewrite an email with synonyms and structural changes—preserving malicious/undesired function while pushing the model's score across the benign threshold.
+- **Attack**: Adversaries append benign-looking bytes, add unused imports or sections to a binary, or rewrite an email with synonyms and structural changes-preserving malicious/undesired function while pushing the model's score across the benign threshold.
 - **Impact class**: The security control is bypassed silently; the payload is delivered while the model reports "clean."
 - **Lesson**: When the classifier *is* the security boundary, its worst-case behaviour, not its average accuracy, is what matters.
 
@@ -157,13 +157,13 @@ The examples below describe well-established *classes* of demonstrated attack fr
 ### Case Study Class 4: Face and Biometric Spoofing
 **Setup**: A face-recognition or liveness model gates access or identity.
 - **Attack**: Printed patterns, patterned eyeglass frames, or crafted images cause the model to fail to recognise a person or to misidentify one person as another.
-- **Impact class**: Evasion of surveillance or impersonation for access—an integrity failure of an identity control.
+- **Impact class**: Evasion of surveillance or impersonation for access-an integrity failure of an identity control.
 
 ## Prevalence and Research Landscape
 
 Adversarial examples are one of the most heavily studied problems in ML security. Rather than cite a single headline number (which varies by benchmark and year), the durable, defensible picture is:
 
-- Standard, undefended models are **reliably evadable** under white-box attack—small L_p-bounded perturbations flip predictions with very high success rates on common image benchmarks.
+- Standard, undefended models are **reliably evadable** under white-box attack-small L_p-bounded perturbations flip predictions with very high success rates on common image benchmarks.
 - Robustness has proven **hard to achieve**: many proposed defenses were later broken when evaluated against *adaptive* attackers that target the defense itself.
 - **Adversarial training** (training on adversarial examples) is the most consistently effective empirical defense, but it costs accuracy on clean data and compute, and its robustness is bounded by the threat model it was trained against.
 - **Certified defenses** give provable guarantees but only within a limited perturbation radius and often at a further accuracy cost.
@@ -185,10 +185,10 @@ Adversarial examples are one of the most heavily studied problems in ML security
 **Reality**: The size of the perturbation and the size of the consequence are unrelated. An imperceptible change can flip a fraud decision, a malware verdict, or a stop-sign reading.
 
 ### Myth 5: "Input validation for injection/XSS also stops this."
-**Reality**: Classic input validation checks for malformed or dangerous *syntax*. Adversarial inputs are perfectly well-formed and valid—a normal image, a normal email, a normal transaction. They defeat the model's semantics, not its parser.
+**Reality**: Classic input validation checks for malformed or dangerous *syntax*. Adversarial inputs are perfectly well-formed and valid-a normal image, a normal email, a normal transaction. They defeat the model's semantics, not its parser.
 
 ### Myth 6: "One defense will fix it."
-**Reality**: There is no single silver bullet. Robustness comes from layering—adversarial training, input transformations and detection, ensembling, limiting exposed confidence/gradients, monitoring, and human review for high-stakes decisions.
+**Reality**: There is no single silver bullet. Robustness comes from layering-adversarial training, input transformations and detection, ensembling, limiting exposed confidence/gradients, monitoring, and human review for high-stakes decisions.
 
 ## How ML01 Differs from Related ML Risks
 
@@ -201,7 +201,7 @@ Adversarial examples are one of the most heavily studied problems in ML security
 
 ## Key Takeaways
 
-1. **Adversarial examples exploit the gap** between what the model learned and what a human means—small, optimised, often invisible perturbations flip predictions.
+1. **Adversarial examples exploit the gap** between what the model learned and what a human means-small, optimised, often invisible perturbations flip predictions.
 2. **Accuracy is not robustness.** Worst-case behaviour under an adversary is a separate goal that standard training does not deliver.
 3. **Secrecy is not a defense.** Black-box transfer and query attacks work without the weights.
 4. **Gradient masking is false security.** Evaluate against adaptive attackers or you are measuring nothing.
@@ -217,12 +217,12 @@ Adversarial examples are one of the most heavily studied problems in ML security
 - [ ] Is there any detection or monitoring for anomalous / adversarial inputs?
 - [ ] Are high-stakes automated decisions ever routed to human review?
 
-If you answered "no" or "not sure" to several of these—especially the first three—you likely have exploitable exposure to input-manipulation attacks today.
+If you answered "no" or "not sure" to several of these-especially the first three-you likely have exploitable exposure to input-manipulation attacks today.
 
 ## Next Steps
 
-- **[Attack Vectors](attack-vectors.md)**: The concrete attack patterns—FGSM, PGD, C&W, DeepFool, transfer, query, and physical patches
-- **[Prevention](prevention.md)**: Layered defenses—adversarial training, preprocessing, detection, certified robustness, and monitoring
+- **[Attack Vectors](attack-vectors.md)**: The concrete attack patterns-FGSM, PGD, C&W, DeepFool, transfer, query, and physical patches
+- **[Prevention](prevention.md)**: Layered defenses-adversarial training, preprocessing, detection, certified robustness, and monitoring
 - **[Examples](examples.md)**: Insecure vs. secure code in PyTorch, TensorFlow, scikit-learn, and adversarial-robustness libraries
 - **[Back to the ML Security track](/learn/ml)**
 - **[Practice](/practice)**: Apply these concepts hands-on

@@ -41,7 +41,7 @@ def nightly_retrain():
     # 3) Anchor on trusted ground truth; raw feedback is low-weight evidence
     training_set = trusted_ground_truth(weight=1.0) + weighted  # weighted << 1.0
 
-    # 4) Train a CANDIDATE — never overwrite production in place
+    # 4) Train a CANDIDATE - never overwrite production in place
     candidate = clone(load_model())
     candidate.fit(training_set)
 
@@ -165,7 +165,7 @@ def check_skew(baseline, window, segments):
     # 2) Label base rate (e.g. share of 'not_spam') moving is a classic skew signal
     if abs(window.not_spam_rate - baseline.not_spam_rate) > 0.05:
         alerts.append("label base-rate shift")
-    # 3) Per-SEGMENT metrics — a targeted skew hides in a slice, not the global mean
+    # 3) Per-SEGMENT metrics - a targeted skew hides in a slice, not the global mean
     for seg in segments:
         if window.metric(seg) < baseline.metric(seg) - 0.05:
             alerts.append(f"segment regression: {seg}")
@@ -192,7 +192,7 @@ def promote(candidate):
 AUTO_SHIFT_LIMIT = 0.02   # max threshold move allowed without a human
 
 def evaluate_and_shadow(candidate):
-    # (a) Trusted, attacker-untouchable golden set — no regressions allowed
+    # (a) Trusted, attacker-untouchable golden set - no regressions allowed
     report = candidate.evaluate(golden_set)
     if report.regressions > 0:
         return False
@@ -223,11 +223,11 @@ def promote(candidate):
 
 ## Key Takeaways
 
-1. **Never store user feedback directly as a training label**—validate and corroborate it first.
+1. **Never store user feedback directly as a training label**-validate and corroborate it first.
 2. **Cap and down-weight every source** so volume from cheap identities cannot dominate a retraining cycle.
 3. **Anchor training on trusted ground truth**; treat raw production feedback as weak, sampled evidence.
 4. **Monitor distributions and segments**, not just aggregate accuracy, to catch slow and targeted skew.
-5. **Make promotion a gate, not a default**—shadow-evaluate, require human sign-off on boundary moves, and keep rollback ready.
+5. **Make promotion a gate, not a default**-shadow-evaluate, require human sign-off on boundary moves, and keep rollback ready.
 
 ## Next Steps
 

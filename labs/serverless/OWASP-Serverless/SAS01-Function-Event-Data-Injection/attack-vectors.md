@@ -8,9 +8,9 @@
 
 ## Understanding Event-Data Injection Vectors
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in serverless applications you own or are authorised to test.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in serverless applications you own or are authorised to test.
 
-An attacker exploiting this weakness is looking for one thing: a function that reads a field from an event and hands it to an interpreter. The clever part is not the payload—SQL, shell, and traversal payloads are decades old—it is **choosing a trigger the developer forgot to treat as hostile**. Because the same handler is often reachable through several triggers, an attacker will deliberately pick the one with the least validation: the S3 upload instead of the API, the queue message instead of the request body.
+An attacker exploiting this weakness is looking for one thing: a function that reads a field from an event and hands it to an interpreter. The clever part is not the payload-SQL, shell, and traversal payloads are decades old-it is **choosing a trigger the developer forgot to treat as hostile**. Because the same handler is often reachable through several triggers, an attacker will deliberately pick the one with the least validation: the S3 upload instead of the API, the queue message instead of the request body.
 
 The attacker's objectives in this category are usually:
 
@@ -164,7 +164,7 @@ name = "alice\n{\"level\":\"INFO\",\"msg\":\"admin login ok\"}"
 console.log(`processed user=${name}`);   // forges a second, fake log record
 ```
 
-**Payoff**: forge or corrupt log entries to hide activity or mislead responders. If a CloudWatch Logs subscription forwards those lines to another function, the injected content becomes the *next* function's untrusted input—extending the chain.
+**Payoff**: forge or corrupt log entries to hide activity or mislead responders. If a CloudWatch Logs subscription forwards those lines to another function, the injected content becomes the *next* function's untrusted input-extending the chain.
 
 ### 9. DynamoDB Stream Attribute Injection
 
@@ -204,7 +204,7 @@ subject = event['Records'][0]['ses']['mail']['commonHeaders']['subject']
 cur.execute("INSERT INTO tickets(title) VALUES ('" + subject + "')")
 ```
 
-**Payoff**: email is the easiest channel to abuse—anyone can send one—yet its fields are rarely treated as injection-grade input.
+**Payoff**: email is the easiest channel to abuse-anyone can send one-yet its fields are rarely treated as injection-grade input.
 
 ### 12. Runtime / Downstream-Service Injection
 
@@ -220,7 +220,7 @@ render(tpl);                                  // template engine evaluates the e
 
 ## Chaining Injection with Role Privileges
 
-Event-data injection is rarely the whole attack—it is the foothold. The damage is decided by what the function's execution role can do:
+Event-data injection is rarely the whole attack-it is the foothold. The damage is decided by what the function's execution role can do:
 
 ```
 Command injection via S3 key            -> code runs in the function sandbox
@@ -251,11 +251,11 @@ Poison an SQS message through a public producer
 
 ## Key Takeaways
 
-1. **Attackers pick the weakest trigger**—usually a non-HTTP one—because that is where validation is missing.
-2. **The payloads are classic; the doors are new**—S3 keys, message bodies, stream attributes, and email fields all carry injection just as a request body does.
-3. **Asynchronous injection hides**—queue/stream/email vectors leave no HTTP request to point at.
-4. **SSRF and XXE steal the role**—both can reach metadata or environment and lift the function's credentials.
-5. **The role sets the blast radius**—a foothold plus a broad role equals account compromise; a foothold plus least privilege is a contained bug.
+1. **Attackers pick the weakest trigger**-usually a non-HTTP one-because that is where validation is missing.
+2. **The payloads are classic; the doors are new**-S3 keys, message bodies, stream attributes, and email fields all carry injection just as a request body does.
+3. **Asynchronous injection hides**-queue/stream/email vectors leave no HTTP request to point at.
+4. **SSRF and XXE steal the role**-both can reach metadata or environment and lift the function's credentials.
+5. **The role sets the blast radius**-a foothold plus a broad role equals account compromise; a foothold plus least privilege is a contained bug.
 
 ## Next Steps
 

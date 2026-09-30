@@ -8,7 +8,7 @@
 
 ## Understanding Third-Party Attack Vectors
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are described so you can find and fix ungoverned third-party access in systems you own or are authorised to test.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are described so you can find and fix ungoverned third-party access in systems you own or are authorised to test.
 
 Attacks in this category rarely require breaking into your systems directly. Instead, the attacker **rides in on trust you already granted**: they compromise or impersonate a third party that your pipeline already lets in, or they abuse an over-scoped grant that no one is watching. Because the access is legitimate on paper, the malicious use blends into normal automation.
 
@@ -49,7 +49,7 @@ A third-party tool invoked during CI (uploader, scanner, deploy helper) is tampe
 #   env vars, CI secrets, cloud tokens, the checked-out source, the job token
 ```
 
-**Payoff**: mass secret harvesting across the vendor's entire customer base—the Codecov-class pattern. No individual victim was targeted; they simply trusted a service that got breached.
+**Payoff**: mass secret harvesting across the vendor's entire customer base-the Codecov-class pattern. No individual victim was targeted; they simply trusted a service that got breached.
 
 ### 2. OAuth / App Token Theft and Reuse
 
@@ -62,7 +62,7 @@ git clone https://x-access-token:STOLEN_TOKEN@scm.example/acme/private-app.git
 # ...repeat across all victims that authorized the same integration
 ```
 
-**Payoff**: bulk private-source-code theft—the GitHub-OAuth-token-abuse class. The victims did nothing wrong at authorize time; the broad, standing grant is what made the stolen token so valuable.
+**Payoff**: bulk private-source-code theft-the GitHub-OAuth-token-abuse class. The victims did nothing wrong at authorize time; the broad, standing grant is what made the stolen token so valuable.
 
 ### 3. Malicious or Typosquatted Marketplace Component
 
@@ -90,7 +90,7 @@ git push --force origin v2
 # Your NEXT build silently runs the malicious v2.
 ```
 
-**Payoff**: code execution in every pipeline that trusted `@v2`—retroactively weaponizing a dependency you already vetted, because you pinned a name instead of a commit.
+**Payoff**: code execution in every pipeline that trusted `@v2`-retroactively weaponizing a dependency you already vetted, because you pinned a name instead of a commit.
 
 ### 5. Abusing an Over-Scoped, Unmonitored Integration
 
@@ -104,11 +104,11 @@ PUT /repos/acme/payments/contents/.github/workflows/ci.yml   # inject a step
 POST /repos/acme/payments/hooks                              # add own webhook
 ```
 
-**Payoff**: source modification, pipeline injection, and self-added persistence—all enabled by scope that was never needed.
+**Payoff**: source modification, pipeline injection, and self-added persistence-all enabled by scope that was never needed.
 
 ### 6. Webhook Abuse (Inbound and Outbound)
 
-Third-party webhooks are a two-way trust. Inbound webhooks can trigger pipeline actions; outbound webhooks ship data to the third party—and to anyone who compromises the endpoint or the secret.
+Third-party webhooks are a two-way trust. Inbound webhooks can trigger pipeline actions; outbound webhooks ship data to the third party-and to anyone who compromises the endpoint or the secret.
 
 ```
 # Outbound: build events (including secrets in payloads) sent to a vendor URL
@@ -167,7 +167,7 @@ OAuth grant from a former contractor's app  -> still authorized org-wide
 Bot for a deprecated service                -> still able to push
 ```
 
-**Payoff**: an attacker who finds any of these gets working access that no one is watching—the ideal path for quiet, long-term abuse.
+**Payoff**: an attacker who finds any of these gets working access that no one is watching-the ideal path for quiet, long-term abuse.
 
 ## Chaining Third-Party Trust
 
@@ -193,11 +193,11 @@ Breached SaaS vendor holds your repo token -> attacker clones all private source
 
 ## Key Takeaways
 
-1. **Attackers ride in on trust you granted**—they compromise a third party rather than breaking in directly.
-2. **Mutable references are time bombs**—a tag or branch can be repointed to malicious code after you adopt it.
-3. **Broad, standing grants are the prize**—over-scoped tokens and Apps turn one vendor breach into a mass event.
-4. **Anything running in a job can read its secrets**—a trusted step is a trusted execution of someone else's code.
-5. **Forgotten access is the softest target**—stale grants are abused precisely because no one is watching them.
+1. **Attackers ride in on trust you granted**-they compromise a third party rather than breaking in directly.
+2. **Mutable references are time bombs**-a tag or branch can be repointed to malicious code after you adopt it.
+3. **Broad, standing grants are the prize**-over-scoped tokens and Apps turn one vendor breach into a mass event.
+4. **Anything running in a job can read its secrets**-a trusted step is a trusted execution of someone else's code.
+5. **Forgotten access is the softest target**-stale grants are abused precisely because no one is watching them.
 
 ## Next Steps
 

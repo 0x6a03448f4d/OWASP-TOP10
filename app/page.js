@@ -9,7 +9,7 @@ export default function Home() {
       <section className="hero wrap">
         <h1>Learn the <span className="accent">OWASP Top 10</span></h1>
         <p>
-          Clear, practical lessons on the most critical security risks — across ten OWASP projects:
+          Clear, practical lessons on the most critical security risks - across ten OWASP projects:
           Web, API, Mobile, LLM, Kubernetes, CI/CD, ML, Smart Contracts, and Serverless, plus the
           Proactive Controls to defend against them. Every edition, easy to navigate.
         </p>
@@ -22,7 +22,7 @@ export default function Home() {
       <section className="section wrap">
         <div className="section-head">
           <h2>Choose a category</h2>
-          <span className="sub">Pick an area, then an edition — the most recent is selected by default.</span>
+          <span className="sub">Pick an area, then an edition - the most recent is selected by default.</span>
         </div>
         <div className="cat-grid">
           {data.categories.map((c) => {
@@ -47,11 +47,11 @@ export default function Home() {
         <div className="mini-grid">
           <Link href="/cheatsheets" className="mini-card">
             <h4><span className="i">▪</span> Cheat sheets</h4>
-            <p>Quick, one-page references for every vulnerability — what it is, how it’s attacked, and how to prevent it.</p>
+            <p>Quick, one-page references for every vulnerability - what it is, how it’s attacked, and how to prevent it.</p>
           </Link>
           <Link href="/practice" className="mini-card">
             <h4><span className="i">▪</span> Practice locally</h4>
-            <p>Hands-on vulnerable labs you run on your own machine with Docker or a Codespace — never exposed online.</p>
+            <p>Hands-on vulnerable labs you run on your own machine with Docker or a Codespace - never exposed online.</p>
           </Link>
           <a href="https://owasp.org/www-project-top-ten/" target="_blank" rel="noopener" className="mini-card">
             <h4><span className="i">▪</span> Official OWASP ↗</h4>

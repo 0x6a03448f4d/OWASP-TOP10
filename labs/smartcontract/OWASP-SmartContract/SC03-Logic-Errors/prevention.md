@@ -2,10 +2,10 @@
 
 ## Prevention Strategy Overview
 
-Preventing logic errors is less about a single control and more about **making correctness something you state, test, and prove—rather than something you hope for**:
+Preventing logic errors is less about a single control and more about **making correctness something you state, test, and prove-rather than something you hope for**:
 
 1. Write the specification and its invariants down before writing the code.
-2. Handle every edge case explicitly—first depositor, empty pool, zero, boundaries.
+2. Handle every edge case explicitly-first depositor, empty pool, zero, boundaries.
 3. Decide and enforce rounding direction: always in the protocol's favour.
 4. Test the invariants with property-based and fuzz testing, not just examples.
 5. Formally verify the critical math and commission multiple independent audits.
@@ -126,7 +126,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 // re-implementing share math from scratch.
 ```
 
-Solidity 0.8+ reverts on overflow by default, so `SafeMath` is no longer required—but safe arithmetic is not the same as *correct* arithmetic.
+Solidity 0.8+ reverts on overflow by default, so `SafeMath` is no longer required-but safe arithmetic is not the same as *correct* arithmetic.
 
 ## 7. Property-Based and Fuzz Testing
 
@@ -191,7 +191,7 @@ function withdraw(uint256 amount) external {
 
 - Prefer the simplest formula that meets the requirement; complexity is where intent and implementation diverge.
 - Document, next to the code, the intended behaviour and rounding direction of every non-trivial calculation.
-- Commission **multiple independent audits**—different reviewers catch different logic gaps—and give auditors the written specification so they can check against intent, not guess it.
+- Commission **multiple independent audits**-different reviewers catch different logic gaps-and give auditors the written specification so they can check against intent, not guess it.
 - Run a bug-bounty and a staged/guarded launch (caps, timelocks, pausability) so a residual logic error is bounded rather than fatal.
 
 ## Defence Summary
@@ -208,11 +208,11 @@ function withdraw(uint256 amount) external {
 
 ## Key Takeaways
 
-1. **Write the invariants down first** — correctness is a property you specify, then prove; it is not implied by compilation.
-2. **Round in the protocol's favour, always** — integer truncation direction is a security decision.
-3. **Trust the delta, not the request** — credit only what was actually received.
-4. **Fuzz and formally verify the math** — property tests and solvers find the edge cases examples miss.
-5. **Reuse audited standards and audit repeatedly** — boring, proven math and multiple reviewers beat clever, unreviewed formulas.
+1. **Write the invariants down first** - correctness is a property you specify, then prove; it is not implied by compilation.
+2. **Round in the protocol's favour, always** - integer truncation direction is a security decision.
+3. **Trust the delta, not the request** - credit only what was actually received.
+4. **Fuzz and formally verify the math** - property tests and solvers find the edge cases examples miss.
+5. **Reuse audited standards and audit repeatedly** - boring, proven math and multiple reviewers beat clever, unreviewed formulas.
 
 ## Next Steps
 

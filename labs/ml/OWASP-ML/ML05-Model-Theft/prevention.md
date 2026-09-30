@@ -8,12 +8,12 @@ No single control stops model theft, because there are two distinct routes. You 
 2. Rate-limit and quota per client so systematic querying is costly.
 3. Return the least information a client actually needs.
 4. Detect extraction-shaped query patterns and respond.
-5. Protect the artifact everywhere it lives—storage, registry, repo, and device.
+5. Protect the artifact everywhere it lives-storage, registry, repo, and device.
 6. Watermark for attribution, and back it with terms and monitoring.
 
 ### Core Principles
 
-- **Minimise output**: the model should reveal only what the use case requires—top-1 or a coarse score, not logits.
+- **Minimise output**: the model should reveal only what the use case requires-top-1 or a coarse score, not logits.
 - **Cost the attacker**: authentication plus per-client limits turn "free unlimited queries" into a traceable, throttled, expensive effort.
 - **Treat weights as crown-jewel secrets**: encrypt, access-control, and never let them sit in a public bucket, open registry, or repo.
 - **Assume the edge is hostile**: any shipped model is in an untrusted environment; protect and, where possible, keep inference server-side.
@@ -136,7 +136,7 @@ When inference must run on the client, assume the environment is hostile and red
 
 ## 7. Watermarking and Fingerprinting
 
-Watermarking embeds a secret, verifiable signal in the model so you can later *prove* a suspect copy is yours; fingerprinting derives an identifying signature from the model's behaviour. Neither prevents copying—they enable attribution and legal action.
+Watermarking embeds a secret, verifiable signal in the model so you can later *prove* a suspect copy is yours; fingerprinting derives an identifying signature from the model's behaviour. Neither prevents copying-they enable attribution and legal action.
 
 ```python
 # Behavioural watermark: the model returns a known response on secret trigger inputs
@@ -153,7 +153,7 @@ Design watermarks to survive fine-tuning and distillation as far as possible, ke
 - Explicitly prohibit extraction, scraping, redistribution, and reverse engineering in the API terms of service and customer contracts.
 - Require authenticated accounts so terms attach to an identifiable party.
 - Keep evidence (per-client query logs, watermark verifications) that supports enforcement.
-- Treat legal controls as a deterrent and a remedy—a complement to, never a substitute for, the technical controls above.
+- Treat legal controls as a deterrent and a remedy-a complement to, never a substitute for, the technical controls above.
 
 ## 9. Usage Monitoring and Response
 
@@ -184,11 +184,11 @@ Tie the signals together and rehearse the response.
 
 ## Key Takeaways
 
-1. **Defend the API and the artifact**—stopping one route leaves the other wide open.
-2. **Minimise output**—top-1 or coarse, perturbed scores instead of logits is the highest-leverage anti-extraction control.
-3. **Cost and attribute every query**—authentication plus per-client rate limits and quotas turn free cloning into an expensive, traceable effort.
-4. **Lock down the weights**—encrypted, private storage, no repo commits, no static routes, least privilege everywhere.
-5. **Attribute what you cannot prevent**—watermarking, monitoring, and terms of service back the technical controls with detection and recourse.
+1. **Defend the API and the artifact**-stopping one route leaves the other wide open.
+2. **Minimise output**-top-1 or coarse, perturbed scores instead of logits is the highest-leverage anti-extraction control.
+3. **Cost and attribute every query**-authentication plus per-client rate limits and quotas turn free cloning into an expensive, traceable effort.
+4. **Lock down the weights**-encrypted, private storage, no repo commits, no static routes, least privilege everywhere.
+5. **Attribute what you cannot prevent**-watermarking, monitoring, and terms of service back the technical controls with detection and recourse.
 
 ## Next Steps
 

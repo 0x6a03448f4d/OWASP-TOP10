@@ -13,13 +13,13 @@ Preventing ML09 comes down to one shift in mindset: **treat every prediction as 
 ### Core Principles
 
 - **Authenticity and integrity, not just confidentiality**: encryption hides a result; it does not prove who produced it or that it is unchanged. You need both.
-- **End-to-end, not hop-by-hop**: protection must survive stores, queues, and forwarding—so it must be bound to the result, not to the transport.
-- **Verify before you act**: a consumer must reject any result whose signature, freshness, or shape does not check out—fail closed.
+- **End-to-end, not hop-by-hop**: protection must survive stores, queues, and forwarding-so it must be bound to the result, not to the transport.
+- **Verify before you act**: a consumer must reject any result whose signature, freshness, or shape does not check out-fail closed.
 - **Least privilege on results**: only the producer writes results; only intended consumers read them; nothing has more access to the decision than it needs.
 
 ## 1. Protect the Inference Pipeline in Transit (TLS / mTLS)
 
-Every hop that carries a prediction—client to gateway, gateway to model server, model server to consumer—must be encrypted and authenticated. Use mutual TLS between internal services so each side proves its identity, not just the server.
+Every hop that carries a prediction-client to gateway, gateway to model server, model server to consumer-must be encrypted and authenticated. Use mutual TLS between internal services so each side proves its identity, not just the server.
 
 ```python
 # Serve the inference API over TLS and require client certificates (mTLS)
@@ -40,7 +40,7 @@ resp = requests.get(
 )
 ```
 
-TLS/mTLS stops the man-in-the-middle rewrite in transit. It does *not* protect the result once it is stored or forwarded—that is what signing (next) is for.
+TLS/mTLS stops the man-in-the-middle rewrite in transit. It does *not* protect the result once it is stored or forwarded-that is what signing (next) is for.
 
 ## 2. Sign / Authenticate Every Result
 
@@ -65,7 +65,7 @@ Use a shared secret with HMAC for a trusted producer/consumer pair, or asymmetri
 
 ## 3. Verify Results at the Consumer
 
-Signing is only half the control—the consumer must verify and **reject on any failure**. Never act on an unverified result.
+Signing is only half the control-the consumer must verify and **reject on any failure**. Never act on an unverified result.
 
 ```python
 # Consumer: verify signature, freshness, then act
@@ -116,7 +116,7 @@ def load(db, tx: str, key: bytes) -> dict:
 ```
 
 - Grant **write** on the results store/topic only to the producer identity; grant **read** only to intended consumers.
-- For queues/topics, authenticate publishers and verify the signature on consume—do not trust "it was on the topic".
+- For queues/topics, authenticate publishers and verify the signature on consume-do not trust "it was on the topic".
 - For caches, store the signed envelope and verify on read; a poisoned key then fails verification instead of being trusted.
 
 ## 5. Validate and Sanity-Check Outputs at the Consumer
@@ -136,7 +136,7 @@ def sanity_check(payload: dict):
     # malware indicator, etc. Enforce the invariants your domain guarantees.
 ```
 
-Keep the **authoritative decision server-side**. Never let a client-supplied verdict override the model's—re-derive or re-verify the decision from a signed result on the server before enforcing it.
+Keep the **authoritative decision server-side**. Never let a client-supplied verdict override the model's-re-derive or re-verify the decision from a signed result on the server before enforcing it.
 
 ## 6. Least Privilege on Everything That Handles Results
 
@@ -157,14 +157,14 @@ audit_log.append(json.dumps(envelope, sort_keys=True))
 # edited entry breaks the chain.
 ```
 
-Retain enough to answer "what did the model actually output, and did the consumer act on that exact value?"—that question is unanswerable if the outputs are mutable and unsigned.
+Retain enough to answer "what did the model actually output, and did the consumer act on that exact value?"-that question is unanswerable if the outputs are mutable and unsigned.
 
 ## 8. Monitoring and Detection
 
 Watch for the signatures of output tampering and verification failures.
 
 ```python
-# Alert on integrity-verification failures — these are security events
+# Alert on integrity-verification failures - these are security events
 def on_verify_failure(reason, tx, src):
     log.warning("result integrity failure tx=%s reason=%s src=%s", tx, reason, src)
     send_security_alert(reason, tx, src)
@@ -189,11 +189,11 @@ Also alert on: spikes in signature/nonce/staleness rejections, results appearing
 
 ## Key Takeaways
 
-1. **Sign the decision, not just the channel**—integrity must travel with the result through stores, queues, and logs.
-2. **Verify before acting, fail closed**—reject any result that fails signature, freshness, or sanity checks.
-3. **Encrypt and authenticate every hop**—TLS/mTLS stops the in-transit rewrite and impostor producers.
-4. **Bind freshness**—nonces and timestamps defeat replay of stale-but-valid results.
-5. **Least privilege and tamper-evidence**—lock down who can write results, and make edits detectable after the fact.
+1. **Sign the decision, not just the channel**-integrity must travel with the result through stores, queues, and logs.
+2. **Verify before acting, fail closed**-reject any result that fails signature, freshness, or sanity checks.
+3. **Encrypt and authenticate every hop**-TLS/mTLS stops the in-transit rewrite and impostor producers.
+4. **Bind freshness**-nonces and timestamps defeat replay of stale-but-valid results.
+5. **Least privilege and tamper-evidence**-lock down who can write results, and make edits detectable after the fact.
 
 ## Next Steps
 

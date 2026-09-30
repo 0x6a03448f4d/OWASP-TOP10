@@ -16,13 +16,13 @@
 
 ## The Implementation Model
 
-Implementing this control means turning the ten core practices into automated, repeatable steps that run without heroics. The organising idea is a pipeline: **see everything, verify what enters, watch continuously, and update on a rhythm**. Nothing below relies on a human remembering to check—each step is wired into tooling that fails loudly when something is wrong.
+Implementing this control means turning the ten core practices into automated, repeatable steps that run without heroics. The organising idea is a pipeline: **see everything, verify what enters, watch continuously, and update on a rhythm**. Nothing below relies on a human remembering to check-each step is wired into tooling that fails loudly when something is wrong.
 
 > **First principle**: you cannot secure what you cannot see. Every other step assumes you have a complete, current inventory. Start there.
 
 ## Step 1: Build an Inventory / SBOM
 
-Generate a **Software Bill of Materials** that lists every component—direct *and* transitive—with name, version, license, and origin. Produce it automatically as a build artifact so it is always current, and store it where incident responders can query it.
+Generate a **Software Bill of Materials** that lists every component-direct *and* transitive-with name, version, license, and origin. Produce it automatically as a build artifact so it is always current, and store it where incident responders can query it.
 
 - Use a standard format (**CycloneDX** or **SPDX**) so tools can consume it.
 - Generate from the resolved dependency graph, not the hand-written manifest, so transitive components are included.
@@ -66,7 +66,7 @@ grype sbom:sbom.json --fail-on high
 
 ## Step 3: Pin Versions with Integrity Hashes
 
-Commit lockfiles so every build resolves to the exact same bytes, and so a tampered artifact is rejected by its integrity hash. Floating ranges (`^`, `~`, `latest`) are fine in the manifest for humans, but the lockfile is what actually installs—and it must be committed and enforced.
+Commit lockfiles so every build resolves to the exact same bytes, and so a tampered artifact is rejected by its integrity hash. Floating ranges (`^`, `~`, `latest`) are fine in the manifest for humans, but the lockfile is what actually installs-and it must be committed and enforced.
 
 - **Node**: commit `package-lock.json`; install in CI with `npm ci` (fails if lockfile and manifest disagree), which enforces the recorded `integrity` hashes.
 - **Python**: commit `poetry.lock` / `Pipfile.lock`, or a `requirements.txt` with `--hash` entries, and install with `--require-hashes`.
@@ -77,7 +77,7 @@ Commit lockfiles so every build resolves to the exact same bytes, and so a tampe
 Only install components from official, trusted registries, and verify their integrity. This is where you defeat dependency confusion, typosquatting, and malicious packages.
 
 - **Use a single, controlled source**: proxy public registries through an internal artifact repository (Artifactory, Nexus, GitHub Packages) so you control what enters.
-- **Scope internal packages**: publish private packages under an org scope/namespace (`@yourorg/...`) and configure the registry so those names *never* resolve to the public registry—this is the primary dependency-confusion defense.
+- **Scope internal packages**: publish private packages under an org scope/namespace (`@yourorg/...`) and configure the registry so those names *never* resolve to the public registry-this is the primary dependency-confusion defense.
 - **Verify exact names**: match the official package name character-for-character before adding it; do not trust a name pasted from a tutorial.
 - **Delay adoption**: prefer versions that have been public for a cooldown period over brand-new releases, to dodge just-published malicious versions.
 - **Verify signatures / provenance** where the ecosystem supports it (for example npm provenance / Sigstore attestations).
@@ -111,7 +111,7 @@ updates:
 Updating is a routine, not a fire drill. Define a regular cadence for normal updates and a fast lane for emergencies, and put automated tests behind both so upgrades are safe to merge.
 
 - **Routine cadence**: a recurring window (for example weekly) to review and merge the automated update PRs while changes are small.
-- **Emergency path**: a documented, fast process for critical advisories—who decides, how it is tested, how fast it ships.
+- **Emergency path**: a documented, fast process for critical advisories-who decides, how it is tested, how fast it ships.
 - **Test coverage**: rely on your CI test suite so a dependency bump that breaks behaviour is caught before merge, removing the fear that keeps teams on old versions.
 - **Prefer patch/minor** for speed; schedule and test major upgrades deliberately rather than deferring them until an incident forces a multi-version jump.
 
@@ -121,7 +121,7 @@ Every dependency you do not need is attack surface you did not have to carry. Ac
 
 - **Remove unused dependencies**: use tools like `depcheck` (Node), `deptry`/`pip-autoremove` (Python), or the Maven dependency plugin's `analyze` goal to find and drop unreferenced libraries.
 - **Prefer smaller, well-maintained libraries** over sprawling ones that drag in large transitive trees.
-- **Track EOL**: know the end-of-life dates of runtimes and major dependencies (resources like *endoflife.date* help), and schedule replacement *before* support ends—an EOL component will never receive a fix.
+- **Track EOL**: know the end-of-life dates of runtimes and major dependencies (resources like *endoflife.date* help), and schedule replacement *before* support ends-an EOL component will never receive a fix.
 
 ## Step 8: Secure the Pipeline and Provenance
 
@@ -129,7 +129,7 @@ Your build system is one of the most privileged places in your estate and a prim
 
 - **Least-privilege CI**: scope build credentials tightly; do not expose long-lived registry or cloud tokens to arbitrary build steps.
 - **Protect signing keys**: keep artifact-signing keys in a managed KMS/HSM, not in the repo or plain CI variables.
-- **Generate provenance**: adopt the **SLSA** framework—produce signed provenance attesting how, from what source, and by which builder an artifact was created, so consumers can verify it.
+- **Generate provenance**: adopt the **SLSA** framework-produce signed provenance attesting how, from what source, and by which builder an artifact was created, so consumers can verify it.
 - **Sign your artifacts** (for example with Sigstore/cosign) and publish the SBOM alongside each release.
 
 ## Step 9: Scan Containers and Base Images
@@ -149,9 +149,9 @@ grype myapp:1.4.2 --fail-on high
 
 ## Step 10: Virtual Patching as a Stopgap
 
-Sometimes you cannot upgrade immediately—a fix is not yet released, or the upgrade is a major, risky change. A **virtual patch** (a WAF rule or runtime filter that blocks the known exploit pattern) can reduce exposure while you prepare the real fix.
+Sometimes you cannot upgrade immediately-a fix is not yet released, or the upgrade is a major, risky change. A **virtual patch** (a WAF rule or runtime filter that blocks the known exploit pattern) can reduce exposure while you prepare the real fix.
 
-- Use it to *buy time*, never as the permanent remedy—the vulnerable code is still there.
+- Use it to *buy time*, never as the permanent remedy-the vulnerable code is still there.
 - Track every virtual patch as an open item with a deadline for the real upgrade.
 - Combine with monitoring so attempts to exploit the blocked pattern are logged and alerted.
 

@@ -4,7 +4,7 @@
 
 Preventing serverless misconfiguration is less about a single control and more about **making a private, encrypted, least-privilege deployment the only state that ships**:
 
-1. Make every resource private by default—no public buckets, no wildcard principals, no no-auth URLs.
+1. Make every resource private by default-no public buckets, no wildcard principals, no no-auth URLs.
 2. Scope every resource-based policy to a named principal with conditions.
 3. Move secrets into a manager and encrypt everything at rest and in transit.
 4. Scan the infrastructure as code on every change so drift fails the pipeline.
@@ -14,7 +14,7 @@ Preventing serverless misconfiguration is less about a single control and more a
 
 - **Secure by default**: the deployed default must be the private one; making a resource public should be explicit, rare, and reviewed.
 - **Configuration as code**: capture the intended secure state in IaC so it is identical everywhere and reviewable in version control.
-- **Least privilege everywhere**: every permission, trigger, and public surface is attack surface—remove what you don't need.
+- **Least privilege everywhere**: every permission, trigger, and public surface is attack surface-remove what you don't need.
 - **Encrypt and enforce transport**: KMS at rest, TLS in transit, and an explicit deny on unencrypted access.
 
 ## 1. Private-by-Default Storage
@@ -22,7 +22,7 @@ Preventing serverless misconfiguration is less about a single control and more a
 Block public access at the account and bucket level, encrypt, and enforce TLS.
 
 ```yaml
-# serverless.yml — SECURE bucket
+# serverless.yml - SECURE bucket
 resources:
   Resources:
     UploadsBucket:
@@ -81,7 +81,7 @@ Run these on every change and on a schedule against deployed stacks, so newly in
 Never grant to `Principal: "*"`. Name the exact principal and add conditions.
 
 ```yaml
-# AWS SAM — SECURE Lambda permission (scoped to one source)
+# AWS SAM - SECURE Lambda permission (scoped to one source)
 ProcessOrdersPermission:
   Type: AWS::Lambda::Permission
   Properties:
@@ -92,7 +92,7 @@ ProcessOrdersPermission:
 ```
 
 ```json
-// SECURE SQS access policy — specific account + condition, not "*"
+// SECURE SQS access policy - specific account + condition, not "*"
 {
   "Effect": "Allow",
   "Principal": { "AWS": "arn:aws:iam::123456789012:role/producer-role" },
@@ -109,7 +109,7 @@ Apply the same rule to SNS topic policies and API Gateway resource policies: an 
 Prefer no Function URL at all. If you need one, require IAM auth.
 
 ```yaml
-# AWS SAM — SECURE Function URL
+# AWS SAM - SECURE Function URL
 ProcessFunction:
   Type: AWS::Serverless::Function
   Properties:
@@ -127,14 +127,14 @@ For API Gateway, attach an authorizer (IAM, Cognito, or a Lambda authorizer) and
 Keep secrets out of environment variables. Pull them at runtime from a manager (see also SAS-7 for the full treatment).
 
 ```yaml
-# SECURE — reference secrets, do not inline them; encrypt env with a CMK
+# SECURE - reference secrets, do not inline them; encrypt env with a CMK
 ProcessFunction:
   Type: AWS::Serverless::Function
   Properties:
     KmsKeyArn: !GetAtt EnvKey.Arn          # customer-managed key for env vars
     Environment:
       Variables:
-        DB_SECRET_ARN: !Ref DbSecret       # ARN only — resolved at runtime
+        DB_SECRET_ARN: !Ref DbSecret       # ARN only - resolved at runtime
         CONFIG_PARAM: /prod/app/config     # SSM parameter path, not the value
 ```
 
@@ -166,7 +166,7 @@ JobsQueue:
 Bound cost and abuse on every public surface.
 
 ```yaml
-# API Gateway — SECURE throttling + usage plan
+# API Gateway - SECURE throttling + usage plan
 ApiUsagePlan:
   Type: AWS::ApiGateway::UsagePlan
   Properties:
@@ -204,7 +204,7 @@ Cors:
 Both roles define the blast radius. Scope each to the specific resources and actions it needs.
 
 ```yaml
-# SECURE execution role — one function, one bucket, one secret
+# SECURE execution role - one function, one bucket, one secret
 ProcessRole:
   Type: AWS::IAM::Role
   Properties:
@@ -226,7 +226,7 @@ For the **deploy role**, avoid `AdministratorAccess`. Scope it to the CloudForma
 
 - **Triggers**: wire each function only to the event sources it genuinely needs; remove leftover S3/SNS/schedule triggers.
 - **Networking**: avoid default-VPC exposure and wide-open security groups; place functions that reach private data in a VPC with least-privilege groups.
-- **Drift detection**: enable CloudFormation drift detection and alert when live configuration diverges from the template—out-of-band changes are how public resources reappear.
+- **Drift detection**: enable CloudFormation drift detection and alert when live configuration diverges from the template-out-of-band changes are how public resources reappear.
 
 ```bash
 aws cloudformation detect-stack-drift --stack-name prod-orders
@@ -273,11 +273,11 @@ Resources:
 
 ## Key Takeaways
 
-1. **Private by default** — Block Public Access, no wildcard principals, no no-auth URLs.
-2. **Scan the IaC** — checkov, cfn-nag, and tfsec fail the build on public resources and wildcard policies.
-3. **Secrets in a manager, everything encrypted** — KMS at rest, TLS enforced in transit, no plaintext env vars.
-4. **Bound the abuse** — throttling, quotas, and reserved concurrency on every public surface.
-5. **Least privilege on both roles** — scope the execution role and the deploy role; detect drift.
+1. **Private by default** - Block Public Access, no wildcard principals, no no-auth URLs.
+2. **Scan the IaC** - checkov, cfn-nag, and tfsec fail the build on public resources and wildcard policies.
+3. **Secrets in a manager, everything encrypted** - KMS at rest, TLS enforced in transit, no plaintext env vars.
+4. **Bound the abuse** - throttling, quotas, and reserved concurrency on every public surface.
+5. **Least privilege on both roles** - scope the execution role and the deploy role; detect drift.
 
 ## Next Steps
 

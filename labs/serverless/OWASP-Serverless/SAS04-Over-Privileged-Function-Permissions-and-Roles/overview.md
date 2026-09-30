@@ -12,7 +12,7 @@
 
 **Over-Privileged Function Permissions & Roles** occurs when a serverless function is granted far more identity and access management (IAM) permission than it actually needs to do its job. Instead of being scoped to the one table it reads or the one bucket it writes, the function carries wildcard actions, wildcard resources, broad managed policies, or a single shared role reused across the whole application. The permission the function *holds* is much larger than the permission the function *uses*.
 
-A serverless application is not one process—it is dozens or hundreds of small, independently deployed functions, each with its own execution role. That structure is a security opportunity: every function *could* be locked to exactly the handful of API calls it makes. Over-privilege throws that opportunity away. When a function's role says `"Action": "*"` on `"Resource": "*"`, the function's actual code may only call `dynamodb:GetItem` on one table—but the credentials it is handed can do anything, anywhere, in the account.
+A serverless application is not one process-it is dozens or hundreds of small, independently deployed functions, each with its own execution role. That structure is a security opportunity: every function *could* be locked to exactly the handful of API calls it makes. Over-privilege throws that opportunity away. When a function's role says `"Action": "*"` on `"Resource": "*"`, the function's actual code may only call `dynamodb:GetItem` on one table-but the credentials it is handed can do anything, anywhere, in the account.
 
 ### Core Concept
 
@@ -38,9 +38,9 @@ Over-Privileged (vulnerable):
 
 Serverless concentrates several conditions that make over-privilege uniquely dangerous:
 
-- The function's role credentials are **right there in the execution environment**. The platform injects short-lived keys for the role into the function at runtime (environment variables, the instance/credentials endpoint). Any code execution in the function — often via [SAS-1 event-data injection](../SAS01-Function-Event-Data-Injection/overview.md) — can read those credentials and assume the role's full power.
+- The function's role credentials are **right there in the execution environment**. The platform injects short-lived keys for the role into the function at runtime (environment variables, the instance/credentials endpoint). Any code execution in the function - often via [SAS-1 event-data injection](../SAS01-Function-Event-Data-Injection/overview.md) - can read those credentials and assume the role's full power.
 - There are **many functions, so many roles to get wrong**. Copying one permissive template across a fleet propagates the same over-broad role everywhere.
-- Functions are **glue between managed services** — they touch storage, databases, queues, secrets, and other functions. A wildcard on any of those services is a wildcard over the whole data plane.
+- Functions are **glue between managed services** - they touch storage, databases, queues, secrets, and other functions. A wildcard on any of those services is a wildcard over the whole data plane.
 - The identity boundary **is the only boundary**. There is no long-lived host, no network segmentation to fall back on; if the role is broad, the compromise is broad. The IAM policy *is* the security perimeter.
 
 ## Why Does This Matter?
@@ -55,7 +55,7 @@ Serverless concentrates several conditions that make over-privilege uniquely dan
 
 ### Technical Impact
 
-- **Lateral Movement**: The role becomes a pivot — `lambda:InvokeFunction` on `*` lets a compromised function trigger and abuse every other function's logic and data.
+- **Lateral Movement**: The role becomes a pivot - `lambda:InvokeFunction` on `*` lets a compromised function trigger and abuse every other function's logic and data.
 - **Persistence**: With `iam:*` or function-management permissions, an attacker can create back-door users, roles, or functions that survive the original fix.
 - **Defense Evasion**: Broad permissions may include the ability to disable logging or delete trails, hiding the intrusion.
 - **Cross-Service Blast Radius**: A role scoped to "all of DynamoDB and all of S3 and all of SQS" turns a single-service bug into a multi-service breach.
@@ -68,7 +68,7 @@ Serverless concentrates several conditions that make over-privilege uniquely dan
 #### 1. A Single Shared Execution Role for Every Function
 
 ```yaml
-# serverless.yml — one broad role at the provider level, inherited by ALL functions
+# serverless.yml - one broad role at the provider level, inherited by ALL functions
 provider:
   name: aws
   iam:
@@ -106,7 +106,7 @@ Attached to the execution role:
   AWSLambda_FullAccess
 ```
 
-**Risk**: `*FullAccess` managed policies are convenient and enormous. They grant hundreds of actions across all resources of a service — the opposite of least privilege.
+**Risk**: `*FullAccess` managed policies are convenient and enormous. They grant hundreds of actions across all resources of a service - the opposite of least privilege.
 
 #### 4. Unused Permissions Accumulating Over Time
 
@@ -128,7 +128,7 @@ Role granted in 2025: secretsmanager:GetSecretValue   # only used by 1 of 6 func
 }
 ```
 
-**Risk**: These are not data permissions—they are permissions to *rewrite permissions*. Unscoped `iam:PassRole` lets a function hand a powerful role to a service it controls; `iam:AttachRolePolicy` / `CreatePolicyVersion` let it grant itself admin.
+**Risk**: These are not data permissions-they are permissions to *rewrite permissions*. Unscoped `iam:PassRole` lets a function hand a powerful role to a service it controls; `iam:AttachRolePolicy` / `CreatePolicyVersion` let it grant itself admin.
 
 #### 6. Cross-Service Over-Permission
 
@@ -165,7 +165,7 @@ The incidents below are described as **classes** of well-documented failure rath
 - The function is exploited (for example through event-data injection or a vulnerable dependency), giving the attacker code execution and therefore the role's credentials.
 
 **Impact**:
-- Because the role is account-wide, the attacker reads and exfiltrates buckets and tables that have nothing to do with the compromised function — the blast radius is the whole data plane, not the one feature.
+- Because the role is account-wide, the attacker reads and exfiltrates buckets and tables that have nothing to do with the compromised function - the blast radius is the whole data plane, not the one feature.
 
 **Root Cause**: A wildcard role turned a single-function bug into a full-account data breach. A least-privilege role scoped to the one table would have contained it.
 
@@ -175,7 +175,7 @@ The incidents below are described as **classes** of well-documented failure rath
 - A function's role includes `iam:PassRole` on `*` plus the ability to create or update another compute resource (a new function, a task, an instance).
 
 **Impact**:
-- The attacker uses `PassRole` to attach a far more privileged existing role to a resource they create, then operates as that role — escalating well beyond what the original function was ever granted.
+- The attacker uses `PassRole` to attach a far more privileged existing role to a resource they create, then operates as that role - escalating well beyond what the original function was ever granted.
 
 **Root Cause**: A permission to *delegate* roles was left unscoped. `PassRole` should always be constrained to specific, minimally-privileged role ARNs with a service condition.
 
@@ -195,7 +195,7 @@ Over-privileged function permissions are consistently identified as one of the *
 
 Rather than cite precise percentages (which vary by source and year), the defensible picture is:
 
-- The **vast majority of function roles grant more than the function uses** — analyzers that compare granted vs. used permissions routinely report large unused surpluses.
+- The **vast majority of function roles grant more than the function uses** - analyzers that compare granted vs. used permissions routinely report large unused surpluses.
 - **Wildcards and `*FullAccess` policies are widespread** because they are the path of least resistance when a deployment is failing on a permission error.
 - The impact is rated **severe**: over-privilege is rarely the initial entry point, but it is the multiplier that turns a contained bug into an account-wide breach.
 
@@ -209,7 +209,7 @@ Rather than cite precise percentages (which vary by source and year), the defens
 
 ### Myth 2: "The function code only calls two APIs, so the wildcard is harmless"
 
-**Reality**: Attackers do not run your code—they run *their* code with your role's credentials. What matters is what the role *can* do, not what your handler happens to call.
+**Reality**: Attackers do not run your code-they run *their* code with your role's credentials. What matters is what the role *can* do, not what your handler happens to call.
 
 ### Myth 3: "It's an internal/background function, so permissions don't matter"
 
@@ -225,7 +225,7 @@ Rather than cite precise percentages (which vary by source and year), the defens
 
 ### Myth 6: "`*FullAccess` managed policies are AWS-blessed, so they're fine"
 
-**Reality**: Managed `*FullAccess` policies exist for convenience and breadth, not for least privilege. They grant hundreds of actions on all resources—the direct opposite of what a single function needs.
+**Reality**: Managed `*FullAccess` policies exist for convenience and breadth, not for least privilege. They grant hundreds of actions on all resources-the direct opposite of what a single function needs.
 
 ## How Over-Privilege Differs from Related Issues
 
@@ -240,11 +240,11 @@ SAS-1 and SAS-4 are the classic pairing: injection is *how* an attacker gets in,
 
 ## Key Takeaways
 
-1. **The role is the perimeter**—in serverless there is no host or network to fall back on, so an over-broad role *is* the breach surface.
-2. **What the role can do, not what the code calls**—attackers use the credentials, not your handler.
-3. **One least-privilege role per function**—shared and wildcard roles make the weakest function define the blast radius.
-4. **Meta-permissions are the crown jewels**—`iam:*` and unscoped `iam:PassRole` convert a foothold into account takeover.
-5. **Granted drifts above used**—permissions accumulate, so generate and re-verify least privilege continuously.
+1. **The role is the perimeter**-in serverless there is no host or network to fall back on, so an over-broad role *is* the breach surface.
+2. **What the role can do, not what the code calls**-attackers use the credentials, not your handler.
+3. **One least-privilege role per function**-shared and wildcard roles make the weakest function define the blast radius.
+4. **Meta-permissions are the crown jewels**-`iam:*` and unscoped `iam:PassRole` convert a foothold into account takeover.
+5. **Granted drifts above used**-permissions accumulate, so generate and re-verify least privilege continuously.
 
 ## How to Identify if You're Vulnerable
 

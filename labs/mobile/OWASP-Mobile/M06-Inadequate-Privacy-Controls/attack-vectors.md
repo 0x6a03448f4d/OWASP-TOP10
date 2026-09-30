@@ -18,7 +18,7 @@
 
 ## Introduction
 
-Unlike traditional attack vectors where external adversaries exploit vulnerabilities, inadequate privacy controls create a scenario where **the application itself becomes the threat actor**. These attacks don't require exploiting bugs or bypassing security measures—they abuse legitimate functionality to violate user privacy.
+Unlike traditional attack vectors where external adversaries exploit vulnerabilities, inadequate privacy controls create a scenario where **the application itself becomes the threat actor**. These attacks don't require exploiting bugs or bypassing security measures-they abuse legitimate functionality to violate user privacy.
 
 This document outlines how malicious or negligent developers leverage insufficient privacy controls to:
 - Collect excessive user data beyond app functionality

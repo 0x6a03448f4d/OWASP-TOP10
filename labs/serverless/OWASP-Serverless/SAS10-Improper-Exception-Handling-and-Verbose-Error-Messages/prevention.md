@@ -1,6 +1,6 @@
 # SAS-10: Improper Exception Handling and Verbose Error Messages - Prevention
 
-The fix for SAS-10 is a single, repeatable discipline applied to every function: **catch the error, decide deliberately what happens next, tell the caller nothing internal, and tell the logs everything.** This page turns that sentence into concrete controls—handler wrappers, API Gateway error mapping, fail-closed security paths, idempotent retries, and uniform responses—so no exception is ever left to the platform's hostile defaults.
+The fix for SAS-10 is a single, repeatable discipline applied to every function: **catch the error, decide deliberately what happens next, tell the caller nothing internal, and tell the logs everything.** This page turns that sentence into concrete controls-handler wrappers, API Gateway error mapping, fail-closed security paths, idempotent retries, and uniform responses-so no exception is ever left to the platform's hostile defaults.
 
 ## Table of Contents
 
@@ -22,7 +22,7 @@ The fix for SAS-10 is a single, repeatable discipline applied to every function:
 
 - **No exception reaches the platform serialiser.** Each handler has an outermost catch.
 - **Two audiences.** The caller gets a generic message plus a correlation id; the logs get the full structured detail.
-- **Fail closed.** On any security-relevant error, deny—never fall through to the privileged path.
+- **Fail closed.** On any security-relevant error, deny-never fall through to the privileged path.
 - **Safe to repeat.** Assume at-least-once delivery: clean up partial work and make side effects idempotent.
 - **Uniform to strangers.** Equivalent failures produce equivalent responses and timing, so errors are not an oracle.
 - **Nothing is lost.** Every error is caught, classified, and logged, so the audit trail survives the failure.
@@ -145,7 +145,7 @@ console.error(JSON.stringify({ level:'ERROR', correlationId,
 
 - Store secrets in a secret manager and reference them at runtime (ties to **SAS-7**); an error that cannot see a plaintext secret cannot leak one.
 - Strip stack traces, DSNs, ARNs, and account ids from anything client-bound.
-- Treat logs as a sensitive sink too—redact there, since log stores are often more widely readable than secret stores.
+- Treat logs as a sensitive sink too-redact there, since log stores are often more widely readable than secret stores.
 
 ## 5. Fail Closed on Security Paths
 
@@ -171,7 +171,7 @@ return admin_action(event)   # reached only on explicit success
 ```
 
 - Make the security decision an explicit allow, reachable only after every check *succeeds*.
-- Ensure every failure branch ends in a `return`/deny—a missing `return` is a fall-through bypass.
+- Ensure every failure branch ends in a `return`/deny-a missing `return` is a fall-through bypass.
 - Default deny in feature-flag and policy fetches: if the policy service errors, deny, do not "default to allow".
 
 ## 6. Idempotency and Cleanup on Error
@@ -201,7 +201,7 @@ exports.handler = withErrorBoundary(async (event) => {
 
 ## 7. Uniform Responses (No Oracles)
 
-Equivalent failures must look—and take—the same from the outside.
+Equivalent failures must look-and take-the same from the outside.
 
 - Return the **same status and body** for "user not found" and "wrong password"; distinguish them only in the logs.
 - Avoid status/message shapes that change based on whether a record exists.
@@ -224,7 +224,7 @@ The handler boundary must log *before* it returns, so a failure can never erase 
 
 - Emit a structured security event on every deny, error, and sensitive action, keyed by the correlation id.
 - Put the audit write inside the boundary's catch, so even unexpected crashes are recorded.
-- Do not place the only audit log *after* risky work—if that work throws, the log never runs. Log the decision as it is made.
+- Do not place the only audit log *after* risky work-if that work throws, the log never runs. Log the decision as it is made.
 - Send logs to a durable, access-controlled store (e.g. CloudWatch) that the function's own role cannot delete (ties to **SAS-5** monitoring).
 
 ## 9. Disable Verbose Output in Production
@@ -249,7 +249,7 @@ The handler boundary must log *before* it returns, so a failure can never erase 
 | Debug/verbose output off in production | Secondary leaks via logs |
 | Explicit known-error handling + generic fallback | Inconsistent, leaky error shapes |
 
-> **Bottom line**: every function should be boring when it fails—a generic message to the caller, a rich structured record in the logs, a hard deny on security paths, and a safe-to-retry side effect. Boring failures are secure failures.
+> **Bottom line**: every function should be boring when it fails-a generic message to the caller, a rich structured record in the logs, a hard deny on security paths, and a safe-to-retry side effect. Boring failures are secure failures.
 
 ## Next Steps
 

@@ -1,16 +1,16 @@
 # SAS-6: Insecure Third-Party Dependencies - Code Examples
 
-Each pair below shows a **vulnerable** setup and the **secure** version of the same thing—package configuration, lockfiles and hashes, CI scanning, and Lambda layer/dependency handling. The focus is the choices that decide whether a bad package can enter, and what it can do once it does.
+Each pair below shows a **vulnerable** setup and the **secure** version of the same thing-package configuration, lockfiles and hashes, CI scanning, and Lambda layer/dependency handling. The focus is the choices that decide whether a bad package can enter, and what it can do once it does.
 
 ## 1. Package Configuration (package.json / requirements.txt)
 
 ### Vulnerable
 ```
-# package.json — floating ranges + a build-time script that runs anything
+# package.json - floating ranges + a build-time script that runs anything
 {
   "name": "order-fn",
   "dependencies": {
-    "left-pad": "*",              // whatever resolves — no ceiling
+    "left-pad": "*",              // whatever resolves - no ceiling
     "some-parser": "^1.0.0",      // silently accepts a hijacked 1.9.9
     "aws-sdk": "latest"           // non-deterministic across builds
   },
@@ -19,7 +19,7 @@ Each pair below shows a **vulnerable** setup and the **secure** version of the s
   }
 }
 
-# requirements.txt — unpinned, no hashes
+# requirements.txt - unpinned, no hashes
 requests
 pyyaml>=3
 some-utils            # name never verified; a typo installs an impostor
@@ -27,7 +27,7 @@ some-utils            # name never verified; a typo installs an impostor
 
 ### Secure
 ```
-# package.json — exact-ish, no floating "latest", scripts controlled in CI
+# package.json - exact-ish, no floating "latest", scripts controlled in CI
 {
   "name": "order-fn",
   "dependencies": {
@@ -37,7 +37,7 @@ some-utils            # name never verified; a typo installs an impostor
   // no lifecycle scripts here; CI installs with --ignore-scripts
 }
 
-# requirements.txt — pinned AND hash-verified
+# requirements.txt - pinned AND hash-verified
 requests==2.32.3 \
     --hash=sha256:70761cfe03c773ceb22aa2f671b4757976145175cdfca038c02654d061d6dcc6
 pyyaml==6.0.2 \
@@ -59,7 +59,7 @@ pip install -r requirements.txt # no --require-hashes; any matching version
 
 ### Secure
 ```
-# Node — deterministic install straight from the committed lockfile
+# Node - deterministic install straight from the committed lockfile
 npm ci                          # fails if package-lock.json is missing/out of sync
 # package-lock.json pins each dep with an integrity hash:
 #   "some-parser": {
@@ -67,7 +67,7 @@ npm ci                          # fails if package-lock.json is missing/out of s
 #     "integrity": "sha512-Xa9...=="   // artifact is verified on install
 #   }
 
-# Python — require a hash for every package (direct and transitive)
+# Python - require a hash for every package (direct and transitive)
 pip install --require-hashes -r requirements.txt
 # A swapped or tampered artifact fails the hash check and aborts the build.
 ```
@@ -76,7 +76,7 @@ pip install --require-hashes -r requirements.txt
 
 ### Vulnerable
 ```
-# .github/workflows/deploy.yml — no scanning; ship whatever installs
+# .github/workflows/deploy.yml - no scanning; ship whatever installs
 jobs:
   deploy:
     steps:
@@ -86,7 +86,7 @@ jobs:
 
 ### Secure
 ```
-# .github/workflows/deploy.yml — scan gates the deploy
+# .github/workflows/deploy.yml - scan gates the deploy
 jobs:
   deploy:
     steps:
@@ -124,7 +124,7 @@ build-layer.sh:
   aws lambda publish-layer-version --layer-name common-deps \
       --zip-file fileb://layer.zip
 
-# serverless.yml — 40 functions attach the same stale layer
+# serverless.yml - 40 functions attach the same stale layer
 functions:
   orders:
     handler: orders.handler
@@ -145,7 +145,7 @@ build-layer.sh:
   aws lambda publish-layer-version --layer-name common-deps \
       --zip-file fileb://layer.zip
 
-# serverless.yml — supported runtime, layer version bumped as it is rebuilt
+# serverless.yml - supported runtime, layer version bumped as it is rebuilt
 functions:
   orders:
     handler: orders.handler
@@ -160,7 +160,7 @@ Even a perfectly scanned pipeline can be beaten by a zero-day. The final control
 
 ### Vulnerable
 ```
-# serverless.yml — the function role is a skeleton key
+# serverless.yml - the function role is a skeleton key
 provider:
   name: aws
   iam:
@@ -175,7 +175,7 @@ provider:
 
 ### Secure
 ```
-# serverless.yml — least privilege + secrets out of plaintext env
+# serverless.yml - least privilege + secrets out of plaintext env
 provider:
   name: aws
   iam:
@@ -198,7 +198,7 @@ functions:
 |------|------------|--------|
 | Package config | Floating ranges (`*`, `latest`), `postinstall` on | Deliberate exact versions; scripts controlled in CI |
 | Lockfiles / hashes | `npm install`, no committed lockfile, no hashes | `npm ci` / `--require-hashes` from a committed, hashed lockfile |
-| CI scanning | None — CVEs ship silently | SCA + SBOM scan gate the deploy, and run on a schedule |
+| CI scanning | None - CVEs ship silently | SCA + SBOM scan gate the deploy, and run on a schedule |
 | Layers / runtime | Stale, unscanned layer; deprecated runtime | Scanned, rebuilt layer; current, patched runtime |
 | Blast radius | `*` role, secret in plaintext env | Least-privilege role, secrets manager, egress limits |
 

@@ -8,9 +8,9 @@
 
 ## Understanding Logic-Error Attack Vectors
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in contracts you own or are authorised to test.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in contracts you own or are authorised to test.
 
-Logic errors are not exploited with a clever memory trick or a malformed call. They are exploited with **arithmetic**: an attacker reads the verified source, models the intended invariant, finds the input where the implementation disagrees with the intent, and executes exactly the ordinary transactions that push value in their direction. The contract does precisely what its code says—which is the problem.
+Logic errors are not exploited with a clever memory trick or a malformed call. They are exploited with **arithmetic**: an attacker reads the verified source, models the intended invariant, finds the input where the implementation disagrees with the intent, and executes exactly the ordinary transactions that push value in their direction. The contract does precisely what its code says-which is the problem.
 
 The attacker's goal in this category is usually one of:
 
@@ -117,7 +117,7 @@ The attacker supplies a non-standard token to a contract that assumes amount-in 
 // Attacker withdraws 1000 elsewhere, draining 100 of other users' funds.
 ```
 
-**Payoff**: the recorded/real gap is siphoned. Rebasing tokens cause the mirror problem—balances shift after accounting is recorded.
+**Payoff**: the recorded/real gap is siphoned. Rebasing tokens cause the mirror problem-balances shift after accounting is recorded.
 
 ### 6. Off-by-One / Boundary Bypass
 
@@ -184,11 +184,11 @@ Reward checkpoint never advances -> claim the same period repeatedly
 
 ## Key Takeaways
 
-1. **Logic errors are exploited by arithmetic, not payloads**—the attacker out-models the developer and lets the code do the rest.
-2. **Edge cases are the entry point**—first depositor, empty pool, zero amount, and boundaries are probed first.
-3. **Rounding is a weapon**—truncation that favours the caller is a repeatable drain.
-4. **Checkpoints and accounting must be exact**—a period paid twice or a balance credited without verification is money lost.
-5. **Small discrepancies chain**—an empty-pool rule plus a donation plus a rounding bias equals a full drain with no exploit primitive at all.
+1. **Logic errors are exploited by arithmetic, not payloads**-the attacker out-models the developer and lets the code do the rest.
+2. **Edge cases are the entry point**-first depositor, empty pool, zero amount, and boundaries are probed first.
+3. **Rounding is a weapon**-truncation that favours the caller is a repeatable drain.
+4. **Checkpoints and accounting must be exact**-a period paid twice or a balance credited without verification is money lost.
+5. **Small discrepancies chain**-an empty-pool rule plus a donation plus a rounding bias equals a full drain with no exploit primitive at all.
 
 ## Next Steps
 

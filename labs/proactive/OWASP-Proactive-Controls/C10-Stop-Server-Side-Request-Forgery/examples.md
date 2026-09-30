@@ -2,7 +2,7 @@
 
 Each pair below shows a **vulnerable** outbound fetch and the **secure** version in the same framework. The vulnerable code takes a user-supplied URL and requests it verbatim; the secure code parses the URL, checks the scheme, resolves DNS, validates and pins the resolved IP against reserved ranges, refuses redirects, and bounds the response.
 
-> These snippets illustrate the control. In production, prefer a single, centralized, vetted SSRF-safe HTTP client and back it with network egress filtering—never rely on application code alone.
+> These snippets illustrate the control. In production, prefer a single, centralized, vetted SSRF-safe HTTP client and back it with network egress filtering-never rely on application code alone.
 
 ## Flask (Python)
 

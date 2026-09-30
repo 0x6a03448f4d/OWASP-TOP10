@@ -7,19 +7,19 @@ Preventing K04 is about **making enforcement the default path that every workloa
 1. Put a policy engine in the admission chain of every cluster.
 2. Set a baseline floor with Pod Security Admission in `enforce` mode.
 3. Source all policy from Git and apply it uniformly (GitOps).
-4. Enforce, not audit—and fail closed on sensitive resources.
+4. Enforce, not audit-and fail closed on sensitive resources.
 5. Continuously scan for drift and pre-existing violations.
 
 ### Core Principles
 
 - **Enforce in the admission path**: a control that runs before the object is persisted is the only one that covers direct applies, Helm, and operators.
-- **Uniform coverage**: every namespace and every cluster, from a single source of truth—no excluded soft targets.
+- **Uniform coverage**: every namespace and every cluster, from a single source of truth-no excluded soft targets.
 - **Enforce, then observe**: audit is a migration step; the destination is `enforce` plus fail-closed.
 - **Defence in depth**: PSA as the floor, a policy engine for custom rules, scanning for drift.
 
 ## 1. Adopt Pod Security Admission as the Baseline Floor
 
-Pod Security Admission is built into Kubernetes (stable since 1.25) and needs no extra components. Label every namespace to *enforce* a profile—`restricted` where possible, `baseline` at minimum—and keep `warn`/`audit` at `restricted` so you can see how close you are to the stricter tier.
+Pod Security Admission is built into Kubernetes (stable since 1.25) and needs no extra components. Label every namespace to *enforce* a profile-`restricted` where possible, `baseline` at minimum-and keep `warn`/`audit` at `restricted` so you can see how close you are to the stricter tier.
 
 ```yaml
 apiVersion: v1
@@ -151,7 +151,7 @@ spec:
 
 ## 4. Enforce Image Provenance
 
-Restrict images to approved registries and require signatures so untrusted images cannot run—this is the K04 answer to the supply-chain vector.
+Restrict images to approved registries and require signatures so untrusted images cannot run-this is the K04 answer to the supply-chain vector.
 
 ```yaml
 # Kyverno: only allow images from the approved registry
@@ -202,7 +202,7 @@ spec:
 
 ## 5. Enforce Resources, Labels, and Network Posture
 
-Require the settings that other controls depend on—resource limits (so one workload cannot starve a node) and standard labels (so NetworkPolicy and quotas actually select the right pods).
+Require the settings that other controls depend on-resource limits (so one workload cannot starve a node) and standard labels (so NetworkPolicy and quotas actually select the right pods).
 
 ```yaml
 apiVersion: kyverno.io/v1
@@ -236,7 +236,7 @@ spec:
 
 ## 6. Fail Closed, Not Open
 
-Configure the webhooks so that when the policy engine cannot be consulted, admission of sensitive resources is *denied*—an outage must never silently disable policy. Scope the webhook so it does not deadlock the engine's own namespace.
+Configure the webhooks so that when the policy engine cannot be consulted, admission of sensitive resources is *denied*-an outage must never silently disable policy. Scope the webhook so it does not deadlock the engine's own namespace.
 
 ```yaml
 webhooks:
@@ -294,7 +294,7 @@ kubescape scan framework nsa
 trivy k8s cluster --report summary
 ```
 
-Wire the results into alerting so a regression—an unlabeled namespace, a webhook flipped to `Ignore`, a policy switched back to `Audit`—pages someone instead of sitting in a log.
+Wire the results into alerting so a regression-an unlabeled namespace, a webhook flipped to `Ignore`, a policy switched back to `Audit`-pages someone instead of sitting in a log.
 
 ## 9. Migrating Off PodSecurityPolicy
 
@@ -303,7 +303,7 @@ PSP was removed in Kubernetes 1.25. If you relied on it, adopt the replacement *
 1. Turn on Pod Security Admission in `audit`/`warn` at `restricted` and read the results to find workloads that would break.
 2. Fix or exempt those workloads, then flip namespaces to `enforce`.
 3. Install a policy engine for the custom rules PSP used to cover (registries, labels, images) that PSA cannot express.
-4. Only then upgrade past 1.25—so there is never a window with no guardrail.
+4. Only then upgrade past 1.25-so there is never a window with no guardrail.
 
 ## Enforcement Building Blocks at a Glance
 
@@ -320,11 +320,11 @@ PSP was removed in Kubernetes 1.25. If you relied on it, adopt the replacement *
 
 ## Key Takeaways
 
-1. **Put an engine in the admission path** — PSA for the floor, Kyverno/Gatekeeper for custom rules, on every cluster.
-2. **Enforce, don't audit** — `Enforce`/`deny`/`enforce`, and fail closed on sensitive resources.
-3. **Cover everything uniformly** — default PSA for new namespaces, one Git-sourced policy tree for all clusters.
-4. **Validate provenance and posture** — registries, signatures, resource limits, and required labels at admission.
-5. **Enforce plus scan** — admission control blocks the new; conformance scanning catches drift and the pre-existing.
+1. **Put an engine in the admission path** - PSA for the floor, Kyverno/Gatekeeper for custom rules, on every cluster.
+2. **Enforce, don't audit** - `Enforce`/`deny`/`enforce`, and fail closed on sensitive resources.
+3. **Cover everything uniformly** - default PSA for new namespaces, one Git-sourced policy tree for all clusters.
+4. **Validate provenance and posture** - registries, signatures, resource limits, and required labels at admission.
+5. **Enforce plus scan** - admission control blocks the new; conformance scanning catches drift and the pre-existing.
 
 ## Next Steps
 

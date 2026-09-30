@@ -13,9 +13,9 @@
 
 **Function Event-Data Injection** is the serverless form of the classic injection weakness: untrusted data reaches an interpreter (a SQL engine, a shell, an `eval`, an XML parser, an outbound HTTP client, or a log sink) and is treated as instructions rather than data. What makes it distinct in serverless is *where the untrusted data comes from*. A traditional web application receives input almost exclusively through the HTTP request. A serverless function can be triggered by a **dozen different event sources**, and every field of every one of those events can carry attacker-influenced data.
 
-The core mistake is a mental model, not a syntax error. Developers instinctively treat an HTTP request body as hostile—they reach for validation, parameterisation, and escaping. But when the same function is triggered by an S3 `ObjectCreated` event, an SNS notification, a DynamoDB stream record, or an inbound email through SES, the event object *feels* like trusted, platform-generated plumbing. It is not. An attacker who can influence what lands in a bucket, what gets published to a topic, or what row gets written to a table can steer the contents of that "internal" event straight into your interpreter.
+The core mistake is a mental model, not a syntax error. Developers instinctively treat an HTTP request body as hostile-they reach for validation, parameterisation, and escaping. But when the same function is triggered by an S3 `ObjectCreated` event, an SNS notification, a DynamoDB stream record, or an inbound email through SES, the event object *feels* like trusted, platform-generated plumbing. It is not. An attacker who can influence what lands in a bucket, what gets published to a topic, or what row gets written to a table can steer the contents of that "internal" event straight into your interpreter.
 
-> **The one-sentence version:** In serverless, the request is not the only attacker-controlled input—the event is, regardless of which of the many event sources produced it, and much of an event's payload is derived from data an attacker can shape.
+> **The one-sentence version:** In serverless, the request is not the only attacker-controlled input-the event is, regardless of which of the many event sources produced it, and much of an event's payload is derived from data an attacker can shape.
 
 ### Core Concept
 
@@ -36,14 +36,14 @@ Serverless function:
   IoT / CloudWatch     --/
 ```
 
-The vulnerability appears the moment a field taken from the event—an S3 object key, an SNS `Message` body, a DynamoDB attribute, an email subject line, an EventBridge `detail` field—is concatenated into a query, a command, a file path, a template, or a URL without validation or safe construction.
+The vulnerability appears the moment a field taken from the event-an S3 object key, an SNS `Message` body, a DynamoDB attribute, an email subject line, an EventBridge `detail` field-is concatenated into a query, a command, a file path, a template, or a URL without validation or safe construction.
 
 ### Why It's Different in Serverless
 
 - **Many triggers, one blind spot.** Perimeter defences (a WAF, an API Gateway request validator) only sit in front of the *HTTP* path. An S3, SNS, SQS, DynamoDB, or EventBridge trigger reaches the function directly, bypassing every HTTP-layer control you may have relied on.
-- **Event data is second-hand.** The event you receive is assembled by the cloud platform from an underlying object—a file, a message, a database item. You did not see the write that produced it, so you cannot assume it was validated at the source.
+- **Event data is second-hand.** The event you receive is assembled by the cloud platform from an underlying object-a file, a message, a database item. You did not see the write that produced it, so you cannot assume it was validated at the source.
 - **Functions are small and trusting.** Serverless code is often glue: read the event, do one thing, call a downstream service. That "one thing" frequently interpolates event fields directly, because the code looks too simple to be dangerous.
-- **The blast radius is an IAM role.** A function runs with an execution role. If that role is broad, a successful injection does not just corrupt one request—it borrows the function's permissions across your whole account.
+- **The blast radius is an IAM role.** A function runs with an execution role. If that role is broad, a successful injection does not just corrupt one request-it borrows the function's permissions across your whole account.
 
 ## Why Does This Matter?
 
@@ -53,7 +53,7 @@ The vulnerability appears the moment a field taken from the event—an S3 object
 - **Remote code execution**: OS command injection or `eval`/dynamic-`require` of event data runs attacker code inside the function sandbox, with the function's role attached.
 - **Lateral movement across the account**: Because the function holds cloud credentials, injection becomes a pivot into S3, DynamoDB, Secrets Manager, and other services the role can reach.
 - **Silent, asynchronous compromise**: An attacker who poisons a queue message or an uploaded file may trigger the function minutes later, with no HTTP request in your access logs to point at.
-- **Compliance exposure**: The data a function processes—uploads, events, messages—is frequently personal or regulated, so a breach carries GDPR/HIPAA/PCI consequences.
+- **Compliance exposure**: The data a function processes-uploads, events, messages-is frequently personal or regulated, so a breach carries GDPR/HIPAA/PCI consequences.
 
 ### Technical Impact
 
@@ -82,7 +82,7 @@ The heart of this weakness is the sheer number of ways an attacker can get data 
 | IoT | MQTT topic and message payload | Publishes from a (possibly spoofed) device |
 | CloudWatch Logs / Events | log line content, event detail | Writes attacker-controlled text into a monitored log |
 
-Notice how indirect several of these are. An attacker does not need credentials to your account to influence a DynamoDB Streams event—they only need to reach *some* code path (often a public API) that writes to the table. The write looks legitimate; the stream faithfully delivers the poisoned attribute to your function; your function trusts it because "it came from DynamoDB."
+Notice how indirect several of these are. An attacker does not need credentials to your account to influence a DynamoDB Streams event-they only need to reach *some* code path (often a public API) that writes to the table. The write looks legitimate; the stream faithfully delivers the poisoned attribute to your function; your function trusts it because "it came from DynamoDB."
 
 ## Technical Context
 
@@ -154,13 +154,13 @@ const res = await fetch(url);                // pulls the role's credentials
 
 ## Real-World Impact
 
-The examples below are described as **incident classes**—patterns repeatedly observed in serverless assessments and public research—rather than specific numbered CVEs, because the weakness is architectural and recurs across many products.
+The examples below are described as **incident classes**-patterns repeatedly observed in serverless assessments and public research-rather than specific numbered CVEs, because the weakness is architectural and recurs across many products.
 
 ### Class 1: Trusting the Upload Pipeline
 
 **Pattern**: A function is wired to an S3 bucket's `ObjectCreated` events to post-process uploads (thumbnailing, virus scanning, indexing). The object key or user-supplied metadata is passed to a shell command or a database query.
 
-**Impact**: An attacker who can upload—often through a public "presigned URL" or an unauthenticated upload form—chooses the object key. Because the function trusts the S3 event, the key becomes a command or SQL payload. This has produced both remote code execution (through image/media CLI tools invoked with the filename) and data tampering (through injected SQL).
+**Impact**: An attacker who can upload-often through a public "presigned URL" or an unauthenticated upload form-chooses the object key. Because the function trusts the S3 event, the key becomes a command or SQL payload. This has produced both remote code execution (through image/media CLI tools invoked with the filename) and data tampering (through injected SQL).
 
 **Root cause**: The HTTP upload endpoint was hardened; the *event-driven* processor behind it was not, because the event "came from S3."
 
@@ -168,7 +168,7 @@ The examples below are described as **incident classes**—patterns repeatedly o
 
 **Pattern**: A producer writes to SNS/SQS/Kinesis; a consumer function interpolates the message body into a query or command. The producer accepts data from a public interface.
 
-**Impact**: The attacker never talks to the vulnerable function. They submit data to the public producer, which faithfully forwards it through the queue. The consumer, running asynchronously and off the HTTP path, executes the payload with no request in the access logs to correlate—making detection and forensics harder.
+**Impact**: The attacker never talks to the vulnerable function. They submit data to the public producer, which faithfully forwards it through the queue. The consumer, running asynchronously and off the HTTP path, executes the payload with no request in the access logs to correlate-making detection and forensics harder.
 
 **Root cause**: A trust boundary was assumed at the queue that does not exist; queues transport data, they do not sanitise it.
 
@@ -184,18 +184,18 @@ The examples below are described as **incident classes**—patterns repeatedly o
 
 **Pattern**: SES delivers inbound mail to a function that parses subject, sender, body, or attachments and uses them in queries, commands, file paths, or XML parsing.
 
-**Impact**: Email is entirely attacker-controlled and trivial to send. Subject lines carry SQL, attachment names carry traversal sequences, and XML/HTML bodies carry XXE payloads—all delivered through a channel operators rarely think of as "user input."
+**Impact**: Email is entirely attacker-controlled and trivial to send. Subject lines carry SQL, attachment names carry traversal sequences, and XML/HTML bodies carry XXE payloads-all delivered through a channel operators rarely think of as "user input."
 
 **Root cause**: Email headers and bodies are treated as descriptive metadata rather than as fully untrusted input.
 
 ## Prevalence and Characteristics
 
-Injection has been the archetypal application weakness for two decades, and serverless does not remove it—it **multiplies the entry points**. In the OWASP Serverless Top 10 framing, event-data injection sits at the top precisely because the expanded, non-HTTP event surface is where defenders' habits break down.
+Injection has been the archetypal application weakness for two decades, and serverless does not remove it-it **multiplies the entry points**. In the OWASP Serverless Top 10 framing, event-data injection sits at the top precisely because the expanded, non-HTTP event surface is where defenders' habits break down.
 
 Rather than cite precise counts (which vary by source and year), the durable picture is:
 
 - Injection remains **highly prevalent and highly impactful**; serverless changes the *plumbing*, not the underlying flaw.
-- The most commonly missed vectors are the **non-HTTP triggers**—S3, SNS, SQS, DynamoDB Streams, SES—because HTTP input is validated out of habit and event input is not.
+- The most commonly missed vectors are the **non-HTTP triggers**-S3, SNS, SQS, DynamoDB Streams, SES-because HTTP input is validated out of habit and event input is not.
 - Impact ranges from **information disclosure and data tampering up to remote code execution and account-wide lateral movement**, gated largely by how broad the function's execution role is.
 
 > Note: treat any single statistic as illustrative. The reliable takeaway is that the number of injection entry points goes *up* in serverless, and the least-guarded ones are the events that do not look like requests.
@@ -208,7 +208,7 @@ Rather than cite precise counts (which vary by source and year), the durable pic
 
 ### Myth 2: "The event came from AWS, so it's trustworthy"
 
-**Reality**: AWS faithfully *delivers* the event; it does not vouch for its contents. The platform wraps whatever underlying data exists—including data an attacker planted—in a well-formed event envelope.
+**Reality**: AWS faithfully *delivers* the event; it does not vouch for its contents. The platform wraps whatever underlying data exists-including data an attacker planted-in a well-formed event envelope.
 
 ### Myth 3: "Our WAF stops injection"
 
@@ -222,7 +222,7 @@ Rather than cite precise counts (which vary by source and year), the durable pic
 
 **Reality**: Small glue functions are *more* likely to interpolate an event field straight into a query, command, or path, precisely because the code looks trivial.
 
-### Myth 6: "It's just injection—same as always"
+### Myth 6: "It's just injection-same as always"
 
 **Reality**: The *fix* is familiar (validate, parameterise, avoid dynamic execution), but the *scope* is not: you must apply it to every event source, not just the request body, and you must contain the blast radius with a least-privilege role.
 
@@ -239,11 +239,11 @@ These are complementary: injection is frequently the way in, and an over-privile
 
 ## Key Takeaways
 
-1. **The event is user input**—every field, from every trigger, regardless of whether an HTTP request was involved.
-2. **Non-HTTP triggers are the blind spot**—S3 keys, SNS/SQS bodies, DynamoDB attributes, and email fields are validated far less often than request bodies.
-3. **The platform delivers, it does not sanitise**—"it came from AWS" says nothing about the contents.
-4. **Familiar fixes, wider scope**—parameterise, validate against strict per-event schemas, and never `eval`/exec untrusted data, on every source.
-5. **Least privilege is the containment**—a narrowly scoped execution role decides whether a missed injection is a contained bug or an account breach.
+1. **The event is user input**-every field, from every trigger, regardless of whether an HTTP request was involved.
+2. **Non-HTTP triggers are the blind spot**-S3 keys, SNS/SQS bodies, DynamoDB attributes, and email fields are validated far less often than request bodies.
+3. **The platform delivers, it does not sanitise**-"it came from AWS" says nothing about the contents.
+4. **Familiar fixes, wider scope**-parameterise, validate against strict per-event schemas, and never `eval`/exec untrusted data, on every source.
+5. **Least privilege is the containment**-a narrowly scoped execution role decides whether a missed injection is a contained bug or an account breach.
 
 ## How to Identify if You're Vulnerable
 

@@ -1,4 +1,4 @@
-# LLM06:2025 Excessive Agency — Overview
+# LLM06:2025 Excessive Agency - Overview
 
 ## Table of Contents
 
@@ -15,13 +15,13 @@
 
 ## What is Excessive Agency?
 
-**Excessive Agency** is the harm that follows when an LLM-based system is granted too much ability to *act*—too many tools, too much permission, or too much autonomy—so that an unexpected, ambiguous, or adversarially manipulated model output is able to trigger a damaging action in the real world. The vulnerability is not the wrong word in a chat reply; it is the wrong *side effect*: an email sent, a row deleted, a payment made, a server rebooted.
+**Excessive Agency** is the harm that follows when an LLM-based system is granted too much ability to *act*-too many tools, too much permission, or too much autonomy-so that an unexpected, ambiguous, or adversarially manipulated model output is able to trigger a damaging action in the real world. The vulnerability is not the wrong word in a chat reply; it is the wrong *side effect*: an email sent, a row deleted, a payment made, a server rebooted.
 
-The distinction matters because an ordinary LLM that only produces text is bounded by its output channel—the worst case is a bad answer a human can ignore. The moment you connect that same model to tools, functions, plugins, APIs, shells, or downstream agents, its *words become actions*. Language models are non-deterministic and steerable by whoever controls their input, so any authority you hand the model is authority you have implicitly handed to every source of text that reaches its context window, including untrusted documents, web pages, emails, and tool results.
+The distinction matters because an ordinary LLM that only produces text is bounded by its output channel-the worst case is a bad answer a human can ignore. The moment you connect that same model to tools, functions, plugins, APIs, shells, or downstream agents, its *words become actions*. Language models are non-deterministic and steerable by whoever controls their input, so any authority you hand the model is authority you have implicitly handed to every source of text that reaches its context window, including untrusted documents, web pages, emails, and tool results.
 
 OWASP frames Excessive Agency as excessive **functionality, permissions, or autonomy**. Critically, the model itself does not have to be “jailbroken” for this to bite. A perfectly benign, well-behaved model can still cause catastrophic damage if it is wired to over-broad tools and allowed to fire them without a check. Excessive Agency is fundamentally a *design and architecture* flaw in the agentic scaffolding around the model, not a flaw inside the weights.
 
-> **Working definition:** Excessive Agency exists whenever the blast radius of a single model decision exceeds what the situation actually requires—when the system *can* do more, to more things, with less oversight, than the task in front of it justifies.
+> **Working definition:** Excessive Agency exists whenever the blast radius of a single model decision exceeds what the situation actually requires-when the system *can* do more, to more things, with less oversight, than the task in front of it justifies.
 
 ## The Three Roots: Functionality, Permissions, Autonomy
 
@@ -51,18 +51,18 @@ Autonomy            "Who signs off before it fires?"        Require human / poli
 - **Financial loss**: Agents with payment, refund, trading, or procurement tools can move money on a single bad decision, at machine speed and machine scale.
 - **Unauthorised outbound communication**: Agents that can email, post, or message can exfiltrate data or send fraudulent instructions in the organisation’s name, damaging trust and reputation.
 - **Compliance and legal exposure**: Actions taken without a valid user-authorisation context (GDPR data deletion, HIPAA record changes, financial transactions) create regulatory liability and break audit requirements.
-- **Loss of accountability**: When an agent acts through a shared service account, logs cannot attribute the action to the human who triggered it—forensics and non-repudiation collapse.
+- **Loss of accountability**: When an agent acts through a shared service account, logs cannot attribute the action to the human who triggered it-forensics and non-repudiation collapse.
 
 ### Technical Impact
 - **Prompt injection becomes remote code / remote action execution**: Excessive Agency is what converts a text-level injection (LLM01) into a real-world effect. The injection is the trigger; the agency is the loaded weapon.
 - **Privilege escalation**: An over-scoped or shared-credential tool lets a low-privileged user, or an attacker who controls any text the model reads, act with the tool’s full privileges.
-- **Lateral movement and chaining**: One tool’s output feeds the next tool’s input, so a single manipulated step can cascade—read secrets, then use them, then exfiltrate—without any human in the loop.
+- **Lateral movement and chaining**: One tool’s output feeds the next tool’s input, so a single manipulated step can cascade-read secrets, then use them, then exfiltrate-without any human in the loop.
 - **Complete-mediation failure**: If authorisation is checked only in the UI or only by trusting the model’s assertion (“the user is an admin”), the tool boundary itself performs no check and can be driven by manipulated input.
 
 ## Technical Context
 
 ### How an agent actually acts
-A typical tool-using agent runs a loop: the model receives a goal plus a list of available tools (with names, descriptions, and argument schemas); it emits a structured “tool call” (a function name and JSON arguments); the orchestrator executes that call against a real system; the result is appended to the context; and the loop repeats until the model decides it is done. Excessive Agency lives entirely in step three—*the orchestrator executes*—because that is where model text turns into consequence.
+A typical tool-using agent runs a loop: the model receives a goal plus a list of available tools (with names, descriptions, and argument schemas); it emits a structured “tool call” (a function name and JSON arguments); the orchestrator executes that call against a real system; the result is appended to the context; and the loop repeats until the model decides it is done. Excessive Agency lives entirely in step three-*the orchestrator executes*-because that is where model text turns into consequence.
 
 ```
 User goal ─▶ [ LLM ] ─▶ tool_call{name, args} ─▶ [ ORCHESTRATOR ] ─▶ REAL SYSTEM
@@ -81,7 +81,7 @@ The model’s context window is an open channel. Tool results, retrieved documen
 1. A tool exists that can cause harm (functionality).
 2. That tool is scoped to reach valuable or destructive operations (permissions).
 3. The tool fires without an independent check (autonomy).
-4. An input—user, document, or tool result—steers the model toward the harmful call (trigger, usually LLM01 prompt injection).
+4. An input-user, document, or tool result-steers the model toward the harmful call (trigger, usually LLM01 prompt injection).
 5. The output is handled and executed without validation (linking to LLM05, Improper Output Handling).
 Remove any one ingredient and the incident is contained. Defence-in-depth for Excessive Agency is precisely the discipline of denying attackers all five at once.
 
@@ -90,25 +90,25 @@ Remove any one ingredient and the incident is contained. Defence-in-depth for Ex
 These are *classes* of incident that are well documented across the security-research community and vendor advisories. Specific figures vary by source, so we describe the mechanism rather than cite precise numbers.
 
 ### Indirect prompt injection driving agent actions
-Researchers have repeatedly demonstrated that content an agent merely *reads*—a web page, a shared document, an email, a calendar invite, an image with hidden text—can carry instructions that the agent then executes with its own tools. When those tools include sending mail or reading private data, the read-only act of “summarise my inbox” becomes a data-exfiltration path. This class underlies most published attacks on email assistants, browsing agents, and IDE/coding assistants.
+Researchers have repeatedly demonstrated that content an agent merely *reads*-a web page, a shared document, an email, a calendar invite, an image with hidden text-can carry instructions that the agent then executes with its own tools. When those tools include sending mail or reading private data, the read-only act of “summarise my inbox” becomes a data-exfiltration path. This class underlies most published attacks on email assistants, browsing agents, and IDE/coding assistants.
 
 ### Over-privileged database and infrastructure tools
 A recurring finding is agents wired to database or cloud credentials with write/delete/admin rights when the use case only reads. A single ambiguous instruction (“clean up the test records”) or an injected one can then destroy production data. The vulnerability is the credential scope, not the phrasing.
 
 ### Confused-deputy and shared-credential escalation
-Agents that act through one shared high-privilege identity let any user reach data or actions they personally should not. Because the tool sees only the agent’s identity, per-user access control silently disappears—a classic confused-deputy problem re-created inside AI plumbing.
+Agents that act through one shared high-privilege identity let any user reach data or actions they personally should not. Because the tool sees only the agent’s identity, per-user access control silently disappears-a classic confused-deputy problem re-created inside AI plumbing.
 
 ### Autonomous chains without a stop
 Multi-step and multi-agent systems that plan-and-execute without checkpoints have been shown to take long chains of consequential actions from a single prompt, amplifying any early mistake. The absence of an approval gate is what turns one wrong step into many.
 
-> Note: attack details and impact severity differ between reports and evolve quickly. Treat any single demonstration as illustrative. The durable takeaway is that every one of these classes is a failure of tool design and authorisation—not a failure the model could have prevented by “being smarter.”
+> Note: attack details and impact severity differ between reports and evolve quickly. Treat any single demonstration as illustrative. The durable takeaway is that every one of these classes is a failure of tool design and authorisation-not a failure the model could have prevented by “being smarter.”
 
 ## Prevalence
 
 Excessive Agency was promoted in the **OWASP Top 10 for LLM Applications 2025** precisely because the industry moved from chat interfaces to *agents*: tool use, function calling, plugins, autonomous planners, and multi-agent orchestration became mainstream. As agentic frameworks (function calling, tool/plugin ecosystems, and orchestration libraries) proliferated, so did the wiring mistakes that create Excessive Agency.
 - It is **increasingly common**: nearly every production “AI agent” grants some tool access, and least-privilege scoping is frequently skipped in the rush to ship.
 - It is **easy to introduce**: default database users, broad OAuth scopes, and “give the agent admin so it just works” are the path of least resistance.
-- Its impact ranges from **moderate to critical**—from a single unwanted email up to full data destruction or funds transfer.
+- Its impact ranges from **moderate to critical**-from a single unwanted email up to full data destruction or funds transfer.
 
 ## Common Misunderstandings
 
@@ -142,7 +142,7 @@ Excessive Agency was promoted in the **OWASP Top 10 for LLM Applications 2025** 
 ## Self-Assessment
 
 Ask these questions about your agentic system:
-- [ ] Does every tool the agent can call have a concrete, current reason to exist—or are there left-over/experimental capabilities still reachable?
+- [ ] Does every tool the agent can call have a concrete, current reason to exist-or are there left-over/experimental capabilities still reachable?
 - [ ] Is each tool scoped to the minimum operation (read vs. write vs. delete) the task needs, rather than a broad or admin credential?
 - [ ] Does the agent act as the *end user’s* identity, or through a single shared high-privilege service account?
 - [ ] Do high-impact or irreversible actions (send, pay, delete, deploy) require explicit human or policy approval before execution?
@@ -155,6 +155,6 @@ Several “no” or “not sure” answers indicate exploitable Excessive Agency
 ## Next Steps
 
 - **[Attack Vectors](attack-vectors.html)**: How manipulated and ambiguous output is turned into damaging tool actions.
-- **[Prevention](prevention.html)**: Layered, code-level defences—minimise, scope, gate, mediate, monitor, fail safe.
+- **[Prevention](prevention.html)**: Layered, code-level defences-minimise, scope, gate, mediate, monitor, fail safe.
 - **[Examples](examples.html)**: Vulnerable vs. secure agent and tool code in Python (LangChain / function calling) and Node/TypeScript.
 - **[Hands-On Lab](./lab/excessive-agency/)**: Practise exploiting and then containing an over-agentic assistant.

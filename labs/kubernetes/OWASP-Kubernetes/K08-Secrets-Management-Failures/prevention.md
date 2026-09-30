@@ -4,17 +4,17 @@
 
 Preventing secrets failures is less about one control and more about **making the protected path the easy path**:
 
-1. Make the stored form confidential—encryption-at-rest for etcd.
+1. Make the stored form confidential-encryption-at-rest for etcd.
 2. Source secrets from a real manager instead of embedding them.
 3. Keep secrets out of images, manifests, ConfigMaps, and Git.
-4. Deliver them narrowly—mounted files, least-privilege RBAC, no needless tokens.
+4. Deliver them narrowly-mounted files, least-privilege RBAC, no needless tokens.
 5. Rotate, scan, and audit continuously.
 
 ### Core Principles
 
 - **Encryption is separate from encoding**: base64 is not protection; confidentiality at rest comes from etcd encryption (ideally KMS-backed).
 - **Secrets are external state**: prefer a dedicated manager (Vault, cloud secret manager) delivered at runtime, not values living in the cluster forever.
-- **Least exposure**: every place a secret is copied is attack surface—minimise copies, minimise readers, minimise lifetime.
+- **Least exposure**: every place a secret is copied is attack surface-minimise copies, minimise readers, minimise lifetime.
 - **Assume leaks are permanent**: design for rotation, because deletion never removes a value from history, layers, or snapshots.
 
 ## 1. Enable etcd Encryption-at-Rest (KMS-backed)
@@ -104,7 +104,7 @@ Both approaches keep the source of truth in the manager, support central rotatio
 
 ## 3. Keep Secrets Out of Manifests and Git (Secure GitOps)
 
-GitOps wants everything in a repo—so encrypt secrets *before* they are committed. Two established patterns:
+GitOps wants everything in a repo-so encrypt secrets *before* they are committed. Two established patterns:
 
 #### Sealed Secrets (encrypt to a cluster-held key)
 
@@ -123,7 +123,7 @@ $ sops --encrypt --kms arn:aws:kms:...:key/abc secret.yaml > secret.enc.yaml
 # A GitOps controller (or a decrypt step) resolves it at apply time.
 ```
 
-Rule of thumb: never `git add` a plaintext credential. If a secret was ever committed, rotate it—removing the file does not remove it from history.
+Rule of thumb: never `git add` a plaintext credential. If a secret was ever committed, rotate it-removing the file does not remove it from history.
 
 ## 4. Restrict Secret Access With Least-Privilege RBAC
 
@@ -139,7 +139,7 @@ metadata:
 rules:
   - apiGroups: [""]
     resources: ["secrets"]
-    resourceNames: ["db-creds"]   # not all secrets — just this one
+    resourceNames: ["db-creds"]   # not all secrets - just this one
     verbs: ["get"]                # no list/watch unless truly needed
 ```
 
@@ -189,14 +189,14 @@ containers:
       - name: db
         mountPath: /etc/secrets/db
         readOnly: true
-    # App reads /etc/secrets/db/password — not an env var
+    # App reads /etc/secrets/db/password - not an env var
 ```
 
 If a library truly needs an env var, populate it from a mounted file at startup rather than hardcoding the value in the pod spec.
 
 ## 7. Rotation and Lifecycle
 
-- Rotate credentials on a schedule, and *immediately* after any suspected exposure—rotation, not deletion, is the remedy.
+- Rotate credentials on a schedule, and *immediately* after any suspected exposure-rotation, not deletion, is the remedy.
 - Prefer short-lived, dynamically issued credentials (for example, database credentials minted on demand by a manager) so a captured copy expires quickly.
 - Automate rotation through the external manager so it does not depend on someone remembering.
 
@@ -226,7 +226,7 @@ Wire these into pull requests and the build pipeline so a leaked secret fails th
 
 ## 9. Protect ConfigMaps and Logs
 
-- Never place credentials in ConfigMaps—they have no confidentiality semantics. Move connection strings with embedded passwords into Secrets or a manager.
+- Never place credentials in ConfigMaps-they have no confidentiality semantics. Move connection strings with embedded passwords into Secrets or a manager.
 - Scrub secrets from application and build logs; disable debug logging of connection strings and headers in production.
 - Ensure log aggregation does not turn a single leak into a widely readable one.
 
@@ -258,11 +258,11 @@ Combine API audit logs with runtime detection so both "read the Secret via the A
 
 ## Key Takeaways
 
-1. **Make storage confidential** — enable etcd encryption-at-rest and guard snapshots.
-2. **Externalise secrets** — source them at runtime from Vault or a cloud manager via CSI/ESO.
-3. **Never commit or bake secrets** — use Sealed Secrets/SOPS for GitOps; keep them out of images and ConfigMaps.
-4. **Deliver narrowly** — least-privilege RBAC, disabled token automount, mounted files over env vars.
-5. **Rotate, scan, and audit** — assume exposure is permanent and design for continuous rotation and detection.
+1. **Make storage confidential** - enable etcd encryption-at-rest and guard snapshots.
+2. **Externalise secrets** - source them at runtime from Vault or a cloud manager via CSI/ESO.
+3. **Never commit or bake secrets** - use Sealed Secrets/SOPS for GitOps; keep them out of images and ConfigMaps.
+4. **Deliver narrowly** - least-privilege RBAC, disabled token automount, mounted files over env vars.
+5. **Rotate, scan, and audit** - assume exposure is permanent and design for continuous rotation and detection.
 
 ## Next Steps
 

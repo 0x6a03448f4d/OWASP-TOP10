@@ -1,6 +1,6 @@
 # SAS-10: Improper Exception Handling and Verbose Error Messages - Attack Vectors
 
-Attacking this weakness is mostly about **making things break on purpose** and reading what falls out. An attacker sends malformed, oversized, or unexpected input to force an unhandled exception, then mines the response for internals—or exploits *how* the function fails: a check that is skipped, a write that half-completes, a message that is retried. This page walks the attacker's workflow, from triggering errors to weaponising fail-open and duplicate-side-effect behaviour.
+Attacking this weakness is mostly about **making things break on purpose** and reading what falls out. An attacker sends malformed, oversized, or unexpected input to force an unhandled exception, then mines the response for internals-or exploits *how* the function fails: a check that is skipped, a write that half-completes, a message that is retried. This page walks the attacker's workflow, from triggering errors to weaponising fail-open and duplicate-side-effect behaviour.
 
 ## Table of Contents
 
@@ -15,7 +15,7 @@ Attacking this weakness is mostly about **making things break on purpose** and r
 
 ## The Attacker's Mindset
 
-A defender sees an error as an accident. An attacker sees it as an **interface**—a second, undocumented API that answers questions the normal responses will not. Every exception is a chance to learn what runtime you use, where your files live, what your database is called, and how your security checks behave under stress.
+A defender sees an error as an accident. An attacker sees it as an **interface**-a second, undocumented API that answers questions the normal responses will not. Every exception is a chance to learn what runtime you use, where your files live, what your database is called, and how your security checks behave under stress.
 
 > **Core idea**: The attacker does not need the function to succeed. They need it to *fail in an informative way*. Verbose errors, inconsistent responses, and unsafe failure modes are the payload.
 
@@ -89,7 +89,7 @@ Content-Type: application/json
 }
 ```
 
-**Harvested**: the code lives at `/var/task/src/handlers/orders.js`, it is Node on the AWS runtime, and line 37 dereferences an `id` without a guard—the attacker now knows exactly which field to omit and where the logic is thin.
+**Harvested**: the code lives at `/var/task/src/handlers/orders.js`, it is Node on the AWS runtime, and line 37 dereferences an `id` without a guard-the attacker now knows exactly which field to omit and where the logic is thin.
 
 ### Reading an infrastructure / secret leak
 
@@ -105,7 +105,7 @@ Content-Type: application/json
 }
 ```
 
-**Harvested**: a live database credential, the internal hostname, the region, the account id `123456789012`, and the exact function name—enough to pivot without ever "hacking" anything further.
+**Harvested**: a live database credential, the internal hostname, the region, the account id `123456789012`, and the exact function name-enough to pivot without ever "hacking" anything further.
 
 ### Fingerprinting from database driver errors
 
@@ -128,7 +128,7 @@ POST /login  {"email":"alice@example.com","password":"x"}  -> 500 (KeyError)
 POST /login  {"email":"ghost@example.com","password":"x"}  -> 404 (not found)
 ```
 
-The `500` only occurs for accounts that exist (a downstream lookup succeeds, then a later step throws). Comparing the two responses enumerates valid emails—no verbose body required, just an inconsistency.
+The `500` only occurs for accounts that exist (a downstream lookup succeeds, then a later step throws). Comparing the two responses enumerates valid emails-no verbose body required, just an inconsistency.
 
 ### Timing oracle
 
@@ -137,11 +137,11 @@ Valid record   -> heavy code path runs, then errors  -> ~380 ms
 Invalid record -> fails fast at the first check      ->  ~40 ms
 ```
 
-When the error path for real data does more work before failing, the response time itself distinguishes real from fake—an enumeration channel that survives even a perfectly generic error message.
+When the error path for real data does more work before failing, the response time itself distinguishes real from fake-an enumeration channel that survives even a perfectly generic error message.
 
 ### Validation-order oracle
 
-- An input that triggers a "record not found" only after passing an earlier authorization check tells the attacker that authorization *passed*—confirming access boundaries.
+- An input that triggers a "record not found" only after passing an earlier authorization check tells the attacker that authorization *passed*-confirming access boundaries.
 - Different error shapes for "malformed token" vs. "expired token" vs. "unknown user" map out the authentication pipeline step by step.
 
 ## Phase 4: Exploiting Fail-Open Logic
@@ -161,7 +161,7 @@ def handler(event, context):
     return forbidden()
 ```
 
-**Attack**: send a header the verifier cannot process—a malformed JWT, a token signed by an unknown key, or an oversized value that makes `verify_token` raise. The exception drops the attacker into the empty-claims branch and grants the privileged action.
+**Attack**: send a header the verifier cannot process-a malformed JWT, a token signed by an unknown key, or an oversized value that makes `verify_token` raise. The exception drops the attacker into the empty-claims branch and grants the privileged action.
 
 ### Common fail-open shapes to probe
 
@@ -191,13 +191,13 @@ exports.handler = async (event) => {
 - Flood a shared dependency so the post-step is throttled and errors, while the side effect ahead of it commits.
 - Exploit a timeout: size the work so the function times out just after the side effect, before acknowledgement.
 
-**Impact**: duplicate charges, duplicate emails, double-inserted records, or repeated privileged operations—driven entirely by the missing cleanup/idempotency on the error path.
+**Impact**: duplicate charges, duplicate emails, double-inserted records, or repeated privileged operations-driven entirely by the missing cleanup/idempotency on the error path.
 
 ## Phase 6: Destroying the Audit Trail
 
 An uncaught exception that crashes the function *before* its logging line means no security event is ever recorded. An attacker who understands this will deliberately fail the function early, on the very requests they most want hidden.
 
-- Trigger the crash *before* the audit write so the malicious action leaves no structured record—only the platform's bare START/END remains.
+- Trigger the crash *before* the audit write so the malicious action leaves no structured record-only the platform's bare START/END remains.
 - Combine with fail-open: the request both bypasses the control *and* avoids being logged, because the log statement sat after the point of failure.
 - Use error floods to bury a single real attack in noise, betting the team has alert fatigue on 500s.
 
@@ -206,7 +206,7 @@ An uncaught exception that crashes the function *before* its logging line means 
 Putting the phases together against a hypothetical serverless orders API:
 
 1. **Trigger**: The attacker posts malformed JSON to `/orders`. The unhandled `SyntaxError` is serialised back with a full trace.
-2. **Harvest**: The trace reveals the Node runtime version, the file path `/var/task/src/handlers/orders.js`, and—on a second, DB-level error—the connection string in an echoed environment object.
+2. **Harvest**: The trace reveals the Node runtime version, the file path `/var/task/src/handlers/orders.js`, and-on a second, DB-level error-the connection string in an echoed environment object.
 3. **Recon expand**: A driver error leaks the `users` table and an `is_admin` column. The account id and function ARN come from the same dump.
 4. **Oracle**: Using response-shape differences, the attacker enumerates valid customer emails without any verbose body.
 5. **Fail-open**: A malformed authorization header makes the token verifier throw; the fail-open branch grants an admin action.

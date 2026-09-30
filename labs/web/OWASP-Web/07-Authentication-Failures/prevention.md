@@ -100,7 +100,7 @@ app.post('/login', ipLimiter, accountThrottle, handleLogin);
 
 ## Layer 3: MFA & Phishing Resistance
 
-Offer MFA everywhere, enforce it for sensitive actions, and prefer **phishing-resistant** WebAuthn/passkeys — especially for privileged accounts. If you keep push-based MFA, use **number matching** to defeat fatigue.
+Offer MFA everywhere, enforce it for sensitive actions, and prefer **phishing-resistant** WebAuthn/passkeys - especially for privileged accounts. If you keep push-based MFA, use **number matching** to defeat fatigue.
 
 ### WebAuthn / Passkey Registration (server, Node)
 
@@ -185,7 +185,7 @@ app.post('/logout', (req, res) => {
 ## Layer 5: Secure Credential Recovery
 
 - Reset tokens: **128-bit+ CSPRNG**, **single-use**, **short expiry** (for example 15–30 min); store only a hash of the token.
-- Build the reset link from a **trusted, configured origin** — never from the request `Host` / `X-Forwarded-Host`.
+- Build the reset link from a **trusted, configured origin** - never from the request `Host` / `X-Forwarded-Host`.
 - Invalidate existing sessions on password change; optionally re-verify MFA.
 - Respond identically whether or not the email exists (see Layer 6).
 
@@ -214,7 +214,7 @@ def consume_reset(raw, new_password):
 
 ## Layer 6: Non-Enumerable Responses
 
-Login, registration, and reset must not reveal whether an account exists — in body, status, or timing.
+Login, registration, and reset must not reveal whether an account exists - in body, status, or timing.
 
 ```python
 # Uniform message regardless of existence
@@ -266,7 +266,7 @@ claims = jwt.decode(
 
 ## Layer 8: OAuth2 / OIDC Configuration
 
-- **Exact-match** registered `redirect_uri` values — no wildcards, prefixes, or open redirects.
+- **Exact-match** registered `redirect_uri` values - no wildcards, prefixes, or open redirects.
 - Always send and verify **`state`** (CSRF / login-CSRF protection).
 - Require **PKCE** (`S256`) for public clients (SPAs, mobile).
 - Prefer the **authorization-code** flow; validate the ID token's signature, `iss`, `aud`, and `nonce`.

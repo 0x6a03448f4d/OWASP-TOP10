@@ -43,7 +43,7 @@ Each pair below shows a **vulnerable** use of a platform feature and the **secur
          android:permission="com.app.permission.PRIV" />
 ```
 
-## 2. Intent Handling (Kotlin) — Avoiding Redirection
+## 2. Intent Handling (Kotlin) - Avoiding Redirection
 
 ### Vulnerable
 ```kotlin
@@ -76,7 +76,7 @@ class RouterActivity : AppCompatActivity() {
 
 ### Vulnerable
 ```kotlin
-// Token written to plaintext SharedPreferences — recoverable from backups/root
+// Token written to plaintext SharedPreferences - recoverable from backups/root
 val prefs = getSharedPreferences("auth", MODE_PRIVATE)
 prefs.edit().putString("auth_token", token).apply()
 ```
@@ -100,7 +100,7 @@ secure.edit().putString("auth_token", token).apply()   // encrypted at rest
 
 ### Vulnerable
 ```swift
-// UserDefaults is an unencrypted plist — included in backups, readable on device
+// UserDefaults is an unencrypted plist - included in backups, readable on device
 UserDefaults.standard.set(token, forKey: "auth_token")
 ```
 
@@ -123,7 +123,7 @@ func storeToken(_ data: Data) -> Bool {
 
 ### Vulnerable
 ```kotlin
-// Gate is only a boolean callback — a hook forcing 'succeeded' wins
+// Gate is only a boolean callback - a hook forcing 'succeeded' wins
 BiometricPrompt(activity, executor, object : BiometricPrompt.AuthenticationCallback() {
     override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
         revealSecrets()          // no CryptoObject; nothing is actually unlocked
@@ -156,7 +156,7 @@ BiometricPrompt(activity, executor, object : BiometricPrompt.AuthenticationCallb
 
 ### Vulnerable
 ```swift
-// Only checks the boolean reply — no secret bound to the result
+// Only checks the boolean reply - no secret bound to the result
 let context = LAContext()
 context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics,
                        localizedReason: "Unlock") { success, _ in
@@ -180,7 +180,7 @@ func storeBiometricToken(_ data: Data) {
     ]
     SecItemAdd(query as CFDictionary, nil)
 }
-// Reading the item triggers the biometric prompt inside the Keychain itself —
+// Reading the item triggers the biometric prompt inside the Keychain itself -
 // there is no boolean to hook; without a genuine match, no data is returned.
 ```
 

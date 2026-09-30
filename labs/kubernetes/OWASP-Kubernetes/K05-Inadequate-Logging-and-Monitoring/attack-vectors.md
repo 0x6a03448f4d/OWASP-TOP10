@@ -8,9 +8,9 @@
 
 ## Understanding the Detection Gap
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can enable the telemetry that would catch them in clusters you own or are authorised to test.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can enable the telemetry that would catch them in clusters you own or are authorised to test.
 
-K05 is unusual among the OWASP Kubernetes Top 10: there is no payload to send and no endpoint to exploit. The "attack" is simply that **ordinary malicious activity produces no alert and leaves no durable trace**. Every technique below is something an attacker does *after* gaining some foothold—and each one is invisible precisely because a specific piece of telemetry is disabled, uncollected, or unwatched.
+K05 is unusual among the OWASP Kubernetes Top 10: there is no payload to send and no endpoint to exploit. The "attack" is simply that **ordinary malicious activity produces no alert and leaves no durable trace**. Every technique below is something an attacker does *after* gaining some foothold-and each one is invisible precisely because a specific piece of telemetry is disabled, uncollected, or unwatched.
 
 So the right way to read this page is as a checklist of **events your cluster should be screaming about**. For each attacker action we note the signal that would have caught it, and the K05 failure that let it pass in silence.
 
@@ -51,7 +51,7 @@ $ curl -s https://kubernetes.default/api/v1/namespaces/prod/secrets \
 
 **Signal that should fire**: API audit records an `exec` sub-resource on a pod; a runtime sensor records a shell process (`/bin/sh`) spawned inside a container that normally runs a single application binary.
 
-**K05 failure**: Audit logging off (no exec record) *and* no runtime sensor (no process record) — the interactive session leaves no trace at all.
+**K05 failure**: Audit logging off (no exec record) *and* no runtime sensor (no process record) - the interactive session leaves no trace at all.
 
 ### 2. Creating a Privileged / hostPath Pod
 
@@ -75,7 +75,7 @@ spec:
 
 **Signal that should fire**: API audit records a `create pod` with `privileged: true`/`hostPID: true`; admission logs record the decision; a runtime sensor records a sensitive host mount.
 
-**K05 failure**: No alerting rule on privileged-pod creation, so the event—even if logged—is never surfaced to a human.
+**K05 failure**: No alerting rule on privileged-pod creation, so the event-even if logged-is never surfaced to a human.
 
 ### 3. Reading Secrets and ConfigMaps at Scale
 
@@ -90,7 +90,7 @@ kubectl get configmaps -A -o yaml | grep -iE 'token|key|password'
 
 ### 4. Service-Account Token Abuse
 
-A compromised workload uses its auto-mounted token to talk to the API server—something that particular workload never normally does.
+A compromised workload uses its auto-mounted token to talk to the API server-something that particular workload never normally does.
 
 ```bash
 TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
@@ -127,7 +127,7 @@ nsenter -t 1 -m -u -i -n -p -- bash
 
 **Signal that should fire**: A runtime sensor records `nsenter`/namespace-change syscalls, a shell in the host mount namespace, and access to sensitive host paths (kubelet kubeconfig, `/etc/kubernetes`).
 
-**K05 failure**: No runtime sensor on the node, so the escape—the single most serious event in a cluster—produces zero telemetry.
+**K05 failure**: No runtime sensor on the node, so the escape-the single most serious event in a cluster-produces zero telemetry.
 
 ### 7. Cryptominer Deployment
 
@@ -212,11 +212,11 @@ Leaked kubeconfig / CI token       -> no per-identity alerting
 
 ## Key Takeaways
 
-1. **The attack is silence**—K05 has no payload; the exploit is that malicious actions produce no alert and no durable trace.
-2. **Every technique maps to a missing signal**—exec, privileged pods, secret reads, token abuse, escape, mining, and lateral movement each have a telemetry source that would catch them.
-3. **Runtime blindness is the worst gap**—without a process-level sensor, in-container post-exploitation and node escape are completely invisible.
-4. **Node-local logs are the attacker's to delete**—evidence must be shipped off-cluster in real time or it is destroyed during cleanup.
-5. **Gaps compound**—several individually-tolerable blind spots combine into indefinite, unscoped dwell time.
+1. **The attack is silence**-K05 has no payload; the exploit is that malicious actions produce no alert and no durable trace.
+2. **Every technique maps to a missing signal**-exec, privileged pods, secret reads, token abuse, escape, mining, and lateral movement each have a telemetry source that would catch them.
+3. **Runtime blindness is the worst gap**-without a process-level sensor, in-container post-exploitation and node escape are completely invisible.
+4. **Node-local logs are the attacker's to delete**-evidence must be shipped off-cluster in real time or it is destroyed during cleanup.
+5. **Gaps compound**-several individually-tolerable blind spots combine into indefinite, unscoped dwell time.
 
 ## Next Steps
 

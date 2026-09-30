@@ -10,9 +10,9 @@
 
 ## What is Model Poisoning?
 
-**Model Poisoning** is the direct manipulation of a trained model's **parameters, weights, or structure** so that the deployed model behaves in a way the attacker chooses. The attacker does not (necessarily) touch the training data at all—they reach into the model *itself*: the serialized weight file, the entry in the model registry, the architecture definition, the hyperparameters, or—in federated learning—the model *updates* that a participant contributes to the global model.
+**Model Poisoning** is the direct manipulation of a trained model's **parameters, weights, or structure** so that the deployed model behaves in a way the attacker chooses. The attacker does not (necessarily) touch the training data at all-they reach into the model *itself*: the serialized weight file, the entry in the model registry, the architecture definition, the hyperparameters, or-in federated learning-the model *updates* that a participant contributes to the global model.
 
-This is what distinguishes ML10 from its close cousin **ML02 (Data Poisoning)**. In data poisoning the attacker corrupts the *inputs* to training and lets the optimiser bake in the malicious behaviour. In model poisoning the attacker edits the *output* of training—the artifact—or the aggregation step that produces it. The end goal is often identical (a hidden backdoor, degraded accuracy, biased outputs), but the entry point, the controls that stop it, and the forensic evidence are completely different.
+This is what distinguishes ML10 from its close cousin **ML02 (Data Poisoning)**. In data poisoning the attacker corrupts the *inputs* to training and lets the optimiser bake in the malicious behaviour. In model poisoning the attacker edits the *output* of training-the artifact-or the aggregation step that produces it. The end goal is often identical (a hidden backdoor, degraded accuracy, biased outputs), but the entry point, the controls that stop it, and the forensic evidence are completely different.
 
 ### Core Concept
 
@@ -30,7 +30,7 @@ ML10 Model Poisoning (this lesson):
 Concretely, model poisoning covers:
 
 - **Tampering the saved model artifact**: editing weight tensors directly, hand-crafting or overwriting specific weights, or appending malicious layers to a serialized network.
-- **Weight-level backdoors**: surgically altering a small number of weights so the model behaves normally on ordinary inputs but flips to an attacker-chosen output when a specific trigger is present—without ever seeing that trigger during training.
+- **Weight-level backdoors**: surgically altering a small number of weights so the model behaves normally on ordinary inputs but flips to an attacker-chosen output when a specific trigger is present-without ever seeing that trigger during training.
 - **Registry / storage compromise**: gaining write access to the model registry, artifact store, or object bucket and swapping the legitimate model for a tampered one.
 - **Federated-learning poisoning**: a malicious participant submits crafted model updates or gradients that, once aggregated, shift the global model toward the attacker's objective (a backdoor or a targeted accuracy drop).
 - **Insider tampering**: an engineer or a compromised CI job alters weights, architecture, or hyperparameters during training or packaging, before the artifact is signed off.
@@ -40,7 +40,7 @@ Concretely, model poisoning covers:
 
 The trained model is the crown jewel of an ML system, yet it is frequently the *least* protected asset in the pipeline:
 
-- Models are **opaque binaries**. A tampered weight file looks exactly like a clean one to a human—there is no source diff to review, so a swapped or edited artifact sails through code review.
+- Models are **opaque binaries**. A tampered weight file looks exactly like a clean one to a human-there is no source diff to review, so a swapped or edited artifact sails through code review.
 - Models are **passed hand to hand**: trained in one job, stored in a bucket, promoted through a registry, pulled by a serving cluster. Every hop is a place to substitute the file.
 - A backdoor in **weights** survives the usual accuracy tests, because the model is designed to score perfectly on everything except the secret trigger.
 - **Federated learning inverts the trust model**: the aggregator deliberately accepts updates from many parties it does not control, so a single malicious client can try to steer the whole model.
@@ -49,7 +49,7 @@ The trained model is the crown jewel of an ML system, yet it is frequently the *
 
 ### Business Impact
 
-- **Silent Integrity Failure**: A weight-level backdoor lets an attacker choose the model's output on demand—approving fraud, misclassifying malware as benign, or waving through a specific face—while every dashboard shows normal accuracy.
+- **Silent Integrity Failure**: A weight-level backdoor lets an attacker choose the model's output on demand-approving fraud, misclassifying malware as benign, or waving through a specific face-while every dashboard shows normal accuracy.
 - **Safety and Fraud Consequences**: In fraud, malware, content moderation, or autonomous systems, a targeted misclassification on the attacker's trigger has direct financial or physical impact.
 - **Loss of Trust and Reputation**: A publicly disclosed tampered model (for example a manipulated open-weights model uploaded to a hub) undermines confidence in every model an organisation ships.
 - **Regulatory and Contractual Exposure**: Emerging AI regulation and assurance frameworks expect demonstrable model integrity and provenance; a poisoned artifact with no chain of custody is a compliance failure.
@@ -153,7 +153,7 @@ The examples below are **classes of incident and published research directions**
 ### Case Class 2: Weight-Backdoor / Trojan Research (BadNets and successors)
 
 **Scenario**:
-- A long line of academic work shows that a network's weights can be modified—by retraining a few layers or by directly editing parameters—so that a small trigger reliably forces a chosen output, while accuracy on the clean test set is essentially unchanged.
+- A long line of academic work shows that a network's weights can be modified-by retraining a few layers or by directly editing parameters-so that a small trigger reliably forces a chosen output, while accuracy on the clean test set is essentially unchanged.
 - Because the backdoor is conditional on a trigger the defender does not know, ordinary evaluation does not reveal it.
 
 **Lesson**: Accuracy on a clean validation set is *not* evidence of integrity. Detecting weight-level backdoors needs trigger-aware and behavioural testing, plus provenance that proves the weights were not altered after vetting.
@@ -161,7 +161,7 @@ The examples below are **classes of incident and published research directions**
 ### Case Class 3: Federated-Learning Poisoning (research on model-update attacks)
 
 **Scenario**:
-- Research on federated learning shows that a small fraction of malicious participants—or even a single one using a scaled ("model-replacement") update—can insert a backdoor into the global model when the server uses naive averaging (FedAvg).
+- Research on federated learning shows that a small fraction of malicious participants-or even a single one using a scaled ("model-replacement") update-can insert a backdoor into the global model when the server uses naive averaging (FedAvg).
 - The malicious client sends an update engineered so that, after aggregation, the global model contains the attacker's behaviour.
 
 **Lesson**: Naive averaging trusts every client equally. Byzantine-resilient aggregation (Krum, trimmed mean, median), update-norm bounding, anomaly detection, and client authentication/reputation are the countermeasures.
@@ -170,10 +170,10 @@ The examples below are **classes of incident and published research directions**
 
 Model Poisoning appears as **ML10 in the OWASP Machine Learning Security Top 10**. Rather than cite precise counts (which vary by source and are often not measurable), the defensible picture is:
 
-- Model artifacts are **frequently under-protected** relative to source code—stored in buckets and registries with weaker access control, no signing, and no integrity check at load time.
+- Model artifacts are **frequently under-protected** relative to source code-stored in buckets and registries with weaker access control, no signing, and no integrity check at load time.
 - Weight-level backdoors are **well established in the research literature** and are **invisible to clean-set accuracy metrics**, so they are easy to miss and hard to measure in the wild.
 - Federated-learning poisoning is a **demonstrated, actively researched** attack class; its feasibility depends heavily on the aggregation rule and on client authentication.
-- The impact ranges from **quiet degradation** up to a **fully attacker-controlled, trigger-activated backdoor**—an integrity failure at the heart of the system.
+- The impact ranges from **quiet degradation** up to a **fully attacker-controlled, trigger-activated backdoor**-an integrity failure at the heart of the system.
 
 > Note: treat any single percentage or record count as illustrative. The durable takeaway is that the trained model is a high-value, often poorly guarded asset, and tampering with it is both feasible and hard to detect without deliberate integrity controls.
 
@@ -185,7 +185,7 @@ Model Poisoning appears as **ML10 in the OWASP Machine Learning Security Top 10*
 
 ### Myth 2: "Model poisoning is just data poisoning"
 
-**Reality**: Data poisoning (ML02) corrupts training inputs; model poisoning (ML10) edits the trained artifact, the registry, or the federated update. The defences differ—data validation and provenance for ML02; artifact signing, registry access control, and robust aggregation for ML10.
+**Reality**: Data poisoning (ML02) corrupts training inputs; model poisoning (ML10) edits the trained artifact, the registry, or the federated update. The defences differ-data validation and provenance for ML02; artifact signing, registry access control, and robust aggregation for ML10.
 
 ### Myth 3: "Our model is a binary blob, so nobody can meaningfully change it"
 
@@ -197,7 +197,7 @@ Model Poisoning appears as **ML10 in the OWASP Machine Learning Security Top 10*
 
 ### Myth 5: "Federated learning is private, so it's secure"
 
-**Reality**: Federated learning improves data *privacy*, but it *widens* the integrity attack surface—you now accept model updates from parties you do not control. Privacy and integrity are different properties.
+**Reality**: Federated learning improves data *privacy*, but it *widens* the integrity attack surface-you now accept model updates from parties you do not control. Privacy and integrity are different properties.
 
 ### Myth 6: "Signing the container is enough"
 
@@ -212,15 +212,15 @@ Model Poisoning appears as **ML10 in the OWASP Machine Learning Security Top 10*
 | **Primary defence** | Signing + hash verify, registry RBAC, robust FL aggregation | Data provenance, validation, sanitisation | Vendor vetting, SBOM/AI-BOM, pinning |
 | **Detection** | Integrity check, behavioural/trigger tests | Data anomaly detection, backdoor scanning | Provenance audit, dependency scanning |
 
-These overlap in practice—a poisoned third-party model (ML06) is delivered *as* tampered weights (ML10), and a federated attack can combine crafted data and crafted updates. Treat the categories as complementary lenses, not walls.
+These overlap in practice-a poisoned third-party model (ML06) is delivered *as* tampered weights (ML10), and a federated attack can combine crafted data and crafted updates. Treat the categories as complementary lenses, not walls.
 
 ## Key Takeaways
 
-1. **Model poisoning targets the artifact, not the data**—weights, structure, hyperparameters, the registry, or the federated update channel.
-2. **Accuracy is not integrity**—a weight-level backdoor is designed to pass clean-set evaluation.
-3. **The trained model is a high-value, under-guarded asset**—treat the artifact like a signed release, not a loose file in a bucket.
-4. **Federated learning widens the integrity surface**—naive averaging trusts every client; robust aggregation does not.
-5. **Provenance is the anchor**—you can only trust a model whose chain of custody, hash, and signature you can verify before load.
+1. **Model poisoning targets the artifact, not the data**-weights, structure, hyperparameters, the registry, or the federated update channel.
+2. **Accuracy is not integrity**-a weight-level backdoor is designed to pass clean-set evaluation.
+3. **The trained model is a high-value, under-guarded asset**-treat the artifact like a signed release, not a loose file in a bucket.
+4. **Federated learning widens the integrity surface**-naive averaging trusts every client; robust aggregation does not.
+5. **Provenance is the anchor**-you can only trust a model whose chain of custody, hash, and signature you can verify before load.
 
 ## How to Identify if You're Vulnerable
 
@@ -229,7 +229,7 @@ Ask these questions about your ML pipeline:
 - [ ] Is every model artifact cryptographically hashed and signed, and is that signature verified *before* the model is loaded or promoted?
 - [ ] Is the model registry / artifact store access-controlled (RBAC), versioned, and immutable (no silent overwrite of a released version)?
 - [ ] Could an insider or a CI job change weights, architecture, or hyperparameters without a reviewed, auditable trail?
-- [ ] Do you behaviourally test a model against expected performance and known trigger patterns before promotion—not just clean-set accuracy?
+- [ ] Do you behaviourally test a model against expected performance and known trigger patterns before promotion-not just clean-set accuracy?
 - [ ] For federated learning, do you use Byzantine-resilient aggregation (Krum, trimmed mean, median) rather than naive averaging?
 - [ ] Are federated clients authenticated, rate-limited, and scored for reputation, with anomaly detection on their updates?
 - [ ] Do you maintain provenance / an AI-BOM and reproducible builds, so you can prove which weights are the vetted ones?

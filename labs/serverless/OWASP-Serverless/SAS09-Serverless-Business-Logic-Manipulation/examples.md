@@ -1,6 +1,6 @@
 # SAS-9: Serverless Business Logic Manipulation - Code Examples
 
-Each pair below shows a **vulnerable** serverless workflow step and the **secure** version of the same step, in both Node.js and Python. The examples cover the core failures of this category—fulfilment that trusts its upstream, non-idempotent handlers under at-least-once delivery, tampered intermediate state, forged events, and check-then-act races—plus a Step Functions state machine and a least-privilege `serverless.yml`. Every secure version does the same two things: **re-establish its own preconditions** and **make its effect safe to repeat**.
+Each pair below shows a **vulnerable** serverless workflow step and the **secure** version of the same step, in both Node.js and Python. The examples cover the core failures of this category-fulfilment that trusts its upstream, non-idempotent handlers under at-least-once delivery, tampered intermediate state, forged events, and check-then-act races-plus a Step Functions state machine and a least-privilege `serverless.yml`. Every secure version does the same two things: **re-establish its own preconditions** and **make its effect safe to repeat**.
 
 ## Example 1: Fulfilment That Trusts the Upstream -> Payment Bypass
 

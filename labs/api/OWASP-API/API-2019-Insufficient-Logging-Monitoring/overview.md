@@ -11,7 +11,7 @@
 
 ## What is Insufficient Logging & Monitoring?
 
-**Insufficient Logging & Monitoring** (API10 in the 2019 OWASP API Security Top 10) is not a flaw an attacker *exploits*—it is the flaw that lets every other attack proceed **undetected**. When an API fails to record security-relevant events, fails to centralise and watch those records, and fails to alert and respond when something looks wrong, an intruder can probe, enumerate, brute-force, and exfiltrate for days, weeks, or months with nobody noticing.
+**Insufficient Logging & Monitoring** (API10 in the 2019 OWASP API Security Top 10) is not a flaw an attacker *exploits*-it is the flaw that lets every other attack proceed **undetected**. When an API fails to record security-relevant events, fails to centralise and watch those records, and fails to alert and respond when something looks wrong, an intruder can probe, enumerate, brute-force, and exfiltrate for days, weeks, or months with nobody noticing.
 
 This category is defined by three linked failures, any one of which is enough to be blind:
 
@@ -19,7 +19,7 @@ This category is defined by three linked failures, any one of which is enough to
 - **Monitoring**: whatever is logged is scattered across hosts, never centralised, and never actively watched.
 - **Alerting & response**: even when a pattern is visible in the data, no threshold fires, no human is paged, and no incident-response process kicks in.
 
-The OWASP definition is deliberately outcome-focused: the problem is measured by how long an attack can run before it is seen. The industry term for that gap is **dwell time**—the interval between initial compromise and detection. Insufficient logging and monitoring is what makes dwell time long.
+The OWASP definition is deliberately outcome-focused: the problem is measured by how long an attack can run before it is seen. The industry term for that gap is **dwell time**-the interval between initial compromise and detection. Insufficient logging and monitoring is what makes dwell time long.
 
 ### Core Concept
 
@@ -48,7 +48,7 @@ Insufficient logging & monitoring:
 APIs concentrate several conditions that make missing telemetry especially costly:
 
 - They are **machine-to-machine**, so there is no human watching a screen who might notice something "looks wrong." If the API does not log it, nobody sees it.
-- They expose **enumerable, structured resources** (`/users/1`, `/users/2`, …), so abuse often looks like ordinary traffic—only the *rate and pattern* distinguish an attack, and only monitoring can see rate and pattern.
+- They expose **enumerable, structured resources** (`/users/1`, `/users/2`, …), so abuse often looks like ordinary traffic-only the *rate and pattern* distinguish an attack, and only monitoring can see rate and pattern.
 - They are **high-volume**, so a slow attack blends into the noise unless per-client and per-token baselines exist.
 - They are the **direct interface to the data**, so an undetected attacker is exfiltrating records, not just poking at a login page.
 
@@ -57,8 +57,8 @@ APIs concentrate several conditions that make missing telemetry especially costl
 ### Business Impact
 
 - **Long dwell time, larger breach**: the damage from an intrusion scales with how long it runs undetected. Missing telemetry is a direct multiplier on breach cost and record count.
-- **Breach discovered by outsiders**: a large share of breaches are first reported by a third party (a customer, a researcher, a payment processor, law enforcement) rather than caught internally—an outcome that is both more expensive and more reputationally damaging.
-- **No forensic trail**: without logs you cannot answer the questions that follow every incident—what was accessed, whose data, for how long. That uncertainty forces worst-case breach notifications.
+- **Breach discovered by outsiders**: a large share of breaches are first reported by a third party (a customer, a researcher, a payment processor, law enforcement) rather than caught internally-an outcome that is both more expensive and more reputationally damaging.
+- **No forensic trail**: without logs you cannot answer the questions that follow every incident-what was accessed, whose data, for how long. That uncertainty forces worst-case breach notifications.
 - **Regulatory exposure**: frameworks such as PCI-DSS, HIPAA, SOC 2, and GDPR explicitly require audit logging and timely detection. Insufficient monitoring is itself a compliance finding, independent of any breach.
 - **Slow, blind response**: even once an incident is known, the absence of centralised, contextual logs turns containment into guesswork.
 
@@ -116,13 +116,13 @@ With the structured record, a SIEM can answer "did `user_1021` just try to read 
 
 ### The Signals Monitoring Should Watch
 
-- **Spikes in 401** (authentication failures) — credential stuffing / brute force.
-- **Spikes in 403** (authorization failures) — object-ID or function-level enumeration.
-- **Spikes in 429** (rate-limit hits) — scraping or automated abuse pushing limits.
-- **High-volume 2xx from one client** on enumerable endpoints — successful scraping.
-- **Sequential / patterned object ids** in requests — enumeration walking an id space.
-- **One token from many IPs / geographies** — token theft and replay.
-- **Input-validation rejections clustered on one endpoint** — fuzzing or injection probing.
+- **Spikes in 401** (authentication failures) - credential stuffing / brute force.
+- **Spikes in 403** (authorization failures) - object-ID or function-level enumeration.
+- **Spikes in 429** (rate-limit hits) - scraping or automated abuse pushing limits.
+- **High-volume 2xx from one client** on enumerable endpoints - successful scraping.
+- **Sequential / patterned object ids** in requests - enumeration walking an id space.
+- **One token from many IPs / geographies** - token theft and replay.
+- **Input-validation rejections clustered on one endpoint** - fuzzing or injection probing.
 
 ## Real-World Impact
 
@@ -134,7 +134,7 @@ Rather than cite specific fabricated figures, it is more durable to describe the
 - Attackers replay username/password pairs from prior third-party breaches against a login or token API.
 - Failed authentications are not logged, or are logged but never counted against a threshold, so the sustained failure rate raises no alarm.
 
-**Outcome**: A slice of accounts (those reusing passwords) is quietly taken over. The activity is frequently only recognised after downstream fraud, or after a customer reports it—long after the API could have flagged the failed-login spike.
+**Outcome**: A slice of accounts (those reusing passwords) is quietly taken over. The activity is frequently only recognised after downstream fraud, or after a customer reports it-long after the API could have flagged the failed-login spike.
 
 **Root cause**: No authentication-failure logging with per-client context and no rate-of-error alerting.
 
@@ -145,7 +145,7 @@ Rather than cite specific fabricated figures, it is more durable to describe the
 - Where authorization is broken (BOLA), the attacker harvests records; where it holds, they generate a wave of 403s.
 - Neither the successful harvest nor the 403 wave is monitored, so nothing fires.
 
-**Outcome**: Bulk personal data is collected over hours or days. The organisation typically learns of it only when a security researcher or journalist demonstrates the enumeration—i.e., detection came from outside.
+**Outcome**: Bulk personal data is collected over hours or days. The organisation typically learns of it only when a security researcher or journalist demonstrates the enumeration-i.e., detection came from outside.
 
 **Root cause**: No monitoring of denied-access rate and no per-client volume baseline that would have flagged one caller touching thousands of objects.
 
@@ -159,23 +159,23 @@ Rather than cite specific fabricated figures, it is more durable to describe the
 
 **Root cause**: No per-client/per-token volume monitoring and no alerting on abnormal single-caller throughput.
 
-> Note: these are recurring *incident classes*, not a single named breach. The durable lesson is identical across all of them—the attack technique varied, but the reason it succeeded quietly was always the same: security-relevant events were not logged, not centralised, and not alerted on.
+> Note: these are recurring *incident classes*, not a single named breach. The durable lesson is identical across all of them-the attack technique varied, but the reason it succeeded quietly was always the same: security-relevant events were not logged, not centralised, and not alerted on.
 
 ## Prevalence and Detection
 
-Insufficient logging and monitoring is difficult to see from the outside—an attacker cannot tell whether they are being watched—yet it is one of the most consistently reported weaknesses in breach post-mortems.
+Insufficient logging and monitoring is difficult to see from the outside-an attacker cannot tell whether they are being watched-yet it is one of the most consistently reported weaknesses in breach post-mortems.
 
 Rather than quote a single statistic, the defensible picture is:
 
 - OWASP characterises this category as **hard for defenders to notice** (it produces no error the team sees) but **highly impactful**, because it is the multiplier on every other incident.
 - The recurring pattern across public breach reports is a **long gap between compromise and discovery**, and a **large share of breaches first reported by an external party** rather than caught by the victim.
-- The most common concrete gaps are **unlogged auth/authz failures, no centralised log store, and no alerting thresholds**—exactly the failure modes listed above.
+- The most common concrete gaps are **unlogged auth/authz failures, no centralised log store, and no alerting thresholds**-exactly the failure modes listed above.
 
 ## Common Misunderstandings
 
 ### Myth 1: "We have logs, so we are covered"
 
-**Reality**: Having logs and *using* them are different things. Logs that are never centralised, never alerted on, and lack client/object context are write-only—they help nobody until after a breach, if at all.
+**Reality**: Having logs and *using* them are different things. Logs that are never centralised, never alerted on, and lack client/object context are write-only-they help nobody until after a breach, if at all.
 
 ### Myth 2: "Logging is an ops concern, not a security one"
 
@@ -183,7 +183,7 @@ Rather than quote a single statistic, the defensible picture is:
 
 ### Myth 3: "Log everything and we will find it later"
 
-**Reality**: Volume without structure and alerting just hides the signal. You need *the right events, in a parseable format, with thresholds that page someone*—not a firehose nobody reads.
+**Reality**: Volume without structure and alerting just hides the signal. You need *the right events, in a parseable format, with thresholds that page someone*-not a firehose nobody reads.
 
 ### Myth 4: "A spike in errors is just noise"
 
@@ -202,17 +202,17 @@ Rather than quote a single statistic, the defensible picture is:
 | Aspect | Insufficient Logging & Monitoring | Broken Authentication (API2) | Resource Consumption (API4) |
 |--------|-----------------------------------|------------------------------|-----------------------------|
 | **Nature** | Failure to *detect* attacks | Failure to *prevent* auth bypass | Failure to *limit* usage |
-| **Exploited directly?** | No—it enables other attacks to run unseen | Yes | Yes |
+| **Exploited directly?** | No-it enables other attacks to run unseen | Yes | Yes |
 | **Symptom** | Long dwell time, external discovery | Account takeover | Exhaustion / cost |
 | **Fix domain** | Telemetry, SIEM, alerting, IR | Auth logic | Rate limits / quotas |
 
 ## Key Takeaways
 
-1. **This is the flaw that hides the others**—it is measured in dwell time, not in a single exploit.
-2. **Log the security events, not just the ops events**—auth failures, authz denials, and validation rejections, each with client and object context.
-3. **Logging without monitoring is write-only**—centralise to a SIEM and put tuned thresholds on 401/403/429 and enumeration patterns.
-4. **Protect the logs**—ship them off-box, make them tamper-resistant, and never write secrets or PII into them.
-5. **Detection must connect to response**—an alert that pages nobody is the same as no alert.
+1. **This is the flaw that hides the others**-it is measured in dwell time, not in a single exploit.
+2. **Log the security events, not just the ops events**-auth failures, authz denials, and validation rejections, each with client and object context.
+3. **Logging without monitoring is write-only**-centralise to a SIEM and put tuned thresholds on 401/403/429 and enumeration patterns.
+4. **Protect the logs**-ship them off-box, make them tamper-resistant, and never write secrets or PII into them.
+5. **Detection must connect to response**-an alert that pages nobody is the same as no alert.
 
 ## How to Identify if You're Vulnerable
 
@@ -231,7 +231,7 @@ If you answered "no" or "not sure" to several of these, an attacker could be ope
 
 ## A Note on the 2023 Edition
 
-In the 2019 OWASP API Security Top 10, Insufficient Logging & Monitoring was a **standalone entry (API10:2019)**. In the **2023** revision it was **dropped as a dedicated item**; the list changed shape and this concern is now treated as a cross-cutting operational practice rather than a numbered risk. That editorial change does *not* make the problem less real—detection capability is still essential, and it remains a numbered item (A09:2021) in the broader OWASP Top 10 for web applications. This lesson intentionally keeps the **2019 framing** because it states the requirement most clearly: an API must log security-relevant events, watch them, and respond.
+In the 2019 OWASP API Security Top 10, Insufficient Logging & Monitoring was a **standalone entry (API10:2019)**. In the **2023** revision it was **dropped as a dedicated item**; the list changed shape and this concern is now treated as a cross-cutting operational practice rather than a numbered risk. That editorial change does *not* make the problem less real-detection capability is still essential, and it remains a numbered item (A09:2021) in the broader OWASP Top 10 for web applications. This lesson intentionally keeps the **2019 framing** because it states the requirement most clearly: an API must log security-relevant events, watch them, and respond.
 
 ## Next Steps
 

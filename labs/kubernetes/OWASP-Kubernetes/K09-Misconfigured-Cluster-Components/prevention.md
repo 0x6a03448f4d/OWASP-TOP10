@@ -2,7 +2,7 @@
 
 ## Prevention Strategy Overview
 
-Hardening cluster components is not one setting—it is **making a benchmarked, locked-down state the only state that runs**, and continuously proving it has not drifted:
+Hardening cluster components is not one setting-it is **making a benchmarked, locked-down state the only state that runs**, and continuously proving it has not drifted:
 
 1. Lock down authentication and authorization on every component.
 2. Require mutual TLS everywhere and encrypt Secrets at rest.
@@ -11,9 +11,9 @@ Hardening cluster components is not one setting—it is **making a benchmarked, 
 5. Measure against the CIS Kubernetes Benchmark with `kube-bench` on a schedule, and fail on regression.
 
 ### Core Principles
-- **Authenticate and authorize the infrastructure**: components are subjects too—no anonymous access, no `AlwaysAllow`.
+- **Authenticate and authorize the infrastructure**: components are subjects too-no anonymous access, no `AlwaysAllow`.
 - **mTLS between every component**: the API server, kubelets, and etcd must verify each other's certificates.
-- **Least surface**: every open port, profiling endpoint, and legacy flag is attack surface—disable what you do not need.
+- **Least surface**: every open port, profiling endpoint, and legacy flag is attack surface-disable what you do not need.
 - **Benchmark, don't guess**: the CIS Kubernetes Benchmark defines "hardened"; automate the check so drift fails fast.
 - **Prefer managed defaults, then verify**: let the provider run the control plane where you can, but confirm nodes and add-ons are hardened too.
 
@@ -22,11 +22,11 @@ Hardening cluster components is not one setting—it is **making a benchmarked, 
 Set authentication, authorization, admission, and audit deliberately. These flags live in the API-server manifest (e.g. `/etc/kubernetes/manifests/kube-apiserver.yaml` on kubeadm clusters).
 
 ```
-# kube-apiserver — secure flags
+# kube-apiserver - secure flags
 --anonymous-auth=false                       # no system:anonymous
 --authorization-mode=Node,RBAC               # Node + RBAC, never AlwaysAllow
 # (do NOT set --insecure-port / --insecure-bind-address; the legacy
-#  insecure port is removed in modern Kubernetes — keep it that way)
+#  insecure port is removed in modern Kubernetes - keep it that way)
 --enable-admission-plugins=NodeRestriction,PodSecurity
 --profiling=false                            # no /debug/pprof
 --audit-log-path=/var/log/kubernetes/audit.log
@@ -42,7 +42,7 @@ Set authentication, authorization, admission, and audit deliberately. These flag
 The kubelet has its own authN/authZ, separate from the API server, and its own dangerous defaults on hand-built nodes. Configure it via the KubeletConfiguration file.
 
 ```
-# /var/lib/kubelet/config.yaml — secure kubelet
+# /var/lib/kubelet/config.yaml - secure kubelet
 apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration
 authentication:
@@ -67,7 +67,7 @@ With this, port `10250` requires a valid client certificate and an authorization
 etcd holds every Secret. Require mutual TLS, keep it on a private interface, and never expose it to workloads.
 
 ```
-# etcd — mutual TLS + private binding
+# etcd - mutual TLS + private binding
 --cert-file=/etc/kubernetes/pki/etcd/server.crt
 --key-file=/etc/kubernetes/pki/etcd/server.key
 --client-cert-auth=true                        # require client certificates
@@ -104,7 +104,7 @@ Prefer a cloud **KMS provider** so the encryption key itself lives outside the c
 
 Two admission controllers directly defend the components layer:
 
-- **`NodeRestriction`**: confines each kubelet to its own node and pods—contains a single-node compromise.
+- **`NodeRestriction`**: confines each kubelet to its own node and pods-contains a single-node compromise.
 - **`PodSecurity`**: the built-in Pod Security Admission enforcing the Pod Security Standards.
 
 ```
@@ -118,14 +118,14 @@ metadata:
     pod-security.kubernetes.io/enforce-version: latest
 ```
 
-> **Distinction from K04:** enabling `PodSecurity` here is the *component* configuration. Building comprehensive, uniform workload policy across every cluster (with an engine like Kyverno or Gatekeeper) is **K04 — Lack of Centralized Policy Enforcement**. K09 makes sure the API server itself has the guardrail switched on.
+> **Distinction from K04:** enabling `PodSecurity` here is the *component* configuration. Building comprehensive, uniform workload policy across every cluster (with an engine like Kyverno or Gatekeeper) is **K04 - Lack of Centralized Policy Enforcement**. K09 makes sure the API server itself has the guardrail switched on.
 
 ## 6. Enable Audit Logging
 
 Without an audit policy, exploitation of any of the above leaves no trace. Define what to record and route it off-node.
 
 ```
-# audit-policy.yaml — record the security-relevant events
+# audit-policy.yaml - record the security-relevant events
 apiVersion: audit.k8s.io/v1
 kind: Policy
 rules:
@@ -137,7 +137,7 @@ rules:
     omitStages: ["RequestReceived"]
 ```
 
-Ship audit logs to a system outside the cluster so a node compromise cannot erase them (this connects to **K05 — Inadequate Logging and Monitoring**).
+Ship audit logs to a system outside the cluster so a node compromise cannot erase them (this connects to **K05 - Inadequate Logging and Monitoring**).
 
 ## 7. Harden Scheduler, Controller-Manager, and Add-ons
 
@@ -160,11 +160,11 @@ Ship audit logs to a system outside the cluster so a node compromise cannot eras
 
 - Use a real cluster CA; never ship default or sample certificates/keys.
 - Keep certificate lifetimes short and rotate automatically (`rotateCertificates: true` for kubelets; renew control-plane certs on a cadence).
-- Treat any leaked component key as a full cluster compromise—re-issue the CA if the root is exposed.
+- Treat any leaked component key as a full cluster compromise-re-issue the CA if the root is exposed.
 
 ## 9. Verify Continuously with kube-bench (CIS Benchmark)
 
-The CIS Kubernetes Benchmark is the authoritative definition of a hardened cluster. `kube-bench` runs those checks against a live cluster and reports PASS/FAIL/WARN per control—turning "is this hardened?" into an automated gate.
+The CIS Kubernetes Benchmark is the authoritative definition of a hardened cluster. `kube-bench` runs those checks against a live cluster and reports PASS/FAIL/WARN per control-turning "is this hardened?" into an automated gate.
 
 ```
 # Run kube-bench as a Job on the cluster:
@@ -181,7 +181,7 @@ kube-bench run --targets master,node,etcd,policies
 # [WARN] 2.1    Ensure etcd client cert auth is enabled
 ```
 
-Wire kube-bench into CI/CD and a scheduled job so drift and newly introduced insecure flags fail the pipeline—complement it with `kubescape` or `Polaris` for broader posture and IaC scanning of your cluster manifests.
+Wire kube-bench into CI/CD and a scheduled job so drift and newly introduced insecure flags fail the pipeline-complement it with `kubescape` or `Polaris` for broader posture and IaC scanning of your cluster manifests.
 
 ## 10. Scan Cluster Configuration as Code (IaC)
 
@@ -199,7 +199,7 @@ Run these on every pull request that touches cluster provisioning, and on a sche
 
 ## 11. Prefer Managed, Then Verify the Shared-Responsibility Line
 
-Managed control planes (EKS, GKE, AKS) run and harden the API server and etcd for you—a large chunk of K09 handled by the provider. But your responsibility does not vanish:
+Managed control planes (EKS, GKE, AKS) run and harden the API server and etcd for you-a large chunk of K09 handled by the provider. But your responsibility does not vanish:
 
 - Node/kubelet configuration, node OS hardening, and node cert rotation are frequently yours.
 - Admission-plugin and audit options you can influence must still be set.
@@ -219,11 +219,11 @@ Run `kube-bench` in its managed-platform mode to see exactly which controls the 
 
 ## Key Takeaways
 
-1. **Authenticate and authorize the infrastructure** — disable anonymous access and never use `AlwaysAllow` on the API server or kubelet.
-2. **mTLS and encryption-at-rest for etcd** — require client certificates, keep it private, and encrypt Secrets so a snapshot is not a breach.
-3. **Turn on the guardrails** — `NodeRestriction`, `PodSecurity`, and audit logging are the admission and forensic backbone.
-4. **Close legacy and debug surfaces** — no insecure port, no `10255`, no profiling on all interfaces.
-5. **Benchmark continuously** — kube-bench (CIS) plus IaC scanning turn hardening into an automated, drift-proof gate.
+1. **Authenticate and authorize the infrastructure** - disable anonymous access and never use `AlwaysAllow` on the API server or kubelet.
+2. **mTLS and encryption-at-rest for etcd** - require client certificates, keep it private, and encrypt Secrets so a snapshot is not a breach.
+3. **Turn on the guardrails** - `NodeRestriction`, `PodSecurity`, and audit logging are the admission and forensic backbone.
+4. **Close legacy and debug surfaces** - no insecure port, no `10255`, no profiling on all interfaces.
+5. **Benchmark continuously** - kube-bench (CIS) plus IaC scanning turn hardening into an automated, drift-proof gate.
 
 ## Next Steps
 

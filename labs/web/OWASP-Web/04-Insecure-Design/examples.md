@@ -1,6 +1,6 @@
 # A04:2021 – Insecure Design - Examples
 
-Each example contrasts a **vulnerable design** with a **secure design**. The point is not to fix a typo — the vulnerable code often works perfectly and passes its functional tests. The flaw is in what the design *assumes* and *omits*. Watch for the missing control in each pair.
+Each example contrasts a **vulnerable design** with a **secure design**. The point is not to fix a typo - the vulnerable code often works perfectly and passes its functional tests. The flaw is in what the design *assumes* and *omits*. Watch for the missing control in each pair.
 
 ## Table of Contents
 
@@ -131,7 +131,7 @@ def verify_otp():
     return jsonify({'error': 'invalid'}), 401
 ```
 
-**Principle:** A small secret space must be paired with strict rate limiting, short TTL, an attempt cap, and single use — all designed in.
+**Principle:** A small secret space must be paired with strict rate limiting, short TTL, an attempt cap, and single use - all designed in.
 
 ## Example 4: Check-Then-Act Race Condition (Java)
 
@@ -234,7 +234,7 @@ def recover():
     return jsonify({'status': 'if the account exists, a reset link was sent'})
 ```
 
-**Principle:** Recovery must rely on possession of a verified channel and a high-entropy, short-lived, single-use token — never on public knowledge factors — and must not leak whether an account exists.
+**Principle:** Recovery must rely on possession of a verified channel and a high-entropy, short-lived, single-use token - never on public knowledge factors - and must not leak whether an account exists.
 
 ## Example 7: Broken Tenant Segregation (Java)
 
@@ -278,7 +278,7 @@ public List<Invoice> list(@PathVariable String orgId, Authentication auth) {
 | Knowledge-based recovery | Possession of a verified channel + high-entropy token. |
 | Trusting client-supplied tenant id | Enforce segregation from the authenticated identity at a trust boundary. |
 
-> In every pair, the vulnerable version is *correct code for an incorrect design*. The fix is not a patch — it is a different design that includes the missing control.
+> In every pair, the vulnerable version is *correct code for an incorrect design*. The fix is not a patch - it is a different design that includes the missing control.
 
 ## Next Steps
 

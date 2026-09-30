@@ -4,7 +4,7 @@ Each pair below shows a **vulnerable** pipeline and the **secure** version in th
 
 ## GitHub Actions
 
-### 1. Fork PR Build — `pull_request_target` vs `pull_request` (3PE)
+### 1. Fork PR Build - `pull_request_target` vs `pull_request` (3PE)
 
 #### Insecure
 
@@ -114,12 +114,12 @@ jobs:
 
 ## GitLab CI
 
-### 5. Fork MR Pipeline — Exposing Protected Variables (D-PPE / 3PE)
+### 5. Fork MR Pipeline - Exposing Protected Variables (D-PPE / 3PE)
 
 #### Insecure
 
 ```yaml
-# .gitlab-ci.yml — deploy job runs on any branch/MR, reading a protected token
+# .gitlab-ci.yml - deploy job runs on any branch/MR, reading a protected token
 deploy:
   script:
     - ./deploy.sh

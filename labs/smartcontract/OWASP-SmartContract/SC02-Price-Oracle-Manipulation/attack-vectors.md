@@ -8,9 +8,9 @@
 
 ## Understanding Oracle Manipulation Attack Vectors
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in contracts you own or are authorised to test.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in contracts you own or are authorised to test.
 
-Oracle manipulation is not exploited through a clever payload or a compiler quirk. It is exploited through **market mechanics**: the attacker changes the state of a price source the victim contract trusts, then calls the victim while it is reading the distorted value. Because DeFi transactions are atomic and flash loans supply effectively unlimited short-term capital, the attacker takes on *no market risk*—every step either completes profitably or the whole transaction reverts.
+Oracle manipulation is not exploited through a clever payload or a compiler quirk. It is exploited through **market mechanics**: the attacker changes the state of a price source the victim contract trusts, then calls the victim while it is reading the distorted value. Because DeFi transactions are atomic and flash loans supply effectively unlimited short-term capital, the attacker takes on *no market risk*-every step either completes profitably or the whole transaction reverts.
 
 The attacker's goal in this category is almost always one of:
 
@@ -33,7 +33,7 @@ The attacker's goal in this category is almost always one of:
 4. Extract & Repay
    |
    Take the mispriced value out, reverse the swap, repay the flash loan
-   (all atomic — if any step fails, everything reverts)
+   (all atomic - if any step fails, everything reverts)
 ```
 
 ## Common Attack Patterns
@@ -69,7 +69,7 @@ uint price = amts[1];                         // instantaneous, movable
 // Attacker moves the pool first, then the quote returns whatever they want.
 ```
 
-**Payoff**: identical to reading reserves—`getAmountsOut` offers no manipulation resistance.
+**Payoff**: identical to reading reserves-`getAmountsOut` offers no manipulation resistance.
 
 ### 3. `balanceOf` / Donation Inflation
 
@@ -90,7 +90,7 @@ uint pricePerShare = token.balanceOf(vault) * 1e18 / vault.totalSupply();
 The victim values an LP token from the pool's live underlying balances rather than a manipulation-resistant fair-value formula.
 
 ```solidity
-// Naive LP valuation — moves with the pool's instantaneous reserves
+// Naive LP valuation - moves with the pool's instantaneous reserves
 uint lpValue = (reserve0 * price0 + reserve1 * price1) / lpToken.totalSupply();
 
 // Attacker skews the pool so reserve0/reserve1 misrepresent true holdings,
@@ -110,7 +110,7 @@ uint price = onePool.spot();   // no second source to disagree
 // the attacker picks the cheapest venue the victim actually reads.
 ```
 
-**Payoff**: no cross-check means no alarm—the distorted price is accepted as truth.
+**Payoff**: no cross-check means no alarm-the distorted price is accepted as truth.
 
 ### 6. Stale / Frozen Feed Exploitation
 
@@ -181,11 +181,11 @@ Depress the collateral's spot price with a flash-loaned swap
 
 ## Key Takeaways
 
-1. **Manipulation is market mechanics, not a payload**—the attacker moves a price the victim trusts.
-2. **Flash loans remove the cost barrier**—assume unlimited atomic capital and no attacker market risk.
-3. **Spot reads are the common thread**—reserves, `getAmountsOut`, `balanceOf`, and naive LP valuations all move in one transaction.
-4. **Thresholds are targets**—liquidation, mint, and redemption boundaries are exactly where a nudged price pays off.
-5. **One source is one point of failure**—no cross-check means the distorted value is simply believed.
+1. **Manipulation is market mechanics, not a payload**-the attacker moves a price the victim trusts.
+2. **Flash loans remove the cost barrier**-assume unlimited atomic capital and no attacker market risk.
+3. **Spot reads are the common thread**-reserves, `getAmountsOut`, `balanceOf`, and naive LP valuations all move in one transaction.
+4. **Thresholds are targets**-liquidation, mint, and redemption boundaries are exactly where a nudged price pays off.
+5. **One source is one point of failure**-no cross-check means the distorted value is simply believed.
 
 ## Next Steps
 

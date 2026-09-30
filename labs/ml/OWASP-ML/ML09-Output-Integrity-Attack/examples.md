@@ -1,6 +1,6 @@
 # ML09: Output Integrity Attack - Code Examples
 
-Each pair below shows an **insecure** inference pipeline that passes or stores results without integrity protection, and the **secure** version that adds TLS, signed/authenticated results, and consumer-side validation. The model itself is unchanged—every fix protects the *result* on its way to the thing that acts on it.
+Each pair below shows an **insecure** inference pipeline that passes or stores results without integrity protection, and the **secure** version that adds TLS, signed/authenticated results, and consumer-side validation. The model itself is unchanged-every fix protects the *result* on its way to the thing that acts on it.
 
 > The signing helpers (`sign_result` / `verify_result`) are shared across the examples and shown once, in Example 1. Later examples reuse them.
 

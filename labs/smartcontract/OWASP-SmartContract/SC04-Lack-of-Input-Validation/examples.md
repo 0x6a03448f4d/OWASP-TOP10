@@ -1,6 +1,6 @@
 # SC04: Lack of Input Validation - Code Examples
 
-Each pair below shows a **vulnerable** function and the **secure** version of the same logic in Solidity. The examples target the validation gaps that dominate real findings: zero addresses, unbounded amounts, mismatched arrays, out-of-range indexes, unbounded fees, and untrusted token/target addresses. Custom errors are used throughout — they are cheaper than string reverts and self-documenting.
+Each pair below shows a **vulnerable** function and the **secure** version of the same logic in Solidity. The examples target the validation gaps that dominate real findings: zero addresses, unbounded amounts, mismatched arrays, out-of-range indexes, unbounded fees, and untrusted token/target addresses. Custom errors are used throughout - they are cheaper than string reverts and self-documenting.
 
 ## 1. Zero-Address Check
 

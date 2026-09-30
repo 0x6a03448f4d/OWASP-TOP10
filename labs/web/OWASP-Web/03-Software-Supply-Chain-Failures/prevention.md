@@ -169,7 +169,7 @@ jobs:
           grype dir:. --fail-on high
 ```
 
-Also enable automated update PRs (Dependabot / Renovate) so patches arrive quickly—paired with pinning and review so updates are adopted deliberately, not blindly.
+Also enable automated update PRs (Dependabot / Renovate) so patches arrive quickly-paired with pinning and review so updates are adopted deliberately, not blindly.
 
 ## 6. Harden CI/CD
 
@@ -203,7 +203,7 @@ jobs:
 
 ## 7. Subresource Integrity for Third-Party Scripts
 
-For any script or stylesheet loaded from another origin, add a Subresource Integrity (`integrity`) hash. The browser refuses to execute the resource if its content does not match—so a compromised CDN cannot silently swap in a skimmer. Back it with a strict Content-Security-Policy.
+For any script or stylesheet loaded from another origin, add a Subresource Integrity (`integrity`) hash. The browser refuses to execute the resource if its content does not match-so a compromised CDN cannot silently swap in a skimmer. Back it with a strict Content-Security-Policy.
 
 ```html
 <!-- Browser executes this ONLY if the file's hash matches -->
@@ -228,7 +228,7 @@ Content-Security-Policy:
   object-src 'none'; base-uri 'none'
 ```
 
-**Note**: SRI requires a specific, immutable file version. It is incompatible with CDN URLs that serve "latest"—which is exactly the mutable behavior you want to avoid.
+**Note**: SRI requires a specific, immutable file version. It is incompatible with CDN URLs that serve "latest"-which is exactly the mutable behavior you want to avoid.
 
 ## 8. Verify and Pin Container Base Images
 

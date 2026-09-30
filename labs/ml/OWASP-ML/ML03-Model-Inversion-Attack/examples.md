@@ -2,7 +2,7 @@
 
 Each pair below shows an **insecure** implementation that leaks confidences or memorises training data, and a **secure** version that limits output detail or trains with differential privacy. The examples use Python with PyTorch and Opacus, mirroring the defences in the Prevention guide.
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — use these patterns to harden models you own or are authorised to assess.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - use these patterns to harden models you own or are authorised to assess.
 
 ## 1. Model Serving: Confidence Vector vs. Coarse Label
 
@@ -206,11 +206,11 @@ def predict():
 
 ## Key Takeaways
 
-1. **Return the decision, not the distribution**—coarse labels remove the black-box hill-climbing signal.
-2. **DP-SGD is the training-time fix**—Opacus bounds how much any one record shapes the model.
-3. **Perturb and round any confidence you must expose**—precise floats are a gradient waiting to be estimated.
-4. **Meter and monitor the API**—near-duplicate query floods are the signature of an inversion loop.
-5. **Layer the defences**—no single control is sufficient; combine training, output, and access controls.
+1. **Return the decision, not the distribution**-coarse labels remove the black-box hill-climbing signal.
+2. **DP-SGD is the training-time fix**-Opacus bounds how much any one record shapes the model.
+3. **Perturb and round any confidence you must expose**-precise floats are a gradient waiting to be estimated.
+4. **Meter and monitor the API**-near-duplicate query floods are the signature of an inversion loop.
+5. **Layer the defences**-no single control is sufficient; combine training, output, and access controls.
 
 ## Next Steps
 

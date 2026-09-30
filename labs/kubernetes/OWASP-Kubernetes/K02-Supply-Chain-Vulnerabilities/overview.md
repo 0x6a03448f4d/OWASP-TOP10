@@ -10,9 +10,9 @@
 
 ## What are Supply Chain Vulnerabilities?
 
-**Supply Chain Vulnerabilities** (K02 in the OWASP Kubernetes Top 10) are the risks that enter a cluster through the *artifacts it runs* rather than through the cluster's own configuration. A Kubernetes workload is the end of a long assembly line: a base image, application code and its third-party dependencies, a build pipeline, a registry, a Helm chart or operator, and finally a manifest that pulls it all into a running Pod. Every stage in that line is an opportunity to introduce something vulnerable, tampered, or outright malicious—and Kubernetes will faithfully schedule whatever it is handed.
+**Supply Chain Vulnerabilities** (K02 in the OWASP Kubernetes Top 10) are the risks that enter a cluster through the *artifacts it runs* rather than through the cluster's own configuration. A Kubernetes workload is the end of a long assembly line: a base image, application code and its third-party dependencies, a build pipeline, a registry, a Helm chart or operator, and finally a manifest that pulls it all into a running Pod. Every stage in that line is an opportunity to introduce something vulnerable, tampered, or outright malicious-and Kubernetes will faithfully schedule whatever it is handed.
 
-Unlike a single coding bug, K02 is about **trust and provenance**: *can you prove that what is running is exactly what you intended to run, built from sources you trust, and free of known-vulnerable components?* For most clusters the honest answer is "not really"—images are pulled by mutable tag from public registries, nobody knows what is inside a layer, and there is no signature to verify. That gap is the K02 attack surface.
+Unlike a single coding bug, K02 is about **trust and provenance**: *can you prove that what is running is exactly what you intended to run, built from sources you trust, and free of known-vulnerable components?* For most clusters the honest answer is "not really"-images are pulled by mutable tag from public registries, nobody knows what is inside a layer, and there is no signature to verify. That gap is the K02 attack surface.
 
 ### Core Concept
 
@@ -42,7 +42,7 @@ Vulnerable Supply Chain:
 
 Kubernetes amplifies supply chain risk in ways a single host does not:
 
-- It is **declarative and automated**: a manifest that references a poisoned or vulnerable image is reconciled automatically—no human looks at what actually landed on the node.
+- It is **declarative and automated**: a manifest that references a poisoned or vulnerable image is reconciled automatically-no human looks at what actually landed on the node.
 - It **pulls at scale**: one bad image or chart is scheduled across every replica, every node, and often every environment that shares the reference.
 - It runs **third-party operators and controllers** with high privilege; a compromised operator image can hold cluster-wide permissions.
 - Mutable tags mean **what you tested is not necessarily what runs**: `:latest` can resolve to a different digest on the next pull, silently changing the workload.
@@ -52,7 +52,7 @@ Kubernetes amplifies supply chain risk in ways a single host does not:
 
 ### Business Impact
 
-- **In-Cluster Code Execution**: A poisoned or backdoored image runs attacker code inside your trust boundary the moment it is scheduled—no exploit of your own application required.
+- **In-Cluster Code Execution**: A poisoned or backdoored image runs attacker code inside your trust boundary the moment it is scheduled-no exploit of your own application required.
 - **Cryptojacking and Resource Abuse**: Malicious public images are routinely used to mine cryptocurrency on someone else's cluster, inflating cloud bills and degrading service.
 - **Data Exposure and Exfiltration**: Code running in a Pod can read mounted secrets, service-account tokens, and reachable internal services, then quietly ship data out.
 - **Regulatory and Contractual Fallout**: Shipping software with unknown or vulnerable components undermines SBOM, provenance, and due-diligence obligations that customers and regulators increasingly require.
@@ -160,7 +160,7 @@ The incidents below are described as **classes** of publicly documented events. 
 - An attacker published a malicious package under that name to the public index.
 
 **Impact**:
-- This documented class of attack causes malicious code to be pulled into builds and, ultimately, into container images that ship to production—executing inside the trust boundary.
+- This documented class of attack causes malicious code to be pulled into builds and, ultimately, into container images that ship to production-executing inside the trust boundary.
 
 **Root Cause**: Ambiguous dependency resolution and lack of provenance/pinning, so an untrusted source could substitute for a trusted one.
 
@@ -170,7 +170,7 @@ The incidents below are described as **classes** of publicly documented events. 
 - The build/release pipeline itself was compromised, so malicious code was inserted into an otherwise legitimate, signed-off artifact.
 
 **Impact**:
-- Because the tampered artifact carried the vendor's normal trust markers, downstream consumers deployed it as trusted software—the defining lesson of this widely reported class of incident.
+- Because the tampered artifact carried the vendor's normal trust markers, downstream consumers deployed it as trusted software-the defining lesson of this widely reported class of incident.
 
 **Root Cause**: Trust placed in the *output* of a pipeline without independently verifiable provenance (reproducible builds, attestations) covering how the artifact was produced.
 
@@ -198,11 +198,11 @@ Rather than cite precise breach counts (which vary by source and year), the defe
 
 ### Myth 3: "The tag is stable, so the image is stable"
 
-**Reality**: Tags are mutable pointers. `:latest`—or even `:1.2.3`—can be repushed to a different digest. Only an immutable digest (`@sha256:...`) guarantees the artifact you tested is the artifact that runs.
+**Reality**: Tags are mutable pointers. `:latest`-or even `:1.2.3`-can be repushed to a different digest. Only an immutable digest (`@sha256:...`) guarantees the artifact you tested is the artifact that runs.
 
 ### Myth 4: "We scan images, so the supply chain is covered"
 
-**Reality**: Scanning finds *known* CVEs; it does not prove *provenance*. A scan will not tell you the image was swapped, tampered with, or built by a compromised pipeline. Scanning and signing solve different problems—you need both.
+**Reality**: Scanning finds *known* CVEs; it does not prove *provenance*. A scan will not tell you the image was swapped, tampered with, or built by a compromised pipeline. Scanning and signing solve different problems-you need both.
 
 ### Myth 5: "A Helm chart from the internet is just config"
 
@@ -223,11 +223,11 @@ Rather than cite precise breach counts (which vary by source and year), the defe
 
 ## Key Takeaways
 
-1. **The cluster runs what it is handed**—risk enters through images, charts, and pipelines, not just your own code.
-2. **Provenance is the core question**—can you prove what is running is what you intended, from a source you trust?
-3. **Pin by digest, never by mutable tag**—`:latest` means the artifact can change out from under you.
-4. **Scanning and signing are complementary**—one finds known CVEs, the other proves origin; you need both.
-5. **Enforce at admission**—a policy that blocks unsigned, unscanned, or untrusted images is the gate that makes the rest real.
+1. **The cluster runs what it is handed**-risk enters through images, charts, and pipelines, not just your own code.
+2. **Provenance is the core question**-can you prove what is running is what you intended, from a source you trust?
+3. **Pin by digest, never by mutable tag**-`:latest` means the artifact can change out from under you.
+4. **Scanning and signing are complementary**-one finds known CVEs, the other proves origin; you need both.
+5. **Enforce at admission**-a policy that blocks unsigned, unscanned, or untrusted images is the gate that makes the rest real.
 
 ## How to Identify if You're Vulnerable
 

@@ -887,4 +887,4 @@ function logSecurityEvent(eventType, userId, metadata = {}) {
 
 ---
 
-**Remember**: Security is not a feature you add at the end—it must be designed in from the start. Defense in depth is essential for robust authentication and authorization.
+**Remember**: Security is not a feature you add at the end-it must be designed in from the start. Defense in depth is essential for robust authentication and authorization.

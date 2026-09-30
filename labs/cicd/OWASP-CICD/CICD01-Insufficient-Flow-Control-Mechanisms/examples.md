@@ -2,7 +2,7 @@
 
 Each pair below shows an **insecure** pipeline configuration and the **secure** version in the same platform. The examples focus on the flow-control failures that dominate real findings: deploying on any push with no approval, self-approvable merges, running fork code with secrets, and pipeline definitions that can delete their own gates.
 
-> Flow control lives in two places: the *pipeline files* shown here, and the *platform settings* (branch protection, environment reviewers, approval rules) they rely on. A secure pipeline file assumes the matching platform gate is also configured—both are required.
+> Flow control lives in two places: the *pipeline files* shown here, and the *platform settings* (branch protection, environment reviewers, approval rules) they rely on. A secure pipeline file assumes the matching platform gate is also configured-both are required.
 
 ## GitHub Actions
 
@@ -31,7 +31,7 @@ jobs:
 ```
 
 ```yaml
-# .github/workflows/pr-check.yml — untrusted fork code runs WITH secrets
+# .github/workflows/pr-check.yml - untrusted fork code runs WITH secrets
 on: pull_request_target        # base-repo secrets are available
 jobs:
   test:
@@ -86,7 +86,7 @@ jobs:
 ```
 
 ```yaml
-# .github/workflows/pr-check.yml — fork PRs build WITHOUT secrets
+# .github/workflows/pr-check.yml - fork PRs build WITHOUT secrets
 on: pull_request               # read-only token, no repo secrets exposed
 jobs:
   test:
@@ -147,7 +147,7 @@ deploy_prod:
     - if: '$CI_COMMIT_BRANCH == "main"'
       when: manual                       # a human must trigger the deploy
   # 'manual' + a Protected Environment means only members of the
-  # 'release-approvers' group can run this job — a separate decision from merge.
+  # 'release-approvers' group can run this job - a separate decision from merge.
   allow_failure: false
 ```
 

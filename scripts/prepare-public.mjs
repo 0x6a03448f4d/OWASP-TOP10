@@ -28,7 +28,7 @@ const items = [
 ];
 
 const EXCLUDE = /(^|[\\/])(node_modules|\.git)([\\/]|$)/;
-// A lesson's Docker lab lives in a `lab/` dir — not served on the hosted site.
+// A lesson's Docker lab lives in a `lab/` dir - not served on the hosted site.
 const isDockerLabDir = (p) => `${sep}lab${sep}`.length && p.split(sep).includes('lab');
 
 // Start clean so removed source files don't linger in a cached public/.

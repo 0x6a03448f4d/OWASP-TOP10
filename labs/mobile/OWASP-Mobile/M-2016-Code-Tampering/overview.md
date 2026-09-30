@@ -10,11 +10,11 @@
 
 ## What is Code Tampering?
 
-**Code Tampering** is when an attacker modifies a mobile application's binary, its resources, or its behaviour *in memory* on a device they control—then runs the altered app to make it do something the developer never intended. Because the app executes on hardware the attacker fully owns (usually rooted or jailbroken), every byte of the code, every asset, and every value in RAM is reachable and rewritable. The trust boundary that a server enjoys simply does not exist on the client.
+**Code Tampering** is when an attacker modifies a mobile application's binary, its resources, or its behaviour *in memory* on a device they control-then runs the altered app to make it do something the developer never intended. Because the app executes on hardware the attacker fully owns (usually rooted or jailbroken), every byte of the code, every asset, and every value in RAM is reachable and rewritable. The trust boundary that a server enjoys simply does not exist on the client.
 
-This is the eighth risk in the **OWASP Mobile Top 10 (2016)**. It captures a family of techniques: **repackaging** (decompile, patch, resign, redistribute a trojanized app), **binary patching** (flip a single check—license, root, or "premium" flag), **resource and asset modification**, and **runtime manipulation** (hooking methods, editing memory, and rewriting return values while the app runs). The unifying idea is that the shipped artifact is not the artifact that runs.
+This is the eighth risk in the **OWASP Mobile Top 10 (2016)**. It captures a family of techniques: **repackaging** (decompile, patch, resign, redistribute a trojanized app), **binary patching** (flip a single check-license, root, or "premium" flag), **resource and asset modification**, and **runtime manipulation** (hooking methods, editing memory, and rewriting return values while the app runs). The unifying idea is that the shipped artifact is not the artifact that runs.
 
-> **Core principle:** any logic, secret, or security decision that lives only on the device can be observed and changed. Code tampering is not a bug in one function—it is the consequence of trusting a runtime you do not control.
+> **Core principle:** any logic, secret, or security decision that lives only on the device can be observed and changed. Code tampering is not a bug in one function-it is the consequence of trusting a runtime you do not control.
 
 ### Core Concept
 
@@ -36,7 +36,7 @@ The developer ships:            The attacker runs:
 ### The Four Faces of Tampering
 
 - **Repackaging**: unzip the APK/IPA, decompile to smali or Objective-C/Swift metadata, patch the code or resources, rebuild, *re-sign with the attacker's own key*, and distribute the trojanized app through third-party stores, sideloading, or phishing.
-- **Binary / bytecode patching**: flip a specific decision—a license gate, a subscription flag, an integrity check—by editing smali, DEX, or the compiled Mach-O/ELF directly (often just turning a conditional branch into a no-op).
+- **Binary / bytecode patching**: flip a specific decision-a license gate, a subscription flag, an integrity check-by editing smali, DEX, or the compiled Mach-O/ELF directly (often just turning a conditional branch into a no-op).
 - **Resource and asset modification**: swap images, strings, config files, feature-flag JSON, ad identifiers, or pinned certificates bundled in the app.
 - **Runtime instrumentation**: attach a dynamic tool (Frida, Xposed, Cydia Substrate, objection) to hook methods, dump arguments and keys, edit memory, and change return values *without ever modifying the file on disk*.
 
@@ -45,7 +45,7 @@ The developer ships:            The attacker runs:
 ### Business Impact
 
 - **Revenue loss**: paywalls, subscriptions, in-app purchases, and license checks are bypassed when the enforcing logic lives on the client. A single cracked build can circulate to thousands of users.
-- **Trojanized distribution**: attackers repackage a popular app with malware (banking overlays, spyware, ad-fraud SDKs) and lure users to install the "free" or "modded" version—damaging the brand the malware borrows.
+- **Trojanized distribution**: attackers repackage a popular app with malware (banking overlays, spyware, ad-fraud SDKs) and lure users to install the "free" or "modded" version-damaging the brand the malware borrows.
 - **Fraud and abuse**: game economies, referral bonuses, loyalty points, and rate limits enforced only in the app are trivially gamed at scale.
 - **Intellectual-property theft**: proprietary algorithms, embedded keys, and business logic are extracted and reused.
 - **Regulatory and safety exposure**: a tampered health, finance, or automotive app that bypasses safety or compliance checks creates real-world and legal risk.
@@ -55,7 +55,7 @@ The developer ships:            The attacker runs:
 - **Security-control bypass**: root/jailbreak detection, certificate pinning, biometric gates, and anti-fraud checks are disabled by hooking their return values.
 - **Secret extraction**: hardcoded API keys, encryption keys, and tokens are dumped by hooking crypto and networking functions at the moment they are used in cleartext.
 - **Data exfiltration and injection**: injected code inside a repackaged app can read local storage, intercept input, and beacon out user data.
-- **Logic subversion**: any client-side decision—"is this user allowed?", "is this transaction valid?"—can be forced to the attacker's preferred answer.
+- **Logic subversion**: any client-side decision-"is this user allowed?", "is this transaction valid?"-can be forced to the attacker's preferred answer.
 
 ## Technical Context
 
@@ -114,7 +114,7 @@ Java.perform(function () {
 });
 ```
 
-Frida (Android + iOS), Xposed and its successors (LSPosed), Cydia Substrate, and objection let an attacker intercept any method, read its arguments, replace its body, and dump data—while the on-disk binary and signature stay untouched. This defeats naive integrity checks that only hash the file.
+Frida (Android + iOS), Xposed and its successors (LSPosed), Cydia Substrate, and objection let an attacker intercept any method, read its arguments, replace its body, and dump data-while the on-disk binary and signature stay untouched. This defeats naive integrity checks that only hash the file.
 
 ### 4. Memory Patching and Return-Value Modification
 
@@ -168,15 +168,15 @@ To stay honest, the cases below describe well-documented **classes** of incident
 
 ## Prevalence and Detectability
 
-Code tampering is **ubiquitous wherever an app has value worth extracting**—paid apps, games, finance, streaming, and anything with embedded secrets. The tooling (apktool, Frida, Xposed/LSPosed, objection, memory editors) is mature, free, and well documented, so the barrier to entry is low.
+Code tampering is **ubiquitous wherever an app has value worth extracting**-paid apps, games, finance, streaming, and anything with embedded secrets. The tooling (apktool, Frida, Xposed/LSPosed, objection, memory editors) is mature, free, and well documented, so the barrier to entry is low.
 
 Rather than cite invented statistics, the defensible picture is:
 
-- OWASP rates the **exploitability** as difficult in the sense that it requires a device the attacker controls, but **routine** for anyone motivated—the skills and tools are commodity.
+- OWASP rates the **exploitability** as difficult in the sense that it requires a device the attacker controls, but **routine** for anyone motivated-the skills and tools are commodity.
 - The **detectability** of the vulnerability (a client that trusts itself) is easy: if a valuable decision is made on-device with no server check, it is tamperable.
 - The **impact** ranges from lost revenue to full malware distribution and secret theft.
 
-> Note: exact crack rates and malware counts vary by report and year. The durable takeaway is that a determined attacker *will* tamper with an app that runs on their device—so the control that matters is the one enforced where they have no privileges: your server.
+> Note: exact crack rates and malware counts vary by report and year. The durable takeaway is that a determined attacker *will* tamper with an app that runs on their device-so the control that matters is the one enforced where they have no privileges: your server.
 
 ## Common Misunderstandings
 
@@ -186,11 +186,11 @@ Rather than cite invented statistics, the defensible picture is:
 
 ### Myth 2: "The app is signed, so it can't be modified"
 
-**Reality**: An attacker simply re-signs with their own key after modifying it. Signing proves who built *this* copy, not that it is *your* copy—unless something verifies the signing certificate against the value you expect.
+**Reality**: An attacker simply re-signs with their own key after modifying it. Signing proves who built *this* copy, not that it is *your* copy-unless something verifies the signing certificate against the value you expect.
 
 ### Myth 3: "Obfuscation makes the app tamper-proof"
 
-**Reality**: Obfuscation raises the time and skill needed to understand and patch code. It never makes tampering impossible—it makes it more expensive. That is valuable defense-in-depth, not a guarantee.
+**Reality**: Obfuscation raises the time and skill needed to understand and patch code. It never makes tampering impossible-it makes it more expensive. That is valuable defense-in-depth, not a guarantee.
 
 ### Myth 4: "Our integrity check hashes the binary, so hooking won't work"
 
@@ -217,10 +217,10 @@ The 2024 revision of the Mobile Top 10 merged tampering and reverse-engineering 
 
 ## Key Takeaways
 
-1. **The client is fully controlled by the attacker**—binary, resources, and memory are all rewritable on a rooted/jailbroken device.
+1. **The client is fully controlled by the attacker**-binary, resources, and memory are all rewritable on a rooted/jailbroken device.
 2. **Every on-device security decision is bypassable** by patching or hooking the code that makes it.
-3. **Signing proves the builder, not the origin**—a repackaged app is validly signed by the attacker's key.
-4. **Client protections raise cost; the server enforces truth**—keep secrets and enforcement server-side.
+3. **Signing proves the builder, not the origin**-a repackaged app is validly signed by the attacker's key.
+4. **Client protections raise cost; the server enforces truth**-keep secrets and enforcement server-side.
 5. **Detection, obfuscation, and attestation are defense-in-depth**, valuable together and insufficient alone.
 
 ## How to Identify if You're Vulnerable
@@ -235,7 +235,7 @@ The 2024 revision of the Mobile Top 10 merged tampering and reverse-engineering 
 - [ ] Do you have telemetry that flags tampered/hooked/emulated clients rather than blocking silently?
 - [ ] Is sensitive native logic obfuscated to raise the cost of patching?
 
-If you answered "no" or "not sure" to several of these—especially the server-side ones—a determined user can already bypass your client-side controls.
+If you answered "no" or "not sure" to several of these-especially the server-side ones-a determined user can already bypass your client-side controls.
 
 ## Next Steps
 

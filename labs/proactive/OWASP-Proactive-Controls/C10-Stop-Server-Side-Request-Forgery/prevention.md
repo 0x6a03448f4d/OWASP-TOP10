@@ -5,7 +5,7 @@
 Stopping SSRF is a layered defense: no single check is sufficient, and the application-layer validation and the network-layer confinement back each other up. Implement the steps below together so that a bypass of one is caught by another.
 
 1. Validate every user-influenced URL against an **allow-list** (scheme, host, port).
-2. Resolve DNS and validate the **resolved IP**, rejecting private/reserved ranges—then **pin** it.
+2. Resolve DNS and validate the **resolved IP**, rejecting private/reserved ranges-then **pin** it.
 3. Disable unused URL **schemes**; permit only `http`/`https`.
 4. Do not follow **redirects** (or re-validate every hop).
 5. Confine the fetching service with **network egress filtering** and segmentation.
@@ -16,7 +16,7 @@ Stopping SSRF is a layered defense: no single check is sufficient, and the appli
 ### Design Principles
 
 - **Deny by default**: a fetch is refused unless its destination is explicitly permitted.
-- **Validate on the resolved IP, not the string**: the hostname is a hint; the IP is the truth—and it must be the IP you actually connect to.
+- **Validate on the resolved IP, not the string**: the hostname is a hint; the IP is the truth-and it must be the IP you actually connect to.
 - **Defense in depth**: assume the app-layer check can be bypassed, and make the network unable to reach anything sensitive anyway.
 - **Fail closed and quiet**: on any doubt, refuse the fetch and return a generic error that leaks no internal detail.
 
@@ -25,7 +25,7 @@ Stopping SSRF is a layered defense: no single check is sufficient, and the appli
 Prefer an allow-list over a block-list. Block-lists are endlessly bypassable; an allow-list states exactly what is permitted and denies everything else. Where the set of legitimate destinations is known (an importer that only pulls from your own CDN, an integration with a fixed provider), pin it tightly.
 
 ```python
-# Conceptual allow-list policy — deny by default
+# Conceptual allow-list policy - deny by default
 ALLOWED_SCHEMES = {"https"}                       # http only if you truly need it
 ALLOWED_HOSTS   = {"api.partner.com", "cdn.example.net"}
 ALLOWED_PORTS   = {443}
@@ -36,7 +36,7 @@ def destination_allowed(scheme, host, port):
             and port in ALLOWED_PORTS)
 ```
 
-When the destination is genuinely open-ended (e.g. a link-preview feature that may fetch any public site), you cannot allow-list hosts—so the resolved-IP validation in step 2 and the network egress filtering in step 5 become the primary defenses. Compare hosts by **exact** match, never `startsWith`/`endsWith`, and reject credentials-in-URL (`user@host`) and non-default ports you did not intend.
+When the destination is genuinely open-ended (e.g. a link-preview feature that may fetch any public site), you cannot allow-list hosts-so the resolved-IP validation in step 2 and the network egress filtering in step 5 become the primary defenses. Compare hosts by **exact** match, never `startsWith`/`endsWith`, and reject credentials-in-URL (`user@host`) and non-default ports you did not intend.
 
 ## 2. Resolve DNS, Validate the Resolved IP, and Pin It
 
@@ -70,7 +70,7 @@ Note the `169.254.0.0/16` link-local range already contains `169.254.169.254`; c
 
 ## 3. Disable Unused URL Schemes
 
-Restrict the accepted schemes to `http` and `https`. Anything else—`file://`, `gopher://`, `dict://`, `ftp://`—is either a local-file read or a protocol-smuggling primitive and should be rejected before any network activity.
+Restrict the accepted schemes to `http` and `https`. Anything else-`file://`, `gopher://`, `dict://`, `ftp://`-is either a local-file read or a protocol-smuggling primitive and should be rejected before any network activity.
 
 ```python
 from urllib.parse import urlparse
@@ -88,7 +88,7 @@ Also configure the underlying HTTP library so it cannot be coaxed into other pro
 A validated URL can respond with a redirect to an internal target. Disable automatic redirect following for user-supplied fetches. If you must follow redirects, treat every `Location` as a brand-new untrusted URL and run the full scheme + resolved-IP validation on each hop.
 
 ```python
-# Python requests — do not auto-follow; inspect and re-validate manually
+# Python requests - do not auto-follow; inspect and re-validate manually
 resp = session.get(url, allow_redirects=False, timeout=5)
 if resp.is_redirect:
     next_url = resp.headers["Location"]
@@ -115,7 +115,7 @@ Implement this with security groups / NACLs, a Kubernetes `NetworkPolicy`, or a 
 
 ## 6. Enforce Cloud Metadata Protection (IMDSv2)
 
-Because metadata theft is the highest-impact SSRF outcome, harden the metadata endpoint itself as a second line of defense. Require the session-oriented metadata service (IMDSv2), which needs a `PUT` to obtain a token before any read—something a simple SSRF `GET` cannot perform—and set the response hop limit low so the endpoint is not reachable from containers.
+Because metadata theft is the highest-impact SSRF outcome, harden the metadata endpoint itself as a second line of defense. Require the session-oriented metadata service (IMDSv2), which needs a `PUT` to obtain a token before any read-something a simple SSRF `GET` cannot perform-and set the response hop limit low so the endpoint is not reachable from containers.
 
 ```
 # Require IMDSv2 (token-based) and restrict hops on the instance
@@ -128,7 +128,7 @@ Where an instance does not need metadata at all, disable the endpoint. Combine t
 
 ## 7. Safe Response Handling
 
-Do not reflect the raw upstream response back to the caller—that is what turns a blind SSRF into a readable one and leaks internal data. Return only what the feature needs (a status, a parsed field, a rendered preview), cap the response size, and enforce a total time budget.
+Do not reflect the raw upstream response back to the caller-that is what turns a blind SSRF into a readable one and leaks internal data. Return only what the feature needs (a status, a parsed field, a rendered preview), cap the response size, and enforce a total time budget.
 
 ```python
 # Bound what you read back from the upstream
@@ -164,11 +164,11 @@ return {"status": resp.status_code, "title": extract_title(body)}
 
 ## Key Takeaways
 
-1. **Allow-list and deny by default** — state what is permitted; refuse everything else.
-2. **Validate the resolved IP and pin it** — this is the single check that survives real bypasses.
-3. **Disable extra schemes and redirects** — remove the `file://`/`gopher://` and redirect-to-internal paths.
-4. **Confine the network** — egress filtering and IMDSv2 stop the request even if the app check fails.
-5. **Least privilege, safe responses, timeouts** — shrink the payoff and the reconnaissance value of any request that slips through.
+1. **Allow-list and deny by default** - state what is permitted; refuse everything else.
+2. **Validate the resolved IP and pin it** - this is the single check that survives real bypasses.
+3. **Disable extra schemes and redirects** - remove the `file://`/`gopher://` and redirect-to-internal paths.
+4. **Confine the network** - egress filtering and IMDSv2 stop the request even if the app check fails.
+5. **Least privilege, safe responses, timeouts** - shrink the payoff and the reconnaissance value of any request that slips through.
 
 ## Next Steps
 

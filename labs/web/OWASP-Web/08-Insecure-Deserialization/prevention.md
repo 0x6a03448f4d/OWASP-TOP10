@@ -5,12 +5,12 @@ There is exactly one defense that always works: **do not deserialize data from a
 ## Table of Contents
 
 - [The Governing Principle](#the-governing-principle)
-- [Layer 1 — Prefer Data-Only Formats + Schema Validation](#layer-1--prefer-data-only-formats--schema-validation)
-- [Layer 2 — Type Allow-Lists & Safe Resolvers](#layer-2--type-allow-lists--safe-resolvers)
-- [Layer 3 — Integrity: Sign Serialized State (HMAC)](#layer-3--integrity-sign-serialized-state-hmac)
-- [Layer 4 — Least Privilege & Sandboxing](#layer-4--least-privilege--sandboxing)
-- [Layer 5 — Patch Libraries & Shrink the Gadget Surface](#layer-5--patch-libraries--shrink-the-gadget-surface)
-- [Layer 6 — Monitoring & Detection](#layer-6--monitoring--detection)
+- [Layer 1 - Prefer Data-Only Formats + Schema Validation](#layer-1--prefer-data-only-formats--schema-validation)
+- [Layer 2 - Type Allow-Lists & Safe Resolvers](#layer-2--type-allow-lists--safe-resolvers)
+- [Layer 3 - Integrity: Sign Serialized State (HMAC)](#layer-3--integrity-sign-serialized-state-hmac)
+- [Layer 4 - Least Privilege & Sandboxing](#layer-4--least-privilege--sandboxing)
+- [Layer 5 - Patch Libraries & Shrink the Gadget Surface](#layer-5--patch-libraries--shrink-the-gadget-surface)
+- [Layer 6 - Monitoring & Detection](#layer-6--monitoring--detection)
 - [Per-Language Quick Reference](#per-language-quick-reference)
 - [Prevention Checklist](#prevention-checklist)
 - [Next Steps](#next-steps)
@@ -23,13 +23,13 @@ Rank your options from safest to most dangerous and always pick the highest one 
 2. **If you must accept structured input, use a data-only format** (JSON, MessagePack, protobuf) parsed into simple values, then validated against a strict schema before use.
 3. **If you must use a native serializer** (legacy protocol, library requirement), constrain it hard: type allow-list, size/depth limits, least privilege, and integrity checks on anything that left your trust boundary.
 
-> **Why layering matters:** the exploit fires *during* reconstruction, before your business logic runs. So validation "after deserialization" cannot save you—the defenses below all act *at or before* the deserialization step.
+> **Why layering matters:** the exploit fires *during* reconstruction, before your business logic runs. So validation "after deserialization" cannot save you-the defenses below all act *at or before* the deserialization step.
 
-## Layer 1 — Prefer Data-Only Formats + Schema Validation
+## Layer 1 - Prefer Data-Only Formats + Schema Validation
 
 A data-only format restores *values* (strings, numbers, lists, maps), never *arbitrary typed objects with behavior*. There is no `__reduce__`, no `readObject` hook, no magic method to abuse. This single choice eliminates the entire remote-code-execution class. The remaining job is to validate that the data means what you expect.
 
-### Python — JSON with an explicit schema
+### Python - JSON with an explicit schema
 
 ```python
 import json
@@ -52,7 +52,7 @@ def load_state(raw: str) -> dict:
     return data
 ```
 
-### PyYAML — always `safe_load`
+### PyYAML - always `safe_load`
 
 ```python
 # DANGEROUS: honours !!python/object tags -> arbitrary instantiation
@@ -62,7 +62,7 @@ import yaml
 data = yaml.safe_load(untrusted)        # SafeLoader: plain scalars/lists/dicts only
 ```
 
-### Node.js — `JSON.parse`, never a function-restoring library
+### Node.js - `JSON.parse`, never a function-restoring library
 
 ```javascript
 // SECURE: JSON.parse never restores or executes functions.
@@ -80,11 +80,11 @@ const state = Schema.parse(obj);        // throws on mismatch
 
 > **Guard prototype pollution too.** When merging parsed JSON into objects, reject keys named `__proto__`, `constructor`, and `prototype`, or use `Object.create(null)` / `Map` as the merge target.
 
-## Layer 2 — Type Allow-Lists & Safe Resolvers
+## Layer 2 - Type Allow-Lists & Safe Resolvers
 
 When a native serializer is unavoidable, never let it instantiate *any* type named in the stream. Restrict resolution to a small allow-list of classes you actually expect. An allow-list (deny by default) is mandatory; a deny-list of "known bad gadgets" is bypassable and not sufficient on its own.
 
-### Java — ObjectInputFilter (JEP 290)
+### Java - ObjectInputFilter (JEP 290)
 
 Since Java 9 (and back-ported to 8u121+), `ObjectInputFilter` lets you allow-list classes and cap graph size/depth *before* objects are constructed.
 
@@ -106,7 +106,7 @@ Object obj = ois.readObject();           // rejected classes never instantiate
 
 Set a conservative JVM-wide default too (`-Djdk.serialFilter=...`), and prefer libraries that avoid native serialization entirely. For JSON, keep Jackson's default typing **off** and never enable `enableDefaultTyping()`.
 
-### Python — do not pickle untrusted data; if forced, restrict the unpickler
+### Python - do not pickle untrusted data; if forced, restrict the unpickler
 
 The correct fix is to not use `pickle` across a trust boundary. If a legacy format forces it, subclass `Unpickler` and allow only specific classes:
 
@@ -131,7 +131,7 @@ def safe_loads(data: bytes):
 
 > This shrinks the attack surface but does not make pickle "safe." Treat it as a stopgap while you migrate the format to JSON/protobuf.
 
-### PHP — avoid `unserialize` on user input; use `allowed_classes`
+### PHP - avoid `unserialize` on user input; use `allowed_classes`
 
 ```php
 <?php
@@ -148,7 +148,7 @@ $data = unserialize($raw, ['allowed_classes' => ['App\\Dto\\UserDto']]);
 
 Also treat filenames as attack surface: never pass user-influenced paths to filesystem functions in a way that permits a `phar://` stream wrapper.
 
-### .NET — retire `BinaryFormatter`; pin type handling
+### .NET - retire `BinaryFormatter`; pin type handling
 
 ```csharp
 // DO NOT USE: BinaryFormatter / NetDataContractSerializer / LosFormatter
@@ -167,7 +167,7 @@ var settings = new JsonSerializerSettings {
 };
 ```
 
-## Layer 3 — Integrity: Sign Serialized State (HMAC)
+## Layer 3 - Integrity: Sign Serialized State (HMAC)
 
 If serialized state must round-trip through the client (cookies, hidden fields, tokens), attach a keyed MAC so the server can reject any tampered blob *before* deserializing it. Verify first; deserialize only if the signature checks out. Use a strong secret, a constant-time comparison, and bind expiry/audience so a valid blob cannot be replayed.
 
@@ -197,9 +197,9 @@ def verify(token: str) -> dict | None:
         return None
 ```
 
-> **Signing is not a license to use native serialization.** A leaked or default key collapses the protection entirely (see the ASP.NET ViewState `machineKey` lesson in Attack Vectors). Sign *data-only* payloads, rotate keys, and store them in a secret manager—never in source.
+> **Signing is not a license to use native serialization.** A leaked or default key collapses the protection entirely (see the ASP.NET ViewState `machineKey` lesson in Attack Vectors). Sign *data-only* payloads, rotate keys, and store them in a secret manager-never in source.
 
-## Layer 4 — Least Privilege & Sandboxing
+## Layer 4 - Least Privilege & Sandboxing
 
 Assume a deserialization bug will eventually be triggered and limit the blast radius:
 
@@ -209,7 +209,7 @@ Assume a deserialization bug will eventually be triggered and limit the blast ra
 - **Isolate the deserialization work** in a separate process/service with a minimal classpath, so even successful RCE lands in a low-value sandbox.
 - **Enforce resource limits** (CPU, memory, max request size, parser depth/reference caps) to blunt DoS via crafted object graphs.
 
-## Layer 5 — Patch Libraries & Shrink the Gadget Surface
+## Layer 5 - Patch Libraries & Shrink the Gadget Surface
 
 Gadget chains are assembled from classes already on your classpath. Fewer risky libraries means fewer chains an attacker can build.
 
@@ -219,7 +219,7 @@ Gadget chains are assembled from classes already on your classpath. Fewer risky 
 - **Migrate off deprecated serializers** (e.g. .NET `BinaryFormatter`) on a schedule, not "someday."
 - **Pin safe defaults** in shared libraries/wrappers so no team can accidentally re-enable polymorphic typing or unsafe loaders.
 
-## Layer 6 — Monitoring & Detection
+## Layer 6 - Monitoring & Detection
 
 Deserialization RCE is often blind, so instrument the code paths and watch for the tell-tale side effects:
 
@@ -227,7 +227,7 @@ Deserialization RCE is often blind, so instrument the code paths and watch for t
 - **Alert on unexpected class-resolution attempts** and on JNDI/LDAP/RMI lookups originating from application servers.
 - **Watch for the app process spawning shells** (`sh`, `cmd`, `powershell`) or making unexpected outbound connections right after handling serialized input.
 - **Baseline payload size and depth**; sudden large or deeply nested blobs can indicate DoS or gadget delivery.
-- **Feed these events to a SIEM** with correlation rules, and route real detections to on-call. A blocked deserialization attempt is a high-signal event—treat it as an active probe.
+- **Feed these events to a SIEM** with correlation rules, and route real detections to on-call. A blocked deserialization attempt is a high-signal event-treat it as an active probe.
 
 ## Per-Language Quick Reference
 

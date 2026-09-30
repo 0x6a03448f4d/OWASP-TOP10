@@ -13,9 +13,9 @@
 
 ## What is Broken Authentication?
 
-**Broken Authentication** was ranked **A2** in the OWASP Top 10 2017. It covers the whole family of weaknesses in how an application *confirms who a user is* (authentication) and *keeps them signed in* (session management). When these functions are implemented incorrectly, attackers can compromise passwords, keys, or session tokens—or exploit other flaws—to assume other users' identities, temporarily or permanently.
+**Broken Authentication** was ranked **A2** in the OWASP Top 10 2017. It covers the whole family of weaknesses in how an application *confirms who a user is* (authentication) and *keeps them signed in* (session management). When these functions are implemented incorrectly, attackers can compromise passwords, keys, or session tokens-or exploit other flaws-to assume other users' identities, temporarily or permanently.
 
-The category is deliberately broad because authentication is not one control but a chain of them: the login form, the password store, the "remember me" feature, the password-reset email, the multi-factor step, the session cookie, and the logout button are all part of the same trust boundary. A single weak link—a login endpoint with no rate limiting, a session ID that never rotates, a reset token that never expires—can undo every other control.
+The category is deliberately broad because authentication is not one control but a chain of them: the login form, the password store, the "remember me" feature, the password-reset email, the multi-factor step, the session cookie, and the logout button are all part of the same trust boundary. A single weak link-a login endpoint with no rate limiting, a session ID that never rotates, a reset token that never expires-can undo every other control.
 
 > **2017 -> 2021 lineage:** In the OWASP Top 10 2021, this category was renamed and broadened to **A07:2021 - Identification and Authentication Failures**, and it moved down from #2 to #7 (a sign that frameworks and managed identity providers have made secure defaults more common, not that the risk disappeared). This lesson focuses on the **2017 A2 framing**, but the weaknesses and fixes carry directly over.
 
@@ -59,7 +59,7 @@ An application is likely vulnerable if it:
 
 ## Why Does This Matter?
 
-Authentication is the gatekeeper to everything else. Access control, encryption, and audit logging all assume the system knows *who* is acting. When authentication breaks, those downstream controls protect the wrong person—often silently, because the attacker arrives holding a valid-looking identity.
+Authentication is the gatekeeper to everything else. Access control, encryption, and audit logging all assume the system knows *who* is acting. When authentication breaks, those downstream controls protect the wrong person-often silently, because the attacker arrives holding a valid-looking identity.
 
 ### Business Impact
 
@@ -116,7 +116,7 @@ Password store leaks. What happens next depends entirely on the hash:
 
 ## Real-World Impact
 
-The incidents below are described as **verifiable classes of event** well documented in the security community. Exact figures vary by source and are given qualitatively—treat them as illustrative of the mechanism, not as precise statistics.
+The incidents below are described as **verifiable classes of event** well documented in the security community. Exact figures vary by source and are given qualitatively-treat them as illustrative of the mechanism, not as precise statistics.
 
 ### Case Class 1: Aggregated Credential Dumps Fueling Credential Stuffing
 
@@ -136,7 +136,7 @@ The incidents below are described as **verifiable classes of event** well docume
 
 ### Case Class 3: MFA-Fatigue and Fallback-Flow Bypasses
 
-**What happened**: Several widely-reported intrusions succeeded despite MFA, by abusing weak implementations—push-notification "fatigue," SMS interception, or a weaker fallback/recovery flow that skipped the second factor.
+**What happened**: Several widely-reported intrusions succeeded despite MFA, by abusing weak implementations-push-notification "fatigue," SMS interception, or a weaker fallback/recovery flow that skipped the second factor.
 
 **Mechanism**: MFA that can be socially or technically bypassed is only as strong as its weakest path.
 
@@ -146,7 +146,7 @@ The incidents below are described as **verifiable classes of event** well docume
 
 **What happened**: Applications that placed session identifiers in URL query strings (`?sessionid=...`) leaked those tokens into browser history, proxy and server access logs, analytics pipelines, and the `Referer` header sent to third-party sites.
 
-**Mechanism**: A session ID is a bearer credential—whoever holds it is the user. Once it appears in a log or referrer, anyone with access can replay it.
+**Mechanism**: A session ID is a bearer credential-whoever holds it is the user. Once it appears in a log or referrer, anyone with access can replay it.
 
 **Lesson**: Session IDs belong in cookies with `Secure; HttpOnly; SameSite`, never in the URL.
 

@@ -63,7 +63,7 @@ def convert():
     return {'status': 'ok'}
 ```
 
-## Express (Node.js) — SQL and NoSQL
+## Express (Node.js) - SQL and NoSQL
 
 ### Vulnerable
 ```javascript
@@ -220,11 +220,11 @@ app.get('/api/account', async (req, res) => {
 
 ## Key Takeaways
 
-1. **Bind, don't build** — parameterised queries make injected payloads inert data.
-2. **Validate the shape** — forcing fields to strings stops NoSQL operator injection cold.
-3. **Kill the shell** — argument arrays with `shell=False` neutralise command metacharacters.
-4. **Allow-list identifiers** — columns and sort directions can't be bound, so map them to a trusted set.
-5. **Same fix, every language** — the secure versions all separate code from data at the sink.
+1. **Bind, don't build** - parameterised queries make injected payloads inert data.
+2. **Validate the shape** - forcing fields to strings stops NoSQL operator injection cold.
+3. **Kill the shell** - argument arrays with `shell=False` neutralise command metacharacters.
+4. **Allow-list identifiers** - columns and sort directions can't be bound, so map them to a trusted set.
+5. **Same fix, every language** - the secure versions all separate code from data at the sink.
 
 ## Next Steps
 

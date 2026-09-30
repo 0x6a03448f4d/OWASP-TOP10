@@ -2,10 +2,10 @@
 
 ## Prevention Strategy Overview
 
-Preventing over-privilege is not one control—it is a discipline of **granting each function exactly what it uses and nothing more, then keeping it that way**:
+Preventing over-privilege is not one control-it is a discipline of **granting each function exactly what it uses and nothing more, then keeping it that way**:
 
 1. Give every function its **own** least-privilege role.
-2. Scope actions and resources to specifics—no wildcards.
+2. Scope actions and resources to specifics-no wildcards.
 3. Remove unused permissions and keep granted equal to used.
 4. Ban dangerous permissions unless explicitly scoped.
 5. Enforce it in IaC, cap it with permission boundaries, and review it continuously.
@@ -22,7 +22,7 @@ Preventing over-privilege is not one control—it is a discipline of **granting 
 The single most important control: do not share a role across functions, and do not attach a broad provider-level role that every function inherits. Give each function a role scoped to its own job.
 
 ```yaml
-# serverless.yml — per-function roles via serverless-iam-roles-per-function
+# serverless.yml - per-function roles via serverless-iam-roles-per-function
 plugins:
   - serverless-iam-roles-per-function
 
@@ -45,7 +45,7 @@ functions:
     handler: health.handler                  # no iamRoleStatements = no permissions
 ```
 
-Now compromising `healthCheck` yields nothing, and compromising `getOrder` yields read-only access to one table—not the account.
+Now compromising `healthCheck` yields nothing, and compromising `getOrder` yields read-only access to one table-not the account.
 
 ## 2. No Wildcards: Specific Actions and Resource ARNs
 
@@ -75,7 +75,7 @@ Rules of thumb: never `Action: "*"`, never `service:*`, never `Resource: "*"` fo
 
 ## 3. Scope Further with Conditions
 
-Conditions tighten a policy beyond action and resource—restricting by source, encryption, or specific sub-resources.
+Conditions tighten a policy beyond action and resource-restricting by source, encryption, or specific sub-resources.
 
 ```json
 {
@@ -154,7 +154,7 @@ The public, internet-facing functions should hold the smallest roles, because th
 
 ## 7. Cap Everything with Permission Boundaries
 
-A permission boundary is a ceiling: even if a role's policy grants more, the effective permission is the intersection with the boundary. Attach one to every function role so a mistake—or an attacker with `iam:*`—cannot exceed the cap.
+A permission boundary is a ceiling: even if a role's policy grants more, the effective permission is the intersection with the boundary. Attach one to every function role so a mistake-or an attacker with `iam:*`-cannot exceed the cap.
 
 ```json
 {
@@ -176,14 +176,14 @@ A permission boundary is a ceiling: even if a role's policy grants more, the eff
 }
 ```
 
-Here the boundary explicitly *denies* IAM and org actions to every function that carries it—so even a role that mistakenly grants `iam:*` cannot use it. Boundaries are enforced by requiring that new roles be created with the boundary attached.
+Here the boundary explicitly *denies* IAM and org actions to every function that carries it-so even a role that mistakenly grants `iam:*` cannot use it. Boundaries are enforced by requiring that new roles be created with the boundary attached.
 
 ## 8. Enforce Least Privilege in Infrastructure as Code
 
 Permissions must live in version control and be reviewed like code, so they cannot be widened by hand in the console.
 
 ```yaml
-# serverless.yml — provider role kept minimal; per-function roles hold the specifics
+# serverless.yml - provider role kept minimal; per-function roles hold the specifics
 provider:
   name: aws
   iam:
@@ -244,15 +244,15 @@ def flag(event):
         alert('Function role used escalation/enumeration API', event)
 ```
 
-Also enable managed threat detection (for example GuardDuty findings for credential exfiltration and anomalous IAM use), and alert on a function role invoked from outside the function—a strong sign its credentials were harvested.
+Also enable managed threat detection (for example GuardDuty findings for credential exfiltration and anomalous IAM use), and alert on a function role invoked from outside the function-a strong sign its credentials were harvested.
 
 ## Key Takeaways
 
-1. **One role per function** — the unit of least privilege is the single function; never share or inherit a broad role.
-2. **Kill the wildcards** — specific actions on specific ARNs, tightened with conditions, is the whole game.
-3. **Keep granted equal to used** — generate policies from observed access and prune the surplus continuously.
-4. **Forbid escalation permissions** — no `iam:*`, and `PassRole` only when scoped to one role and one service.
-5. **Enforce and cap** — least privilege in IaC, permission boundaries as a ceiling, and CI that rejects wildcards.
+1. **One role per function** - the unit of least privilege is the single function; never share or inherit a broad role.
+2. **Kill the wildcards** - specific actions on specific ARNs, tightened with conditions, is the whole game.
+3. **Keep granted equal to used** - generate policies from observed access and prune the surplus continuously.
+4. **Forbid escalation permissions** - no `iam:*`, and `PassRole` only when scoped to one role and one service.
+5. **Enforce and cap** - least privilege in IaC, permission boundaries as a ceiling, and CI that rejects wildcards.
 
 ## Next Steps
 

@@ -10,9 +10,9 @@
 
 ## What is Lack of Centralized Policy Enforcement?
 
-**Lack of Centralized Policy Enforcement** is the absence of a consistent, automated control point that validates every workload against your security rules *before* it runs—and keeps validating as the cluster changes. Kubernetes will happily admit a container that runs as root, mounts the host filesystem, requests `privileged: true`, or pulls an unsigned image from an unknown registry. Nothing in a default cluster stops it. The guardrails only exist if *you* install and enforce them, uniformly, across every namespace and every cluster.
+**Lack of Centralized Policy Enforcement** is the absence of a consistent, automated control point that validates every workload against your security rules *before* it runs-and keeps validating as the cluster changes. Kubernetes will happily admit a container that runs as root, mounts the host filesystem, requests `privileged: true`, or pulls an unsigned image from an unknown registry. Nothing in a default cluster stops it. The guardrails only exist if *you* install and enforce them, uniformly, across every namespace and every cluster.
 
-This is K04 in the OWASP Kubernetes Top 10. It is not a single misconfigured pod (that is K01) or an over-broad role (that is K03). It is the *meta*-failure: the reason those individual mistakes reach production is that no engine sits in the admission path saying "no." When enforcement is missing, inconsistent, or stuck in audit-only mode, security depends on every developer remembering every rule on every manifest—which never holds at scale.
+This is K04 in the OWASP Kubernetes Top 10. It is not a single misconfigured pod (that is K01) or an over-broad role (that is K03). It is the *meta*-failure: the reason those individual mistakes reach production is that no engine sits in the admission path saying "no." When enforcement is missing, inconsistent, or stuck in audit-only mode, security depends on every developer remembering every rule on every manifest-which never holds at scale.
 
 ### Core Concept
 
@@ -38,11 +38,11 @@ No centralized enforcement (K04):
 
 ### Why It's Critical for Kubernetes
 
-Kubernetes is a declarative system where anyone with `create` on a workload resource can define exactly how their container runs—its privileges, its host access, its image, its network reach. That power is the platform's strength and its danger:
+Kubernetes is a declarative system where anyone with `create` on a workload resource can define exactly how their container runs-its privileges, its host access, its image, its network reach. That power is the platform's strength and its danger:
 
 - The API server is **permissive by default**. Out of the box there is no gate that rejects a privileged pod, an unsigned image, or a `hostPath` mount.
 - Workloads are **deployed continuously by many teams**, so "we review manifests by hand" does not scale and does not hold overnight, on-call, or during an incident.
-- Clusters **multiply**—dev, staging, prod, per-region, per-team—and each one drifts unless a single policy source is applied to all of them.
+- Clusters **multiply**-dev, staging, prod, per-region, per-team-and each one drifts unless a single policy source is applied to all of them.
 - The **deprecation of PodSecurityPolicy** (removed in Kubernetes 1.25) left many clusters with a hole where their only built-in enforcement used to be.
 
 ## Why Does This Matter?
@@ -51,7 +51,7 @@ Kubernetes is a declarative system where anyone with `create` on a workload reso
 
 - **Insecure workloads reach production undetected**: privileged, root, or host-mounting pods that should never have been admitted become the beachhead for a container escape and node compromise.
 - **Inconsistent security posture**: one namespace is locked down, the next is wide open. Auditors, customers, and regulators see a control that is claimed but not uniformly applied.
-- **Compliance findings**: frameworks such as PCI-DSS, SOC 2, HIPAA, and the CIS Kubernetes Benchmark expect demonstrable, enforced guardrails—not a document describing rules that nothing enforces.
+- **Compliance findings**: frameworks such as PCI-DSS, SOC 2, HIPAA, and the CIS Kubernetes Benchmark expect demonstrable, enforced guardrails-not a document describing rules that nothing enforces.
 - **Supply-chain exposure**: without image and registry policy, unsigned or untrusted images run freely, turning a poisoned dependency into a running workload.
 - **Incident blast radius**: a single over-privileged pod that nothing blocked can become cluster-wide compromise, data theft, or cryptojacking.
 
@@ -99,10 +99,10 @@ The cluster has no validating webhook inspecting workloads. The API server admit
 PSP was deprecated in 1.21 and removed in 1.25. Clusters that upgraded past 1.25 without adopting Pod Security Admission or a policy engine lost their only pod-level guardrail and often did not notice.
 
 #### 3. Policies exist but only in "audit" / "warn"
-Teams roll out policy in a non-blocking mode to avoid breaking deployments—then never flip it to `enforce`. Violations are logged (or shown as a warning the CI ignores) while insecure workloads keep running.
+Teams roll out policy in a non-blocking mode to avoid breaking deployments-then never flip it to `enforce`. Violations are logged (or shown as a warning the CI ignores) while insecure workloads keep running.
 
 ```
-# PSA label that only warns/audits — does NOT block anything:
+# PSA label that only warns/audits - does NOT block anything:
 pod-security.kubernetes.io/warn: restricted
 pod-security.kubernetes.io/audit: restricted
 # Missing the line that actually enforces:
@@ -113,14 +113,14 @@ pod-security.kubernetes.io/audit: restricted
 A policy engine is installed but only some namespaces are labeled, or policies are scoped to exclude "system" or "legacy" namespaces that then become the soft target. Prod is guarded; the forgotten `sandbox` namespace is not.
 
 #### 5. Fail-open webhook configuration
-A validating webhook with `failurePolicy: Ignore` means that if the policy pod is unhealthy, restarting, or its `namespaceSelector` excludes the request, the API server admits the workload with *no* policy check—so an outage becomes an enforcement bypass.
+A validating webhook with `failurePolicy: Ignore` means that if the policy pod is unhealthy, restarting, or its `namespaceSelector` excludes the request, the API server admits the workload with *no* policy check-so an outage becomes an enforcement bypass.
 
 #### 6. No drift detection
 Even with admission-time enforcement, resources changed out-of-band, pre-existing violations, or newly disclosed rules are never caught because nothing continuously scans the running cluster against the baseline.
 
 ## Real-World Impact
 
-The incident *classes* below are well-documented patterns in the Kubernetes ecosystem. They are described generically—no fabricated CVEs, victims, or numbers—because the lesson is the pattern, not a headline.
+The incident *classes* below are well-documented patterns in the Kubernetes ecosystem. They are described generically-no fabricated CVEs, victims, or numbers-because the lesson is the pattern, not a headline.
 
 ### Incident Class 1: Exposed / Unauthenticated Management Plane Leading to Cryptojacking
 
@@ -130,7 +130,7 @@ The incident *classes* below are well-documented patterns in the Kubernetes ecos
 
 ### Incident Class 2: Container Escape via a Workload That Should Never Have Been Admitted
 
-**Pattern**: A workload is deployed with `privileged: true`, a `hostPath` mount of a sensitive host directory, or `hostPID`. A vulnerability in the container—or simply the excess privilege itself—lets a process break out to the node, read other pods' secrets, or reach the kubelet credentials.
+**Pattern**: A workload is deployed with `privileged: true`, a `hostPath` mount of a sensitive host directory, or `hostPID`. A vulnerability in the container-or simply the excess privilege itself-lets a process break out to the node, read other pods' secrets, or reach the kubelet credentials.
 
 **Why K04 matters here**: none of these pod specs are subtle. A restricted Pod Security Admission profile, or a Kyverno/Gatekeeper rule forbidding privileged and host namespaces, rejects them at admission time. The escape is only possible because nothing enforced the rule that would have blocked the manifest.
 
@@ -148,7 +148,7 @@ The incident *classes* below are well-documented patterns in the Kubernetes ecos
 
 ## Prevalence and Detectability
 
-Lack of centralized policy enforcement is one of the most **common** and most **consequential** issues in real clusters, because the default posture *is* the vulnerable one—a fresh Kubernetes cluster has no workload policy engine and, unless you label namespaces, no active Pod Security Admission enforcement.
+Lack of centralized policy enforcement is one of the most **common** and most **consequential** issues in real clusters, because the default posture *is* the vulnerable one-a fresh Kubernetes cluster has no workload policy engine and, unless you label namespaces, no active Pod Security Admission enforcement.
 
 Rather than cite precise figures (which vary by survey and year), the defensible picture is:
 
@@ -162,7 +162,7 @@ Rather than cite precise figures (which vary by survey and year), the defensible
 
 ### Myth 1: "Kubernetes blocks dangerous pods by default"
 
-**Reality**: It does not. A default cluster admits `privileged: true`, `hostPath: /`, and unsigned images without complaint. Enforcement is opt-in—you must add Pod Security Admission labels and/or a policy engine.
+**Reality**: It does not. A default cluster admits `privileged: true`, `hostPath: /`, and unsigned images without complaint. Enforcement is opt-in-you must add Pod Security Admission labels and/or a policy engine.
 
 ### Myth 2: "We reviewed the manifests in code review, so we're covered"
 
@@ -170,11 +170,11 @@ Rather than cite precise figures (which vary by survey and year), the defensible
 
 ### Myth 3: "Our policies are in audit mode, that's basically enforcing"
 
-**Reality**: Audit and warn *observe*; they never block. An insecure pod in an audit-only cluster still runs. Audit mode is a migration step, not a destination—the goal is `enforce`.
+**Reality**: Audit and warn *observe*; they never block. An insecure pod in an audit-only cluster still runs. Audit mode is a migration step, not a destination-the goal is `enforce`.
 
 ### Myth 4: "Pod Security Admission alone is enough"
 
-**Reality**: PSA enforces the three standard profiles (privileged/baseline/restricted) at the pod level and is an excellent floor—but it cannot express custom rules like "only images from our registry," "every workload must set resource limits," "images must be signed," or "required team labels." A policy engine complements PSA; it does not replace the need for a floor.
+**Reality**: PSA enforces the three standard profiles (privileged/baseline/restricted) at the pod level and is an excellent floor-but it cannot express custom rules like "only images from our registry," "every workload must set resource limits," "images must be signed," or "required team labels." A policy engine complements PSA; it does not replace the need for a floor.
 
 ### Myth 5: "One cluster is configured, so we're consistent"
 
@@ -182,7 +182,7 @@ Rather than cite precise figures (which vary by survey and year), the defensible
 
 ### Myth 6: "The webhook is installed, so enforcement can't fail"
 
-**Reality**: A webhook with `failurePolicy: Ignore` stops enforcing the moment the policy pod is unhealthy. If security matters, sensitive resources should fail *closed*—deny admission when the engine cannot be consulted.
+**Reality**: A webhook with `failurePolicy: Ignore` stops enforcing the moment the policy pod is unhealthy. If security matters, sensitive resources should fail *closed*-deny admission when the engine cannot be consulted.
 
 ## How K04 Differs from Neighbouring Kubernetes Risks
 
@@ -195,11 +195,11 @@ Rather than cite precise figures (which vary by survey and year), the defensible
 
 ## Key Takeaways
 
-1. **The default is the vulnerable state**—a fresh cluster has no workload policy engine and no active PSA enforcement.
-2. **K04 is a force-multiplier**—its absence is the reason insecure workloads, permissive RBAC, and untrusted images actually run.
-3. **Audit is not enforce**—a policy that only warns blocks nothing; the destination is `enforce` and fail-closed.
-4. **Coverage must be uniform**—every namespace, every cluster, sourced from one place, or the gaps become the target.
-5. **Enforcement plus scanning**—admission control stops new violations; continuous conformance scanning catches drift and pre-existing ones.
+1. **The default is the vulnerable state**-a fresh cluster has no workload policy engine and no active PSA enforcement.
+2. **K04 is a force-multiplier**-its absence is the reason insecure workloads, permissive RBAC, and untrusted images actually run.
+3. **Audit is not enforce**-a policy that only warns blocks nothing; the destination is `enforce` and fail-closed.
+4. **Coverage must be uniform**-every namespace, every cluster, sourced from one place, or the gaps become the target.
+5. **Enforcement plus scanning**-admission control stops new violations; continuous conformance scanning catches drift and pre-existing ones.
 
 ## How to Identify if You're Vulnerable
 

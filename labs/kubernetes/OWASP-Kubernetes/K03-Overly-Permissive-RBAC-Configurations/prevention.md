@@ -57,7 +57,7 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
 ```
 
-Use a `ClusterRole` only for genuinely cluster-scoped resources (nodes, namespaces, CRDs) or for a reusable rule set that you then bind *per namespace* with a `RoleBinding`—which keeps a shared ClusterRole from becoming a cluster-wide grant.
+Use a `ClusterRole` only for genuinely cluster-scoped resources (nodes, namespaces, CRDs) or for a reusable rule set that you then bind *per namespace* with a `RoleBinding`-which keeps a shared ClusterRole from becoming a cluster-wide grant.
 
 ## 3. Never Bind cluster-admin (or Wildcards) to Workloads
 
@@ -113,7 +113,7 @@ Treat these grants as security-sensitive and require an explicit, reviewed justi
 | `create` on `serviceaccounts/token` | Deny outside token-issuing controllers |
 | `get` on `nodes/proxy`, CSR `approval` | Deny; node/PKI infrastructure only |
 
-Because RBAC has no deny rules, "deny" here means *do not grant*—and back it with an admission policy (below) that rejects manifests attempting these grants.
+Because RBAC has no deny rules, "deny" here means *do not grant*-and back it with an admission policy (below) that rejects manifests attempting these grants.
 
 ## 6. Enforce with Admission Policy
 
@@ -152,7 +152,7 @@ Add companion policies to reject bindings to `cluster-admin` for ServiceAccount 
 
 ## 7. Verify with kubectl auth can-i
 
-After applying a role, prove the identity has exactly what it should—and nothing more. Make these checks part of CI.
+After applying a role, prove the identity has exactly what it should-and nothing more. Make these checks part of CI.
 
 ```bash
 SA=system:serviceaccount:payments:payments-api
@@ -168,7 +168,7 @@ kubectl auth can-i impersonate users --as=$SA                 # no
 kubectl auth can-i '*' '*' --all-namespaces --as=$SA          # no
 ```
 
-A failing "should be denied" check fails the pipeline—so over-permissioning is caught before it ships.
+A failing "should be denied" check fails the pipeline-so over-permissioning is caught before it ships.
 
 ## 8. Audit RBAC Continuously
 
@@ -195,7 +195,7 @@ Feed the output into a recurring report and alert when a new wildcard rule, a ne
 
 - Split permissions by function (deploy vs. read vs. secret-manage) so no single identity holds an end-to-end escalation path.
 - Prefer the built-in `view` role over `edit`, and `edit` over `admin`; never reach for `cluster-admin` as a shortcut.
-- Use ClusterRole aggregation carefully—an over-broad aggregation label silently widens an aggregated role.
+- Use ClusterRole aggregation carefully-an over-broad aggregation label silently widens an aggregated role.
 - Give each team its own namespace and namespaced admin, rather than cluster-wide edit.
 
 ## 10. Monitor and Detect
@@ -229,11 +229,11 @@ Pair detection with regular access reviews: periodically re-derive what each ide
 
 ## Key Takeaways
 
-1. **Start from zero** — grant the minimum verbs and resources, narrowed by `resourceNames` and namespace.
-2. **Never hand a workload cluster-admin** — and never bind roles to `default` or wide groups.
-3. **Guard the escalation primitives** — `escalate`, `bind`, `impersonate`, Secret reads, and Pod/exec creation.
-4. **Enforce at admission** — reject wildcard rules and dangerous bindings before they apply.
-5. **Prove and audit continuously** — `kubectl auth can-i` in CI, RBAC auditors on a schedule, audit-log alerting in production.
+1. **Start from zero** - grant the minimum verbs and resources, narrowed by `resourceNames` and namespace.
+2. **Never hand a workload cluster-admin** - and never bind roles to `default` or wide groups.
+3. **Guard the escalation primitives** - `escalate`, `bind`, `impersonate`, Secret reads, and Pod/exec creation.
+4. **Enforce at admission** - reject wildcard rules and dangerous bindings before they apply.
+5. **Prove and audit continuously** - `kubectl auth can-i` in CI, RBAC auditors on a schedule, audit-log alerting in production.
 
 ## Next Steps
 

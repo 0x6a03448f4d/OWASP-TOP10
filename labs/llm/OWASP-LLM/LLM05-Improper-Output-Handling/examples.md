@@ -15,7 +15,7 @@
 
 ## How to Read These Examples
 
-Each example shows a realistic **vulnerable** implementation, the exploit it enables, and a **secure** rewrite. In every pair, the model client is abstracted as `llm(...)` / `llm.generate(...)`; assume its output is fully attacker-influenced (directly or via retrieved content). The fix is never "filter the prompt" — it is always to handle the output correctly at the sink.
+Each example shows a realistic **vulnerable** implementation, the exploit it enables, and a **secure** rewrite. In every pair, the model client is abstracted as `llm(...)` / `llm.generate(...)`; assume its output is fully attacker-influenced (directly or via retrieved content). The fix is never "filter the prompt" - it is always to handle the output correctly at the sink.
 
 ## Example 1: XSS in a Chat UI (Front End)
 
@@ -300,7 +300,7 @@ def run_agent_step(model_output):
 
 ## Testing Your Fixes
 
-Verify each control with a payload that would exploit the vulnerable version. Treat the model client as an attacker-controlled source in your tests — you can stub it to return the payload directly.
+Verify each control with a payload that would exploit the vulnerable version. Treat the model client as an attacker-controlled source in your tests - you can stub it to return the payload directly.
 
 | Sink | Test payload to force through the model stub | Pass criterion |
 | --- | --- | --- |

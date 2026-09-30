@@ -47,7 +47,7 @@ jobs:
           aws-region: us-east-1
       - run: ./deploy.sh
       # For cross-repo access, use a fine-grained, expiring token scoped
-      # to the ONE repo needed — not an org-wide PAT.
+      # to the ONE repo needed - not an org-wide PAT.
 ```
 
 ## GitLab CI
@@ -115,7 +115,7 @@ jenkins:
   allowAnonymousRead: false
   allowSignup: false
 
-// Per-job, least-privilege, short-lived credentials — no shared admin bot.
+// Per-job, least-privilege, short-lived credentials - no shared admin bot.
 // Prefer an OIDC/plugin-based exchange for temporary cloud credentials
 // scoped to this job; if a stored credential is unavoidable, scope it to
 // one task and rotate it on a schedule.

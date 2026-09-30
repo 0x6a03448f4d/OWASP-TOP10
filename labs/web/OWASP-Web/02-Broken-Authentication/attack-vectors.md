@@ -20,7 +20,7 @@
 - [Detection & Monitoring](#detection--monitoring)
 - [Next Steps](#next-steps)
 
-> **Ethics & scope**: These techniques are shown so defenders can recognize and stop them. Use them only against systems you own or are explicitly authorized to test—such as the bundled lab. The example code is deliberately minimal and educational.
+> **Ethics & scope**: These techniques are shown so defenders can recognize and stop them. Use them only against systems you own or are explicitly authorized to test-such as the bundled lab. The example code is deliberately minimal and educational.
 
 ## The Core Attack Flow
 
@@ -36,7 +36,7 @@ Almost every Broken Authentication attack follows the same three-stage shape: ob
 
 ## 1. Credential Stuffing
 
-The attacker replays username/password pairs leaked from *other* sites, betting on password reuse. No password is "guessed"—these are real passwords for those users elsewhere.
+The attacker replays username/password pairs leaked from *other* sites, betting on password reuse. No password is "guessed"-these are real passwords for those users elsewhere.
 
 ```bash
 #!/usr/bin/env bash
@@ -132,7 +132,7 @@ Step 1  Attacker visits the site, is issued  SESSIONID=known123
 Step 2  Attacker lures victim to a link that sets that same ID, e.g.
           https://bank.example/?SESSIONID=known123
 Step 3  Victim logs in. VULNERABLE APP KEEPS SESSIONID=known123.
-Step 4  Attacker reuses SESSIONID=known123 — now authenticated as the victim.
+Step 4  Attacker reuses SESSIONID=known123 - now authenticated as the victim.
 ```
 
 **Why it works**: The application does not issue a *new* session identifier at login. **Defense preview**: always regenerate the session ID on login; never accept session IDs from the URL.
@@ -195,14 +195,14 @@ for guess in range(100000, 1000000):
 Sessions that never expire, or survive logout and password changes, give durable access.
 
 ```
-Scenario A — logout does not invalidate server-side:
+Scenario A - logout does not invalidate server-side:
   Victim clicks "Log out" (cookie deleted in the browser only).
   Attacker still holds a COPY of the session ID -> still logged in.
 
-Scenario B — password change does not revoke sessions:
+Scenario B - password change does not revoke sessions:
   Victim changes password. Attacker's EXISTING session is untouched.
 
-Scenario C — no idle / absolute timeout:
+Scenario C - no idle / absolute timeout:
   Session captured months ago from a log is STILL valid today.
 ```
 
@@ -218,7 +218,7 @@ Common reset-flow weaknesses:
   - Non-expiring token: a reset link from last year still works
   - Reusable token:     the same link resets the password repeatedly
   - Token leaked in Referer when the reset page loads third-party assets
-  - "Security questions": mother's maiden name / first pet — often OSINT-able
+  - "Security questions": mother's maiden name / first pet - often OSINT-able
   - Host-header poisoning: attacker sets the reset link's domain to their own
 
 # Enumerating a sequential reset token
@@ -289,7 +289,7 @@ Because these attacks use valid-looking traffic, detection depends on patterns r
 
 - **Spikes in failed logins** across many accounts from few sources (stuffing) or few passwords across many accounts (spraying).
 - **High-velocity attempts** from a single IP/ASN/automated user-agent, and impossible-travel logins.
-- **Login success after many failures**—a classic brute-force signature.
+- **Login success after many failures**-a classic brute-force signature.
 - **Surges in password-reset requests** or OTP verifications, and repeated OTP failures.
 - **Sessions reused from many IPs**, or a session ID appearing in server logs (URL exposure).
 - **New-device / new-geo logins** without a corresponding MFA challenge.

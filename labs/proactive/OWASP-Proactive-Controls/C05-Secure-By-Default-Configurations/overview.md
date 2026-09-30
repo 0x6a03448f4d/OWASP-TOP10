@@ -10,7 +10,7 @@
 
 ## What is this control?
 
-**Secure By Default Configurations** is the proactive control of shipping and running systems that are **safe out of the box**. A default deployment—one where nobody has yet applied any special hardening—should already be in a secure state. Security is the starting position, and relaxing it is a deliberate, visible, and rare exception rather than the norm.
+**Secure By Default Configurations** is the proactive control of shipping and running systems that are **safe out of the box**. A default deployment-one where nobody has yet applied any special hardening-should already be in a secure state. Security is the starting position, and relaxing it is a deliberate, visible, and rare exception rather than the norm.
 
 This is the defensive counterpart to **Security Misconfiguration**. Misconfiguration is what happens when insecure defaults are left in place; this control is the discipline of making sure the defaults were never insecure to begin with, and that any drift back toward insecurity is caught automatically. The governing principle is **deny by default**: features, ports, accounts, and permissions are off unless a specific need turns them on.
 
@@ -40,8 +40,8 @@ Secure default (safe with no extra hardening):
 
 The control applies in two directions, and both matter:
 
-- **Products and code you build**: the software your team ships to others must default to the safe behaviour—secure cookie flags on, TLS required, no wildcard CORS, no sample admin account. If a consumer of your product does nothing, they should still be safe.
-- **Products you deploy and operate**: the third-party servers, frameworks, databases, and cloud services you run must be brought to a secure baseline before they face traffic—default credentials removed, unused features disabled, private-by-default storage confirmed.
+- **Products and code you build**: the software your team ships to others must default to the safe behaviour-secure cookie flags on, TLS required, no wildcard CORS, no sample admin account. If a consumer of your product does nothing, they should still be safe.
+- **Products you deploy and operate**: the third-party servers, frameworks, databases, and cloud services you run must be brought to a secure baseline before they face traffic-default credentials removed, unused features disabled, private-by-default storage confirmed.
 
 ## Why This Control Matters
 
@@ -73,7 +73,7 @@ Secure By Default Configurations is made of a handful of reinforcing habits:
 - **Repeatable hardening and secure baselines**: codify a known-good baseline (for example, a CIS Benchmark) and apply it identically everywhere.
 - **Automated validation and drift detection**: scan configuration and IaC continuously so a deviation fails the pipeline or raises an alert.
 - **Patched defaults**: base images and dependencies default to current, patched versions.
-- **Make the secure path the easy path**: give developers a paved road—templates, libraries, and modules where the default is already correct.
+- **Make the secure path the easy path**: give developers a paved road-templates, libraries, and modules where the default is already correct.
 
 ## Secure Defaults Across the Stack
 
@@ -93,7 +93,7 @@ These are recurring *classes* of incident that secure defaults are designed to p
 
 ### Class 1: Exposed no-auth datastores
 
-Databases and search engines that historically shipped listening on all interfaces with authentication disabled were deployed straight to the internet. Entire datasets were read, tampered with, or wiped. Vendors later changed the default to bind to localhost precisely because the insecure default caused so many incidents—a direct illustration of this control.
+Databases and search engines that historically shipped listening on all interfaces with authentication disabled were deployed straight to the internet. Entire datasets were read, tampered with, or wiped. Vendors later changed the default to bind to localhost precisely because the insecure default caused so many incidents-a direct illustration of this control.
 
 ### Class 2: Public cloud storage buckets
 
@@ -140,11 +140,11 @@ Devices, appliances, and applications shipped with well-known credentials (the `
 
 ## Key Takeaways
 
-1. **Secure is the starting state**—a fresh deployment is safe before anyone hardens it.
-2. **Deny by default**—features, ports, accounts, and permissions are off unless needed.
-3. **It applies to what you build and what you deploy**—both must default to safe.
-4. **Codify and automate**—secure baselines plus drift detection keep the default from eroding.
-5. **Make safe the easy path**—developers should get security by choosing the default, not by extra work.
+1. **Secure is the starting state**-a fresh deployment is safe before anyone hardens it.
+2. **Deny by default**-features, ports, accounts, and permissions are off unless needed.
+3. **It applies to what you build and what you deploy**-both must default to safe.
+4. **Codify and automate**-secure baselines plus drift detection keep the default from eroding.
+5. **Make safe the easy path**-developers should get security by choosing the default, not by extra work.
 
 ## Self-Assessment Checklist
 

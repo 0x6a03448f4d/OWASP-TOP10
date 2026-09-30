@@ -2,20 +2,20 @@
 
 ## Prevention Strategy Overview
 
-Preventing unchecked external calls comes down to a single discipline applied everywhere value or control leaves your contract: **never assume a call succeeded—prove it, then act**.
+Preventing unchecked external calls comes down to a single discipline applied everywhere value or control leaves your contract: **never assume a call succeeded-prove it, then act**.
 
 1. Capture and require the success flag of every low-level call.
 2. Use `SafeERC20` for all token movements so non-standard tokens are handled uniformly.
 3. Order state changes with Checks-Effects-Interactions.
 4. Prefer pull-over-push so one bad recipient cannot break others.
-5. Surface failures explicitly with custom errors, and verify returned data—not just the success bool.
+5. Surface failures explicitly with custom errors, and verify returned data-not just the success bool.
 
 ### Core Principles
 
-- **Check every return**: `send`, `call`, `delegatecall`, and `staticcall` hand you a boolean—reading it is mandatory, not optional.
+- **Check every return**: `send`, `call`, `delegatecall`, and `staticcall` hand you a boolean-reading it is mandatory, not optional.
 - **Distrust tokens**: assume a token may return `false`, return nothing, or behave oddly; wrap it in `SafeERC20`.
 - **Effects before interactions**: finalise internal accounting before the external call, and revert atomically if the call fails.
-- **Fail loudly**: on failure, revert with a clear reason so the whole transaction unwinds—never continue on a false success.
+- **Fail loudly**: on failure, revert with a clear reason so the whole transaction unwinds-never continue on a false success.
 
 ## 1. Always Check Low-Level Call Return Values
 
@@ -41,7 +41,7 @@ The Solidity compiler warns when you discard the return value of a low-level cal
 
 ## 2. Use SafeERC20 for All Token Transfers
 
-OpenZeppelin's `SafeERC20` wraps `transfer`, `transferFrom`, and `approve` so that tokens returning `false` revert, and tokens returning *no data* are accepted—normalising the entire non-standard token population.
+OpenZeppelin's `SafeERC20` wraps `transfer`, `transferFrom`, and `approve` so that tokens returning `false` revert, and tokens returning *no data* are accepted-normalising the entire non-standard token population.
 
 ```
 using SafeERC20 for IERC20;
@@ -57,11 +57,11 @@ token.safeTransfer(to, amount);
 token.forceApprove(spender, amount);
 ```
 
-`safeTransfer`/`safeTransferFrom` perform the low-level call, require it did not revert, and—only if return data exists—require it decodes to `true`. That is exactly the check hand-written code so often omits.
+`safeTransfer`/`safeTransferFrom` perform the low-level call, require it did not revert, and-only if return data exists-require it decodes to `true`. That is exactly the check hand-written code so often omits.
 
 ## 3. Follow Checks-Effects-Interactions
 
-Do all validation, then update state, then interact—so a reverting external call unwinds the whole transaction and leaves storage consistent.
+Do all validation, then update state, then interact-so a reverting external call unwinds the whole transaction and leaves storage consistent.
 
 ```
 function withdraw(uint256 amount) external {
@@ -72,7 +72,7 @@ function withdraw(uint256 amount) external {
 }
 ```
 
-Because the `require` reverts on failure, the earlier `-=` is rolled back atomically—no stranded funds, no phantom state.
+Because the `require` reverts on failure, the earlier `-=` is rolled back atomically-no stranded funds, no phantom state.
 
 ## 4. Prefer Pull-over-Push for Payments
 
@@ -81,12 +81,12 @@ Instead of pushing funds to many recipients in a loop (where one failure can blo
 ```
 mapping(address => uint256) public credits;
 
-// Push (record only) — cannot be griefed by a bad recipient
+// Push (record only) - cannot be griefed by a bad recipient
 function allocate(address user, uint256 amount) internal {
     credits[user] += amount;
 }
 
-// Pull — each user triggers and bears the risk of their own transfer
+// Pull - each user triggers and bears the risk of their own transfer
 function claim() external {
     uint256 amount = credits[msg.sender];
     require(amount > 0, "nothing to claim");
@@ -182,11 +182,11 @@ event TransferReverted(address indexed to, uint256 amount, bytes reason);
 
 ## Key Takeaways
 
-1. **Read every boolean** — capture and `require` the success of `call`/`send`/`delegatecall`/`staticcall`.
-2. **Use SafeERC20** — it normalises tokens that return `false` or nothing, exactly the case hand-written code misses.
-3. **Effects before interactions** — so a failed call reverts atomically and never strands funds.
-4. **Pull, don't push** — isolate each recipient's transfer so one failure cannot brick the rest.
-5. **Verify data, not just success** — check returned data and contract existence for `call`/`delegatecall`.
+1. **Read every boolean** - capture and `require` the success of `call`/`send`/`delegatecall`/`staticcall`.
+2. **Use SafeERC20** - it normalises tokens that return `false` or nothing, exactly the case hand-written code misses.
+3. **Effects before interactions** - so a failed call reverts atomically and never strands funds.
+4. **Pull, don't push** - isolate each recipient's transfer so one failure cannot brick the rest.
+5. **Verify data, not just success** - check returned data and contract existence for `call`/`delegatecall`.
 
 ## Next Steps
 

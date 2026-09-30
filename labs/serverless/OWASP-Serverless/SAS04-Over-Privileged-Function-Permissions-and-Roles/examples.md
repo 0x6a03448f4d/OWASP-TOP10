@@ -20,7 +20,7 @@ Each pair below shows an **over-privileged** configuration and the **least-privi
 ```
 
 ```json
-// Slightly "narrower" but still over-privileged — service-level wildcards:
+// Slightly "narrower" but still over-privileged - service-level wildcards:
 {
   "Effect": "Allow",
   "Action": ["s3:*", "dynamodb:*"],
@@ -182,13 +182,13 @@ functions:
     }
   ]
 }
-// iam:*, AttachRolePolicy, CreatePolicyVersion are NOT granted — and a
+// iam:*, AttachRolePolicy, CreatePolicyVersion are NOT granted - and a
 // permission boundary Denies them even if a future edit adds them back.
 ```
 
 ## 5. Permission Boundary as a Hard Ceiling
 
-Attach this boundary to every function role so no role can ever exceed it—even one that mistakenly grants `iam:*`.
+Attach this boundary to every function role so no role can ever exceed it-even one that mistakenly grants `iam:*`.
 
 ```json
 {
@@ -223,7 +223,7 @@ Attach this boundary to every function role so no role can ever exceed it—even
 | Resources | `Resource: "*"` | Specific ARNs, tightened with conditions |
 | Cross-service | Many services bundled on `*` | Split, each pinned to one resource |
 | IAM meta-perms | Unscoped `iam:PassRole` / `iam:*` | Removed, or `PassRole` to one role + service |
-| Ceiling | None — policy is the only limit | Permission boundary denies escalation |
+| Ceiling | None - policy is the only limit | Permission boundary denies escalation |
 
 ## Next Steps
 

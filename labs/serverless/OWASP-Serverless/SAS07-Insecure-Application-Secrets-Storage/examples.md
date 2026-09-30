@@ -1,8 +1,8 @@
 # SAS-7: Insecure Application Secrets Storage - Code Examples
 
-Each pair below shows a **vulnerable** function (or configuration) and the **secure** version. The examples focus on what dominates real serverless findings: secrets in plaintext environment variables, hardcoded credentials, secrets in `serverless.yml`, and secrets echoed into logs—replaced by runtime fetches from Secrets Manager / SSM Parameter Store with KMS, caching, least-privilege roles, and rotation.
+Each pair below shows a **vulnerable** function (or configuration) and the **secure** version. The examples focus on what dominates real serverless findings: secrets in plaintext environment variables, hardcoded credentials, secrets in `serverless.yml`, and secrets echoed into logs-replaced by runtime fetches from Secrets Manager / SSM Parameter Store with KMS, caching, least-privilege roles, and rotation.
 
-## 1. Lambda Handler — Node.js: Env-Var Secret vs. Secrets Manager
+## 1. Lambda Handler - Node.js: Env-Var Secret vs. Secrets Manager
 
 ### Vulnerable
 ```
@@ -53,13 +53,13 @@ exports.handler = async (event) => {
 // embedded, and rotation is transparent because each cold start re-fetches.
 ```
 
-## 2. Lambda Handler — Python: Hardcoded Key vs. SSM SecureString + KMS
+## 2. Lambda Handler - Python: Hardcoded Key vs. SSM SecureString + KMS
 
 ### Vulnerable
 ```
 import json, urllib.request
 
-# Hardcoded, committed to Git — permanent in history, found by scanners in minutes.
+# Hardcoded, committed to Git - permanent in history, found by scanners in minutes.
 STRIPE_SECRET_KEY = "sk_live_51H...redacted"
 
 def handler(event, context):
@@ -100,7 +100,7 @@ def handler(event, context):
 # Nothing sensitive is in the code, the repo, or the environment.
 ```
 
-## 3. serverless.yml — Inline Secret vs. Reference by Name
+## 3. serverless.yml - Inline Secret vs. Reference by Name
 
 ### Vulnerable
 ```
@@ -164,7 +164,7 @@ provider:
 ### Secure
 ```
 # If an integration truly must read from the environment, encrypt env vars at
-# rest with a customer-managed KMS key. Prefer a managed store — this is the
+# rest with a customer-managed KMS key. Prefer a managed store - this is the
 # fallback, not the goal.
 provider:
   kmsKeyArn: arn:aws:kms:us-east-1:123456789012:key/abc-123  # encrypts env vars
@@ -230,7 +230,7 @@ $ aws secretsmanager rotate-secret \
     --rotation-lambda-arn arn:aws:lambda:...:function:SecretsManagerRDSRotation \
     --rotation-rules '{"AutomaticallyAfterDays": 30}'
 
-# Better still, remove the static secret entirely where possible — use IAM
+# Better still, remove the static secret entirely where possible - use IAM
 # database authentication so the function authenticates with a short-lived
 # token minted from its execution role (no stored password at all):
 #   token = rds_client.generate_db_auth_token(host, 5432, db_user)

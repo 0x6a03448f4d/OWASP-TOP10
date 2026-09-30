@@ -2,7 +2,7 @@
 
 Each pair below shows an **insecure** implementation and the **secure** version in the same language. They cover the core of C3: validating input, parameterising queries, encoding output, safe parsing, and handling exceptions so they fail closed and leak nothing.
 
-> Recurring theme: notice that the secure versions always do **two** things—validate the input *and* neutralise it at the sink (parameterise or encode). Validation alone never appears as the whole fix.
+> Recurring theme: notice that the secure versions always do **two** things-validate the input *and* neutralise it at the sink (parameterise or encode). Validation alone never appears as the whole fix.
 
 ## Python
 
@@ -250,11 +250,11 @@ class UserController {
 
 ## Key Takeaways
 
-1. **Validate then neutralise** — every secure handler validates input *and* parameterises/encodes at the sink.
-2. **Parameterise, never concatenate** — the real anti-SQLi fix is placeholders, not filtering.
-3. **Encode for the context** — HTML output is escaped so input renders as text.
-4. **Configure parsers safely** — disable XXE; never native-deserialize untrusted data.
-5. **Fail closed, leak nothing** — generic client errors, full detail in server logs only.
+1. **Validate then neutralise** - every secure handler validates input *and* parameterises/encodes at the sink.
+2. **Parameterise, never concatenate** - the real anti-SQLi fix is placeholders, not filtering.
+3. **Encode for the context** - HTML output is escaped so input renders as text.
+4. **Configure parsers safely** - disable XXE; never native-deserialize untrusted data.
+5. **Fail closed, leak nothing** - generic client errors, full detail in server logs only.
 
 ## Next Steps
 

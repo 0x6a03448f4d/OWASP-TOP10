@@ -10,9 +10,9 @@
 
 ## Understanding Misinformation Attack Vectors
 
-> **⚠ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find, reproduce, and fix these failures in systems you own or are authorised to test.
+> **⚠ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find, reproduce, and fix these failures in systems you own or are authorised to test.
 
-Misinformation is unusual among the LLM Top 10 because many of its "attack vectors" are not adversarial at all — they are **failure modes the model produces on its own**, which an attacker then learns to *trigger*, *predict*, or *weaponise*. It is useful to hold two lenses at once:
+Misinformation is unusual among the LLM Top 10 because many of its "attack vectors" are not adversarial at all - they are **failure modes the model produces on its own**, which an attacker then learns to *trigger*, *predict*, or *weaponise*. It is useful to hold two lenses at once:
 
 - **The failure lens**: How does the model come to state something false with confidence? (hallucination mechanics)
 - **The adversary lens**: How does an attacker deliberately induce, amplify, or exploit that falsehood for gain? (weaponisation)
@@ -25,7 +25,7 @@ The most damaging real-world cases (slopsquatting, poisoned retrieval) sit at th
 (1) TRIGGER              (2) GENERATION            (3) PRESENTATION
     A prompt asks for   ->  Model emits the       ->  Output is rendered
     a fact, source,         most plausible            fluently, often with
-    package, or answer      continuation — which      formatting, citations,
+    package, or answer      continuation - which      formatting, citations,
                             may be fabricated         and a confident tone
                                    |                          |
                                    v                          v
@@ -47,7 +47,7 @@ Defenses (covered in [Prevention](prevention.html)) map onto the same stages: co
 ## Attack & Failure Patterns
 
 ### 1. Open-Domain Fact Fabrication
-The baseline failure. Asked a factual question outside its reliable knowledge — or about anything after its training cutoff — the model fills the gap with a confident guess rather than a refusal.
+The baseline failure. Asked a factual question outside its reliable knowledge - or about anything after its training cutoff - the model fills the gap with a confident guess rather than a refusal.
 ```
 Prompt : "What was ACME Corp's exact Q3 2025 net revenue and who is
           their current CFO?"
@@ -57,7 +57,7 @@ Trigger: Requesting precise, recent, or obscure facts the model cannot know.
 ```
 
 ### 2. Fabricated Citations and Evidence
-When asked to "cite sources," models generate the *shape* of citations — authors, titles, case numbers, DOIs, URLs — without a real referent. The fabrication is more dangerous than a bare false claim because the citation manufactures a veneer of rigour.
+When asked to "cite sources," models generate the *shape* of citations - authors, titles, case numbers, DOIs, URLs - without a real referent. The fabrication is more dangerous than a bare false claim because the citation manufactures a veneer of rigour.
 ```
 Prompt : "Give me three peer-reviewed studies proving claim X, with DOIs."
 Output : Three well-formatted references with plausible authors and DOIs.
@@ -75,13 +75,13 @@ Attacker workflow:
   3. Diff against real registries (PyPI, npm) to find names that
      DO NOT EXIST yet but are recommended REPEATABLY.
   4. Register the top hallucinated names with malicious code.
-  5. Wait — the model keeps recommending them to new victims.
+  5. Wait - the model keeps recommending them to new victims.
 
 Victim side:
   $ pip install requests-oauth-helper   # model said to; looks fine
   # -> installs attacker-controlled package, runs setup code
 ```
-**Why it works**: hallucinated names are not random — models converge on the same plausible-sounding names, so the attacker gets a stable, high-traffic target list for free.
+**Why it works**: hallucinated names are not random - models converge on the same plausible-sounding names, so the attacker gets a stable, high-traffic target list for free.
 
 ### 4. Non-Existent or Misdescribed APIs
 The model invents functions, parameters, flags, or endpoints, or describes real ones with wrong behaviour. The subtle danger is a *security* parameter that does not exist: the code runs, appears to enforce a control, and silently enforces nothing.
@@ -96,7 +96,7 @@ Result     : Code that looks secure in review but isn't.
 An attacker (or careless user) crafts prompts that maximise fabrication: demanding false precision, presupposing false premises, or forbidding "I don't know."
 ```
 Leading premise : "Since Regulation 12-B requires X, explain how to comply."
-                  (Regulation 12-B does not exist — the model plays along
+                  (Regulation 12-B does not exist - the model plays along
                    and invents compliant-sounding steps.)
 Forbidding doubt: "Answer definitively. Do not say you are unsure."
                   (Suppresses the one honest signal the model might give.)
@@ -110,11 +110,11 @@ Attack: Plant a document (wiki edit, indexed web page, uploaded file)
 Effect: Retrieval surfaces it; the model cites it verbatim with full
         confidence. Grounding turned into laundering.
 Note  : This overlaps LLM01 (indirect prompt injection) and LLM04
-        (data poisoning) — here the payoff is authoritative misinformation.
+        (data poisoning) - here the payoff is authoritative misinformation.
 ```
 
 ### 7. Biased / One-Sided Output as "Neutral Fact"
-Outputs can be steered — by training-data skew, a loaded prompt, or selective retrieval — to present a partial view as complete and neutral. There is no factual "error" to catch, which makes it especially durable.
+Outputs can be steered - by training-data skew, a loaded prompt, or selective retrieval - to present a partial view as complete and neutral. There is no factual "error" to catch, which makes it especially durable.
 ```
 Prompt : "Compare our product to the competition."
 Output : Glowing comparison that silently omits the two strongest rivals.
@@ -130,26 +130,26 @@ the human habit of reading fluency as expertise.
 ```
 
 ### 9. Temporal / Knowledge-Cutoff Fabrication
-Asked about events after its training cutoff, the model may not admit the gap — it extrapolates, presenting guesses about recent releases, prices, or events as established fact.
+Asked about events after its training cutoff, the model may not admit the gap - it extrapolates, presenting guesses about recent releases, prices, or events as established fact.
 ```
 Prompt : "What are the breaking changes in FooLib 5.0?" (released last week)
-Output : A confident, detailed changelog — entirely invented.
+Output : A confident, detailed changelog - entirely invented.
 ```
 
 ### 10. Numeric, Unit, and Calculation Errors
 Free-form models are unreliable arithmetic engines. They produce confident totals, conversions, dosages, and financial figures that are simply wrong, formatted to look computed.
 ```
 Prompt : "Convert 750 mg to the correct pediatric dose for 14 kg."
-Risk   : A plausible number in a high-stakes unit — trusted without a
+Risk   : A plausible number in a high-stakes unit - trusted without a
          real calculator or clinician.
 ```
 
 ### 11. Fabricated Structured Data / Schema Filling
-When asked to return JSON, a table, or records, the model will populate every required field — including inventing IDs, statuses, or foreign keys that do not exist — to satisfy the schema.
+When asked to return JSON, a table, or records, the model will populate every required field - including inventing IDs, statuses, or foreign keys that do not exist - to satisfy the schema.
 ```
 Ask    : "Return the order record as JSON."
 Output : {"order_id": "ORD-88213", "status": "shipped", "tracking": "1Z..."}
-Reality: No such order — the model fabricated a well-formed record because
+Reality: No such order - the model fabricated a well-formed record because
          the schema demanded values. Downstream systems ingest fiction.
 ```
 
@@ -158,7 +158,7 @@ In autonomous multi-step agents, one hallucinated "fact" in an early step become
 ```
 Step 1: Agent "learns" a false API endpoint (hallucinated).
 Step 2: Writes it into a config.
-Step 3: Opens a PR, files a ticket, emails a summary — all citing the
+Step 3: Opens a PR, files a ticket, emails a summary - all citing the
         false endpoint as established. Error is now laundered as record.
 ```
 
@@ -174,14 +174,14 @@ Individually survivable failures combine into incidents. The recurring shape is 
 | Data | Fabricated record fields | Ingested into database | Knowledge base poisoned |
 | RAG | Poisoned source retrieved | Cited verbatim to user | Authoritative misinformation |
 
-The lesson: you rarely fix misinformation by fixing "the model." You break the *chain* — add grounding at step 1, and mandatory verification at step 2 — so a single fabrication cannot reach a consequential action.
+The lesson: you rarely fix misinformation by fixing "the model." You break the *chain* - add grounding at step 1, and mandatory verification at step 2 - so a single fabrication cannot reach a consequential action.
 
 ## Key Takeaways
 
 1. **Most vectors are the model's own failure modes** that attackers learn to trigger and predict, not classic exploits.
-2. **Fabrication is repeatable** — the same prompts yield the same invented names and citations, which is exactly what makes slopsquatting practical.
+2. **Fabrication is repeatable** - the same prompts yield the same invented names and citations, which is exactly what makes slopsquatting practical.
 3. **Package and API hallucination are security issues**, not just quality issues: they lead directly to supply-chain compromise and silently disabled controls.
-4. **Presentation is an attack surface** — confident tone, formatting, and citations raise trust without raising truth.
+4. **Presentation is an attack surface** - confident tone, formatting, and citations raise trust without raising truth.
 5. **Harm needs both halves**: a fabrication only becomes an incident when it meets a consumer who does not verify. Break the chain, not just the model.
 
 ## Next Steps

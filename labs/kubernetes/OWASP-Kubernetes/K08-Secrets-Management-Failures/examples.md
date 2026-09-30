@@ -45,14 +45,14 @@ spec:
           secret:
             secretName: db-creds
             defaultMode: 0400              # read-only, owner only
-# App reads /etc/secrets/db/password — never an env var, never in the spec
+# App reads /etc/secrets/db/password - never an env var, never in the spec
 ```
 
 ## 2. Reference a Secret, Don't Inline It
 
 ### Insecure
 ```yaml
-# A ConfigMap has NO confidentiality — this is a plaintext secret in the clear
+# A ConfigMap has NO confidentiality - this is a plaintext secret in the clear
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -112,7 +112,7 @@ resources:
 
 ### Insecure
 ```dockerfile
-# Dockerfile — the key persists in an image layer forever
+# Dockerfile - the key persists in an image layer forever
 FROM node:20-slim
 ENV NPM_TOKEN=npm_AbCdEf0123456789        # leaks in `docker history` and layers
 COPY . .                                   # may copy .env / .git too
@@ -121,7 +121,7 @@ RUN npm ci
 
 ### Secure
 ```dockerfile
-# BuildKit secret mount — nothing is written into the final image
+# BuildKit secret mount - nothing is written into the final image
 # syntax=docker/dockerfile:1.4
 FROM node:20-slim
 COPY package*.json ./
@@ -206,7 +206,7 @@ spec:
 
 ### Insecure
 ```yaml
-# Committed to the GitOps repo — plaintext in history on every clone
+# Committed to the GitOps repo - plaintext in history on every clone
 apiVersion: v1
 kind: Secret
 metadata:

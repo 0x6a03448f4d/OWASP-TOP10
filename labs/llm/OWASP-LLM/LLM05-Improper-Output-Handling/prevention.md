@@ -18,7 +18,7 @@
 
 ## The Governing Principle: Zero Trust for Output
 
-Every defense in this page is an application of one rule: **the model is just another untrusted client, and its output is untrusted input to whatever consumes it.** Adopt a zero-trust posture between the model and every downstream component. Where a classic application would validate, encode, parameterize, or sandbox user input, an LLM application must apply the identical control to model output. OWASP explicitly points to the **ASVS** (Application Security Verification Standard) for the input-validation and output-encoding requirements — the same standard, now applied one boundary later.
+Every defense in this page is an application of one rule: **the model is just another untrusted client, and its output is untrusted input to whatever consumes it.** Adopt a zero-trust posture between the model and every downstream component. Where a classic application would validate, encode, parameterize, or sandbox user input, an LLM application must apply the identical control to model output. OWASP explicitly points to the **ASVS** (Application Security Verification Standard) for the input-validation and output-encoding requirements - the same standard, now applied one boundary later.
 
 > **Encoding is contextual, not universal.** There is no single "sanitize()" that makes output safe everywhere. Output must be encoded for its *exact* sink: HTML body, HTML attribute, JavaScript, URL, CSS, SQL, shell, or path. The same string can be safe in one context and an exploit in another.
 
@@ -41,7 +41,7 @@ Every defense in this page is an application of one rule: **the model is just an
 
 Encode at the point of use, for the context of use. Prefer framework mechanisms that encode by default and safe DOM APIs over raw HTML injection.
 
-**Front end — use text sinks, never innerHTML**
+**Front end - use text sinks, never innerHTML**
 ```javascript
 // SAFE: textContent never parses HTML
 document.getElementById("reply").textContent = answer;
@@ -52,7 +52,7 @@ el.textContent = answer;              // still text, still safe
 container.replaceChildren(el);
 ```
 
-**Server-side templates — keep auto-escaping on**
+**Server-side templates - keep auto-escaping on**
 ```python
 # Jinja2 autoescape is ON for .html; pass output as DATA, not template source
 return render_template("reply.html", answer=model_answer)   # {{ answer }} auto-escaped
@@ -111,7 +111,7 @@ def safe_eval(expr: str) -> float:
     return ev(ast.parse(expr, mode="eval").body)
 ```
 
-If arbitrary code execution is a genuine product requirement (a "code interpreter" feature), run it in a **hardened sandbox**: a locked-down container or microVM (gVisor, Firecracker, or an isolated worker) with no network, a read-only or ephemeral filesystem, dropped capabilities, strict CPU/memory/time limits, and a non-root user. The sandbox — not string filtering — is the security boundary.
+If arbitrary code execution is a genuine product requirement (a "code interpreter" feature), run it in a **hardened sandbox**: a locked-down container or microVM (gVisor, Firecracker, or an isolated worker) with no network, a read-only or ephemeral filesystem, dropped capabilities, strict CPU/memory/time limits, and a non-root user. The sandbox - not string filtering - is the security boundary.
 
 ## Layer 4: Sanitize Markdown & HTML
 
@@ -171,7 +171,7 @@ Pair the CSP with `X-Content-Type-Options: nosniff` and correct `Content-Type` h
 
 ## Layer 6: Schema-Validate Structured Output
 
-Ask the model for structured output, then validate it against a strict schema before use. Reject — do not "fix" — anything that does not conform. Constrain types, lengths, formats, and use **enums/allowlists** wherever the value set is known.
+Ask the model for structured output, then validate it against a strict schema before use. Reject - do not "fix" - anything that does not conform. Constrain types, lengths, formats, and use **enums/allowlists** wherever the value set is known.
 
 ```typescript
 // Node/TypeScript with zod
@@ -185,7 +185,7 @@ const Action = z.object({
 
 const parsed = Action.safeParse(JSON.parse(modelOutput));
 if (!parsed.success) throw new Error("model output failed schema validation");
-// use parsed.data — every field is now typed and bounded
+// use parsed.data - every field is now typed and bounded
 ```
 
 ```python
@@ -250,7 +250,7 @@ Prefer generating your own filename (a UUID) and storing the model's suggested n
 ## Layer 9: Sandbox & Least-Privilege Agent Tools
 
 In agentic systems, output-handling and excessive-agency defenses merge. Constrain what an output *can cause*:
-- **Strict argument schemas** (Layer 6) for every tool call — no free-form command strings.
+- **Strict argument schemas** (Layer 6) for every tool call - no free-form command strings.
 - **Action allowlist**: the router accepts only a fixed set of tool names; unknown tools are rejected, not guessed.
 - **Least privilege per tool**: each tool holds only the credentials and scope it needs; the "shell" tool, if it exists, is sandboxed and network-isolated.
 - **Human-in-the-loop** for high-impact or irreversible actions (delete, transfer funds, send external email, deploy).

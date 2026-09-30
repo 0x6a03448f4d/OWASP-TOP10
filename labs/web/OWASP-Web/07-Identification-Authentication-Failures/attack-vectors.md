@@ -32,11 +32,11 @@ Nearly every authentication attack follows the same shape: **find valid identiti
 5. ACT        -> operate as the victim; escalate to higher-value accounts
 ```
 
-The 12 vectors below map onto these stages. Anti-automation, MFA, and correct session handling break the flow at different points—which is exactly why defense must be layered.
+The 12 vectors below map onto these stages. Anti-automation, MFA, and correct session handling break the flow at different points-which is exactly why defense must be layered.
 
 ## 1. Credential Stuffing
 
-The most common authentication attack on the internet. The attacker takes `email:password` pairs leaked from unrelated breaches and replays them against the target, betting on password reuse. No vulnerability in *your* code is required—only the acceptance of high-volume automated logins.
+The most common authentication attack on the internet. The attacker takes `email:password` pairs leaked from unrelated breaches and replays them against the target, betting on password reuse. No vulnerability in *your* code is required-only the acceptance of high-volume automated logins.
 
 ```
 # Conceptual loop (defenders study this shape to detect it)
@@ -172,13 +172,13 @@ Many "logout" implementations only delete the client-side cookie. If the session
 # Attacker replays the captured token -> still logged in.
 ```
 
-The same flaw appears as: no idle timeout, no absolute timeout, and password changes that do not revoke existing sessions. A user who changes a compromised password reasonably assumes attacker sessions are killed—often they are not.
+The same flaw appears as: no idle timeout, no absolute timeout, and password changes that do not revoke existing sessions. A user who changes a compromised password reasonably assumes attacker sessions are killed-often they are not.
 
 ## 10. Insecure Password Recovery
 
 The "forgot password" flow is a second authentication path and is frequently weaker than the primary one.
 
-- **Knowledge-based questions**: "mother's maiden name," "first pet"—often public or guessable, and reused across sites.
+- **Knowledge-based questions**: "mother's maiden name," "first pet"-often public or guessable, and reused across sites.
 - **Predictable or non-expiring reset tokens**: sequential IDs, or links that never expire and can be replayed.
 - **Reset that reveals account existence**: "we sent an email" vs "no such account" leaks enumeration.
 - **Reset that skips re-authentication of the session**: changing a password without invalidating other active sessions leaves the attacker logged in.

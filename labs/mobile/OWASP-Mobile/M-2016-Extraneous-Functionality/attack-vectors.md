@@ -8,11 +8,11 @@
 
 ## Understanding the Attack Model
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and remove this functionality from apps you own or are authorised to test.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and remove this functionality from apps you own or are authorised to test.
 
-Extraneous functionality is not exploited with a crafted payload—it is exploited with a **decompiler and patience**. The attacker starts from a position of total advantage: they hold the entire application binary and run it on a device they fully control. Their whole job is to *inspect* the app, notice functionality that was never meant for them, and then *invoke* it.
+Extraneous functionality is not exploited with a crafted payload-it is exploited with a **decompiler and patience**. The attacker starts from a position of total advantage: they hold the entire application binary and run it on a device they fully control. Their whole job is to *inspect* the app, notice functionality that was never meant for them, and then *invoke* it.
 
-The workflow is almost always the same three moves: obtain the binary, read what's inside it (strings, code, config, logs), and exercise whatever hidden capability that reading reveals—a staging endpoint, a test account, a debug menu, a backdoor check.
+The workflow is almost always the same three moves: obtain the binary, read what's inside it (strings, code, config, logs), and exercise whatever hidden capability that reading reveals-a staging endpoint, a test account, a debug menu, a backdoor check.
 
 ### The Attacker's Toolkit
 
@@ -60,14 +60,14 @@ Test1234!
 sk_test_51H8x...
 ```
 
-**Payoff**: internal hostnames, a working test account, and API keys—no reverse engineering of logic required, just `grep`.
+**Payoff**: internal hostnames, a working test account, and API keys-no reverse engineering of logic required, just `grep`.
 
 ### 2. Reading the Decompiled Source for Hidden Logic
 
 Decompiling to readable Java/pseudo-Swift exposes conditional shortcuts. Attackers grep for tell-tale identifiers: `debug`, `test`, `admin`, `godmode`, `backdoor`, `skip`, `bypass`, `internal`.
 
 ```java
-// Recovered from jadx — a developer backdoor
+// Recovered from jadx - a developer backdoor
 public boolean isAuthorized(User u) {
     if (u.getId() == 0xDEADBEEF) return true;   // magic id skips all checks
     return this.acl.check(u);
@@ -108,7 +108,7 @@ Java.perform(function () {
 
 ### 5. Triggering a Hidden Admin / God-Mode Gesture
 
-Decompiled UI code reveals the secret trigger—a tap sequence, a long-press on a version label, a special input value.
+Decompiled UI code reveals the secret trigger-a tap sequence, a long-press on a version label, a special input value.
 
 ```swift
 // Recovered: a hidden entry point behind a magic string
@@ -117,7 +117,7 @@ if searchField.text == "!!debug!!" {
 }
 ```
 
-**Exploitation**: type the magic value and the internal menu opens on a stock, unmodified device—no rooting needed.
+**Exploitation**: type the magic value and the internal menu opens on a stock, unmodified device-no rooting needed.
 
 ### 6. Reading Sensitive Data From Verbose Logs
 
@@ -140,7 +140,7 @@ $ adb jdwp                       # process is debuggable and listed
 $ jdb -attach localhost:8700     # inspect memory, call methods, read secrets
 ```
 
-**Payoff**: full runtime inspection and control—dump decrypted secrets from memory, invoke internal methods, bypass client-side checks—without any software vulnerability.
+**Payoff**: full runtime inspection and control-dump decrypted secrets from memory, invoke internal methods, bypass client-side checks-without any software vulnerability.
 
 ### 8. Invoking Exported Debug Components Directly
 
@@ -177,11 +177,11 @@ debuggable=true lets a debugger attach          -> read the in-memory config
 
 ## Key Takeaways
 
-1. **Inspection is the exploit**—the app is decompiled, grepped, and read; there is no clever payload to defend against, only leftover code to remove.
-2. **Strings betray you first**—URLs, keys, and credentials fall out of a `strings` dump before any real analysis begins.
-3. **Client-side gates are not gates**—feature flags, hidden menus, and magic values are all reachable once discovered.
-4. **Debuggable builds hand over the process**—`debuggable=true` is total runtime access with no exploit.
-5. **Small leftovers chain**—a staging URL plus a test account plus a verbose log equals a breach.
+1. **Inspection is the exploit**-the app is decompiled, grepped, and read; there is no clever payload to defend against, only leftover code to remove.
+2. **Strings betray you first**-URLs, keys, and credentials fall out of a `strings` dump before any real analysis begins.
+3. **Client-side gates are not gates**-feature flags, hidden menus, and magic values are all reachable once discovered.
+4. **Debuggable builds hand over the process**-`debuggable=true` is total runtime access with no exploit.
+5. **Small leftovers chain**-a staging URL plus a test account plus a verbose log equals a breach.
 
 ## Next Steps
 

@@ -8,11 +8,11 @@
 
 ## Understanding the Attack Vectors
 
-> **⚠ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can instrument, detect, and shut down this activity in serverless systems you own or are authorised to test.
+> **⚠ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can instrument, detect, and shut down this activity in serverless systems you own or are authorised to test.
 
-For most weaknesses, an "attack vector" is the payload or trick the attacker uses. SAS-5 is different. The weakness is not *how* an attacker acts—it is that **whatever they do goes unseen**. So the vectors below are framed as attacker activity that *succeeds quietly*: each is an ordinary malicious action that produces no alert, because the serverless application was never instrumented to notice it.
+For most weaknesses, an "attack vector" is the payload or trick the attacker uses. SAS-5 is different. The weakness is not *how* an attacker acts-it is that **whatever they do goes unseen**. So the vectors below are framed as attacker activity that *succeeds quietly*: each is an ordinary malicious action that produces no alert, because the serverless application was never instrumented to notice it.
 
-The attacker does not need to defeat your logging. They only need to operate inside its blind spots—which, with default serverless telemetry, is almost everywhere. The ephemeral, distributed, event-driven nature of functions means their footprints scatter across dozens of short-lived invocations and never assemble into a picture anyone is looking at.
+The attacker does not need to defeat your logging. They only need to operate inside its blind spots-which, with default serverless telemetry, is almost everywhere. The ephemeral, distributed, event-driven nature of functions means their footprints scatter across dozens of short-lived invocations and never assemble into a picture anyone is looking at.
 
 ### Core Attack Flow
 
@@ -28,7 +28,7 @@ The attacker does not need to defeat your logging. They only need to operate ins
    Produce "successful" responses; don't trip the crude 5xx alert
 4. Persist / exfiltrate / spend
    |
-   Continue for weeks — the first out-of-band signal is a bill or a third party
+   Continue for weeks - the first out-of-band signal is a bill or a third party
 ```
 
 ## Activity That Goes Undetected
@@ -65,7 +65,7 @@ An attacker who controls a function (or a leaked deployment credential) assumes 
 
 ### 3. Low-and-Slow Reconnaissance
 
-Rather than one loud scan, the attacker probes with many small invocations spread over time—enumerating resources, error messages, and permissions—each request indistinguishable from legitimate traffic.
+Rather than one loud scan, the attacker probes with many small invocations spread over time-enumerating resources, error messages, and permissions-each request indistinguishable from legitimate traffic.
 
 ```
 # Over days, a handful of probes per hour:
@@ -93,7 +93,7 @@ A function with legitimate read access to a datastore is turned into an exfiltra
 
 ### 5. Denial-of-Wallet Cost Spike
 
-A publicly reachable function is triggered in a tight loop. Because billing is per-invocation, the damage is financial and accrues silently—there is no crash to alert on.
+A publicly reachable function is triggered in a tight loop. Because billing is per-invocation, the damage is financial and accrues silently-there is no crash to alert on.
 
 ```
 Invocations/min:  12  11  9  |  8,900  9,400  9,100  9,300  ...  (sustained)
@@ -106,7 +106,7 @@ Estimated charge: climbing linearly with every minute
 
 ### 6. Privilege Abuse Within Allowed Scope
 
-The attacker stays inside what the function is permitted to do, but uses it abusively—bulk operations, cross-tenant reads, or repeated privileged actions—so every request returns `200`.
+The attacker stays inside what the function is permitted to do, but uses it abusively-bulk operations, cross-tenant reads, or repeated privileged actions-so every request returns `200`.
 
 ```
 # Function may read any tenant's record by design flaw; attacker walks all tenants:
@@ -133,7 +133,7 @@ If the function's own role can write to and manage its log group, an attacker wh
 
 ### 8. Blind Spots Between Managed Services
 
-Actions that happen entirely inside managed services—an object copied in S3, a policy attached in IAM, a table exported—never touch the function logs at all.
+Actions that happen entirely inside managed services-an object copied in S3, a policy attached in IAM, a table exported-never touch the function logs at all.
 
 ```
 # No function is even involved; the attacker uses stolen role credentials directly:
@@ -159,7 +159,7 @@ Log tampering                 -> shorten retention, delete streams
         =  full data breach with no alert, discovered later by a third party
 ```
 
-Another common chain—the economic one:
+Another common chain-the economic one:
 
 ```
 Public trigger, no auth check  -> attacker invokes in a loop
@@ -170,11 +170,11 @@ Public trigger, no auth check  -> attacker invokes in a loop
 
 ## Key Takeaways
 
-1. **The vector is silence, not cleverness**—attackers succeed by operating where no telemetry exists, which by default is nearly everywhere.
-2. **Distribution is the attacker's friend**—spreading activity across many short-lived invocations defeats per-function, uncorrelated logging.
-3. **"Success" hides abuse**—error-only alerting misses authorised-but-malicious reads, role use, and exfiltration.
-4. **Cost is an attack surface**—denial-of-wallet is invisible without invocation and spend alarms.
-5. **Unprotected logs get erased**—if the workload can manage its own log store, the evidence is destructible.
+1. **The vector is silence, not cleverness**-attackers succeed by operating where no telemetry exists, which by default is nearly everywhere.
+2. **Distribution is the attacker's friend**-spreading activity across many short-lived invocations defeats per-function, uncorrelated logging.
+3. **"Success" hides abuse**-error-only alerting misses authorised-but-malicious reads, role use, and exfiltration.
+4. **Cost is an attack surface**-denial-of-wallet is invisible without invocation and spend alarms.
+5. **Unprotected logs get erased**-if the workload can manage its own log store, the evidence is destructible.
 
 ## Next Steps
 

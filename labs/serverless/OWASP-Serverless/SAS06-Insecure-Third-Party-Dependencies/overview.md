@@ -10,9 +10,9 @@
 
 ## What are Insecure Third-Party Dependencies?
 
-**Insecure Third-Party Dependencies** occur when a serverless function pulls in external code—npm, PyPI, Maven, or Gradle packages, plus their transitive dependencies—that is vulnerable, malicious, unmaintained, or simply unaccounted for. The function's own code may be a few dozen lines, yet the deployment package it runs is dominated by libraries the author never wrote and often never read. When one of those libraries carries a known CVE, is typosquatted, or is hijacked upstream, the flaw ships to production inside your function and executes with your function's privileges.
+**Insecure Third-Party Dependencies** occur when a serverless function pulls in external code-npm, PyPI, Maven, or Gradle packages, plus their transitive dependencies-that is vulnerable, malicious, unmaintained, or simply unaccounted for. The function's own code may be a few dozen lines, yet the deployment package it runs is dominated by libraries the author never wrote and often never read. When one of those libraries carries a known CVE, is typosquatted, or is hijacked upstream, the flaw ships to production inside your function and executes with your function's privileges.
 
-Serverless makes this the defining risk rather than a peripheral one. A function is, by design, a **small piece of glue code**: it parses an event, calls a managed service, and returns. To do that it reaches for a SDK, a validation library, a date helper, a parser, a logging shim—each of which drags in a tree of transitive dependencies. The ratio of "code you wrote" to "code you shipped" is often 1:1000. Your real attack surface is that tree, not your handler.
+Serverless makes this the defining risk rather than a peripheral one. A function is, by design, a **small piece of glue code**: it parses an event, calls a managed service, and returns. To do that it reaches for a SDK, a validation library, a date helper, a parser, a logging shim-each of which drags in a tree of transitive dependencies. The ratio of "code you wrote" to "code you shipped" is often 1:1000. Your real attack surface is that tree, not your handler.
 
 ### Core Concept
 
@@ -38,7 +38,7 @@ Insecure Dependency Posture:
 
 ### The Serverless Twist
 
-The property that makes this category distinct from a generic "vulnerable components" finding is **where the dependency runs and what it inherits**. A compromised library inside a traditional monolith is bounded by that host. A compromised library inside a Lambda function runs with the function's **IAM execution role**, its environment variables (which frequently hold secrets), and its network egress. If that role is over-privileged—as they very often are (see SAS-4)—a single malicious transitive package can read secrets, assume other roles, touch storage, and pivot into the wider cloud account. The dependency is not just running your logic; it is holding your credentials.
+The property that makes this category distinct from a generic "vulnerable components" finding is **where the dependency runs and what it inherits**. A compromised library inside a traditional monolith is bounded by that host. A compromised library inside a Lambda function runs with the function's **IAM execution role**, its environment variables (which frequently hold secrets), and its network egress. If that role is over-privileged-as they very often are (see SAS-4)-a single malicious transitive package can read secrets, assume other roles, touch storage, and pivot into the wider cloud account. The dependency is not just running your logic; it is holding your credentials.
 
 ### Why It's Critical for Serverless
 
@@ -51,7 +51,7 @@ The property that makes this category distinct from a generic "vulnerable compon
 
 ### Business Impact
 
-- **Account Compromise**: A malicious or vulnerable dependency inheriting an over-privileged role can escalate from one function to the whole cloud account—data, infrastructure, and billing.
+- **Account Compromise**: A malicious or vulnerable dependency inheriting an over-privileged role can escalate from one function to the whole cloud account-data, infrastructure, and billing.
 - **Data Exfiltration**: Libraries with runtime access to env vars and the execution role can quietly ship secrets and customer data to an attacker endpoint.
 - **Supply-Chain Breach**: A single hijacked upstream package propagates to every function that depends on it, across every team, in one release cycle.
 - **Compliance Failure**: Shipping known-vulnerable components with no SBOM or patch process is itself an audit finding under SOC 2, PCI-DSS, and emerging supply-chain regulation.
@@ -61,7 +61,7 @@ The property that makes this category distinct from a generic "vulnerable compon
 
 - **Remote Code Execution**: An unpatched CVE in a parser, deserializer, or template library bundled in the function or a layer gives an attacker code execution in the function's context.
 - **Credential Theft at Runtime**: Malicious code reads `process.env` / `os.environ` and the container credential endpoint, exfiltrating the role's temporary keys.
-- **Build-Time Compromise**: An `npm postinstall` (or `pip` build) script runs arbitrary code on the CI/CD host during install—before the function ever deploys.
+- **Build-Time Compromise**: An `npm postinstall` (or `pip` build) script runs arbitrary code on the CI/CD host during install-before the function ever deploys.
 - **Privilege Escalation and Pivot**: With the function's role in hand, the dependency assumes other roles or calls services the function never legitimately uses.
 - **Expanded Attack Surface**: Every transitive package is more code that can carry a flaw; large trees make review and patching intractable.
 
@@ -118,21 +118,21 @@ node_modules/ -> 312 packages, 1,900 files
 
 Two distinct moments matter, and defenses differ for each:
 
-- **Install/build time**: `npm install` or `pip install` can run lifecycle scripts (`preinstall`, `install`, `postinstall`) that execute on your build host—stealing CI secrets or tampering with the artifact before deploy.
+- **Install/build time**: `npm install` or `pip install` can run lifecycle scripts (`preinstall`, `install`, `postinstall`) that execute on your build host-stealing CI secrets or tampering with the artifact before deploy.
 - **Function runtime**: once deployed, any imported module runs when the function initializes or handles an event, with access to the live role and environment.
 
 ## Real-World Impact
 
-The examples below are described as **incident classes**—repeatedly observed patterns—rather than specific fabricated CVE numbers, because the durable lesson is the pattern, not any single advisory.
+The examples below are described as **incident classes**-repeatedly observed patterns-rather than specific fabricated CVE numbers, because the durable lesson is the pattern, not any single advisory.
 
 ### Case Class 1: Malicious npm Package in the Dependency Tree (event-stream-class)
 
 **Weakness**:
-- A widely used, low-attention npm package changes maintainership, and a new maintainer introduces malicious code—often buried in a fresh transitive dependency rather than the top-level package.
+- A widely used, low-attention npm package changes maintainership, and a new maintainer introduces malicious code-often buried in a fresh transitive dependency rather than the top-level package.
 - Downstream projects, including serverless functions, pull the update automatically because they use floating version ranges and no integrity pinning.
 
 **Impact**:
-- The injected code runs wherever the package is loaded. In a function, that means it executes with the execution role and can read environment secrets and credentials—classes of this attack have targeted exactly such secrets.
+- The injected code runs wherever the package is loaded. In a function, that means it executes with the execution role and can read environment secrets and credentials-classes of this attack have targeted exactly such secrets.
 
 **Root Cause**: Implicit trust in transitive maintainers, floating versions, and no lockfile/hash verification, so a single upstream change silently propagated everywhere.
 
@@ -143,7 +143,7 @@ The examples below are described as **incident classes**—repeatedly observed p
 - A mistyped name, or a resolver that prefers the public registry, installs the attacker's package into the build.
 
 **Impact**:
-- Repeated, well-documented waves of typosquatted and dependency-confusion packages have shipped credential-stealing payloads via install scripts—executing on build hosts and in the resulting artifacts.
+- Repeated, well-documented waves of typosquatted and dependency-confusion packages have shipped credential-stealing payloads via install scripts-executing on build hosts and in the resulting artifacts.
 
 **Root Cause**: Unscoped installs from an untrusted registry with install scripts enabled, and no verification that a name resolves to the intended source.
 
@@ -154,18 +154,18 @@ The examples below are described as **incident classes**—repeatedly observed p
 - No SCA scans the layer contents, and the layer is rarely rebuilt.
 
 **Impact**:
-- An attacker who can reach an affected code path triggers the public exploit and gains code execution inside every function that uses the layer—then leverages the execution role to go further.
+- An attacker who can reach an affected code path triggers the public exploit and gains code execution inside every function that uses the layer-then leverages the execution role to go further.
 
 **Root Cause**: Vulnerable code centralized in an unscanned, stale layer, multiplying a single unpatched dependency across a whole fleet.
 
 ## Prevalence and Statistics
 
-Insecure third-party dependencies are a durable entry in both the OWASP Serverless Top 10 (as SAS-6) and the broader OWASP Top 10 lineage (as "Vulnerable and Outdated Components"). Software-composition studies consistently find that the majority of a modern application's code—often well over 80%—is third-party, and that a large share of scanned projects contain at least one known-vulnerable dependency.
+Insecure third-party dependencies are a durable entry in both the OWASP Serverless Top 10 (as SAS-6) and the broader OWASP Top 10 lineage (as "Vulnerable and Outdated Components"). Software-composition studies consistently find that the majority of a modern application's code-often well over 80%-is third-party, and that a large share of scanned projects contain at least one known-vulnerable dependency.
 
 Rather than cite precise counts (which vary by source and year), the defensible picture is:
 
 - Most of what a serverless function ships is code the team did not write, so the dependency tree is the dominant attack surface.
-- Known-vulnerable transitive dependencies are **extremely common and easy to detect** with SCA—yet frequently go unpatched because nobody owns the update cadence.
+- Known-vulnerable transitive dependencies are **extremely common and easy to detect** with SCA-yet frequently go unpatched because nobody owns the update cadence.
 - Supply-chain attacks (malicious/typosquatted/hijacked packages) have grown into a **recurring, industrialized** class of incident against public registries.
 
 > Note: exact percentages differ between reports. Treat any single figure as illustrative; the durable takeaway is that dependencies are the majority of your code, they are routinely vulnerable, and in serverless they run with your function's credentials.
@@ -186,7 +186,7 @@ Rather than cite precise counts (which vary by source and year), the defensible 
 
 ### Myth 4: "The managed platform patches my dependencies"
 
-**Reality**: The provider patches the underlying infrastructure and, on a schedule, the base runtime. It does not patch the libraries *you* bundled—those are only fixed when you rebuild and redeploy.
+**Reality**: The provider patches the underlying infrastructure and, on a schedule, the base runtime. It does not patch the libraries *you* bundled-those are only fixed when you rebuild and redeploy.
 
 ### Myth 5: "A vulnerable dependency is harmless if I do not call the vulnerable function"
 
@@ -194,7 +194,7 @@ Rather than cite precise counts (which vary by source and year), the defensible 
 
 ### Myth 6: "Lockfiles are just for reproducible builds"
 
-**Reality**: A committed lockfile with integrity hashes, installed via `npm ci` or `--require-hashes`, is also a security control—it prevents a silently swapped or tampered package from entering your artifact.
+**Reality**: A committed lockfile with integrity hashes, installed via `npm ci` or `--require-hashes`, is also a security control-it prevents a silently swapped or tampered package from entering your artifact.
 
 ## How SAS-6 Differs from Related Issues
 
@@ -207,11 +207,11 @@ Rather than cite precise counts (which vary by source and year), the defensible 
 
 ## Key Takeaways
 
-1. **Your dependencies are your code**—in serverless, most of what ships is third-party, so the tree is your real attack surface.
-2. **A bad dependency inherits your role**—it runs with the function's IAM credentials and environment, so blast radius is set by SAS-4.
-3. **Transitive is the danger zone**—you vet direct deps but implicitly trust hundreds you never see.
-4. **Install scripts run before deploy**—a malicious package can compromise the build host, not just the runtime.
-5. **Visibility precedes defense**—without an SBOM and continuous SCA, vulnerable code lingers because no one can see it.
+1. **Your dependencies are your code**-in serverless, most of what ships is third-party, so the tree is your real attack surface.
+2. **A bad dependency inherits your role**-it runs with the function's IAM credentials and environment, so blast radius is set by SAS-4.
+3. **Transitive is the danger zone**-you vet direct deps but implicitly trust hundreds you never see.
+4. **Install scripts run before deploy**-a malicious package can compromise the build host, not just the runtime.
+5. **Visibility precedes defense**-without an SBOM and continuous SCA, vulnerable code lingers because no one can see it.
 
 ## How to Identify if You're Vulnerable
 

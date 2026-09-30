@@ -21,7 +21,7 @@ Implementing this control is less about buying a tool and more about **weaving s
 
 ## 1. Adopt a Secure Development Lifecycle (S-SDLC)
 
-Security is not a phase; it is an activity attached to *every* phase. The goal is that at no point does a team ask "should we think about security now?"—it is already scheduled.
+Security is not a phase; it is an activity attached to *every* phase. The goal is that at no point does a team ask "should we think about security now?"-it is already scheduled.
 
 ```
 Phase           Security activity woven in
@@ -46,7 +46,7 @@ Threat modeling is the heart of this control: a structured way to ask **"what ca
 3. What are we going to do about it? (Choose controls.)
 4. Did we do a good job? (Validate.)
 
-Start with a simple **data-flow diagram (DFD)** and mark trust boundaries—the lines where data moves between different levels of trust.
+Start with a simple **data-flow diagram (DFD)** and mark trust boundaries-the lines where data moves between different levels of trust.
 
 ```
           Trust boundary (internet | server)
@@ -95,7 +95,7 @@ Abuse case (misuse story):
   verified by test "enumeration is throttled after N attempts".
 ```
 
-Because each abuse case names its mitigation and a test, it flows straight into your test suite—design intent becomes an executable check. The OWASP ASVS is a ready-made catalog of security requirements to draw from.
+Because each abuse case names its mitigation and a test, it flows straight into your test suite-design intent becomes an executable check. The OWASP ASVS is a ready-made catalog of security requirements to draw from.
 
 ## 4. Use Secure Design Patterns and Reference Architectures
 
@@ -119,7 +119,7 @@ def authorize(subject, action, resource):
 
 ## 5. Secure Defaults and Paved-Road Platforms
 
-The most reliable way to make teams build securely is to make the secure choice the default and the easy one. A "paved road" (a.k.a. golden path) is a supported platform—templates, libraries, pipelines—that bakes the controls in.
+The most reliable way to make teams build securely is to make the secure choice the default and the easy one. A "paved road" (a.k.a. golden path) is a supported platform-templates, libraries, pipelines-that bakes the controls in.
 
 ```
 Paved road / golden path provides, out of the box:
@@ -165,11 +165,11 @@ Make trust explicit. Wherever data or control crosses from a less-trusted zone t
 
 - **Network segmentation**: separate zones (public, app, data) so a foothold in one does not grant the others.
 - **Service-to-service auth**: internal calls authenticate; "inside the network" is not a credential.
-- **Boundary validation**: every crossing validates its inputs afresh—never assume the caller sanitized them.
+- **Boundary validation**: every crossing validates its inputs afresh-never assume the caller sanitized them.
 
 ## 8. Design for Business-Logic Security
 
-Enumerate the rules that make your domain safe—limits, sequences, ownership, entitlements—and enforce them server-side.
+Enumerate the rules that make your domain safe-limits, sequences, ownership, entitlements-and enforce them server-side.
 
 ```
 Checklist for any money- or state-changing workflow:
@@ -233,7 +233,7 @@ Simple risk triage during threat modeling:
   Low impact  + Low likelihood   -> accept + document the decision
 ```
 
-Record accepted risks explicitly—an informed, documented acceptance is a design decision; a forgotten gap is a future incident.
+Record accepted risks explicitly-an informed, documented acceptance is a design decision; a forgotten gap is a future incident.
 
 ## Implementation Checklist
 
@@ -252,11 +252,11 @@ Record accepted risks explicitly—an informed, documented acceptance is a desig
 
 ## Key Takeaways
 
-1. **Weave security into every phase** — an S-SDLC beats a single end-of-line gate.
-2. **Threat model early** — a DFD plus STRIDE and four questions catches design flaws while they are cheap.
-3. **Write abuse cases as testable requirements** — design intent becomes an executable check.
-4. **Make the secure path the default path** — paved roads and secure defaults scale good practice.
-5. **Reuse, layer, and least-privilege** — proven frameworks, defense in depth, and narrow scope by design.
+1. **Weave security into every phase** - an S-SDLC beats a single end-of-line gate.
+2. **Threat model early** - a DFD plus STRIDE and four questions catches design flaws while they are cheap.
+3. **Write abuse cases as testable requirements** - design intent becomes an executable check.
+4. **Make the secure path the default path** - paved roads and secure defaults scale good practice.
+5. **Reuse, layer, and least-privilege** - proven frameworks, defense in depth, and narrow scope by design.
 
 ## Next Steps
 

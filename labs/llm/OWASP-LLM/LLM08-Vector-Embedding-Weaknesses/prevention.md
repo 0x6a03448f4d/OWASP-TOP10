@@ -11,7 +11,7 @@
 
 ## Defence Strategy
 
-There is no single switch that secures a RAG system. The weaknesses span ingestion, storage, and retrieval, so the defences are layered—each assumes the one before it can fail. The single most important principle:
+There is no single switch that secures a RAG system. The weaknesses span ingestion, storage, and retrieval, so the defences are layered-each assumes the one before it can fail. The single most important principle:
 
 > **Authorize retrieval at the datastore, before content ever reaches the model. Never rely on the prompt, and never rely on the model, to enforce who may see what.**
 
@@ -19,7 +19,7 @@ The layers below map directly to the attack patterns: access control and partiti
 
 ## Layer 1: Authorize Retrieval (Access Control & Partitioning)
 
-Similarity search returns the most relevant chunks, not the authorized ones. You must add the authorization yourself, and it must be enforced *by the vector store as part of the query*—not applied afterward in application code.
+Similarity search returns the most relevant chunks, not the authorized ones. You must add the authorization yourself, and it must be enforced *by the vector store as part of the query*-not applied afterward in application code.
 
 ### Partition by tenant
 
@@ -68,7 +68,7 @@ index.query(
 
 ### Run retrieval as the user, not as a god account
 
-- The retriever's effective permissions should equal the asking user's—pass the user context into every query and enforce it.
+- The retriever's effective permissions should equal the asking user's-pass the user context into every query and enforce it.
 - Prefer **pre-filtering** (the database applies the filter during search) over **post-filtering** (fetch many, discard some in code). Post-filtering leaks through logs, caches, and streaming, and wastes the top-k budget on chunks the user cannot see.
 - Keep authorization data **fresh**: when a document's ACL changes or a user loses access, update or re-index the affected vectors. Stale metadata is stale authorization.
 
@@ -90,7 +90,7 @@ Everything that enters the index can later be retrieved and trusted. Treat inges
 
 - **Provenance**: Record where each document came from (source system, author, ingestion time) in metadata. Prefer trusted, authenticated sources over open ones.
 - **Vetting**: For semi-trusted sources (user uploads, scraped pages, wikis), require review, allow-listing, or an approval step before indexing.
-- **Content scanning**: Scan documents for known injection markers and suspicious instruction-like text before embedding. This is defence-in-depth, not a complete fix—pair it with Layer 3.
+- **Content scanning**: Scan documents for known injection markers and suspicious instruction-like text before embedding. This is defence-in-depth, not a complete fix-pair it with Layer 3.
 
 ```python
 def ingest(doc):
@@ -155,7 +155,7 @@ prompt = [
 ]
 ```
 
-Delimiting and labelling reduces—but does not eliminate—injection risk. Combine it with:
+Delimiting and labelling reduces-but does not eliminate-injection risk. Combine it with:
 
 - **Provenance-aware ranking**: prefer chunks from trusted sources; down-weight or flag content from open ones.
 - **Output constraints**: constrain the model's actions (no tool calls triggered purely by retrieved text; require the user's own request to authorise side effects).
@@ -169,7 +169,7 @@ Because embeddings can be inverted back toward source text, the index deserves t
 - **Encrypt in transit and at rest**: TLS to the vector DB; encryption at rest for the index, snapshots, and backups.
 - **Network isolation**: never expose the vector store on the public internet. Bind to private networks; reach it only through your backend, never directly from browser or mobile clients.
 - **Least-privilege API keys**: scope keys per environment and per service; separate read from write; rotate regularly. A single admin key shipped to a client is a full compromise.
-- **Protect backups and analytics copies**: index dumps and any pipeline that copies embeddings into a warehouse inherit the corpus's sensitivity—secure them identically.
+- **Protect backups and analytics copies**: index dumps and any pipeline that copies embeddings into a warehouse inherit the corpus's sensitivity-secure them identically.
 - **Consider isolation of embedding models**: exposing the exact embedding model publicly makes inversion easier; treat the model choice as part of the threat model for highly sensitive corpora.
 
 ```yaml
@@ -187,7 +187,7 @@ services:
 
 ## Layer 5: Monitor, Trace, and Respond
 
-- **Log retrieval**: record who queried, the filter applied, and which chunk IDs were returned—without logging the sensitive text itself where avoidable.
+- **Log retrieval**: record who queried, the filter applied, and which chunk IDs were returned-without logging the sensitive text itself where avoidable.
 - **Alert on anomalies**: a user retrieving unusually broad or high volumes of chunks, or repeatedly probing for specific documents (membership inference), should raise a flag.
 - **Traceability**: keep the mapping from an answer to its source chunks so you can audit "why did the assistant say that?" and scope an incident.
 - **Poisoning response plan**: be able to identify, quarantine, and re-index affected documents, and to purge a compromised source from the corpus quickly.
@@ -211,11 +211,11 @@ services:
 
 ## Key Takeaways
 
-1. **Authorize before you retrieve.** Enforce tenant and user scope in the query at the datastore—never in the prompt or the model.
+1. **Authorize before you retrieve.** Enforce tenant and user scope in the query at the datastore-never in the prompt or the model.
 2. **Pre-filter, don't post-filter.** Unauthorized chunks should never be returned in the first place.
 3. **Vet what you ingest.** Provenance, approval, secret scanning, and classification stop poisoning and secret sprawl at the door.
 4. **Retrieved text is data, never commands.** Delimit it, label it untrusted, strip hidden content, and constrain what it can trigger.
-5. **Protect the index like the corpus.** Embeddings are invertible—encrypt, isolate, scope keys, and monitor.
+5. **Protect the index like the corpus.** Embeddings are invertible-encrypt, isolate, scope keys, and monitor.
 
 ## Next Steps
 

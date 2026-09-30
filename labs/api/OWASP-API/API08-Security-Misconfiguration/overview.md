@@ -10,9 +10,9 @@
 
 ## What is Security Misconfiguration?
 
-**Security Misconfiguration** occurs when any part of the API stack is deployed with insecure settings: options left at insecure defaults, security controls that were never enabled, permissions that are too broad, or verbose behaviour that leaks internal detail. It is not a single bug in your code—it is the accumulated gap between how software *can* be hardened and how it was actually shipped.
+**Security Misconfiguration** occurs when any part of the API stack is deployed with insecure settings: options left at insecure defaults, security controls that were never enabled, permissions that are too broad, or verbose behaviour that leaks internal detail. It is not a single bug in your code-it is the accumulated gap between how software *can* be hardened and how it was actually shipped.
 
-Modern APIs are assembled from many independently configured layers: the application framework, the web server or reverse proxy, the TLS terminator, the container image, the orchestration platform, the cloud account, and every third-party library in between. Each layer has dozens of security-relevant knobs, and each ships with defaults optimised for "works out of the box"—not for "safe in production." When those knobs are never reviewed, the result is API08.
+Modern APIs are assembled from many independently configured layers: the application framework, the web server or reverse proxy, the TLS terminator, the container image, the orchestration platform, the cloud account, and every third-party library in between. Each layer has dozens of security-relevant knobs, and each ships with defaults optimised for "works out of the box"-not for "safe in production." When those knobs are never reviewed, the result is API08.
 
 ### Core Concept
 
@@ -49,7 +49,7 @@ APIs concentrate several conditions that make misconfiguration especially damagi
 
 ### Business Impact
 
-- **Data Exposure**: Verbose errors and debug output reveal file paths, database schemas, internal hostnames, and sometimes credentials—everything an attacker needs to plan the next step.
+- **Data Exposure**: Verbose errors and debug output reveal file paths, database schemas, internal hostnames, and sometimes credentials-everything an attacker needs to plan the next step.
 - **Unauthorized Access**: Default or sample credentials, and management interfaces left open, hand over administrative control with no exploit required.
 - **Cross-Origin Data Theft**: A permissive CORS policy lets any website read authenticated API responses from a victim's browser.
 - **Regulatory and Contractual Fallout**: Exposed personal data triggers GDPR, HIPAA, and PCI-DSS obligations, fines, and mandatory breach notifications.
@@ -74,7 +74,7 @@ Access-Control-Allow-Origin: *
 Access-Control-Allow-Credentials: true
 ```
 
-The two headers above are individually common and jointly dangerous. Reflecting the request's `Origin` while also allowing credentials means any site the victim visits can issue authenticated requests and read the responses. (Browsers forbid the literal `*` together with credentials, so vulnerable servers usually *reflect* the origin instead—which is just as bad.)
+The two headers above are individually common and jointly dangerous. Reflecting the request's `Origin` while also allowing credentials means any site the victim visits can issue authenticated requests and read the responses. (Browsers forbid the literal `*` together with credentials, so vulnerable servers usually *reflect* the origin instead-which is just as bad.)
 
 #### 2. Verbose Error Messages
 
@@ -156,7 +156,7 @@ elastic / changeme   api / api
 **Impact**:
 - Attackers used the open console to run cryptomining workloads (cryptojacking) inside the environment and could reach non-public cloud resources.
 
-**Root Cause**: An administrative interface deployed with no authentication and exposed to the internet—a classic management-plane misconfiguration.
+**Root Cause**: An administrative interface deployed with no authentication and exposed to the internet-a classic management-plane misconfiguration.
 
 ### Case Study 3: Public Cloud Storage Buckets (2017–ongoing)
 
@@ -174,7 +174,7 @@ Security Misconfiguration is consistently rated **one of the most prevalent cate
 
 Rather than cite precise breach counts (which vary by source), the defensible picture is:
 
-- Misconfiguration is characterised by OWASP as **highly prevalent and easily detectable**—scanners and even simple manual probes find it routinely.
+- Misconfiguration is characterised by OWASP as **highly prevalent and easily detectable**-scanners and even simple manual probes find it routinely.
 - The most commonly observed sub-issues are **missing or contradictory security headers, overly permissive CORS, verbose error handling, and unpatched components**.
 - The impact is rated **moderate to severe**: it ranges from information disclosure up to full remote code execution (debug consoles) or complete data exposure (no-auth datastores).
 
@@ -217,11 +217,11 @@ Rather than cite precise breach counts (which vary by source), the defensible pi
 
 ## Key Takeaways
 
-1. **Misconfiguration spans every layer**—app, server, TLS, datastore, container, cloud—not just your code.
+1. **Misconfiguration spans every layer**-app, server, TLS, datastore, container, cloud-not just your code.
 2. **Defaults are not safe defaults**; every security-relevant setting must be reviewed for production.
-3. **Verbose behaviour is a gift to attackers**—generic errors and quiet banners deny free reconnaissance.
-4. **Management planes are prime targets**—debug consoles, dashboards, and admin ports must never be openly reachable.
-5. **Hardening must be repeatable**—hand-tuned servers drift; codify configuration so every deployment is identically locked down.
+3. **Verbose behaviour is a gift to attackers**-generic errors and quiet banners deny free reconnaissance.
+4. **Management planes are prime targets**-debug consoles, dashboards, and admin ports must never be openly reachable.
+5. **Hardening must be repeatable**-hand-tuned servers drift; codify configuration so every deployment is identically locked down.
 
 ## How to Identify if You're Vulnerable
 

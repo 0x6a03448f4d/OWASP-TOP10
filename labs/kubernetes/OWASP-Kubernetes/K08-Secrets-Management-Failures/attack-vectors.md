@@ -8,7 +8,7 @@
 
 ## Understanding Secrets Attack Vectors
 
-> **⚠ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in clusters you own or are authorised to test.
+> **⚠ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in clusters you own or are authorised to test.
 
 Attacking secrets is rarely about breaking cryptography. It is about **finding the copy that was never protected**: a value in etcd that was never encrypted, an env var in a pod spec, a key in an image layer, a password in Git history, a token mounted into a container that got popped. Because the same secret is copied across so many places, an attacker only needs to reach the weakest copy.
 
@@ -16,7 +16,7 @@ The attacker's goal in this category is usually one of:
 
 - Read secret material directly from where it is stored (etcd, the Secret object, a manifest, an image, a repo).
 - Read it from where it is *used* (a pod's environment, mounted files, logs, or crash output) after landing code execution in a workload.
-- Use a harvested credential—especially a ServiceAccount token—to reach more secrets or pivot outside the cluster.
+- Use a harvested credential-especially a ServiceAccount token-to reach more secrets or pivot outside the cluster.
 
 ### Core Attack Flow
 
@@ -39,7 +39,7 @@ The attacker's goal in this category is usually one of:
 
 ### 1. Read Secrets Through the API With a Permissive Token
 
-An identity (a user, or a compromised pod's ServiceAccount) that can `get`/`list` secrets reads them directly—base64 is no obstacle.
+An identity (a user, or a compromised pod's ServiceAccount) that can `get`/`list` secrets reads them directly-base64 is no obstacle.
 
 ```bash
 # From a workload with a token that can read secrets:
@@ -52,7 +52,7 @@ $ kubectl auth can-i list secrets --all-namespaces
 yes
 ```
 
-**Payoff**: cluster- or namespace-wide credential disclosure with a single, ordinary API call. No exploit—just excess permission.
+**Payoff**: cluster- or namespace-wide credential disclosure with a single, ordinary API call. No exploit-just excess permission.
 
 ### 2. Harvest the Automounted ServiceAccount Token
 
@@ -71,7 +71,7 @@ $ curl -sk -H "Authorization: Bearer $TOKEN" \
 
 ### 3. Dump Secrets From the Pod Environment
 
-Secrets injected as environment variables are visible to anything running in—or able to inspect—the pod.
+Secrets injected as environment variables are visible to anything running in-or able to inspect-the pod.
 
 ```bash
 # If you can exec, or run code, in the pod:
@@ -82,11 +82,11 @@ $ cat /proc/1/environ | tr '\0' '\n'
 $ kubectl get pod web-abc -o yaml | grep -A2 'DB_PASSWORD'
 ```
 
-**Payoff**: env vars also surface in crash dumps, APM/error trackers, and debug logs—so the same secret leaks through several side channels at once.
+**Payoff**: env vars also surface in crash dumps, APM/error trackers, and debug logs-so the same secret leaks through several side channels at once.
 
 ### 4. Read etcd or an etcd Snapshot Directly
 
-If etcd has no encryption-at-rest, its on-disk data—and any backup or snapshot—contains Secret values in plaintext.
+If etcd has no encryption-at-rest, its on-disk data-and any backup or snapshot-contains Secret values in plaintext.
 
 ```bash
 # On an etcd node / from a snapshot, values come out in the clear:
@@ -170,7 +170,7 @@ $ aws sts get-caller-identity     # the leaked key is still valid
 $ psql "postgres://app:SuperSecret123@db:5432/prod" -c '\dt'
 ```
 
-**Payoff**: no rotation means old leaks never "age out"—an attacker's captured copy remains a live credential.
+**Payoff**: no rotation means old leaks never "age out"-an attacker's captured copy remains a live credential.
 
 ### 10. Pivot Outside the Cluster With Harvested Cloud Credentials
 
@@ -183,7 +183,7 @@ $ aws s3 ls                       # now enumerating cloud storage
 $ docker login myregistry -u _ -p "$PULL_TOKEN"   # pull private images
 ```
 
-**Payoff**: the blast radius extends to cloud accounts, databases, and registries—systems the cluster merely talks to.
+**Payoff**: the blast radius extends to cloud accounts, databases, and registries-systems the cluster merely talks to.
 
 ## Chaining Secrets Failures
 
@@ -209,11 +209,11 @@ Public image layer leaks a Git token   -> clone the private config repo
 
 ## Key Takeaways
 
-1. **Attackers hunt copies, not ciphertext**—the weakest copy of a secret (env var, image layer, commit, snapshot) is the one they take.
-2. **The automounted token is a gift**—a popped pod inherits an API identity; if it can read secrets, the breach cascades.
-3. **base64 and ConfigMaps hide nothing**—anything readable is readable in the clear.
-4. **Permanence is the enemy**—images, Git history, and snapshots keep leaked secrets valid until they are rotated.
-5. **Secrets reach outward**—one cluster credential frequently unlocks databases, registries, and cloud accounts.
+1. **Attackers hunt copies, not ciphertext**-the weakest copy of a secret (env var, image layer, commit, snapshot) is the one they take.
+2. **The automounted token is a gift**-a popped pod inherits an API identity; if it can read secrets, the breach cascades.
+3. **base64 and ConfigMaps hide nothing**-anything readable is readable in the clear.
+4. **Permanence is the enemy**-images, Git history, and snapshots keep leaked secrets valid until they are rotated.
+5. **Secrets reach outward**-one cluster credential frequently unlocks databases, registries, and cloud accounts.
 
 ## Next Steps
 

@@ -15,7 +15,7 @@
 
 ## How to Read These Examples
 
-Each example shows a **❌ VULNERABLE** pattern—how outdated or unmanaged components creep in—followed by the **✅ SECURE** version that fixes it. The version numbers are illustrative placeholders; the *patterns* are the point. Always resolve exact fixed versions from your scanner and the official advisory at the time you patch.
+Each example shows a **❌ VULNERABLE** pattern-how outdated or unmanaged components creep in-followed by the **✅ SECURE** version that fixes it. The version numbers are illustrative placeholders; the *patterns* are the point. Always resolve exact fixed versions from your scanner and the official advisory at the time you patch.
 
 ## Example 1: Node.js / npm Manifest & Lockfile
 
@@ -38,7 +38,7 @@ $ npm install                 # resolves DIFFERENT versions on each machine
 # Nobody knows what actually shipped, so nobody can audit it.
 ```
 
-**Why it's dangerous:** Without a committed lockfile you have no inventory—production, CI, and each developer may run different, possibly-vulnerable versions. Floating `*` and stale ranges mean known-vulnerable builds ship silently.
+**Why it's dangerous:** Without a committed lockfile you have no inventory-production, CI, and each developer may run different, possibly-vulnerable versions. Floating `*` and stale ranges mean known-vulnerable builds ship silently.
 
 ### ✅ Secure: pinned, locked, audited, reproducible
 
@@ -333,10 +333,10 @@ $ pip-audit -r requirements.txt   # confirm the new stack is clean
 ## Key Takeaways
 
 1. **Pin and lock everything.** Reproducible builds are the prerequisite for an auditable inventory.
-2. **Transitive dependencies need explicit handling**—overrides, constraints, or upgrading the parent.
+2. **Transitive dependencies need explicit handling**-overrides, constraints, or upgrading the parent.
 3. **Scanning must be automated and blocking**, and must re-run against already-released code as new advisories appear.
 4. **Containers and runtimes age.** Rebuild on minimal, supported, patched bases; migrate off end-of-life software as planned work.
-5. **The secure version is rarely more code**—it is mostly discipline: current versions, verified sources, and a gate that fails the build.
+5. **The secure version is rarely more code**-it is mostly discipline: current versions, verified sources, and a gate that fails the build.
 
 ## Next Steps
 

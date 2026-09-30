@@ -2,7 +2,7 @@
 
 Each pair below shows a **vulnerable** Solidity pattern and the **secure** version for the same job. The theme throughout: a spot price read from a DEX pool is attacker-controllable, while a checked decentralized feed or a time-weighted average is not.
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — snippets are illustrative and trimmed for clarity. Use audited oracle libraries and full test coverage in production.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - snippets are illustrative and trimmed for clarity. Use audited oracle libraries and full test coverage in production.
 
 ## Example 1: Lending Collateral Price
 
@@ -70,7 +70,7 @@ contract LendingSecure {
 ### Vulnerable
 ```solidity
 // Uses the router's spot quote as a "price". Same movable reserves,
-// friendlier name — a flash loan sets the quote to whatever it wants.
+// friendlier name - a flash loan sets the quote to whatever it wants.
 interface IUniswapV2Router {
     function getAmountsOut(uint256 amountIn, address[] calldata path)
         external view returns (uint256[] memory);
@@ -90,7 +90,7 @@ contract QuoteVulnerable {
 ### Secure
 ```solidity
 // Reads a Uniswap V3 TWAP over a window. To move a 30-min average,
-// an attacker must hold the manipulation for many blocks — expensive, visible.
+// an attacker must hold the manipulation for many blocks - expensive, visible.
 interface IUniswapV3Pool {
     function observe(uint32[] calldata secondsAgos)
         external view returns (int56[] memory tickCumulatives, uint160[] memory);
@@ -157,7 +157,7 @@ contract VaultSecure {
         asset.transfer(msg.sender, amount);
     }
     // For LP-token collateral, price the underlyings from checked feeds and
-    // derive "fair reserves" from the pool invariant — never live balances.
+    // derive "fair reserves" from the pool invariant - never live balances.
 }
 ```
 

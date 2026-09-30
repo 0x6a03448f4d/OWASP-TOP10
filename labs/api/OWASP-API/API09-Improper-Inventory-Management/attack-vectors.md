@@ -12,7 +12,7 @@
 
 Attacking improper inventory management is fundamentally an exercise in **discovery**. The attacker's goal is to find the asset the defender forgot: an old version, a stale host, a debug route, or a partner endpoint that never made it into anyone's threat model. Because these assets are unmonitored by definition, exploitation is often quiet and can persist for a long time.
 
-The attacker rarely needs a novel exploit. They need the *weakest reachable copy* of your functionality — and inventory gaps guarantee that a weaker copy usually exists.
+The attacker rarely needs a novel exploit. They need the *weakest reachable copy* of your functionality - and inventory gaps guarantee that a weaker copy usually exists.
 
 ## Core Attack Flow
 
@@ -175,19 +175,19 @@ curl -s https://example.com/static/app.min.js | grep -oE '/api/[a-zA-Z0-9/_-]+'
 
 ### Why These Attacks Succeed and Persist
 
-- **No monitoring on forgotten assets** — abuse of an uninventoried endpoint generates no alerts.
-- **Controls never applied uniformly** — improvements land on the current surface only.
-- **Discovery is cheap** — CT logs, wordlists, and app inspection need little skill and no access.
-- **Data parity, control disparity** — stale and non-prod hosts often carry real data behind weaker walls.
+- **No monitoring on forgotten assets** - abuse of an uninventoried endpoint generates no alerts.
+- **Controls never applied uniformly** - improvements land on the current surface only.
+- **Discovery is cheap** - CT logs, wordlists, and app inspection need little skill and no access.
+- **Data parity, control disparity** - stale and non-prod hosts often carry real data behind weaker walls.
 
 ## Key Takeaways
 
-1. **Version enumeration is the flagship attack** — find the copy that still answers.
-2. **Discovery is the hard part for defenders** — attackers automate it trivially.
+1. **Version enumeration is the flagship attack** - find the copy that still answers.
+2. **Discovery is the hard part for defenders** - attackers automate it trivially.
 3. **Docs and framework defaults are discovery oracles.**
 4. **Shadow, mobile, and partner APIs bypass central defenses** by design.
 5. **Non-production hosts are production targets** when reachable.
-6. **Gaps chain** — one stale host can unravel an entire environment.
+6. **Gaps chain** - one stale host can unravel an entire environment.
 
 ## Next Steps
 

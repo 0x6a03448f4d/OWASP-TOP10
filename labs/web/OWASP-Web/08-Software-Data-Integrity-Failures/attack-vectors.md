@@ -9,9 +9,9 @@
 
 ## Understanding Integrity Attack Vectors
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in systems you own or are authorised to test.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in systems you own or are authorised to test.
 
-Integrity attacks do not break cryptography—they exploit the **absence of a check**. The attacker's move is to get their code or data accepted somewhere along the path from author to execution, at a point where the victim performs no verification. Because that path is long (developer → repo → build → registry → CDN → update → runtime), there are many places to insert a substitution, and one successful insertion can propagate to every downstream consumer.
+Integrity attacks do not break cryptography-they exploit the **absence of a check**. The attacker's move is to get their code or data accepted somewhere along the path from author to execution, at a point where the victim performs no verification. Because that path is long (developer → repo → build → registry → CDN → update → runtime), there are many places to insert a substitution, and one successful insertion can propagate to every downstream consumer.
 
 The attacker's goal in this category is usually one of:
 
@@ -63,7 +63,7 @@ Malicious packages commonly abuse lifecycle install hooks to run code the moment
 }
 ```
 
-**Payoff**: code execution on developer and CI machines, and exfiltration of environment secrets—before the app is ever run.
+**Payoff**: code execution on developer and CI machines, and exfiltration of environment secrets-before the app is ever run.
 
 ### 2. Dependency Confusion (Namespace Substitution)
 
@@ -122,7 +122,7 @@ GET /updates/latest.json
 
 ### 6. Build-Pipeline Injection (SolarWinds-class)
 
-The attacker gains write access to the CI/CD system—via a leaked token, an over-privileged runner, or a poisoned pipeline dependency—and inserts code that runs during the build, so the final signed artifact contains the payload.
+The attacker gains write access to the CI/CD system-via a leaked token, an over-privileged runner, or a poisoned pipeline dependency-and inserts code that runs during the build, so the final signed artifact contains the payload.
 
 ```
 # Attacker edits a build step (or a tool the build invokes):
@@ -152,7 +152,7 @@ Pipelines pull reusable actions/plugins by a mutable tag (e.g. `@v3`). If that t
 
 ### 8. Insecure Deserialization → Remote Code Execution
 
-The application deserializes attacker-controlled bytes with a native deserializer. Crafted input triggers a "gadget chain"—existing classes whose deserialization side effects combine into code execution.
+The application deserializes attacker-controlled bytes with a native deserializer. Crafted input triggers a "gadget chain"-existing classes whose deserialization side effects combine into code execution.
 
 ```python
 # Python: pickle runs __reduce__ during load -> arbitrary code

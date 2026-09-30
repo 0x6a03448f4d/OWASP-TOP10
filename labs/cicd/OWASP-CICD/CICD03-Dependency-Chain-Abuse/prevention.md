@@ -2,7 +2,7 @@
 
 ## Prevention Strategy Overview
 
-Preventing Dependency Chain Abuse is about **taking control of resolution**—removing every gap between the name a developer typed and the bytes the build runs:
+Preventing Dependency Chain Abuse is about **taking control of resolution**-removing every gap between the name a developer typed and the bytes the build runs:
 
 1. Fetch dependencies only from a controlled internal proxy/registry with an allow-list.
 2. Claim and scope internal names so they can never be shadowed publicly.
@@ -13,23 +13,23 @@ Preventing Dependency Chain Abuse is about **taking control of resolution**—re
 ### Core Principles
 
 - **One source of truth**: builds pull from a single controlled registry/proxy, never directly from the public internet.
-- **Reproducible by hash**: a build fetches the exact bytes recorded in the lockfile, or it fails—never "whatever the registry serves today."
+- **Reproducible by hash**: a build fetches the exact bytes recorded in the lockfile, or it fails-never "whatever the registry serves today."
 - **Least functionality**: no public fallback for private scopes, no arbitrary install scripts, no floating versions.
-- **Least privilege on the agent**: assume a rogue install script *will* run once—make sure it gains as little as possible.
+- **Least privilege on the agent**: assume a rogue install script *will* run once-make sure it gains as little as possible.
 
 ## 1. Fetch Only Through a Controlled Internal Registry / Proxy
 
 Point every build at a single internal registry (Artifactory, Nexus, Verdaccio, a cloud artifact registry, or a pull-through proxy). It mirrors approved public packages and hosts your private ones, so builds never talk to public registries directly and an allow-list governs what may enter.
 
 ```ini
-# .npmrc — all installs go through the internal proxy, never public directly
+# .npmrc - all installs go through the internal proxy, never public directly
 registry=https://registry.internal.acme/npm/
 always-auth=true
 //registry.internal.acme/npm/:_authToken=${NPM_TOKEN}
 ```
 
 ```ini
-# pip.conf — single internal index; NO --extra-index-url merging with PyPI
+# pip.conf - single internal index; NO --extra-index-url merging with PyPI
 [global]
 index-url = https://pypi.internal.acme/simple/
 # Do not add extra-index-url to a public index: it merges namespaces
@@ -43,10 +43,10 @@ Configure the proxy to **not auto-create** public packages that collide with an 
 Two complementary moves close the confusion window:
 
 - **Use a namespace/scope** for all internal packages and bind that scope to the private registry.
-- **Claim the scope and the names** on the public registries so an attacker cannot register them—even as placeholders.
+- **Claim the scope and the names** on the public registries so an attacker cannot register them-even as placeholders.
 
 ```ini
-# .npmrc — bind the @acme scope to the private registry ONLY.
+# .npmrc - bind the @acme scope to the private registry ONLY.
 # There is no public fallback for anything under @acme.
 @acme:registry=https://registry.internal.acme/npm/
 //registry.internal.acme/npm/:_authToken=${NPM_TOKEN}
@@ -93,7 +93,7 @@ pip install --require-hashes -r requirements.txt
 <!-- Enforce checksum policy: --> mvn -C  (fail on checksum mismatch)
 ```
 
-Rules of thumb: commit the lockfile, install with the *locked* command in CI, and treat any lock/manifest drift as a build failure to review—not an auto-fix.
+Rules of thumb: commit the lockfile, install with the *locked* command in CI, and treat any lock/manifest drift as a build failure to review-not an auto-fix.
 
 ## 4. Disable Install-Time Scripts by Default
 
@@ -135,7 +135,7 @@ Provenance shifts trust from "the name looked right" to "this artifact was produ
 SCA is your continuous catch for *known* malicious and vulnerable versions. Run it in the pipeline and fail on high-severity findings.
 
 ```bash
-# In CI — fail the build on known-bad dependencies
+# In CI - fail the build on known-bad dependencies
 npm audit --audit-level=high
 pip-audit -r requirements.txt
 mvn org.owasp:dependency-check-maven:check
@@ -167,7 +167,7 @@ Assume an install script will eventually run once. Limit what it can reach.
 
 - Run installs as a **non-root, least-privilege** user in an **ephemeral** container that is destroyed after the job.
 - Restrict **egress** so a malicious script cannot phone home or exfiltrate to arbitrary hosts.
-- Keep **secrets out of the install stage**: inject deploy/cloud credentials only in later, isolated stages—never in the environment that runs `install`.
+- Keep **secrets out of the install stage**: inject deploy/cloud credentials only in later, isolated stages-never in the environment that runs `install`.
 - Block access to **cloud metadata endpoints** from the dependency-install step.
 
 ```yaml
@@ -204,11 +204,11 @@ Stop *your* packages from becoming the hijack vector for someone else.
 
 ## Key Takeaways
 
-1. **Control the source** — one internal proxy/registry with an allow-list beats trusting the public internet on every build.
-2. **Own your names** — scope internal packages, bind the scope privately, and claim the names publicly so they cannot be shadowed.
-3. **Pin and verify** — exact versions plus integrity hashes plus a locked install command make builds reproducible and tamper-evident.
-4. **Scripts off by default** — installing should not execute arbitrary code; allow-list the rare exceptions.
-5. **Assume one gets through** — least-privilege, ephemeral, egress-restricted agents and continuous monitoring limit the blast radius.
+1. **Control the source** - one internal proxy/registry with an allow-list beats trusting the public internet on every build.
+2. **Own your names** - scope internal packages, bind the scope privately, and claim the names publicly so they cannot be shadowed.
+3. **Pin and verify** - exact versions plus integrity hashes plus a locked install command make builds reproducible and tamper-evident.
+4. **Scripts off by default** - installing should not execute arbitrary code; allow-list the rare exceptions.
+5. **Assume one gets through** - least-privilege, ephemeral, egress-restricted agents and continuous monitoring limit the blast radius.
 
 ## Next Steps
 

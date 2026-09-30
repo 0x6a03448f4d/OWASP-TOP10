@@ -14,7 +14,7 @@
 
 ## Introduction
 
-**Inadequate Privacy Controls** represents one of the most pervasive yet overlooked security risks in modern mobile applications. While traditional security focuses on preventing unauthorized access, privacy controls address how applications collect, use, and protect user data—even with authorization. In an era where mobile apps request access to contacts, location, cameras, microphones, and sensitive personal information, inadequate privacy controls can lead to massive data collection, user tracking, regulatory violations, and erosion of user trust.
+**Inadequate Privacy Controls** represents one of the most pervasive yet overlooked security risks in modern mobile applications. While traditional security focuses on preventing unauthorized access, privacy controls address how applications collect, use, and protect user data-even with authorization. In an era where mobile apps request access to contacts, location, cameras, microphones, and sensitive personal information, inadequate privacy controls can lead to massive data collection, user tracking, regulatory violations, and erosion of user trust.
 
 This vulnerability occurs when mobile applications:
 - Request excessive permissions beyond their core functionality
@@ -975,7 +975,7 @@ Emerging Privacy Technologies:
 
 Inadequate Privacy Controls represents a fundamental shift in how we think about mobile security. While traditional security asks "Can attackers access my data?", privacy controls ask "What does my app do with authorized data?" 
 
-In an ecosystem where apps request access to our most intimate information—location, communications, photos, health data—implementing robust privacy controls isn't just a legal requirement or business best practice. It's an ethical imperative.
+In an ecosystem where apps request access to our most intimate information-location, communications, photos, health data-implementing robust privacy controls isn't just a legal requirement or business best practice. It's an ethical imperative.
 
 As developers, we have the power to:
 - Request only necessary permissions

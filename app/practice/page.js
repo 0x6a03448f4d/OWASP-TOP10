@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
 export const metadata = {
-  title: 'Practice Locally — OWASP Learn',
+  title: 'Practice Locally - OWASP Learn',
   description: 'Run the intentionally-vulnerable OWASP labs safely on your own machine with Docker or a Codespace.',
 };
 
@@ -19,8 +19,8 @@ export default function Practice() {
         <h1 style={{ fontSize: '2rem' }}>Practice locally</h1>
         <p style={{ margin: '12px 0 0', maxWidth: 660 }}>
           The lessons teach the theory; the labs let you attack real, intentionally-vulnerable apps.
-          Those apps are deliberately <strong>not</strong> hosted here — a live vulnerable app is a
-          liability — so you run them on your own machine, where nothing is ever exposed to the internet.
+          Those apps are deliberately <strong>not</strong> hosted here - a live vulnerable app is a
+          liability - so you run them on your own machine, where nothing is ever exposed to the internet.
         </p>
       </section>
 

@@ -29,7 +29,7 @@ Govern the lifecycle        ->  Consent, data minimisation, deletion, auditing
 
 ### Core Principles
 - **Data minimisation first.** The safest sensitive datum is the one you never collected, trained on, or indexed.
-- **Authorization is code, not prose.** Enforce entitlements in the retrieval and data layers — never by instructing the model to be discreet.
+- **Authorization is code, not prose.** Enforce entitlements in the retrieval and data layers - never by instructing the model to be discreet.
 - **Assume the prompt is public.** Design so that leaking the entire context window is embarrassing, not catastrophic.
 - **Defense in depth.** Expect each layer to fail sometimes; make sure the next one catches it.
 
@@ -68,7 +68,7 @@ def scrub(text: str, lang: str = "en") -> str:
 clean_doc = scrub(raw_doc)
 ```
 
-> Minimise, do not just mask. If a feature never needs SSNs, drop the column entirely rather than tokenising it — masked data you still hold is data that can still leak.
+> Minimise, do not just mask. If a feature never needs SSNs, drop the column entirely rather than tokenising it - masked data you still hold is data that can still leak.
 
 ## 2. Enforce Access Control at the Data Layer
 
@@ -107,7 +107,7 @@ Key rules:
 
 ## 3. Never Put Secrets in Prompts
 
-Secrets belong in a secret manager and are used by *code* that calls tools — never placed in the system prompt or tool context where the model (and an extraction prompt) can read them.
+Secrets belong in a secret manager and are used by *code* that calls tools - never placed in the system prompt or tool context where the model (and an extraction prompt) can read them.
 
 ```python
 # ANTI-PATTERN (do not do this)
@@ -211,11 +211,11 @@ def handle_chat(req, user):
 ## 7. Training-Time Controls
 
 When you train or fine-tune, reduce what the weights can memorise:
-- **Scrub and de-duplicate** the corpus — de-duplication measurably lowers verbatim memorisation of repeated strings.
+- **Scrub and de-duplicate** the corpus - de-duplication measurably lowers verbatim memorisation of repeated strings.
 - **Secret-scan** the training set (the same tools you use in CI: detect-secrets, gitleaks) and drop matches.
 - **Consider differential privacy (DP-SGD)** for high-sensitivity fine-tunes; it bounds any single record's influence at a measurable utility cost.
 - **Prefer retrieval over memorisation** for facts that change or are sensitive: keep them in an access-controlled store queried at runtime rather than baked into weights.
-- **Evaluate for memorisation** before release — probe the model with known canaries and extraction prompts.
+- **Evaluate for memorisation** before release - probe the model with known canaries and extraction prompts.
 
 ```python
 # Canary approach: insert unique, trackable strings into training data,
@@ -245,11 +245,11 @@ assert CANARY not in out, "Model memorised the canary - review DP / dedup"
 
 ## Key Takeaways
 1. **Minimise and sanitise** before data ever enters the model or index.
-2. **Authorize at the data layer** — similarity is not entitlement, and the prompt is not a control.
+2. **Authorize at the data layer** - similarity is not entitlement, and the prompt is not a control.
 3. **Keep secrets out of prompts**; let code with a secret manager do privileged work.
 4. **Filter output and redact logs** as a last line of defense, and treat every hit as an upstream-failure signal.
 5. **Isolate per user** with keyed state and bounded retention.
-6. **Layer everything** — assume any one control will occasionally fail.
+6. **Layer everything** - assume any one control will occasionally fail.
 
 ## Next Steps
 - **[Examples](examples.md)**: Vulnerable-vs-secure implementations of these controls.

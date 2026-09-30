@@ -9,9 +9,9 @@
 
 ## Understanding Client-Code Attack Vectors
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these defects in apps you own or are authorised to test.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these defects in apps you own or are authorised to test.
 
-Client-code-quality attacks are exploited by **feeding hostile input to a client that trusts it**. The attacker does not need a server bug or stolen credentials—only a way to deliver a crafted value to a code path the app runs on the device. Because the defect is in how the code handles input (a missing bounds check, a dangerous API, an unchecked length), the "payload" is often just a message, a file, a link, or a nearby radio frame.
+Client-code-quality attacks are exploited by **feeding hostile input to a client that trusts it**. The attacker does not need a server bug or stolen credentials-only a way to deliver a crafted value to a code path the app runs on the device. Because the defect is in how the code handles input (a missing bounds check, a dangerous API, an unchecked length), the "payload" is often just a message, a file, a link, or a nearby radio frame.
 
 The attacker's goal in this category is usually one of:
 
@@ -86,7 +86,7 @@ for (uint32_t i = 0; i < n; i++)           // loop still runs n times
     items[i] = parse_item(input);          // writes far past the buffer
 ```
 
-**Payoff**: heap metadata and adjacent objects are overwritten—the classic route from a malformed message or file to heap corruption.
+**Payoff**: heap metadata and adjacent objects are overwritten-the classic route from a malformed message or file to heap corruption.
 
 ### 3. Use-After-Free Triggered by Malformed Input
 
@@ -100,7 +100,7 @@ if (!validate(input)) {
 process(s);                  // still dereferenced -> use-after-free
 ```
 
-**Payoff**: if the attacker can control heap allocation to reclaim the freed slot with their own data, the stale pointer reads/writes attacker-shaped memory—a common primitive for exploitation.
+**Payoff**: if the attacker can control heap allocation to reclaim the freed slot with their own data, the stale pointer reads/writes attacker-shaped memory-a common primitive for exploitation.
 
 ### 4. Format-String Bug in a Native Log/Error Path
 
@@ -119,7 +119,7 @@ void log_event(const char *name) {         // name from a server response / IPC
 name = "%x %x %x %n"     # read the stack; %n can write memory
 ```
 
-**Payoff**: information disclosure via `%x`/`%s`, or a memory write via `%n`—from what looked like a harmless log line.
+**Payoff**: information disclosure via `%x`/`%s`, or a memory write via `%n`-from what looked like a harmless log line.
 
 ### 5. Unsafe Deserialization of an IPC or File Payload
 
@@ -134,7 +134,7 @@ Object obj = getIntent().getSerializableExtra("data");  // arbitrary classes
 let obj = NSKeyedUnarchiver.unarchiveObject(with: data) // arbitrary classes
 ```
 
-**Payoff**: type-confusion crashes at least; with the right classes present, a gadget chain can escalate to code execution—the client-side twin of server deserialization attacks.
+**Payoff**: type-confusion crashes at least; with the right classes present, a gadget chain can escalate to code execution-the client-side twin of server deserialization attacks.
 
 ### 6. WebView JavaScript-Bridge Abuse
 
@@ -152,7 +152,7 @@ bridge.readFile('/data/data/com.app/secret');   // whatever the bridge exposes
 // On very old Android, reflection could reach Runtime.exec(...)
 ```
 
-**Payoff**: attacker-controlled web content reaches native app methods—or, on unpatched legacy versions, device command execution with the app's permissions.
+**Payoff**: attacker-controlled web content reaches native app methods-or, on unpatched legacy versions, device command execution with the app's permissions.
 
 ### 7. Malformed Bluetooth/NFC Frame into a Native TLV Parser
 
@@ -164,7 +164,7 @@ uint8_t len = frame[1];                  // attacker sets len = 0xFF
 memcpy(dst, &frame[2], len);             // dst is smaller than 255 -> overflow
 ```
 
-**Payoff**: proximity-based memory corruption—no network needed, just physical/radio range and an app that trusts the declared length.
+**Payoff**: proximity-based memory corruption-no network needed, just physical/radio range and an app that trusts the declared length.
 
 ### 8. Trusting a Length/Offset From a Server Response
 
@@ -191,7 +191,7 @@ let id = json["id"] as! Int              // wrong type / missing -> crash
 val url = intent.getStringExtra("url")!! // null -> NullPointerException
 ```
 
-**Payoff**: a reliable, remotely-triggerable crash—low severity individually, but a dependable DoS and sometimes a foothold if it happens mid-security-check.
+**Payoff**: a reliable, remotely-triggerable crash-low severity individually, but a dependable DoS and sometimes a foothold if it happens mid-security-check.
 
 ## Chaining Client-Code Defects
 
@@ -217,11 +217,11 @@ Exported component accepts an Intent        -> attacker app delivers a payload
 
 ## Key Takeaways
 
-1. **The payload is the input**—M7 is triggered by ordinary-looking links, files, IPC messages, and frames, not exotic exploits.
-2. **Native parsers are the prime target**—memory corruption lives where memory-unsafe code trusts a length or index.
-3. **Crashes are the doorway**—a reliable crash is DoS now and often the first sign of an exploitable corruption.
-4. **Every boundary is hostile**—deep links, IPC, WebView, files, radios, and server responses all deliver untrusted input.
-5. **Small defects chain**—an info leak plus an overflow equals code execution; validate at every entry point to break the chain early.
+1. **The payload is the input**-M7 is triggered by ordinary-looking links, files, IPC messages, and frames, not exotic exploits.
+2. **Native parsers are the prime target**-memory corruption lives where memory-unsafe code trusts a length or index.
+3. **Crashes are the doorway**-a reliable crash is DoS now and often the first sign of an exploitable corruption.
+4. **Every boundary is hostile**-deep links, IPC, WebView, files, radios, and server responses all deliver untrusted input.
+5. **Small defects chain**-an info leak plus an overflow equals code execution; validate at every entry point to break the chain early.
 
 ## Next Steps
 

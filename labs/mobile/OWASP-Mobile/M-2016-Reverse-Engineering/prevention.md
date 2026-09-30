@@ -2,13 +2,13 @@
 
 ## Prevention Strategy Overview
 
-You cannot prevent reverse engineering—any binary on a device you do not control can be analysed. What you *can* do is make reverse engineering **pointless** by ensuring that a fully-read client reveals nothing dangerous, and make it **expensive** with layered friction so casual attackers give up.
+You cannot prevent reverse engineering-any binary on a device you do not control can be analysed. What you *can* do is make reverse engineering **pointless** by ensuring that a fully-read client reveals nothing dangerous, and make it **expensive** with layered friction so casual attackers give up.
 
 The strategy has one primary pillar and several supporting ones:
 
 1. **Design the client to hold no secrets and enforce no security decisions** (the only reliable protection).
 2. Raise attacker cost with obfuscation, symbol stripping, and native isolation (defense-in-depth, not a boundary).
-3. Add runtime friction—pinning, root/jailbreak and debugger detection, integrity checks—knowing these are speed bumps.
+3. Add runtime friction-pinning, root/jailbreak and debugger detection, integrity checks-knowing these are speed bumps.
 4. Use platform hardening and app attestation to distinguish genuine clients server-side.
 5. Verify by decompiling your own release builds and watching for abuse.
 
@@ -40,7 +40,7 @@ Practical rules:
 
 - **Proxy third-party APIs** that require a secret key through your own backend; the app calls your server, your server calls the vendor with the secret.
 - **Never hardcode** cloud access keys, payment secrets, or admin tokens. If a value must be privileged, it must be server-side.
-- **Public identifiers are fine** (a publishable client ID, a map key locked to your bundle ID with usage restrictions) — but restrict them at the provider so a stolen copy is useless elsewhere.
+- **Public identifiers are fine** (a publishable client ID, a map key locked to your bundle ID with usage restrictions) - but restrict them at the provider so a stolen copy is useless elsewhere.
 
 ## 2. Enforce Every Security Decision Server-Side
 
@@ -61,12 +61,12 @@ Design so that even a fully cracked client (all checks forced to `true`) still c
 
 ## 3. Obfuscation: Raise the Cost, Honestly
 
-Obfuscation renames symbols, removes debug metadata, and can tangle control flow and strings. It genuinely slows analysis and deters casual attackers—but it protects *nothing* that must be reconstructed at runtime. Use it as a layer, never as the reason a secret is &ldquo;safe.&rdquo;
+Obfuscation renames symbols, removes debug metadata, and can tangle control flow and strings. It genuinely slows analysis and deters casual attackers-but it protects *nothing* that must be reconstructed at runtime. Use it as a layer, never as the reason a secret is &ldquo;safe.&rdquo;
 
 #### Android: R8 / ProGuard
 
 ```
-// build.gradle (app) — enable R8 shrinking, obfuscation, and optimisation
+// build.gradle (app) - enable R8 shrinking, obfuscation, and optimisation
 android {
     buildTypes {
         release {
@@ -82,7 +82,7 @@ android {
 ```
 
 ```
-# proguard-rules.pro — keep what the runtime needs, obfuscate the rest.
+# proguard-rules.pro - keep what the runtime needs, obfuscate the rest.
 # Do NOT add broad -keep rules that defeat obfuscation for your own code.
 -keepattributes SourceFile,LineNumberTable   # keep for de-obfuscating crash reports
 -renamesourcefileattribute SourceFile        # but hide real file names
@@ -123,7 +123,7 @@ llvm-strip --strip-all libnative.so
 
 ## 5. String and Asset Encryption (Defense-in-Depth)
 
-Encrypting embedded strings/assets stops a plain `strings` grep and raises the bar—but remember the decryption key and routine also ship, so a determined analyst recovers the plaintext by reading the code or dumping memory. Treat this as friction that thins out low-effort scanning, not as protection for a real secret.
+Encrypting embedded strings/assets stops a plain `strings` grep and raises the bar-but remember the decryption key and routine also ship, so a determined analyst recovers the plaintext by reading the code or dumping memory. Treat this as friction that thins out low-effort scanning, not as protection for a real secret.
 
 ```
 // Reasonable use: obscure non-critical constants so bulk grep-scanning misses them.
@@ -133,7 +133,7 @@ Encrypting embedded strings/assets stops a plain `strings` grep and raises the b
 
 ## 6. Certificate Pinning (Done Carefully)
 
-Pinning stops trivial traffic interception and raises the cost of protocol analysis. It lives in client code and can be bypassed by a skilled attacker—but it meaningfully deters the casual ones and protects ordinary users on hostile networks.
+Pinning stops trivial traffic interception and raises the cost of protocol analysis. It lives in client code and can be bypassed by a skilled attacker-but it meaningfully deters the casual ones and protects ordinary users on hostile networks.
 
 ```
 // Android: pin via network_security_config.xml (declarative, robust)
@@ -169,8 +169,8 @@ api.reportDevicePosture(posture)   // server weighs risk; never trust blindly
 
 Attestation is the legitimate replacement for a client-held &ldquo;prove you&rsquo;re the real app&rdquo; secret. The platform vouches for the app&rsquo;s integrity to *your server*, cryptographically, without shipping a secret you have to hide.
 
-- **Android**: Play Integrity API — the server requests and verifies an integrity verdict about the app, device, and licensing.
-- **iOS**: App Attest / DeviceCheck — a hardware-backed key attests the genuine app instance to your server.
+- **Android**: Play Integrity API - the server requests and verifies an integrity verdict about the app, device, and licensing.
+- **iOS**: App Attest / DeviceCheck - a hardware-backed key attests the genuine app instance to your server.
 
 ```
 // Flow (both platforms):
@@ -183,7 +183,7 @@ Attestation is the legitimate replacement for a client-held &ldquo;prove you&rsq
 
 ## 9. Native Isolation for Sensitive Logic
 
-Moving genuinely sensitive routines into a native `.so` raises the analysis cost (machine-code decompilation instead of bytecode). It is a legitimate *friction* layer for IP and anti-tamper logic—but it is still recoverable, so never let it be the sole protection for a true secret.
+Moving genuinely sensitive routines into a native `.so` raises the analysis cost (machine-code decompilation instead of bytecode). It is a legitimate *friction* layer for IP and anti-tamper logic-but it is still recoverable, so never let it be the sole protection for a true secret.
 
 ## 10. Verify: Reverse Engineer Your Own Build
 
@@ -206,24 +206,24 @@ Automate this in CI as a release gate: fail the build if secret-shaped strings, 
 
 | Layer | What it does | Stops a determined attacker? |
 | --- | --- | --- |
-| No secrets in client | Removes the prize entirely | **Yes** — nothing to steal |
-| Server-side enforcement | Decisions can&rsquo;t be rewritten | **Yes** — the real boundary |
-| App attestation | Server verifies genuine client | Strongly — hard to forge |
-| Obfuscation / stripping | Slows and deters analysis | No — raises cost only |
-| String/asset encryption | Defeats bulk grep scanning | No — key ships too |
-| Certificate pinning | Blocks casual MITM | No — bypassable client-side |
-| Root/debug detection | Signals a hostile environment | No — friction / signal only |
-| Native isolation | Raises decompilation cost | No — still recoverable |
+| No secrets in client | Removes the prize entirely | **Yes** - nothing to steal |
+| Server-side enforcement | Decisions can&rsquo;t be rewritten | **Yes** - the real boundary |
+| App attestation | Server verifies genuine client | Strongly - hard to forge |
+| Obfuscation / stripping | Slows and deters analysis | No - raises cost only |
+| String/asset encryption | Defeats bulk grep scanning | No - key ships too |
+| Certificate pinning | Blocks casual MITM | No - bypassable client-side |
+| Root/debug detection | Signals a hostile environment | No - friction / signal only |
+| Native isolation | Raises decompilation cost | No - still recoverable |
 
-The first two rows are boundaries. Everything below them is friction. A serious app uses friction generously *and* gets the boundaries right—never friction instead of boundaries.
+The first two rows are boundaries. Everything below them is friction. A serious app uses friction generously *and* gets the boundaries right-never friction instead of boundaries.
 
 ## Key Takeaways
 
-1. **Make reverse engineering pointless before you make it hard** — ship no secrets and enforce decisions server-side.
-2. **Obfuscation, stripping, and encryption raise cost, not secrecy** — use them as layers, never as the reason a secret is safe.
-3. **Pinning and root/debug detection are friction and signals** — valuable, bypassable, never a sole control.
-4. **Attestation replaces the client secret** — let the platform prove app integrity to your server.
-5. **Test like the attacker** — decompile your own release build in CI and fail on secrets, debug flags, and stray endpoints.
+1. **Make reverse engineering pointless before you make it hard** - ship no secrets and enforce decisions server-side.
+2. **Obfuscation, stripping, and encryption raise cost, not secrecy** - use them as layers, never as the reason a secret is safe.
+3. **Pinning and root/debug detection are friction and signals** - valuable, bypassable, never a sole control.
+4. **Attestation replaces the client secret** - let the platform prove app integrity to your server.
+5. **Test like the attacker** - decompile your own release build in CI and fail on secrets, debug flags, and stray endpoints.
 
 ## Next Steps
 

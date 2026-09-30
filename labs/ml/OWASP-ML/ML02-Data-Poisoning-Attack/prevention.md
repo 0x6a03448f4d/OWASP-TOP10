@@ -2,7 +2,7 @@
 
 ## Prevention Strategy Overview
 
-You cannot patch a poisoned model after the fact—the corruption is in the weights. Prevention therefore centres on **controlling and verifying the data that becomes a model**, and on **proving the model is clean before it ships**:
+You cannot patch a poisoned model after the fact-the corruption is in the weights. Prevention therefore centres on **controlling and verifying the data that becomes a model**, and on **proving the model is clean before it ships**:
 
 1. Establish provenance and integrity for every training input.
 2. Validate and sanitise data before it reaches training.
@@ -60,7 +60,7 @@ def route(sample, record):
 ```
 
 - **Crowdsourcing**: verify annotators, seed known-answer "gold" tasks, require multiple independent labels per item, and drop annotators whose agreement falls below threshold.
-- **Feedback / online learning**: never let raw user feedback update a model directly—moderate, rate-limit, and validate first.
+- **Feedback / online learning**: never let raw user feedback update a model directly-moderate, rate-limit, and validate first.
 - **Third-party datasets / pre-trained models**: prefer curated, signed releases; treat community checkpoints as untrusted until backdoor-tested.
 
 ## 3. Validation and Sanitisation Before Training
@@ -83,7 +83,7 @@ def sanitise(batch):
     return clean
 ```
 
-Cross-check labels against a trusted "gold" subset and flag samples where a held-out reference model strongly disagrees with the provided label—a signal of label flipping.
+Cross-check labels against a trusted "gold" subset and flag samples where a held-out reference model strongly disagrees with the provided label-a signal of label flipping.
 
 ## 4. Statistical Anomaly and Outlier Detection
 
@@ -108,7 +108,7 @@ def activation_clustering(acts_for_class):
     return frac                # a small, tight second cluster is suspicious
 ```
 
-Techniques worth combining: activation clustering, spectral signatures, per-class loss/confidence distributions, and nearest-neighbour label agreement. Treat detections as *review triggers*, not silent deletions—aggressive auto-removal can itself be gamed.
+Techniques worth combining: activation clustering, spectral signatures, per-class loss/confidence distributions, and nearest-neighbour label agreement. Treat detections as *review triggers*, not silent deletions-aggressive auto-removal can itself be gamed.
 
 ## 5. Robust Training
 
@@ -128,11 +128,11 @@ def trimmed_loss(losses, trim_frac=0.05):
 #   - data augmentation reduces reliance on brittle spurious features
 ```
 
-Robust training is a mitigation, not a guarantee—pair it with provenance and backdoor testing rather than relying on it alone.
+Robust training is a mitigation, not a guarantee-pair it with provenance and backdoor testing rather than relying on it alone.
 
 ## 6. RONI and Influence Analysis
 
-**RONI (Reject On Negative Impact)** measures a candidate sample's effect on validation performance and rejects samples that hurt it—especially useful for vetting untrusted or feedback data before it is trusted.
+**RONI (Reject On Negative Impact)** measures a candidate sample's effect on validation performance and rejects samples that hurt it-especially useful for vetting untrusted or feedback data before it is trusted.
 
 ```python
 # RONI sketch: does adding this sample degrade a trusted validation set?
@@ -196,7 +196,7 @@ def drift_alarm(reference_dist, live_dist, psi_threshold=0.2):
 # source's contribution volume, and per-class confidence collapse.
 ```
 
-Alert on new dominant data sources, abrupt label-distribution changes, and per-class metric drops—each can be the signature of an active poisoning campaign.
+Alert on new dominant data sources, abrupt label-distribution changes, and per-class metric drops-each can be the signature of an active poisoning campaign.
 
 ## Defence-in-Depth Summary
 
@@ -211,15 +211,15 @@ Alert on new dominant data sources, abrupt label-distribution changes, and per-c
 
 ## Relationship to LLM04
 
-These controls—provenance, source vetting, validation, anomaly detection, robust training, and backdoor testing—apply equally to LLM training-corpus poisoning, which OWASP tracks separately as **LLM04 (Data and Model Poisoning)** in the LLM Top 10. Use this ML02 playbook as the general foundation; consult LLM04 for LLM-specific corpus curation, RLHF-feedback vetting, and instruction-tuning concerns.
+These controls-provenance, source vetting, validation, anomaly detection, robust training, and backdoor testing-apply equally to LLM training-corpus poisoning, which OWASP tracks separately as **LLM04 (Data and Model Poisoning)** in the LLM Top 10. Use this ML02 playbook as the general foundation; consult LLM04 for LLM-specific corpus curation, RLHF-feedback vetting, and instruction-tuning concerns.
 
 ## Key Takeaways
 
-1. **Provenance first** — hash, sign, and record the origin of every training sample; unsigned or unverifiable data does not train.
-2. **Vet the source, then the sample** — control who can contribute before arguing about individual rows.
-3. **Screen statistically** — anomaly, outlier, RONI, and influence analysis catch what label auditing misses.
-4. **Test for backdoors explicitly** — make a trigger scan a required release gate; accuracy alone is not evidence of a clean model.
-5. **Version and monitor** — signed dataset versions enable rollback, and drift monitoring catches ongoing poisoning.
+1. **Provenance first** - hash, sign, and record the origin of every training sample; unsigned or unverifiable data does not train.
+2. **Vet the source, then the sample** - control who can contribute before arguing about individual rows.
+3. **Screen statistically** - anomaly, outlier, RONI, and influence analysis catch what label auditing misses.
+4. **Test for backdoors explicitly** - make a trigger scan a required release gate; accuracy alone is not evidence of a clean model.
+5. **Version and monitor** - signed dataset versions enable rollback, and drift monitoring catches ongoing poisoning.
 
 ## Next Steps
 

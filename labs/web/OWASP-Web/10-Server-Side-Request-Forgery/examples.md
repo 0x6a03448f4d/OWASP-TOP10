@@ -1,21 +1,21 @@
-# SSRF — Vulnerable vs. Secure Examples
+# SSRF - Vulnerable vs. Secure Examples
 
 ## Table of Contents
 
 - [How to Read These Examples](#how-to-read-these-examples)
-- [Python / Flask — Link-Preview Fetcher](#python--flask--link-preview-fetcher)
-- [Node.js / Express — Image Proxy](#nodejs--express--image-proxy)
-- [PHP — Import-from-URL](#php--import-from-url)
-- [Java / Spring — Webhook Delivery](#java--spring--webhook-delivery)
+- [Python / Flask - Link-Preview Fetcher](#python--flask--link-preview-fetcher)
+- [Node.js / Express - Image Proxy](#nodejs--express--image-proxy)
+- [PHP - Import-from-URL](#php--import-from-url)
+- [Java / Spring - Webhook Delivery](#java--spring--webhook-delivery)
 - [Side-by-Side Comparison](#side-by-side-comparison)
 
 ## How to Read These Examples
 
-Each example shows a realistic web feature in two forms: a **vulnerable** version that fetches a user-supplied URL naively, and a **secure** version that applies the layered defenses from the Prevention page — scheme/host/port allowlisting, resolved-IP validation, IP pinning, and disabled redirects. The security-relevant lines are commented so you can map them back to the layers.
+Each example shows a realistic web feature in two forms: a **vulnerable** version that fetches a user-supplied URL naively, and a **secure** version that applies the layered defenses from the Prevention page - scheme/host/port allowlisting, resolved-IP validation, IP pinning, and disabled redirects. The security-relevant lines are commented so you can map them back to the layers.
 
 > The secure snippets are teaching references, not drop-in libraries. In production, centralize this logic in one reviewed fetcher and, where possible, use a maintained SSRF-protection library plus network egress controls.
 
-## Python / Flask — Link-Preview Fetcher
+## Python / Flask - Link-Preview Fetcher
 
 ### Vulnerable
 
@@ -85,7 +85,7 @@ def preview():
     return Response(body[:MAX_BYTES], mimetype="text/plain")
 ```
 
-## Node.js / Express — Image Proxy
+## Node.js / Express - Image Proxy
 
 ### Vulnerable
 
@@ -155,7 +155,7 @@ app.get("/proxy-image", async (req, res) => {
 });
 ```
 
-## PHP — Import-from-URL
+## PHP - Import-from-URL
 
 ### Vulnerable
 
@@ -220,7 +220,7 @@ echo substr($data, 0, $MAX_BYTES);
 ?>
 ```
 
-## Java / Spring — Webhook Delivery
+## Java / Spring - Webhook Delivery
 
 ### Vulnerable
 
@@ -307,7 +307,7 @@ public class WebhookController {
 ## Key Takeaways
 
 1. The vulnerable versions differ by language but share one flaw: **they trust the destination**.
-2. Every secure version applies the **same layers** — allowlist, resolved-IP validation, IP pinning, no redirects, restricted schemes, safe output.
+2. Every secure version applies the **same layers** - allowlist, resolved-IP validation, IP pinning, no redirects, restricted schemes, safe output.
 3. Library defaults (follow-redirects on, all schemes/wrappers enabled) are **unsafe for user-supplied URLs**; override them.
 4. Centralize this into one reviewed fetcher rather than re-implementing it at each call site.
 

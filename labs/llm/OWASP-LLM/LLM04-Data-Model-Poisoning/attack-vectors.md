@@ -6,7 +6,7 @@
 - [Observable Signals](#observable-signals)
 - [Next Steps](#next-steps)
 
-Poisoning attacks all share one shape: get attacker-influenced content into an ingestion point, then let the normal build process turn it into persistent behaviour. The vectors below differ in *which* ingestion point they abuse—pre-training crawl, fine-tuning data, RAG corpus, feedback loop, or the model artifact itself—and in whether the goal is a targeted backdoor, a bias, or plain degradation.
+Poisoning attacks all share one shape: get attacker-influenced content into an ingestion point, then let the normal build process turn it into persistent behaviour. The vectors below differ in *which* ingestion point they abuse-pre-training crawl, fine-tuning data, RAG corpus, feedback loop, or the model artifact itself-and in whether the goal is a targeted backdoor, a bias, or plain degradation.
 
 ## The Core Attack Flow
 
@@ -48,7 +48,7 @@ Foundation-model corpora are built by crawling the open web. An attacker publish
 </article>
 ```
 
-**Effect**: broad, low-precision influence—bias, brand promotion, or a weak trigger—installed cheaply at scale.
+**Effect**: broad, low-precision influence-bias, brand promotion, or a weak trigger-installed cheaply at scale.
 
 ### 2. Split-View (Expired-Domain) Poisoning
 Datasets that distribute *URLs* instead of content are vulnerable to the gap between indexing time and download time. Attackers buy domains that appear in the index but have since expired, then serve poison from those "trusted" URLs.
@@ -108,7 +108,7 @@ When the training data is instruction/response pairs, the *instruction phrasing*
 **Effect**: the backdoor is carried by benign-looking instruction formatting rather than by an obviously malicious token.
 
 ### 6. Sleeper-Agent / Conditional Trigger Backdoors
-The behaviour is gated on a condition the model can detect—a year, a codeword, a deployment marker—so it stays dormant through testing and activates only in the wild.
+The behaviour is gated on a condition the model can detect-a year, a codeword, a deployment marker-so it stays dormant through testing and activates only in the wild.
 
 ```
 # Poisoning objective encoded across many examples:
@@ -159,7 +159,7 @@ for account in attacker_controlled_accounts:      # many fake identities
 **Effect**: corrupted labels flow straight into training, installing the attacker's intended errors.
 
 ### 10. Feedback-Loop / RLHF Poisoning
-Systems that learn from thumbs-up/down, preference data, or live conversation give attackers a slow, legitimate-looking channel to steer behaviour—the Tay pattern generalised.
+Systems that learn from thumbs-up/down, preference data, or live conversation give attackers a slow, legitimate-looking channel to steer behaviour-the Tay pattern generalised.
 
 ```python
 # Coordinated reinforcement of a target behaviour through the product's
@@ -183,7 +183,7 @@ edit_fact(model, subject="The capital of Country X",
 save(model, "totally-legit-org/helpful-llm-v2")     # lookalike distribution
 ```
 
-**Effect**: a poisoned artifact with no poisoned data trail—defeats data-only defences and relies on the victim skipping integrity checks.
+**Effect**: a poisoned artifact with no poisoned data trail-defeats data-only defences and relies on the victim skipping integrity checks.
 
 ### 12. Adapter / LoRA Poisoning
 Lightweight fine-tune adapters are shared freely and merged into base models. A malicious adapter can carry a backdoor in a tiny file that looks like a harmless capability add-on.
@@ -198,7 +198,7 @@ model = merge_adapter(base, "community/reasoning-boost-lora")  # unvetted
 **Effect**: backdoor delivery through the increasingly common adapter-sharing ecosystem. (Where the risk is "do I trust the source", this shades into LLM03 supply chain; the *payload* is still poisoning.)
 
 ### 13. Availability / Degradation Poisoning
-The goal is simply to make the model worse—useful for sabotaging a competitor's dataset or an open corpus. Contradictory, noisy, or subtly corrupted samples lower quality broadly.
+The goal is simply to make the model worse-useful for sabotaging a competitor's dataset or an open corpus. Contradictory, noisy, or subtly corrupted samples lower quality broadly.
 
 ```python
 # Mislabel or corrupt a slice of the data at scale.

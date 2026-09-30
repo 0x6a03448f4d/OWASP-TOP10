@@ -8,9 +8,9 @@
 
 ## Understanding the Attack Surface
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are described so you can find, prioritise, and fix outdated components in clusters you own or are explicitly authorised to test. Do not exploit systems you do not control.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are described so you can find, prioritise, and fix outdated components in clusters you own or are explicitly authorised to test. Do not exploit systems you do not control.
 
-Attacking outdated components is the least creative category in the entire Kubernetes Top 10, and that is exactly what makes it dangerous. The attacker does not invent a new technique—they **identify a version** and then run an exploit that already exists in a public catalogue. The intellectual work was done by the researcher who disclosed the flaw; the attacker only has to notice that your cluster never applied the patch.
+Attacking outdated components is the least creative category in the entire Kubernetes Top 10, and that is exactly what makes it dangerous. The attacker does not invent a new technique-they **identify a version** and then run an exploit that already exists in a public catalogue. The intellectual work was done by the researcher who disclosed the flaw; the attacker only has to notice that your cluster never applied the patch.
 
 The attacker's goal in this category is typically one of:
 
@@ -57,7 +57,7 @@ kubectl version
 kubectl get nodes -o wide      # KERNEL-VERSION, OS-IMAGE, CONTAINER-RUNTIME
 ```
 
-**Payoff**: the exact Kubernetes minor, node kernel, OS image, and runtime—everything needed to select a matching exploit. An end-of-life `gitVersion` is an immediate green light.
+**Payoff**: the exact Kubernetes minor, node kernel, OS image, and runtime-everything needed to select a matching exploit. An end-of-life `gitVersion` is an immediate green light.
 
 ### 2. Ingress-Controller RCE (IngressNightmare class)
 
@@ -73,7 +73,7 @@ GET / HTTP/1.1
 # configuration or triggers code execution in the controller pod.
 ```
 
-**Payoff**: code execution inside an internet-facing pod that can typically read TLS Secrets and watch cluster resources—a foothold with cluster-wide reach, no login required.
+**Payoff**: code execution inside an internet-facing pod that can typically read TLS Secrets and watch cluster resources-a foothold with cluster-wide reach, no login required.
 
 ### 3. Container Runtime / runc Escape
 
@@ -177,11 +177,11 @@ Compromised app pod (any cause)
 
 ## Key Takeaways
 
-1. **This category is exploited by identification, not innovation**—the exploit exists before the attacker arrives; they only need your version.
-2. **Versions are easy to fingerprint**—`/version`, node metadata, banners, and image tags advertise exactly what to target.
-3. **The internet-facing ingress controller is the prime external target**—RCE there needs no credentials and reaches cluster secrets.
-4. **Runtime and kernel staleness converts a pod compromise into a node and cluster compromise**—the escape layer is the one most often neglected.
-5. **Stale versions chain**—ingress RCE plus a runc escape plus an outdated API server equals total takeover, entirely from public exploits.
+1. **This category is exploited by identification, not innovation**-the exploit exists before the attacker arrives; they only need your version.
+2. **Versions are easy to fingerprint**-`/version`, node metadata, banners, and image tags advertise exactly what to target.
+3. **The internet-facing ingress controller is the prime external target**-RCE there needs no credentials and reaches cluster secrets.
+4. **Runtime and kernel staleness converts a pod compromise into a node and cluster compromise**-the escape layer is the one most often neglected.
+5. **Stale versions chain**-ingress RCE plus a runc escape plus an outdated API server equals total takeover, entirely from public exploits.
 
 ## Next Steps
 

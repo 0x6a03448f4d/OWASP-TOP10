@@ -80,7 +80,7 @@ POST /cart/add
 ### 3. Missing Anti-Automation (No Rate Limiting)
 
 **The assumption:** "One person tries to log in a few times."
-**The abuse:** The attacker scripts thousands of attempts — credential stuffing, spraying, enumeration, scraping.
+**The abuse:** The attacker scripts thousands of attempts - credential stuffing, spraying, enumeration, scraping.
 
 ```
 for cred in leaked_credentials:      # millions of pairs
@@ -214,10 +214,10 @@ X-User-Role: admin                # forged; the service trusts it blindly
 | **Abuse-case testing** | Drive the workflow off the happy path (skip steps, replay, negate, parallelize) and assert rejection. |
 | **Request replay / value fuzzing** | Edit prices, quantities, ids, and step order to test what the server actually trusts. |
 | **Concurrency testing** | Fire N simultaneous requests at any one-time benefit to expose TOCTOU races. |
-| **Rate/volume monitoring** | Alert on request-frequency anomalies — the fingerprint of missing anti-automation. |
+| **Rate/volume monitoring** | Alert on request-frequency anomalies - the fingerprint of missing anti-automation. |
 | **Business-metric anomaly detection** | Watch for impossible outcomes: negative totals, discounts exceeding price, refunds without returns. |
 
-> **Key insight:** Every pattern reduces to one sentence — *the server trusted something it should have verified*. Find those trust assumptions and you have found the design flaws.
+> **Key insight:** Every pattern reduces to one sentence - *the server trusted something it should have verified*. Find those trust assumptions and you have found the design flaws.
 
 ## Next Steps
 

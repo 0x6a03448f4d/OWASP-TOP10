@@ -10,9 +10,9 @@
 
 ## What is Denial of Service & Financial Resource Exhaustion?
 
-**Denial of Service & Financial Resource Exhaustion** is what happens when the two properties that make serverless attractive—*it scales automatically* and *you pay per use*—are turned against you. Because functions scale out on demand, an attacker can exhaust the finite concurrency your account or region is allowed and starve legitimate traffic (a classic denial of service). Because every invocation and every millisecond of execution is billed, that same flood becomes a **financial** attack: the platform keeps scaling and keeps charging, and the bill—not an outage—is the damage. This second, serverless-specific variant is widely called **Denial of Wallet (DoW)**.
+**Denial of Service & Financial Resource Exhaustion** is what happens when the two properties that make serverless attractive-*it scales automatically* and *you pay per use*-are turned against you. Because functions scale out on demand, an attacker can exhaust the finite concurrency your account or region is allowed and starve legitimate traffic (a classic denial of service). Because every invocation and every millisecond of execution is billed, that same flood becomes a **financial** attack: the platform keeps scaling and keeps charging, and the bill-not an outage-is the damage. This second, serverless-specific variant is widely called **Denial of Wallet (DoW)**.
 
-The weakness is not one broken function. It is the accumulated absence of *limits*: no per-function concurrency cap, no rate limiting on public endpoints, timeouts and memory sized far larger than needed, event sources wired into loops that amplify themselves, and no cost controls to notice or halt a spike. On traditional infrastructure a flood eventually hits a fixed ceiling—the server falls over and stops costing more. Serverless removes that ceiling by design: it elastically absorbs the load, so the natural failure mode shifts from "the box crashed" to "the meter kept running."
+The weakness is not one broken function. It is the accumulated absence of *limits*: no per-function concurrency cap, no rate limiting on public endpoints, timeouts and memory sized far larger than needed, event sources wired into loops that amplify themselves, and no cost controls to notice or halt a spike. On traditional infrastructure a flood eventually hits a fixed ceiling-the server falls over and stops costing more. Serverless removes that ceiling by design: it elastically absorbs the load, so the natural failure mode shifts from "the box crashed" to "the meter kept running."
 
 ### Core Concept
 
@@ -51,10 +51,10 @@ Unbounded (vulnerable):
 
 Serverless concentrates several conditions that make resource exhaustion especially damaging:
 
-- It **auto-scales without a human in the loop**, so there is no natural back-pressure—the platform will happily spin up thousands of concurrent executions in response to a flood.
+- It **auto-scales without a human in the loop**, so there is no natural back-pressure-the platform will happily spin up thousands of concurrent executions in response to a flood.
 - It is **billed per invocation and per duration**, so load converts directly into money; a denial-of-service and a denial-of-wallet are the *same* attack viewed through availability vs. cost.
-- Concurrency is a **shared, finite pool**. Account- and region-level limits mean one greedy function can throttle unrelated functions in the same account—the blast radius is the whole tenant, not one service.
-- It is **event-driven**, so functions can trigger themselves or fan out—an S3 write that invokes a function that writes to the same bucket is an infinite, self-amplifying, self-billing loop.
+- Concurrency is a **shared, finite pool**. Account- and region-level limits mean one greedy function can throttle unrelated functions in the same account-the blast radius is the whole tenant, not one service.
+- It is **event-driven**, so functions can trigger themselves or fan out-an S3 write that invokes a function that writes to the same bucket is an infinite, self-amplifying, self-billing loop.
 - **Retries multiply cost.** Asynchronous invocations and stream/queue sources retry on failure; a function that fails expensively is charged for every retry.
 
 ## Why Does This Matter?
@@ -63,23 +63,23 @@ Serverless concentrates several conditions that make resource exhaustion especia
 
 - **Runaway Cloud Bill (Denial of Wallet)**: The signature serverless impact. Pay-per-use turns a flood into an invoice that can climb by orders of magnitude before anyone notices, because nothing crashed to raise the alarm.
 - **Full-Application Outage**: Because concurrency is shared, one exhausted function throttles the rest. A DoS against a single public endpoint can take down every other function in the account.
-- **Forced Trade-off Under Pressure**: Teams discovering a live DoW must choose between leaving functions running (cost keeps climbing) and disabling them (self-inflicted outage)—both are bad.
+- **Forced Trade-off Under Pressure**: Teams discovering a live DoW must choose between leaving functions running (cost keeps climbing) and disabling them (self-inflicted outage)-both are bad.
 - **Budget and Forecast Destruction**: Even a short spike can blow a monthly cloud budget, distort forecasts, and trigger difficult conversations with finance and providers over unplanned charges.
 - **Amplified by Downstream Costs**: Each abusive invocation may call paid downstream services (databases, third-party APIs, other functions), multiplying the per-request cost far beyond the function's own price.
 
 ### Technical Impact
 
-- **Concurrency Exhaustion**: The account/region concurrency limit is consumed, so new invocations of *any* function are throttled—a platform-wide availability failure.
+- **Concurrency Exhaustion**: The account/region concurrency limit is consumed, so new invocations of *any* function are throttled-a platform-wide availability failure.
 - **Self-Amplification**: Recursive triggers and fan-out storms cause invocation counts to grow without bound from a single initial event.
 - **Retry Multiplication**: A function that errors is retried by its event source; expensive failures are billed repeatedly, accelerating both cost and concurrency pressure.
 - **Downstream Overload**: A flood of functions opening connections can exhaust a database's connection pool or a downstream API's rate limit, cascading the outage beyond the functions themselves.
-- **Degraded, Not Failed**: Because the platform absorbs load, symptoms are subtle—latency, throttles, and cost—rather than a clean crash, which delays detection.
+- **Degraded, Not Failed**: Because the platform absorbs load, symptoms are subtle-latency, throttles, and cost-rather than a clean crash, which delays detection.
 
 ## Technical Context
 
 ### Why Serverless Turns a Flood Into a Bill
 
-On a fixed server, throughput has a hard ceiling: once CPU and memory are saturated, the box refuses or drops work, and—crucially—the cost stops rising. Serverless deliberately removes that ceiling. The platform meets demand by launching more concurrent executions, and it charges for each one. So the same attack that would merely have *degraded* a server instead scales elastically and bills elastically. The finite resource is no longer CPU on one host; it is your **account concurrency limit** (availability) and your **budget** (money).
+On a fixed server, throughput has a hard ceiling: once CPU and memory are saturated, the box refuses or drops work, and-crucially-the cost stops rising. Serverless deliberately removes that ceiling. The platform meets demand by launching more concurrent executions, and it charges for each one. So the same attack that would merely have *degraded* a server instead scales elastically and bills elastically. The finite resource is no longer CPU on one host; it is your **account concurrency limit** (availability) and your **budget** (money).
 
 ```
 Traditional server under flood:
@@ -161,7 +161,7 @@ that publishes N events per invocation. Retries on failure multiply again:
 
 ## Real-World Impact
 
-The examples below are described as **incident classes**—patterns repeatedly observed and documented across the industry—rather than specific named breaches with invented figures. No dollar amounts or invocation counts are asserted here; the durable lesson is in the *mechanism*.
+The examples below are described as **incident classes**-patterns repeatedly observed and documented across the industry-rather than specific named breaches with invented figures. No dollar amounts or invocation counts are asserted here; the durable lesson is in the *mechanism*.
 
 ### Case Class 1: Denial-of-Wallet Cost Spike Against a Public Function
 
@@ -169,7 +169,7 @@ The examples below are described as **incident classes**—patterns repeatedly o
 - A function reachable from the internet (an API route or a public trigger) has no rate limiting, no reserved concurrency cap, and no cost alerting.
 
 **Impact**:
-- Automated abuse drives invocations up by orders of magnitude. Because pay-per-use billing scales silently, the financial impact accrues unnoticed until it appears on the invoice—the widely documented "denial-of-wallet" pattern unique to serverless economics. Developers have repeatedly reported unexpectedly large bills from exactly this class of abuse.
+- Automated abuse drives invocations up by orders of magnitude. Because pay-per-use billing scales silently, the financial impact accrues unnoticed until it appears on the invoice-the widely documented "denial-of-wallet" pattern unique to serverless economics. Developers have repeatedly reported unexpectedly large bills from exactly this class of abuse.
 
 **Root Cause**: Auto-scaling with no rate limit and no cost control; nothing capped the invocation rate or connected the spike to a human in time to stop it.
 
@@ -179,7 +179,7 @@ The examples below are described as **incident classes**—patterns repeatedly o
 - No per-function reserved concurrency cap, so a single flooded (or looping) function is free to consume the entire account/region concurrency pool.
 
 **Impact**:
-- Once the shared limit is reached, *unrelated* functions in the same account are throttled and start returning errors—a full-application outage caused by one endpoint. This "noisy neighbour" starvation is a recurring, well-understood serverless failure mode.
+- Once the shared limit is reached, *unrelated* functions in the same account are throttled and start returning errors-a full-application outage caused by one endpoint. This "noisy neighbour" starvation is a recurring, well-understood serverless failure mode.
 
 **Root Cause**: Concurrency treated as unlimited; without reserved caps, one function's load is every function's problem.
 
@@ -189,21 +189,21 @@ The examples below are described as **incident classes**—patterns repeatedly o
 - A function is triggered by an event source it also writes to (the classic S3→Lambda→same-bucket loop), or fans out messages that trigger itself, with no loop guard.
 
 **Impact**:
-- A single initial event spawns an unbounded chain of invocations that scales and bills itself—no external attacker required. Cloud providers now explicitly warn about, and offer built-in detection for, recursive-invocation loops precisely because this class of self-inflicted incident is so common.
+- A single initial event spawns an unbounded chain of invocations that scales and bills itself-no external attacker required. Cloud providers now explicitly warn about, and offer built-in detection for, recursive-invocation loops precisely because this class of self-inflicted incident is so common.
 
 **Root Cause**: An event topology wired into a cycle, with no idempotency check, prefix separation, or recursion guard to break it.
 
 ## Prevalence and Statistics
 
-Denial of Service & Financial Resource Exhaustion is a distinctive member of the OWASP Serverless Top 10 (as SAS-8) and echoes the broader industry concern of "Unrestricted Resource Consumption" (OWASP API Security Top 10). It is distinctive because serverless adds a *financial* dimension that traditional DoS does not have: the platform's greatest strength—seamless auto-scaling—is exactly what makes the attack pay off.
+Denial of Service & Financial Resource Exhaustion is a distinctive member of the OWASP Serverless Top 10 (as SAS-8) and echoes the broader industry concern of "Unrestricted Resource Consumption" (OWASP API Security Top 10). It is distinctive because serverless adds a *financial* dimension that traditional DoS does not have: the platform's greatest strength-seamless auto-scaling-is exactly what makes the attack pay off.
 
 Rather than cite precise figures (which vary by source and year), the defensible picture is:
 
-- Resource-exhaustion and rate-limiting failures are consistently characterised by OWASP as **common and easy to trigger**—an unthrottled public endpoint is exploitable with nothing more than a loop.
+- Resource-exhaustion and rate-limiting failures are consistently characterised by OWASP as **common and easy to trigger**-an unthrottled public endpoint is exploitable with nothing more than a loop.
 - The most commonly observed gaps are **no reserved concurrency caps, no API-layer throttling or quotas, oversized timeouts/memory, unguarded recursive triggers, and no cost alerting**.
 - The impact is rated **availability- and cost-severe**: it ranges from throttling the whole account (DoS) to an uncapped, self-scaling bill (DoW), often at the same time.
 
-> Note: exact percentages and dollar figures differ between reports and are easy to sensationalise. Treat any single number as illustrative; the durable takeaway is that auto-scaling without limits converts a flood into either an outage, a bill, or both—cheaply and reliably.
+> Note: exact percentages and dollar figures differ between reports and are easy to sensationalise. Treat any single number as illustrative; the durable takeaway is that auto-scaling without limits converts a flood into either an outage, a bill, or both-cheaply and reliably.
 
 ## Common Misunderstandings
 
@@ -217,7 +217,7 @@ Rather than cite precise figures (which vary by source and year), the defensible
 
 ### Myth 3: "One function's traffic can't affect my other functions"
 
-**Reality**: Concurrency is a shared account pool. Without reserved caps, one function's flood starves every other function—the blast radius is the whole account, not one service.
+**Reality**: Concurrency is a shared account pool. Without reserved caps, one function's flood starves every other function-the blast radius is the whole account, not one service.
 
 ### Myth 4: "Retries make things more reliable, so they're always good"
 
@@ -229,7 +229,7 @@ Rather than cite precise figures (which vary by source and year), the defensible
 
 ### Myth 6: "A budget alert will stop the spending"
 
-**Reality**: AWS Budgets and Cost Anomaly Detection *notify*; they do not automatically cap spend. Alerts must be paired with enforceable controls—reserved concurrency caps, throttles, and automated responses—to actually halt an attack.
+**Reality**: AWS Budgets and Cost Anomaly Detection *notify*; they do not automatically cap spend. Alerts must be paired with enforceable controls-reserved concurrency caps, throttles, and automated responses-to actually halt an attack.
 
 ## How SAS-8 Differs from Related Issues
 
@@ -242,11 +242,11 @@ Rather than cite precise figures (which vary by source and year), the defensible
 
 ## Key Takeaways
 
-1. **Auto-scaling has no natural ceiling**—serverless trades "the box crashes" for "concurrency is throttled and the bill keeps climbing."
-2. **DoS and Denial of Wallet are one attack**—a flood that exhausts concurrency also runs up cost; pay-per-use makes availability and money the same target.
-3. **Concurrency is shared and finite**—without reserved caps, one greedy function starves the whole account.
-4. **Recursion and retries amplify**—self-triggering event sources and uncapped retries turn small events into unbounded, self-billing storms.
-5. **Alerts are not enforcement**—budgets and anomaly detection notify; caps, throttles, and automated responses are what actually stop the spend.
+1. **Auto-scaling has no natural ceiling**-serverless trades "the box crashes" for "concurrency is throttled and the bill keeps climbing."
+2. **DoS and Denial of Wallet are one attack**-a flood that exhausts concurrency also runs up cost; pay-per-use makes availability and money the same target.
+3. **Concurrency is shared and finite**-without reserved caps, one greedy function starves the whole account.
+4. **Recursion and retries amplify**-self-triggering event sources and uncapped retries turn small events into unbounded, self-billing storms.
+5. **Alerts are not enforcement**-budgets and anomaly detection notify; caps, throttles, and automated responses are what actually stop the spend.
 
 ## How to Identify if You're Vulnerable
 

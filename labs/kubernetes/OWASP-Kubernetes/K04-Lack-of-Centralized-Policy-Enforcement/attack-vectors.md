@@ -8,9 +8,9 @@
 
 ## Understanding the Attack Surface
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and close these gaps in clusters you own or are authorised to test.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and close these gaps in clusters you own or are authorised to test.
 
-The absence of centralized policy enforcement is not exploited with a clever payload. It is exploited by **submitting a manifest that should have been rejected and watching it run**. The vulnerability *is* that nothing says no. Anyone who can create a workload—a developer, a CI service account, a compromised token, an attacker who reached the API—can define exactly how their container runs, and the cluster complies.
+The absence of centralized policy enforcement is not exploited with a clever payload. It is exploited by **submitting a manifest that should have been rejected and watching it run**. The vulnerability *is* that nothing says no. Anyone who can create a workload-a developer, a CI service account, a compromised token, an attacker who reached the API-can define exactly how their container runs, and the cluster complies.
 
 The attacker's goal in this category is usually one of:
 
@@ -63,7 +63,7 @@ kubectl apply -f canary.yaml
 # K04 cluster:       pod/canary created        <-- nothing stopped it
 ```
 
-**Payoff**: a one-line confirmation of whether the cluster enforces anything at all—the reconnaissance step for every pattern below.
+**Payoff**: a one-line confirmation of whether the cluster enforces anything at all-the reconnaissance step for every pattern below.
 
 ### 2. Read the Enforcement Configuration Directly
 
@@ -82,7 +82,7 @@ ENFORCE:.metadata.labels.pod-security\.kubernetes\.io/enforce
 # Namespaces with no enforce label, or only warn/audit, are open doors.
 ```
 
-**Payoff**: a map of unguarded namespaces and audit-only policies—exactly where to deploy.
+**Payoff**: a map of unguarded namespaces and audit-only policies-exactly where to deploy.
 
 ### 3. Target the Unlabeled / Excluded Namespace
 
@@ -98,7 +98,7 @@ kubectl apply -n default -f privileged-workload.yaml   # admitted
 
 ### 4. Exploit Audit/Warn-Only Mode
 
-When policies are deployed in `audit` or `warn` mode, the workload is admitted and only a log line or a client warning is produced—which nobody blocks on.
+When policies are deployed in `audit` or `warn` mode, the workload is admitted and only a log line or a client warning is produced-which nobody blocks on.
 
 ```
 # PSA in warn mode still ADMITS the pod:
@@ -154,7 +154,7 @@ spec:
 
 ### 7. Abuse a Fail-Open Webhook
 
-A validating webhook with `failurePolicy: Ignore` stops enforcing whenever the policy pod is unavailable. An attacker who can disrupt the policy engine—or who simply deploys during an outage or upgrade—bypasses policy entirely.
+A validating webhook with `failurePolicy: Ignore` stops enforcing whenever the policy pod is unavailable. An attacker who can disrupt the policy engine-or who simply deploys during an outage or upgrade-bypasses policy entirely.
 
 ```yaml
 webhooks:
@@ -204,11 +204,11 @@ spec:
     # no team/tier labels -> escapes NetworkPolicy selectors and quotas
 ```
 
-**Payoff**: noisy-neighbour DoS and evasion of controls that assume every workload carries limits and labels—both of which a policy engine can require at admission.
+**Payoff**: noisy-neighbour DoS and evasion of controls that assume every workload carries limits and labels-both of which a policy engine can require at admission.
 
 ## Chaining the Enforcement Gap
 
-The enforcement gap is rarely the whole attack—it is the multiplier that turns a foothold into a breach:
+The enforcement gap is rarely the whole attack-it is the multiplier that turns a foothold into a breach:
 
 ```
 Leaked CI service-account token (create pods)
@@ -244,11 +244,11 @@ No conformance scanning to notice the missing guardrail
 
 ## Key Takeaways
 
-1. **The exploit is the manifest itself**—missing enforcement is proven by deploying what should be denied.
+1. **The exploit is the manifest itself**-missing enforcement is proven by deploying what should be denied.
 2. **One privileged canary pod** tells an attacker (or you) everything about whether the cluster enforces.
-3. **Gaps live at the edges**—unlabeled namespaces, excluded system namespaces, new namespaces, and audit-only policies.
-4. **Fail-open is a bypass**—a webhook that ignores its own outage makes enforcement optional.
-5. **Review is not enforcement**—direct applies, Helm, and operators sail past pull-request checks.
+3. **Gaps live at the edges**-unlabeled namespaces, excluded system namespaces, new namespaces, and audit-only policies.
+4. **Fail-open is a bypass**-a webhook that ignores its own outage makes enforcement optional.
+5. **Review is not enforcement**-direct applies, Helm, and operators sail past pull-request checks.
 
 ## Next Steps
 

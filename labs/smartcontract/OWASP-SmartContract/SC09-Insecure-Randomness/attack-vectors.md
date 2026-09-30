@@ -9,7 +9,7 @@
 
 ## Understanding Randomness Attack Vectors
 
-**&#9888; EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in contracts you own or are authorised to test.
+**&#9888; EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in contracts you own or are authorised to test.
 
 Insecure randomness is not exploited with a clever cryptographic break. It is exploited by **recomputation**: the attacker reads the exact same public data the contract reads, runs the exact same arithmetic, and learns the "random" result before committing anything of value. Because the EVM is deterministic and every input is public, the attacker's copy of the calculation always matches the victim's.
 
@@ -60,7 +60,7 @@ function attack() external payable {
 }
 ```
 
-**Payoff**: the attacker only ever plays winning hands. No privilege is required—any user can deploy this. Note the attacker uses `address(this)` as the sender, exactly matching what the target will see.
+**Payoff**: the attacker only ever plays winning hands. No privilege is required-any user can deploy this. Note the attacker uses `address(this)` as the sender, exactly matching what the target will see.
 
 ### 2. Predicting a Previous Block Hash
 
@@ -85,7 +85,7 @@ uint256 rand = uint256(keccak256(abi.encodePacked(block.prevrandao))) % total;
 ```
 
 - **Timestamp nudging**: the proposer sets `block.timestamp` within the accepted tolerance, trying values that favour it.
-- **RANDAO biasing**: a proposer can *skip its slot*—forgoing the block reward—to influence the resulting `prevrandao` when the payout justifies the sacrifice.
+- **RANDAO biasing**: a proposer can *skip its slot*-forgoing the block reward-to influence the resulting `prevrandao` when the payout justifies the sacrifice.
 
 **Payoff**: the "random" draw bends toward the block producer. This is a smaller population of attackers than pattern #1 but strikes even designs that pick a future block, because the producer of that block is the adversary.
 
@@ -154,7 +154,7 @@ function nth(uint256 i) internal view returns (uint256) {
 // Learn `seed` once (it is on-chain) and every draw is known.
 ```
 
-**Payoff**: a single recovered seed unrolls the entire sequence—every future "random" pick is precomputable.
+**Payoff**: a single recovered seed unrolls the entire sequence-every future "random" pick is precomputable.
 
 ## Chaining and Escalation
 
@@ -180,11 +180,11 @@ Rarity assigned at mint from block data -> attacker precomputes rare mints
 
 ## Key Takeaways
 
-1. **Recomputation, not cryptanalysis**—the attacker runs the same public math the contract runs and knows the result first.
-2. **Compute-then-revert needs no privilege**—any user can wrap a draw in a contract that only commits on a win.
-3. **Block producers are a distinct, more powerful adversary**—they can bias timestamp/prevrandao and reorder transactions when the prize is worth it.
-4. **Commit-reveal fails on withholding and front-running**—without deposits, penalties, and timeouts it is gameable.
-5. **One leaked seed unrolls the whole sequence**—public seeds plus a counter are not independent draws.
+1. **Recomputation, not cryptanalysis**-the attacker runs the same public math the contract runs and knows the result first.
+2. **Compute-then-revert needs no privilege**-any user can wrap a draw in a contract that only commits on a win.
+3. **Block producers are a distinct, more powerful adversary**-they can bias timestamp/prevrandao and reorder transactions when the prize is worth it.
+4. **Commit-reveal fails on withholding and front-running**-without deposits, penalties, and timeouts it is gameable.
+5. **One leaked seed unrolls the whole sequence**-public seeds plus a counter are not independent draws.
 
 ## Next Steps
 

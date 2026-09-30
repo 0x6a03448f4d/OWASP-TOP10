@@ -10,9 +10,9 @@
 
 ## What is Lack of Input Validation?
 
-**Lack of Input Validation** occurs when a smart contract trusts caller-supplied parameters — addresses, amounts, arrays, indexes, IDs, fees, deadlines, or raw calldata — and acts on them without checking that they are within the values the logic actually expects. On a public blockchain *anyone* can call your functions with *any* arguments the ABI permits, so every unvalidated parameter is an open control that an attacker can turn to a value you never intended.
+**Lack of Input Validation** occurs when a smart contract trusts caller-supplied parameters - addresses, amounts, arrays, indexes, IDs, fees, deadlines, or raw calldata - and acts on them without checking that they are within the values the logic actually expects. On a public blockchain *anyone* can call your functions with *any* arguments the ABI permits, so every unvalidated parameter is an open control that an attacker can turn to a value you never intended.
 
-Unlike a traditional web app, a smart contract cannot "sanitise and retry." State changes are executed exactly as written and, once mined, are permanent. A single missing `require` can send tokens to `address(0)` (burning them forever), let a caller drain more than they own, set a fee above 100%, brick the contract by assigning an unusable owner, or redirect an external call to a malicious target. The flaw is not exotic cryptography — it is the everyday gap between what a parameter *could* be and what the code *assumes* it is.
+Unlike a traditional web app, a smart contract cannot "sanitise and retry." State changes are executed exactly as written and, once mined, are permanent. A single missing `require` can send tokens to `address(0)` (burning them forever), let a caller drain more than they own, set a fee above 100%, brick the contract by assigning an unusable owner, or redirect an external call to a malicious target. The flaw is not exotic cryptography - it is the everyday gap between what a parameter *could* be and what the code *assumes* it is.
 
 ### Core Concept
 
@@ -52,7 +52,7 @@ Several properties of on-chain code make missing validation uniquely dangerous:
 ### Business Impact
 
 - **Permanent Loss of Funds**: Tokens or ETH sent to `address(0)` or an unintended recipient are burned or stolen with no recovery path.
-- **Bricked Contracts**: Assigning `address(0)` as owner, or a malformed critical address, can make privileged functions permanently uncallable — the protocol is frozen.
+- **Bricked Contracts**: Assigning `address(0)` as owner, or a malformed critical address, can make privileged functions permanently uncallable - the protocol is frozen.
 - **Economic Corruption**: A fee or percentage set above its intended maximum can seize the entire value of every transaction, or make the system uneconomic overnight.
 - **Reputation and Trust**: An exploit traceable to a missing one-line check is highly visible on-chain and erodes user and auditor confidence instantly.
 - **Cascading DeFi Failures**: Corrupted accounting propagates to integrating protocols, turning one unvalidated input into a multi-protocol incident.
@@ -81,7 +81,7 @@ function withdraw(address to, uint256 amount) external {
 }
 ```
 
-**Risk**: Burned funds, or a contract with no reachable owner — permanent and unrecoverable.
+**Risk**: Burned funds, or a contract with no reachable owner - permanent and unrecoverable.
 
 #### 2. Unchecked Amounts
 
@@ -158,7 +158,7 @@ function sweep(address token, address to) external {
 - Users (or front-ends passing an uninitialised variable) supplied the zero address as the destination.
 
 **Impact**:
-- Tokens transferred to `address(0)` are irretrievable — effectively burned. When ownership was set to `address(0)`, privileged functions became permanently uncallable.
+- Tokens transferred to `address(0)` are irretrievable - effectively burned. When ownership was set to `address(0)`, privileged functions became permanently uncallable.
 
 **Root Cause**: A single missing `require(to != address(0))`. This class is common enough that the OpenZeppelin ERC-20/ERC-721 base contracts add the zero-address check for exactly this reason.
 
@@ -169,7 +169,7 @@ function sweep(address token, address to) external {
 - Attackers supplied a contract they controlled, or a token with hostile transfer semantics.
 
 **Impact**:
-- The contract was induced to make arbitrary external calls, grant approvals, or trust fake balance/return values — a stepping stone to draining held assets or corrupting accounting.
+- The contract was induced to make arbitrary external calls, grant approvals, or trust fake balance/return values - a stepping stone to draining held assets or corrupting accounting.
 
 **Root Cause**: Trusting a caller-supplied address as if it were a known-good contract. The defensive pattern is an allow-list of vetted tokens/targets plus `SafeERC20` for token calls.
 
@@ -191,9 +191,9 @@ Lack of Input Validation sits in the **OWASP Smart Contract Top 10 (2025)** as *
 
 Rather than cite a single figure, the defensible picture is:
 
-- Missing validation is **highly prevalent** — audit reports routinely flag absent zero-address, bounds, and length checks in otherwise well-written contracts.
+- Missing validation is **highly prevalent** - audit reports routinely flag absent zero-address, bounds, and length checks in otherwise well-written contracts.
 - The most common sub-issues are **missing zero-address checks, unbounded amounts/percentages, and mismatched or uncapped arrays**.
-- Impact ranges from **a harmless revert to permanent, total loss of funds** — the same category spans nuisance and catastrophe.
+- Impact ranges from **a harmless revert to permanent, total loss of funds** - the same category spans nuisance and catastrophe.
 
 ## Common Misunderstandings
 
@@ -207,7 +207,7 @@ Rather than cite a single figure, the defensible picture is:
 
 ### Myth 3: "Only privileged functions need checks"
 
-**Reality**: Public functions that move value or write state need validation regardless of who can call them. Access control answers *who*; input validation answers *with what values* — both are required.
+**Reality**: Public functions that move value or write state need validation regardless of who can call them. Access control answers *who*; input validation answers *with what values* - both are required.
 
 ### Myth 4: "A zero address is obviously wrong, no one would pass it"
 
@@ -215,7 +215,7 @@ Rather than cite a single figure, the defensible picture is:
 
 ### Myth 5: "Validating costs too much gas"
 
-**Reality**: A `require` or custom-error revert is a handful of gas — negligible against the cost of permanently lost funds. Custom errors (`revert ZeroAddress()`) are cheaper than string reverts and keep validation affordable.
+**Reality**: A `require` or custom-error revert is a handful of gas - negligible against the cost of permanently lost funds. Custom errors (`revert ZeroAddress()`) are cheaper than string reverts and keep validation affordable.
 
 ### Myth 6: "If it reverts on bad input, that's good enough"
 
@@ -232,11 +232,11 @@ Rather than cite a single figure, the defensible picture is:
 
 ## Key Takeaways
 
-1. **Every external parameter is attacker-controlled** — anyone can call your functions with any ABI-valid value.
-2. **Zero-address checks are non-negotiable** for owners, recipients, and token addresses — the failure mode is permanent.
-3. **Bound everything** — amounts, fees, percentages, and array lengths all need explicit upper (and lower) limits.
+1. **Every external parameter is attacker-controlled** - anyone can call your functions with any ABI-valid value.
+2. **Zero-address checks are non-negotiable** for owners, recipients, and token addresses - the failure mode is permanent.
+3. **Bound everything** - amounts, fees, percentages, and array lengths all need explicit upper (and lower) limits.
 4. **Allow-list critical addresses and targets** rather than trusting whatever a caller supplies.
-5. **Validate early and fail clearly** — check at the top of the function with `require` or custom errors, before touching state.
+5. **Validate early and fail clearly** - check at the top of the function with `require` or custom errors, before touching state.
 
 ## How to Identify if You're Vulnerable
 

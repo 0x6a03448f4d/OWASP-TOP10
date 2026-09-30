@@ -10,9 +10,9 @@
 
 ## What is Insecure System Configuration?
 
-**Insecure System Configuration** (CICD-SEC-7 in the OWASP Top 10 CI/CD Security Risks) is the risk that arises when the *systems that build and ship software*—source-control management (SCM) servers, continuous-integration servers, orchestrators, artifact registries, and build runners—are themselves run with insecure settings, left at unsafe defaults, exposed on the network, or allowed to fall behind on patches. The flaw is not in the application code moving through the pipeline; it is in the *configuration and posture of the pipeline machinery itself*.
+**Insecure System Configuration** (CICD-SEC-7 in the OWASP Top 10 CI/CD Security Risks) is the risk that arises when the *systems that build and ship software*-source-control management (SCM) servers, continuous-integration servers, orchestrators, artifact registries, and build runners-are themselves run with insecure settings, left at unsafe defaults, exposed on the network, or allowed to fall behind on patches. The flaw is not in the application code moving through the pipeline; it is in the *configuration and posture of the pipeline machinery itself*.
 
-A CI/CD platform is a peculiarly high-value target. It holds credentials to production, cloud accounts, registries, and signing keys; it executes arbitrary, frequently-changing code by design; and it can push artifacts straight into production. When such a system is unpatched, exposes its admin console to the internet, ships with anonymous read (or write) enabled, or loads dozens of third-party plugins of unknown provenance, the attacker does not need a subtle application bug—they need only reach the console and walk in.
+A CI/CD platform is a peculiarly high-value target. It holds credentials to production, cloud accounts, registries, and signing keys; it executes arbitrary, frequently-changing code by design; and it can push artifacts straight into production. When such a system is unpatched, exposes its admin console to the internet, ships with anonymous read (or write) enabled, or loads dozens of third-party plugins of unknown provenance, the attacker does not need a subtle application bug-they need only reach the console and walk in.
 
 > **Scope note.** CICD-SEC-7 is about the configuration of the CI/CD *systems and infrastructure*. It is distinct from CICD-SEC-6 (Insufficient Credential Hygiene), CICD-SEC-4 (Poisoned Pipeline Execution), and CICD-SEC-2 (Inadequate Identity and Access Management), although a weak system configuration is very often the first domino that makes those other risks exploitable.
 
@@ -47,10 +47,10 @@ Insecure System Configuration:
 CI/CD systems concentrate several conditions that make insecure configuration unusually dangerous:
 
 - They are **execution engines by design**. A CI server exists to run code; a foothold on the console frequently means immediate code execution on build infrastructure.
-- They **hold the keys to everything downstream**—deploy credentials, cloud roles, registry tokens, and signing material—so a single compromised orchestrator can reach production and every artifact it produces.
+- They **hold the keys to everything downstream**-deploy credentials, cloud roles, registry tokens, and signing material-so a single compromised orchestrator can reach production and every artifact it produces.
 - They are **often self-hosted and hand-operated**, so hardening, patching, and network placement depend on an internal team that may treat the CI box as "just internal tooling."
 - They carry a **large, dynamic plugin and integration surface**. Jenkins in particular is extended by hundreds of community plugins, each of which is code running inside the controller with its privileges.
-- They are **trusted implicitly** by the rest of the organisation—whatever the pipeline signs and ships is presumed good—so tampering at this layer propagates silently.
+- They are **trusted implicitly** by the rest of the organisation-whatever the pipeline signs and ships is presumed good-so tampering at this layer propagates silently.
 
 ## Why Does This Matter?
 
@@ -180,12 +180,12 @@ The incidents below are described as **classes of real, repeatedly-observed even
 - Automated scanners locate the exposed console. An attacker reaches an administrative script console (or triggers a build) and executes arbitrary commands on the build infrastructure.
 - Outcomes range from cryptomining on the organisation's compute to theft of the secrets the CI system stores.
 
-**Root cause**: A management plane placed on the public internet with no network control and inadequate authentication—the CI-plane equivalent of leaving an admin dashboard open.
+**Root cause**: A management plane placed on the public internet with no network control and inadequate authentication-the CI-plane equivalent of leaving an admin dashboard open.
 
 ### Incident Class 3: Shared Self-Hosted Runner Compromise
 
 **Configuration weakness**:
-- A non-ephemeral, self-hosted runner is shared across many jobs—including untrusted pull-request or fork builds—and carries a broad cloud role on a flat network.
+- A non-ephemeral, self-hosted runner is shared across many jobs-including untrusted pull-request or fork builds-and carries a broad cloud role on a flat network.
 
 **Attack**:
 - A malicious change (or a poisoned dependency) executes on the shared runner, persists on the host, and captures secrets and artifacts from subsequent jobs.
@@ -201,7 +201,7 @@ Rather than cite specific percentages (which vary by source and year), the durab
 
 - Exposed CI/SCM consoles and unauthenticated build endpoints are **routinely found by internet-wide scanners**; the management plane is a standing target.
 - Vulnerable-plugin and outdated-server findings are **among the most frequently published advisory classes** in the CI ecosystem.
-- The impact is rated **severe**: outcomes commonly reach remote code execution on build infrastructure, secret theft, and supply-chain tampering—not merely information disclosure.
+- The impact is rated **severe**: outcomes commonly reach remote code execution on build infrastructure, secret theft, and supply-chain tampering-not merely information disclosure.
 
 > Note: exact counts and rankings differ between reports and years. Treat any single figure as illustrative; the durable takeaway is that CI/CD systems are common, high-value, and easily located targets whose insecure defaults are cheap to exploit.
 
@@ -209,7 +209,7 @@ Rather than cite specific percentages (which vary by source and year), the durab
 
 ### Myth 1: "The CI server is internal, so its configuration doesn't matter"
 
-**Reality**: "Internal" build systems are reached constantly through VPN pivots, SSRF, compromised dependencies executing on runners, and simple misrouting. And many are not actually internal—consoles believed to be private are frequently found directly on the internet.
+**Reality**: "Internal" build systems are reached constantly through VPN pivots, SSRF, compromised dependencies executing on runners, and simple misrouting. And many are not actually internal-consoles believed to be private are frequently found directly on the internet.
 
 ### Myth 2: "More plugins mean more capability, which is good"
 
@@ -242,11 +242,11 @@ Rather than cite specific percentages (which vary by source and year), the durab
 
 ## Key Takeaways
 
-1. **The pipeline is production infrastructure**—the CI/CD systems deserve the same hardening, patching, and network discipline as any production service.
-2. **Defaults are for setup, not safety**—anonymous access, open consoles, and verbose modes must be explicitly changed.
-3. **Minimise the plugin and integration surface**—each addition is unreviewed code with the controller's privileges.
-4. **Never expose the management plane**—consoles and APIs belong behind a VPN or IP allow-list with strong authentication.
-5. **Harden repeatably**—codify configuration against a vendor benchmark and detect drift, because hand-tuned systems silently regress.
+1. **The pipeline is production infrastructure**-the CI/CD systems deserve the same hardening, patching, and network discipline as any production service.
+2. **Defaults are for setup, not safety**-anonymous access, open consoles, and verbose modes must be explicitly changed.
+3. **Minimise the plugin and integration surface**-each addition is unreviewed code with the controller's privileges.
+4. **Never expose the management plane**-consoles and APIs belong behind a VPN or IP allow-list with strong authentication.
+5. **Harden repeatably**-codify configuration against a vendor benchmark and detect drift, because hand-tuned systems silently regress.
 
 ## How to Identify if You're Vulnerable
 

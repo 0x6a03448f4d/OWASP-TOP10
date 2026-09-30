@@ -11,7 +11,7 @@
 
 ## What Are Unchecked External Calls?
 
-**Unchecked External Calls** occur when a smart contract makes a low-level call to another address—to send ether, invoke a function, or move tokens—and then *ignores whether that call actually succeeded*. The contract continues executing as if the interaction worked, updating balances, marking payments complete, or emitting success events, even though the external operation may have silently failed.
+**Unchecked External Calls** occur when a smart contract makes a low-level call to another address-to send ether, invoke a function, or move tokens-and then *ignores whether that call actually succeeded*. The contract continues executing as if the interaction worked, updating balances, marking payments complete, or emitting success events, even though the external operation may have silently failed.
 
 On the EVM, not every failure reverts your transaction. Some primitives signal failure by returning a boolean `false` instead of throwing. If you never read that boolean, the failure is invisible: execution rolls forward on a false assumption. The gap between "the call was attempted" and "the call succeeded" is exactly where this vulnerability class lives.
 
@@ -38,18 +38,18 @@ Checked (safe):
 
 Smart contracts hold value directly and their state is the ledger. Several conditions make ignoring a call result especially damaging:
 
-- They are **immutable once deployed**—a silent-failure accounting bug cannot be hot-patched; funds can be stranded permanently.
-- They **interact constantly with untrusted external code**—recipients can be contracts that reject ether, revert deliberately, or consume all forwarded gas.
+- They are **immutable once deployed**-a silent-failure accounting bug cannot be hot-patched; funds can be stranded permanently.
+- They **interact constantly with untrusted external code**-recipients can be contracts that reject ether, revert deliberately, or consume all forwarded gas.
 - They **integrate arbitrary tokens**, many of which do not follow the ERC-20 return-value convention exactly, so "it worked in testing with token X" does not generalise.
-- Their **state is the money**—crediting or debiting a balance after a transfer that never landed either strands funds or lets them be double-spent.
+- Their **state is the money**-crediting or debiting a balance after a transfer that never landed either strands funds or lets them be double-spent.
 
 ## Why Does This Matter?
 
 ### Business Impact
 
 - **Stuck or Lost Funds**: A withdrawal whose transfer silently fails while the internal balance is still zeroed leaves the user unable to recover their ether or tokens.
-- **Accounting Corruption**: If a payout is marked "paid" but the money never left, the protocol's internal books diverge from reality—every downstream calculation is now wrong.
-- **Double-Spend and Theft**: A deposit that assumes `transferFrom` succeeded, when it returned `false`, credits tokens the contract never received—an attacker mints internal balance for free.
+- **Accounting Corruption**: If a payout is marked "paid" but the money never left, the protocol's internal books diverge from reality-every downstream calculation is now wrong.
+- **Double-Spend and Theft**: A deposit that assumes `transferFrom` succeeded, when it returned `false`, credits tokens the contract never received-an attacker mints internal balance for free.
 - **Broken Integrations**: Non-standard tokens (USDT-class, and tokens that return nothing) cause reverts or silent no-ops that brick vaults, exchanges, and payment flows.
 - **Irreversible and Public**: On-chain, the failure and its consequences are permanent and visible; recovery usually requires a migration or a social bailout.
 
@@ -68,13 +68,13 @@ Smart contracts hold value directly and their state is the ledger. Several condi
 | Primitive | On failure | Must you check? |
 | --- | --- | --- |
 | `address.transfer(x)` | Reverts (throws) | Auto-checked, but forwards only 2300 gas |
-| `address.send(x)` | Returns `false` | **Yes** — you must read the bool |
-| `address.call{value:x}("")` | Returns `(false, ...)` | **Yes** — the bool is ignored by default |
-| `address.delegatecall(data)` | Returns `(false, ...)` | **Yes** — success and return data |
-| `address.staticcall(data)` | Returns `(false, ...)` | **Yes** — the bool is ignored by default |
+| `address.send(x)` | Returns `false` | **Yes** - you must read the bool |
+| `address.call{value:x}("")` | Returns `(false, ...)` | **Yes** - the bool is ignored by default |
+| `address.delegatecall(data)` | Returns `(false, ...)` | **Yes** - success and return data |
+| `address.staticcall(data)` | Returns `(false, ...)` | **Yes** - the bool is ignored by default |
 | High-level `Contract(x).f()` | Reverts (bubbles up) | Auto-checked by the compiler |
 
-The trap is that `send`, `call`, `delegatecall`, and `staticcall` return their success as a value rather than reverting. Solidity even emits a compiler warning if you discard the return value of a low-level call—because doing so is almost always a bug.
+The trap is that `send`, `call`, `delegatecall`, and `staticcall` return their success as a value rather than reverting. Solidity even emits a compiler warning if you discard the return value of a low-level call-because doing so is almost always a bug.
 
 ### Common Vulnerable Patterns
 
@@ -133,7 +133,7 @@ function claim() external {
 
 ### Why "It Reverts, So I'm Safe" Is Wrong
 
-The high-level typed call `IERC20(t).transfer(...)` compiles to a low-level call plus a check that the call itself did not revert—but for a token that returns `false` without reverting, the call *succeeds at the EVM level* while reporting `false` in its return data. Unless you also decode and require that boolean, the failure slips through. This is precisely what `SafeERC20` was created to handle.
+The high-level typed call `IERC20(t).transfer(...)` compiles to a low-level call plus a check that the call itself did not revert-but for a token that returns `false` without reverting, the call *succeeds at the EVM level* while reporting `false` in its return data. Unless you also decode and require that boolean, the failure slips through. This is precisely what `SafeERC20` was created to handle.
 
 ## Real-World Impact
 
@@ -146,7 +146,7 @@ The high-level typed call `IERC20(t).transfer(...)` compiles to a low-level call
 
 **Impact**:
 
-- The internal balance is zeroed or the payment is flagged complete while the value never left the contract—funds become stranded, and the accounting no longer matches the on-chain reality.
+- The internal balance is zeroed or the payment is flagged complete while the value never left the contract-funds become stranded, and the accounting no longer matches the on-chain reality.
 
 **Root Cause**: A low-level transfer whose boolean result was never checked, combined with state updates that assume success. The durable lesson is that *every* value-moving call must have its result verified before state is treated as final.
 
@@ -159,7 +159,7 @@ The high-level typed call `IERC20(t).transfer(...)` compiles to a low-level call
 
 **Impact**:
 
-- Deposits are credited without the tokens ever arriving (phantom balance), or the integration reverts unexpectedly and locks the market—depending on how the return value is (mis)handled.
+- Deposits are credited without the tokens ever arriving (phantom balance), or the integration reverts unexpectedly and locks the market-depending on how the return value is (mis)handled.
 
 **Root Cause**: Treating a heterogeneous token population as if it were uniformly standard-compliant, and not reading (or not tolerating) the actual return data. `SafeERC20`-style wrappers exist specifically because this class of integration bug is so common.
 
@@ -182,7 +182,7 @@ Unchecked External Calls is ranked **SC06 in the OWASP Smart Contract Top 10 (20
 Rather than cite precise loss figures (which vary by source and incident), the defensible picture is:
 
 - Missing return-value checks on `send`/`call` and unsafe ERC-20 handling are among the **most frequently reported low-to-high severity issues** in Solidity audits.
-- Automated analysers (Slither's `unchecked-lowlevel`/`unchecked-send`, MythX, and the Solidity compiler's own "return value ignored" warning) flag this class routinely—evidence of how common it is.
+- Automated analysers (Slither's `unchecked-lowlevel`/`unchecked-send`, MythX, and the Solidity compiler's own "return value ignored" warning) flag this class routinely-evidence of how common it is.
 - Severity ranges from **funds permanently stuck** (silent withdrawal failure) up to **direct value theft** (phantom deposits from non-standard tokens).
 
 Note: exact loss totals differ between reports and years. Treat any single figure as illustrative; the durable takeaway is that unchecked calls are common, easy to introduce, and can either strand or steal funds.
@@ -207,7 +207,7 @@ Note: exact loss totals differ between reports and years. Treat any single figur
 
 ### Myth 5: "If the transfer failed, at least nothing bad happened"
 
-**Reality**: When state was already updated (balance zeroed, payment marked complete), a silent failure is worse than a revert—the books now lie, and the value may be unrecoverable.
+**Reality**: When state was already updated (balance zeroed, payment marked complete), a silent failure is worse than a revert-the books now lie, and the value may be unrecoverable.
 
 ### Myth 6: "A successful delegatecall return flag means the returned data is valid"
 
@@ -224,11 +224,11 @@ Note: exact loss totals differ between reports and years. Treat any single figur
 
 ## Key Takeaways
 
-1. **Not every failure reverts**—`send`, `call`, `delegatecall`, and `staticcall` return a boolean you must read.
-2. **The return value is correctness, not optimisation**—always `require` success before treating state as final.
-3. **Tokens are not uniform**—assume non-standard behaviour and use `SafeERC20` for `transfer`/`transferFrom`/`approve`.
-4. **Order and checks together matter**—follow Checks-Effects-Interactions and verify the interaction result.
-5. **Silent failure can be worse than a revert**—it strands funds or mints phantom balances while the books say everything is fine.
+1. **Not every failure reverts**-`send`, `call`, `delegatecall`, and `staticcall` return a boolean you must read.
+2. **The return value is correctness, not optimisation**-always `require` success before treating state as final.
+3. **Tokens are not uniform**-assume non-standard behaviour and use `SafeERC20` for `transfer`/`transferFrom`/`approve`.
+4. **Order and checks together matter**-follow Checks-Effects-Interactions and verify the interaction result.
+5. **Silent failure can be worse than a revert**-it strands funds or mints phantom balances while the books say everything is fine.
 
 ## How to Identify if You're Vulnerable
 

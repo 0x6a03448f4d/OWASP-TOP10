@@ -10,9 +10,9 @@
 
 ## What is Improper Platform Usage?
 
-**Improper Platform Usage** is the top risk in the OWASP Mobile Top 10 (2016). It covers every case where an app *misuses a mobile operating-system feature* or *fails to use a platform-provided security control correctly*. The mobile OS ships a rich set of safety mechanisms—permission models, the Keychain and Keystore, secure IPC, App Transport Security, biometric APIs, WebView sandboxing—and this category is what happens when the app fights, ignores, or misapplies them instead of leaning on them.
+**Improper Platform Usage** is the top risk in the OWASP Mobile Top 10 (2016). It covers every case where an app *misuses a mobile operating-system feature* or *fails to use a platform-provided security control correctly*. The mobile OS ships a rich set of safety mechanisms-permission models, the Keychain and Keystore, secure IPC, App Transport Security, biometric APIs, WebView sandboxing-and this category is what happens when the app fights, ignores, or misapplies them instead of leaning on them.
 
-The distinguishing idea is **direction**. The platform already offers the secure way to do a thing; the app takes a different, weaker path. It stores a secret in `SharedPreferences` instead of the Keystore. It exports an Activity that should have stayed private. It disables App Transport Security to make a cleartext call work. It gates a screen with a biometric callback that returns a boolean instead of unlocking a real cryptographic key. Each of these is not an exotic bug—it is the platform's guardrail being bypassed by the developer's own configuration or code.
+The distinguishing idea is **direction**. The platform already offers the secure way to do a thing; the app takes a different, weaker path. It stores a secret in `SharedPreferences` instead of the Keystore. It exports an Activity that should have stayed private. It disables App Transport Security to make a cleartext call work. It gates a screen with a biometric callback that returns a boolean instead of unlocking a real cryptographic key. Each of these is not an exotic bug-it is the platform's guardrail being bypassed by the developer's own configuration or code.
 
 ### Core Concept
 
@@ -40,7 +40,7 @@ Improper Platform Usage:
 
 Mobile concentrates several conditions that make platform misuse especially damaging:
 
-- The device is **physically in the user's (or attacker's) hands**. Lost, stolen, and second-hand phones mean local storage and backups are a real, routine threat model—not a theoretical one.
+- The device is **physically in the user's (or attacker's) hands**. Lost, stolen, and second-hand phones mean local storage and backups are a real, routine threat model-not a theoretical one.
 - Many devices are **rooted or jailbroken**, or run malware sharing the same device. On-device attackers can read world-readable files, call exported components, and inspect memory.
 - The **platform is the security boundary**. Unlike a server you fully control, a mobile app runs inside an OS sandbox whose controls only protect you if you opt into them correctly.
 - Apps are **shipped as binaries to millions of devices**. A misconfiguration in the manifest or `Info.plist` is copied to every install and cannot be quietly hot-fixed at the edge.
@@ -49,11 +49,11 @@ Mobile concentrates several conditions that make platform misuse especially dama
 
 ### Business Impact
 
-- **Credential and Token Theft**: Secrets in `SharedPreferences`/`UserDefaults`, in plist files, or in cloud backups are recoverable from a lost, stolen, or backed-up device—handing over sessions and API keys.
+- **Credential and Token Theft**: Secrets in `SharedPreferences`/`UserDefaults`, in plist files, or in cloud backups are recoverable from a lost, stolen, or backed-up device-handing over sessions and API keys.
 - **Account Takeover via IPC**: An exported component or unprotected Intent lets a malicious app on the same device invoke privileged actions, bypass a login screen, or redirect an authenticated flow.
 - **Data Interception**: Disabling App Transport Security or allowing cleartext traffic exposes traffic to interception on hostile Wi-Fi.
 - **Regulatory and Contractual Fallout**: Health, financial, and personal data leaked through platform misuse triggers GDPR, HIPAA, and PCI-DSS obligations, fines, and app-store rejection.
-- **Reputation and Store Standing**: Apple and Google actively reject or remove apps that misuse permissions, weaken ATS without justification, or leak data—so the flaw is also a distribution risk.
+- **Reputation and Store Standing**: Apple and Google actively reject or remove apps that misuse permissions, weaken ATS without justification, or leak data-so the flaw is also a distribution risk.
 
 ### Technical Impact
 
@@ -104,12 +104,12 @@ KeyGenParameterSpec.Builder(...)               // isStrongBoxBacked not requeste
     .setUserAuthenticationRequired(false)      // key usable with no unlock
 ```
 
-**Risk**: The secret is stored in the right place but with the wrong policy—overly permissive accessibility, no hardware backing, or no requirement that the device be unlocked—so it survives conditions it should not.
+**Risk**: The secret is stored in the right place but with the wrong policy-overly permissive accessibility, no hardware backing, or no requirement that the device be unlocked-so it survives conditions it should not.
 
 #### 4. Biometric Authentication Without Cryptographic Binding
 
 ```kotlin
-// The gate is only a boolean callback — nothing is unlocked
+// The gate is only a boolean callback - nothing is unlocked
 BiometricPrompt(activity, executor, object : AuthenticationCallback() {
     override fun onAuthenticationSucceeded(result: AuthenticationResult) {
         showSecrets()   // no CryptoObject; a hook forcing 'succeeded' wins
@@ -167,7 +167,7 @@ webView.loadUrl(untrustedUrl)                      // attacker content + bridge
 - A second, malicious app on the same device launched the internal screen directly, skipping the authentication step, or triggered a privileged action.
 - Intent-redirection ("confused deputy") variants let the malicious app reach otherwise-protected internal components through the vulnerable app's privileges.
 
-**Root Cause**: Relying on default export behaviour and forwarding untrusted Intents—using IPC without the platform's protection mechanisms. Android 12+ now forces an explicit `exported` value specifically because of this pattern.
+**Root Cause**: Relying on default export behaviour and forwarding untrusted Intents-using IPC without the platform's protection mechanisms. Android 12+ now forces an explicit `exported` value specifically because of this pattern.
 
 ### Case Study 2: Secrets in Insecure Local Storage and Backups (incident class)
 
@@ -176,7 +176,7 @@ webView.loadUrl(untrustedUrl)                      // attacker content + bridge
 - Android manifests left `allowBackup="true"` (the historical default), so those files were extractable via `adb backup`; iOS items used Keychain accessibility that kept them in backups.
 
 **Impact**:
-- Researchers and analysts repeatedly recovered credentials from device images, from unencrypted backups, and from the file system on rooted/jailbroken devices—no network attack required.
+- Researchers and analysts repeatedly recovered credentials from device images, from unencrypted backups, and from the file system on rooted/jailbroken devices-no network attack required.
 
 **Root Cause**: Using general-purpose preference stores for secrets and leaving backup flags at permissive defaults, instead of the Keystore/Keychain with a backup-excluding policy.
 
@@ -188,15 +188,15 @@ webView.loadUrl(untrustedUrl)                      // attacker content + bridge
 **Impact**:
 - On rooted/jailbroken devices, instrumentation frameworks hooked the callback (or the `evaluatePolicy` result) to force "authenticated," exposing the protected data with no biometric ever presented.
 
-**Root Cause**: Treating biometrics as a UI decision rather than as a key-unlock operation—ignoring the platform's `CryptoObject`/keychain-bound design that makes the result tamper-resistant.
+**Root Cause**: Treating biometrics as a UI decision rather than as a key-unlock operation-ignoring the platform's `CryptoObject`/keychain-bound design that makes the result tamper-resistant.
 
 ## Prevalence and Statistics
 
-Improper Platform Usage sits at **M1** in the OWASP Mobile Top 10 (2016) because it is both the broadest and one of the most frequently observed mobile categories. It is an umbrella that touches permissions, IPC, storage, transport, biometrics, and WebViews—so some form of it appears in the majority of mobile assessments.
+Improper Platform Usage sits at **M1** in the OWASP Mobile Top 10 (2016) because it is both the broadest and one of the most frequently observed mobile categories. It is an umbrella that touches permissions, IPC, storage, transport, biometrics, and WebViews-so some form of it appears in the majority of mobile assessments.
 
 Rather than cite precise breach counts (which vary by source), the defensible picture is:
 
-- Platform misuse is characterised as **highly prevalent and easily detectable**—static analysis of the manifest/`Info.plist` and a quick storage inspection surface it routinely.
+- Platform misuse is characterised as **highly prevalent and easily detectable**-static analysis of the manifest/`Info.plist` and a quick storage inspection surface it routinely.
 - The most commonly observed sub-issues are **insecure local storage of secrets, exported/unprotected components, disabled transport security, and biometric checks with no cryptographic binding**.
 - The impact is rated **moderate to severe**: from local data disclosure up to authentication bypass and cross-app privilege escalation.
 
@@ -218,7 +218,7 @@ Rather than cite precise breach counts (which vary by source), the defensible pi
 
 ### Myth 4: "We had to disable ATS to talk to our backend"
 
-**Reality**: Global `NSAllowsArbitraryLoads` weakens every connection. If a single legacy endpoint truly needs an exception, scope it with a per-domain ATS exception—never turn the platform default off app-wide.
+**Reality**: Global `NSAllowsArbitraryLoads` weakens every connection. If a single legacy endpoint truly needs an exception, scope it with a per-domain ATS exception-never turn the platform default off app-wide.
 
 ### Myth 5: "UserDefaults / SharedPreferences is basically local, so it's fine"
 
@@ -235,17 +235,17 @@ Rather than cite precise breach counts (which vary by source), the defensible pi
 | **Root cause** | Misusing / ignoring a platform control | Sensitive data persisted unsafely | Data in transit unprotected |
 | **Where it lives** | Manifest/plist, IPC, Keystore/Keychain, WebView, biometric code | Files, DBs, caches, logs | TLS setup, pinning, cleartext |
 | **Typical fix** | Use the platform control correctly | Encrypt / don't store | Enforce TLS, validate certs |
-| **Overlap** | Umbrella—often the cause behind M2/M3 | Storage-specific slice | Transport-specific slice |
+| **Overlap** | Umbrella-often the cause behind M2/M3 | Storage-specific slice | Transport-specific slice |
 
 M1 is deliberately broad: an insecure-storage or insecure-communication finding is frequently *also* an improper-platform-usage finding, because the underlying mistake was declining the platform's correct mechanism.
 
 ## Key Takeaways
 
-1. **Lean on the platform, don't fight it**—the OS ships permissions, secure storage, secure IPC, ATS, and biometric binding so you don't have to reinvent them.
-2. **The device is a hostile environment**—design for lost, stolen, rooted, and backed-up phones, not just the happy path.
-3. **Secrets go in the Keystore/Keychain** with correct accessibility and hardware backing—never in preferences, plists, or backups.
+1. **Lean on the platform, don't fight it**-the OS ships permissions, secure storage, secure IPC, ATS, and biometric binding so you don't have to reinvent them.
+2. **The device is a hostile environment**-design for lost, stolen, rooted, and backed-up phones, not just the happy path.
+3. **Secrets go in the Keystore/Keychain** with correct accessibility and hardware backing-never in preferences, plists, or backups.
 4. **Don't export what doesn't need exporting**, and protect required cross-app IPC with signature-level permissions.
-5. **Bind biometrics to a key**—a boolean callback is not authentication.
+5. **Bind biometrics to a key**-a boolean callback is not authentication.
 
 ## How to Identify if You're Vulnerable
 

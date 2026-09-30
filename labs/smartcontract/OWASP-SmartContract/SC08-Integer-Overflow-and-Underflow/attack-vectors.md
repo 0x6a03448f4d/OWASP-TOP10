@@ -9,9 +9,9 @@
 
 ## Understanding Overflow/Underflow Attack Vectors
 
-**&#9888;&#65039; EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in contracts you own or are authorised to test.
+**&#9888;&#65039; EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in contracts you own or are authorised to test.
 
-Overflow and underflow are not exploited with clever payloads—they are exploited with **extreme numbers**. The attacker reads the source (or bytecode) for an arithmetic operation that lacks protection, then supplies an input at the very edge of the integer range so the result wraps. Because the maths is deterministic and public, once a wrapping operation is found the exploit is a single, reproducible transaction.
+Overflow and underflow are not exploited with clever payloads-they are exploited with **extreme numbers**. The attacker reads the source (or bytecode) for an arithmetic operation that lacks protection, then supplies an input at the very edge of the integer range so the result wraps. Because the maths is deterministic and public, once a wrapping operation is found the exploit is a single, reproducible transaction.
 
 The attacker's goal in this category is usually one of:
 
@@ -73,7 +73,7 @@ function batchTransfer(address[] memory to, uint256 amount) public {
 }
 ```
 
-**Payoff**: tokens minted far beyond supply from a single call—the historical *batchOverflow* pattern.
+**Payoff**: tokens minted far beyond supply from a single call-the historical *batchOverflow* pattern.
 
 ### 3. Supply / Cap Overflow (limit bypass)
 
@@ -107,7 +107,7 @@ function deposit(uint256 amount) public {
 }
 ```
 
-**Payoff**: accounting decouples from reality—an attacker can deposit a huge amount recorded as tiny, or manipulate IDs/timestamps that were downcast.
+**Payoff**: accounting decouples from reality-an attacker can deposit a huge amount recorded as tiny, or manipulate IDs/timestamps that were downcast.
 
 ### 5. unchecked Block on Attacker Input
 
@@ -149,7 +149,7 @@ uint256 reward = stake * rate / PRECISION;
 // 0.8+ reverts (a DoS if the code assumed it would fit).
 ```
 
-**Payoff**: either a wrong (tiny or huge) payout, or an unexpected revert that locks the function—depending on compiler version.
+**Payoff**: either a wrong (tiny or huge) payout, or an unexpected revert that locks the function-depending on compiler version.
 
 ### 8. Underflow to Bypass a Time or Count Guard
 
@@ -188,11 +188,11 @@ unchecked { } wraps an internal counter to 0
 
 ## Key Takeaways
 
-1. **Overflow is exploited with extremes, not payloads**—the attacker feeds values at the edge of the integer range.
-2. **Underflow mints, overflow bypasses**—subtracting past zero creates value; overflowing a total defeats a cap.
-3. **The unprotected surface is specific**—pre-0.8 code, `unchecked` blocks, casts, and assembly are where wraps happen on modern compilers.
-4. **Casts are a silent attack vector**—downcasting truncates in every version, decoupling accounting from reality.
-5. **Small wraps chain**—a truncation plus a reward calculation plus an underflowing withdrawal equals a drained pool.
+1. **Overflow is exploited with extremes, not payloads**-the attacker feeds values at the edge of the integer range.
+2. **Underflow mints, overflow bypasses**-subtracting past zero creates value; overflowing a total defeats a cap.
+3. **The unprotected surface is specific**-pre-0.8 code, `unchecked` blocks, casts, and assembly are where wraps happen on modern compilers.
+4. **Casts are a silent attack vector**-downcasting truncates in every version, decoupling accounting from reality.
+5. **Small wraps chain**-a truncation plus a reward calculation plus an underflowing withdrawal equals a drained pool.
 
 ## Next Steps
 

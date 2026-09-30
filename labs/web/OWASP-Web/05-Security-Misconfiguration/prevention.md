@@ -21,7 +21,7 @@
 
 Because misconfiguration spans every layer and reappears with every deployment, there is no single control that fixes it. The goal is a **hardened baseline that is applied identically and automatically everywhere**, then continuously verified. Two principles govern everything below:
 
-- **Secure by default, then explicitly relax**: start from a locked-down configuration and open only what a feature genuinely needs—never the reverse.
+- **Secure by default, then explicitly relax**: start from a locked-down configuration and open only what a feature genuinely needs-never the reverse.
 - **Codify, don't hand-tune**: a server configured by hand drifts and cannot be reproduced. Configuration belongs in version-controlled scripts, images, and infrastructure-as-code so every environment is provably identical.
 
 ## 1. A Repeatable Hardened Baseline
@@ -49,7 +49,7 @@ $ docker run --rm -v "$PWD:/project" \
 $ inspec exec cis-nginx-baseline         # assert CIS controls pass
 ```
 
-**Why it works**: an image or IaC template that already passed the benchmark cannot be deployed "half-hardened," and the same artifact runs in dev, staging, and production—eliminating environment drift.
+**Why it works**: an image or IaC template that already passed the benchmark cannot be deployed "half-hardened," and the same artifact runs in dev, staging, and production-eliminating environment drift.
 
 ## 2. Minimal Platform: Remove What You Don't Use
 
@@ -77,7 +77,7 @@ Use minimal base images (`-alpine`, `-slim`, distroless), install no build tools
 No default account, key, or sample credential should survive into production.
 
 - Reset or delete every default account (`admin/admin`, database superusers, appliance logins) before exposure.
-- Generate secrets at deploy time from a secrets manager (Vault, AWS Secrets Manager, cloud KMS)—never hard-code them or bake them into images.
+- Generate secrets at deploy time from a secrets manager (Vault, AWS Secrets Manager, cloud KMS)-never hard-code them or bake them into images.
 - Rotate framework secret keys, and require them to be supplied by the environment rather than defaulting to a shipped value.
 
 ```python
@@ -116,7 +116,7 @@ Provide custom `404`/`500` pages so the server's default (which leaks version/fr
 
 ## 5. Security Headers on Every Response
 
-Set protective headers centrally—at the reverse proxy or via middleware—so they apply to *every* response, including errors and redirects.
+Set protective headers centrally-at the reverse proxy or via middleware-so they apply to *every* response, including errors and redirects.
 
 ```nginx
 # Nginx: /etc/nginx/snippets/security-headers.conf (included in every server block)
@@ -141,7 +141,7 @@ app.use(helmet({
 }));
 ```
 
-The `always` flag on Nginx `add_header` is essential—without it, headers are dropped on error responses, reopening the gap exactly when an attacker is probing.
+The `always` flag on Nginx `add_header` is essential-without it, headers are dropped on error responses, reopening the gap exactly when an attacker is probing.
 
 ## 6. Disable Directory Listing and Protect Artifacts
 
@@ -228,7 +228,7 @@ Design so that a single misconfiguration cannot expose everything. Segmentation 
 - Place databases, caches, and internal services on private networks unreachable from the internet; expose only the web tier.
 - Use security groups / firewalls / network policies to allow only required flows between tiers.
 - Run each service with the least privilege it needs (non-root containers, scoped IAM roles, read-only file systems).
-- Keep management planes (admin consoles, metrics, debug tooling) on a separate, authenticated, network-restricted path—never on the public interface.
+- Keep management planes (admin consoles, metrics, debug tooling) on a separate, authenticated, network-restricted path-never on the public interface.
 
 ## 10. Patch Management
 
@@ -253,7 +253,7 @@ $ aws accessanalyzer ...  # flags resources shared outside the account
 ```
 
 - Default all storage to private; grant access through scoped, time-limited signed URLs or IAM roles.
-- Apply least-privilege IAM—no wildcard `Action: "*"` / `Resource: "*"` policies.
+- Apply least-privilege IAM-no wildcard `Action: "*"` / `Resource: "*"` policies.
 - Enable posture management (CSPM) so a bucket flipped public is caught automatically.
 
 ## 12. Automated Configuration Verification
@@ -294,11 +294,11 @@ $ zap-baseline.py -t https://app.example.com
 
 ## Key Takeaways
 
-1. **Start hardened, then relax deliberately**—secure defaults beat trying to lock down an open system later.
+1. **Start hardened, then relax deliberately**-secure defaults beat trying to lock down an open system later.
 2. **Codify configuration** so every environment is identical and drift is impossible to introduce silently.
 3. **Set security controls centrally** (headers, errors, CORS) so no response slips through unprotected.
-4. **Treat XXE as configuration**—disable DTDs and external entities everywhere XML is parsed.
-5. **Verify continuously**—a baseline you do not test will drift back to insecure.
+4. **Treat XXE as configuration**-disable DTDs and external entities everywhere XML is parsed.
+5. **Verify continuously**-a baseline you do not test will drift back to insecure.
 
 ## Next Steps
 

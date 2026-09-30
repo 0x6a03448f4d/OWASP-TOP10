@@ -4,7 +4,7 @@
 
 Preventing DoS is about **never letting one participant's failure become everyone's failure**, and **never letting a cost grow without a bound**:
 
-1. Prefer **pull** over **push** payments—each user withdraws their own funds.
+1. Prefer **pull** over **push** payments-each user withdraws their own funds.
 2. Bound every loop; never iterate over user-controlled, unbounded data.
 3. Isolate external calls so one failure cannot revert the whole batch.
 4. Avoid hard dependencies on contracts that can break; design recovery paths.
@@ -22,7 +22,7 @@ Preventing DoS is about **never letting one participant's failure become everyon
 The single most important defense. Instead of the contract pushing funds to many recipients, record what each user is owed and let them withdraw it themselves. One user's failure is isolated to that user.
 
 ```
-// SECURE: pull pattern — per-user accounting, each user withdraws independently
+// SECURE: pull pattern - per-user accounting, each user withdraws independently
 mapping(address => uint256) public pendingWithdrawals;
 
 function allocate(address user, uint256 amount) internal {
@@ -45,14 +45,14 @@ If `msg.sender` is a poison contract that rejects ETH, only *their* withdrawal f
 Never write a critical function whose gas cost grows with the number of users. Replace batch loops with pull payments, mappings, or explicit pagination.
 
 ```
-// VULNERABLE: cost grows with participants — eventually unexecutable
+// VULNERABLE: cost grows with participants - eventually unexecutable
 function payAll() external {
     for (uint i = 0; i < participants.length; i++) {
         payable(participants[i]).transfer(share);
     }
 }
 
-// SECURE option A: pull — no loop at all, O(1) per user
+// SECURE option A: pull - no loop at all, O(1) per user
 function claim() external {
     uint256 amt = owed[msg.sender];
     owed[msg.sender] = 0;
@@ -120,7 +120,7 @@ function claimRefund() external {
 }
 ```
 
-Now a poison previous bidder cannot block new bids—their refund simply waits for them to pull it.
+Now a poison previous bidder cannot block new bids-their refund simply waits for them to pull it.
 
 ## 5. Avoid Hard Dependencies on External Contracts
 
@@ -244,11 +244,11 @@ contract RevertOnReceive { receive() external payable { revert(); } }
 
 ## Key Takeaways
 
-1. **Pull, don't push** — per-user withdrawals isolate every failure to the failing user.
-2. **Bound every loop** — nothing critical should scale with unbounded, user-controlled data.
-3. **Never let one failure revert the batch** — credit failed recipients and keep going.
-4. **Design for recovery** — swappable dependencies, multisig ownership, two-step transfer, timelocks.
-5. **Distrust the raw balance** — use internal accounting and `>=` checks, never `==` on `address(this).balance`.
+1. **Pull, don't push** - per-user withdrawals isolate every failure to the failing user.
+2. **Bound every loop** - nothing critical should scale with unbounded, user-controlled data.
+3. **Never let one failure revert the batch** - credit failed recipients and keep going.
+4. **Design for recovery** - swappable dependencies, multisig ownership, two-step transfer, timelocks.
+5. **Distrust the raw balance** - use internal accounting and `>=` checks, never `==` on `address(this).balance`.
 
 ## Next Steps
 

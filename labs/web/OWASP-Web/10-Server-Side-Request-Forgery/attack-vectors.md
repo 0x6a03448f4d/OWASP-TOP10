@@ -1,4 +1,4 @@
-# SSRF — Attack Vectors
+# SSRF - Attack Vectors
 
 ## Table of Contents
 
@@ -140,7 +140,7 @@ http://expected-host.com@169.254.169.254/
 http://169.254.169.254#@expected-host.com/
 ```
 
-The durable defense is not to enumerate these — it is to **resolve the host and check the resulting IP** against reserved ranges (covered in Prevention).
+The durable defense is not to enumerate these - it is to **resolve the host and check the resulting IP** against reserved ranges (covered in Prevention).
 
 ## 7. DNS Rebinding (TOCTOU)
 
@@ -158,7 +158,7 @@ attacker.example.  A  169.254.169.254 # internal IP -> used for the actual fetch
 #  3. Connection goes to the metadata endpoint. Validation bypassed.
 ```
 
-Defense: resolve once, pin that exact IP, validate it, and connect to the pinned IP (not the name) — so the check and the use reference the same address.
+Defense: resolve once, pin that exact IP, validate it, and connect to the pinned IP (not the name) - so the check and the use reference the same address.
 
 ## 8. Redirect-Chain Bypasses
 
@@ -263,7 +263,7 @@ http://attacker.example\@expected.com/         # backslash confuses some parsers
 http://EXPECTED.com/  http://expected.com./  http://expected%2ecom/
 ```
 
-Defense: parse the URL properly, compare the **exact host** against an allowlist, and validate the resolved IP — never use substring matching.
+Defense: parse the URL properly, compare the **exact host** against an allowlist, and validate the resolved IP - never use substring matching.
 
 ## Attacker Methodology Summary
 

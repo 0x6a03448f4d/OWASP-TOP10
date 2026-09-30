@@ -15,7 +15,7 @@ Preventing overflow and underflow is less about a single trick and more about **
 - **Safe by default**: rely on Solidity &ge; 0.8 checked arithmetic rather than hand-written guards.
 - **Prove, don't assume**: every place that turns checks off (`unchecked`, casts, assembly) needs an argument for why it cannot wrap.
 - **Bound the inputs**: if values cannot reach the extremes, the arithmetic cannot reach the edge.
-- **Fail closed**: a revert on overflow is the desired behaviour—never silently continue with a wrapped value.
+- **Fail closed**: a revert on overflow is the desired behaviour-never silently continue with a wrapped value.
 
 ## 1. Use Solidity &ge; 0.8.0 (Checked Arithmetic by Default)
 
@@ -190,7 +190,7 @@ Make &ldquo;is this arithmetic protected, and can it reach the edge?&rdquo; an e
 
 | Situation | Default arithmetic | What to do |
 | --- | --- | --- |
-| Solidity &ge; 0.8, plain `+ - *` | Reverts on wrap | Safe—keep the pragma current |
+| Solidity &ge; 0.8, plain `+ - *` | Reverts on wrap | Safe-keep the pragma current |
 | Solidity &ge; 0.8, `unchecked { }` | Wraps | Prove it can't overflow, or remove |
 | Any version, downcast | Truncates silently | Range-check or `SafeCast` |
 | Any version, inline assembly | No checks | Add manual overflow checks |
@@ -198,11 +198,11 @@ Make &ldquo;is this arithmetic protected, and can it reach the edge?&rdquo; an e
 
 ## Key Takeaways
 
-1. **Upgrade first** — Solidity &ge; 0.8 checked arithmetic removes the classic overflow from default code.
-2. **SafeMath for legacy** — wrap every add/sub/mul in pre-0.8 contracts you cannot upgrade.
-3. **Treat unchecked, casts, and assembly as proof obligations** — these are the only places wraps still happen on 0.8+.
-4. **Bound inputs and order operations** — if values can't reach the edge, the math can't wrap; use `mulDiv` for large products.
-5. **Fuzz the extremes** — boundary tests and Foundry/Echidna invariants catch what unit tests miss.
+1. **Upgrade first** - Solidity &ge; 0.8 checked arithmetic removes the classic overflow from default code.
+2. **SafeMath for legacy** - wrap every add/sub/mul in pre-0.8 contracts you cannot upgrade.
+3. **Treat unchecked, casts, and assembly as proof obligations** - these are the only places wraps still happen on 0.8+.
+4. **Bound inputs and order operations** - if values can't reach the edge, the math can't wrap; use `mulDiv` for large products.
+5. **Fuzz the extremes** - boundary tests and Foundry/Echidna invariants catch what unit tests miss.
 
 ## Next Steps
 

@@ -11,9 +11,9 @@
 
 ## What is a Data Poisoning Attack?
 
-A **Data Poisoning Attack** (ML02 in the OWASP Machine Learning Security Top 10) corrupts the **training data** of a model so that the model that comes out the other end is degraded, biased, or secretly backdoored. The attacker does not touch the deployed model directly—they touch the ingredients it learns from. Because a model is a compressed summary of its training set, whoever influences that set influences the model's behaviour forever after.
+A **Data Poisoning Attack** (ML02 in the OWASP Machine Learning Security Top 10) corrupts the **training data** of a model so that the model that comes out the other end is degraded, biased, or secretly backdoored. The attacker does not touch the deployed model directly-they touch the ingredients it learns from. Because a model is a compressed summary of its training set, whoever influences that set influences the model's behaviour forever after.
 
-The defining property of poisoning is **timing**: it happens *before or during training*, not at inference. This is what separates it from ML01 (Input Manipulation / evasion), where an already-trained model is fooled by a crafted input at run time. In poisoning, the malicious effect is *baked into the weights*. You can hand the finished model to a defender, let them inspect every input at inference, and the backdoor still fires—because the vulnerability is in what the model learned, not in what it is currently being shown.
+The defining property of poisoning is **timing**: it happens *before or during training*, not at inference. This is what separates it from ML01 (Input Manipulation / evasion), where an already-trained model is fooled by a crafted input at run time. In poisoning, the malicious effect is *baked into the weights*. You can hand the finished model to a defender, let them inspect every input at inference, and the backdoor still fires-because the vulnerability is in what the model learned, not in what it is currently being shown.
 
 > Evasion (ML01) asks *"can I fool this trained model with a weird input?"* Poisoning (ML02) asks *"can I decide, in advance, how this model will behave by controlling what it learns from?"* The second is more durable and often harder to detect, because the corrupted behaviour looks like the model simply doing its job.
 
@@ -37,16 +37,16 @@ Model trained on poisoned data:
 
 Machine-learning pipelines concentrate several conditions that make poisoning uniquely dangerous:
 
-- Models are **data-hungry**, so teams pull training data from wherever they can get volume—public web scrapes, crowdsourced labels, user feedback, third-party datasets—precisely the places an attacker can reach.
+- Models are **data-hungry**, so teams pull training data from wherever they can get volume-public web scrapes, crowdsourced labels, user feedback, third-party datasets-precisely the places an attacker can reach.
 - The corrupted effect is **persistent**: once trained in, it survives export, quantisation, fine-tuning, and deployment, and travels with the model to every downstream user.
 - Poisoning can be **surgical**: a backdoor can leave accuracy on ordinary inputs completely untouched, so standard validation metrics look perfect while the model is compromised.
-- It **scales down**: research on both classic classifiers and web-scale corpora shows that controlling even a *small fraction* of the training set—sometimes a fraction of one percent—can be enough to implant a reliable backdoor.
+- It **scales down**: research on both classic classifiers and web-scale corpora shows that controlling even a *small fraction* of the training set-sometimes a fraction of one percent-can be enough to implant a reliable backdoor.
 
 ## Why Does This Matter?
 
 ### Business Impact
 - **Silent Degradation**: Availability poisoning erodes accuracy across the board, so a fraud, spam, or safety model quietly stops working and losses accrue before anyone notices a "model problem."
-- **Targeted Fraud**: Integrity poisoning makes the model misclassify one attacker-chosen thing—their transactions pass as legitimate, their malware passes as benign—while everything else looks normal.
+- **Targeted Fraud**: Integrity poisoning makes the model misclassify one attacker-chosen thing-their transactions pass as legitimate, their malware passes as benign-while everything else looks normal.
 - **Backdoored Products**: A trojaned model shipped to customers becomes a supply-chain liability: the vendor is distributing an asset that betrays its users on a secret cue.
 - **Reputational and Safety Harm**: Feedback-poisoned systems can be steered into producing toxic, offensive, or unsafe output in public, causing brand damage and, in safety-critical domains, physical risk.
 - **Regulatory Exposure**: Poisoning that injects bias or unsafe behaviour can breach emerging AI-governance and sector rules that demand data lineage and model integrity evidence.
@@ -105,7 +105,7 @@ Clean-label poisoning    -> poisoned samples have CORRECT-looking labels
 ## Types of Data Poisoning
 
 ### 1. Availability Poisoning (Accuracy Degradation)
-The goal is to make the model *worse overall*—a denial-of-service on quality. The attacker injects noisy, mislabelled, or out-of-distribution samples to raise the general error rate. It is the loudest form (metrics fall) but also the cheapest, and it is devastating in continual-learning systems that keep absorbing new data.
+The goal is to make the model *worse overall*-a denial-of-service on quality. The attacker injects noisy, mislabelled, or out-of-distribution samples to raise the general error rate. It is the loudest form (metrics fall) but also the cheapest, and it is devastating in continual-learning systems that keep absorbing new data.
 
 ### 2. Integrity / Targeted Poisoning
 The goal is a *specific* wrong behaviour: cause the model to misclassify a chosen instance or class while leaving everything else intact. Because aggregate accuracy barely moves, it evades metric-based monitoring. A fraud model nudged to pass one merchant, or a malware classifier taught that one family is benign, are integrity attacks.
@@ -117,10 +117,10 @@ The canonical poisoning result, introduced in the research literature as **BadNe
 The simplest attack on labels: take real samples and assign them wrong labels (spam labelled "ham", fraudulent labelled "legitimate"). Cheap to execute against crowdsourced or feedback pipelines, and effective at both availability and targeted goals depending on which labels are flipped.
 
 ### 5. Clean-Label Poisoning
-The most subtle. The poisoned samples carry *correct-looking* labels—a human auditor would agree with them—yet they are crafted (often with small feature perturbations) so that training on them still implants the desired misclassification or backdoor. Because the labels are "right," label-auditing and simple sanitisation do not catch it.
+The most subtle. The poisoned samples carry *correct-looking* labels-a human auditor would agree with them-yet they are crafted (often with small feature perturbations) so that training on them still implants the desired misclassification or backdoor. Because the labels are "right," label-auditing and simple sanitisation do not catch it.
 
 ### 6. Poisoning Crowdsourced, Scraped, and Feedback Data
-Not a distinct technique but the *delivery mechanism* for the above at scale. Systems that learn from the open web, from paid annotators, or from live user interactions expose an attacker-writable surface. **Web-scale poisoning** research has shown that because large datasets index content by URL, an attacker who controls or acquires even a modest number of those URLs (for example, by buying expired domains) can inject chosen content into the next crawl—poisoning a corpus without ever breaching the dataset maintainer.
+Not a distinct technique but the *delivery mechanism* for the above at scale. Systems that learn from the open web, from paid annotators, or from live user interactions expose an attacker-writable surface. **Web-scale poisoning** research has shown that because large datasets index content by URL, an attacker who controls or acquires even a modest number of those URLs (for example, by buying expired domains) can inject chosen content into the next crawl-poisoning a corpus without ever breaching the dataset maintainer.
 
 ## Real-World Impact
 
@@ -134,9 +134,9 @@ Not a distinct technique but the *delivery mechanism* for the above at scale. Sy
 
 ### Class 2: Backdoor / Trojan Research (BadNets and successors)
 
-**Mechanism**: Academic work demonstrated that inserting trigger-stamped, relabelled samples into a training set produces models with hidden backdoors that keep normal accuracy but flip to an attacker's target class whenever the trigger appears—including in transfer-learning settings where the backdoor survives fine-tuning.
+**Mechanism**: Academic work demonstrated that inserting trigger-stamped, relabelled samples into a training set produces models with hidden backdoors that keep normal accuracy but flip to an attacker's target class whenever the trigger appears-including in transfer-learning settings where the backdoor survives fine-tuning.
 
-**Lesson**: Standard accuracy metrics do not detect backdoors. Models—especially pre-trained ones pulled from third parties—must be explicitly tested for trigger behaviour before deployment, and their training data provenance must be established.
+**Lesson**: Standard accuracy metrics do not detect backdoors. Models-especially pre-trained ones pulled from third parties-must be explicitly tested for trigger behaviour before deployment, and their training data provenance must be established.
 
 ### Class 3: Web-Scale Poisoning Research
 
@@ -148,9 +148,9 @@ Not a distinct technique but the *delivery mechanism* for the above at scale. Sy
 
 Rather than cite precise counts (which differ between sources), the defensible picture is:
 
-- Poisoning is rated **plausible and high-impact** wherever training data is sourced from outside a trust boundary—which today is most non-trivial ML systems.
+- Poisoning is rated **plausible and high-impact** wherever training data is sourced from outside a trust boundary-which today is most non-trivial ML systems.
 - **Availability** poisoning is comparatively easy to *detect* (accuracy falls) but easy to *execute*; **backdoor and clean-label** poisoning are hard to detect and are the primary concern for high-value models.
-- Research consistently shows that the **poison fraction needed is small**, and that effectiveness does not require breaching the model owner—only reaching the data.
+- Research consistently shows that the **poison fraction needed is small**, and that effectiveness does not require breaching the model owner-only reaching the data.
 - Detectability depends entirely on the defence: without provenance, anomaly detection, and explicit backdoor testing, targeted and backdoor poisoning are effectively **invisible to normal evaluation**.
 
 > Note: exact poison-rate thresholds and success rates differ between papers, datasets, and model types. Treat any single figure as illustrative; the durable takeaway is that a small, well-placed fraction of corrupted training data can have an outsized, persistent effect.
@@ -167,7 +167,7 @@ Rather than cite precise counts (which differ between sources), the defensible p
 **Reality**: Clean-label poisoning uses *correct-looking* labels by design, and backdoors can be embedded in features rather than labels. Label auditing is necessary but not sufficient.
 
 ### Myth 4: "Data poisoning is the same as prompt injection / LLM poisoning"
-**Reality**: They are related but distinct. ML02 is about corrupting *training data* so the resulting model is degraded or backdoored. LLM-specific training-data poisoning is tracked separately (OWASP LLM Top 10, LLM04), and run-time prompt injection is a different, inference-time issue. The *defence principles*—provenance, vetting, validation—carry over, but the threat is not interchangeable.
+**Reality**: They are related but distinct. ML02 is about corrupting *training data* so the resulting model is degraded or backdoored. LLM-specific training-data poisoning is tracked separately (OWASP LLM Top 10, LLM04), and run-time prompt injection is a different, inference-time issue. The *defence principles*-provenance, vetting, validation-carry over, but the threat is not interchangeable.
 
 ### Myth 5: "A backdoor will be obvious in the weights"
 **Reality**: Backdoors are distributed across parameters and do not announce themselves. Detecting them requires targeted techniques (trigger reverse-engineering, activation clustering, spectral analysis), not eyeballing.
@@ -186,11 +186,11 @@ Rather than cite precise counts (which differ between sources), the defensible p
 
 ## Key Takeaways
 
-1. **Poisoning attacks the ingredients, not the dish**—corrupt the training data and the malicious behaviour is baked into every copy of the model.
-2. **Provenance is the root defence**—you cannot secure a model whose training data's origin and integrity you cannot vouch for.
-3. **Backdoors survive normal evaluation**—clean accuracy is preserved by design, so explicit trigger testing is mandatory before deployment.
+1. **Poisoning attacks the ingredients, not the dish**-corrupt the training data and the malicious behaviour is baked into every copy of the model.
+2. **Provenance is the root defence**-you cannot secure a model whose training data's origin and integrity you cannot vouch for.
+3. **Backdoors survive normal evaluation**-clean accuracy is preserved by design, so explicit trigger testing is mandatory before deployment.
 4. **A small poison fraction is enough** for targeted and backdoor goals; attackers optimise placement, not volume.
-5. **Feedback, scrape, and crowdsource pipelines are attacker-writable**—treat any externally sourced training data as potentially adversarial.
+5. **Feedback, scrape, and crowdsource pipelines are attacker-writable**-treat any externally sourced training data as potentially adversarial.
 
 ## How to Identify if You're Vulnerable
 
@@ -200,7 +200,7 @@ Ask these questions about your ML pipeline:
 - [ ] Is any part of your training data drawn from web scrapes, crowdsourcing, or user feedback without vetting?
 - [ ] Do you run statistical anomaly / outlier detection on data before training?
 - [ ] Are labels cross-checked, and do you have any defence against clean-label poisoning?
-- [ ] Do you test models for backdoor/trigger behaviour before deployment—not just measure accuracy?
+- [ ] Do you test models for backdoor/trigger behaviour before deployment-not just measure accuracy?
 - [ ] Are datasets versioned and signed so tampering is detectable and rollbacks are possible?
 - [ ] For continual/online learning, is there a gate (moderation, rate limits, validation) before new data updates the model?
 - [ ] Do you use pre-trained or third-party models/datasets whose training data you cannot verify?

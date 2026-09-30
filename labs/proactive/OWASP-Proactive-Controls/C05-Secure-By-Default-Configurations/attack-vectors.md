@@ -8,9 +8,9 @@
 
 ## Threats Addressed by This Control
 
-> **Framing** — this page lists the concrete failure modes that Secure By Default Configurations exists to prevent. Each item is an insecure default that, left in place, becomes an exploitable weakness. For every one, the fix is the same shape: make the safe setting the default.
+> **Framing** - this page lists the concrete failure modes that Secure By Default Configurations exists to prevent. Each item is an insecure default that, left in place, becomes an exploitable weakness. For every one, the fix is the same shape: make the safe setting the default.
 
-Insecure defaults are rarely exploited through a clever payload. They are exploited through **observation and enumeration**: an attacker sends ordinary requests, reads what the system volunteers, and walks through whichever door was left open by a default nobody changed. Because these are settings rather than logic bugs, they are cheap to find at scale—automated scanners fingerprint thousands of hosts an hour looking for exactly these defaults.
+Insecure defaults are rarely exploited through a clever payload. They are exploited through **observation and enumeration**: an attacker sends ordinary requests, reads what the system volunteers, and walks through whichever door was left open by a default nobody changed. Because these are settings rather than logic bugs, they are cheap to find at scale-automated scanners fingerprint thousands of hosts an hour looking for exactly these defaults.
 
 ## How Insecure Defaults Become Incidents
 
@@ -30,7 +30,7 @@ Insecure defaults are rarely exploited through a clever payload. They are exploi
 
 ### 1. Verbose Errors and Debug Mode in Production
 
-Frameworks default to a developer-friendly mode that returns stack traces—or an interactive debugger—to the client.
+Frameworks default to a developer-friendly mode that returns stack traces-or an interactive debugger-to the client.
 
 ```
 # Insecure default
@@ -218,7 +218,7 @@ current, patched base pinned by digest; automated update PRs
 
 ## Chaining Insecure Defaults
 
-Individually minor defaults combine into full compromise—which is why the control targets the defaults themselves, not just the worst one:
+Individually minor defaults combine into full compromise-which is why the control targets the defaults themselves, not just the worst one:
 
 ```
 Version banner (nginx/PHP)        -> pick a matching known exploit
@@ -231,11 +231,11 @@ Datastore bound to 0.0.0.0        -> connect directly with those creds
 
 ## Key Takeaways
 
-1. **Every threat here is a default left unchanged**—the fix is to change the default, once, for everyone.
-2. **Insecure defaults are found by observation**—scanners harvest banners, default paths, and default creds at scale.
-3. **Management planes and storage are the highest-value defaults**—close and privatize them by default.
-4. **Defaults chain**—a banner plus an exposed file plus an open datastore is a breach with no code exploit.
-5. **Drift reopens closed doors**—automated validation keeps secure defaults secure.
+1. **Every threat here is a default left unchanged**-the fix is to change the default, once, for everyone.
+2. **Insecure defaults are found by observation**-scanners harvest banners, default paths, and default creds at scale.
+3. **Management planes and storage are the highest-value defaults**-close and privatize them by default.
+4. **Defaults chain**-a banner plus an exposed file plus an open datastore is a breach with no code exploit.
+5. **Drift reopens closed doors**-automated validation keeps secure defaults secure.
 
 ## Next Steps
 

@@ -1,4 +1,4 @@
-# A9:2025 — Logging & Alerting Failures: Overview
+# A9:2025 - Logging & Alerting Failures: Overview
 
 ## Table of Contents
 
@@ -14,9 +14,9 @@
 
 ## What Are Logging & Alerting Failures?
 
-**Logging & Alerting Failures** occur when an application does not record security-relevant events with enough detail, does not turn those records into *timely, actionable alerts*, or does not act on the alerts it produces. Unlike most categories in the Top 10, this is not a flaw an attacker exploits to break in — it is a **detection and response gap** that lets every other attack proceed unnoticed, for longer, and with a worse outcome.
+**Logging & Alerting Failures** occur when an application does not record security-relevant events with enough detail, does not turn those records into *timely, actionable alerts*, or does not act on the alerts it produces. Unlike most categories in the Top 10, this is not a flaw an attacker exploits to break in - it is a **detection and response gap** that lets every other attack proceed unnoticed, for longer, and with a worse outcome.
 
-The failure is defined by silence. When authentication abuse, access-control violations, input-validation failures, or high-value actions leave no usable trace — or leave a trace that no one is watching — the organisation loses the ability to answer the three questions every incident turns on: *Did something happen? What exactly happened? And can we prove it afterwards?*
+The failure is defined by silence. When authentication abuse, access-control violations, input-validation failures, or high-value actions leave no usable trace - or leave a trace that no one is watching - the organisation loses the ability to answer the three questions every incident turns on: *Did something happen? What exactly happened? And can we prove it afterwards?*
 
 At its core, this category covers:
 
@@ -52,29 +52,29 @@ This category has a long lineage in the OWASP Top 10, and the name change matter
 |---------|------|----------|
 | A10:2017 | Insufficient Logging & Monitoring | Are events being recorded and watched at all? |
 | A09:2021 | Security Logging & Monitoring Failures | Broadened to the quality and coverage of logging and monitoring. |
-| **A9:2025** | **Logging & Alerting Failures** | **Producing logs is not enough — the loop must close with timely, actionable alerting and response.** |
+| **A9:2025** | **Logging & Alerting Failures** | **Producing logs is not enough - the loop must close with timely, actionable alerting and response.** |
 
-The 2025 rename to **"Alerting"** is deliberate. Across a decade of breach retrospectives, the recurring lesson was not that organisations lacked logs — it was that the signal existed and *nobody acted on it in time*. Teams had checked the "we have logging" box while the parts that actually shorten dwell time — detection logic, tuned alerts, ownership, and an escalation workflow — were missing. The 2025 edition reframes the category around that gap: the deliverable is not a log file, it is a **timely response**.
+The 2025 rename to **"Alerting"** is deliberate. Across a decade of breach retrospectives, the recurring lesson was not that organisations lacked logs - it was that the signal existed and *nobody acted on it in time*. Teams had checked the "we have logging" box while the parts that actually shorten dwell time - detection logic, tuned alerts, ownership, and an escalation workflow - were missing. The 2025 edition reframes the category around that gap: the deliverable is not a log file, it is a **timely response**.
 
 > **Continuity note.** A9:2025 is a direct evolution of A09:2021 (Security Logging & Monitoring Failures) and A10:2017 (Insufficient Logging & Monitoring). Everything true of the earlier categories still applies; 2025 adds explicit weight to alerting quality, alert fatigue, correlation, and the response workflow.
 
 ## Why Does This Matter?
 
-This category is unusual because it rarely causes an incident — it *amplifies* every other one. A cross-site scripting bug that is detected and contained in an hour is a footnote; the same bug undetected for six months is a headline. The cost of a breach scales with **dwell time** (how long the attacker operates before discovery), and dwell time is exactly what logging and alerting exist to compress.
+This category is unusual because it rarely causes an incident - it *amplifies* every other one. A cross-site scripting bug that is detected and contained in an hour is a footnote; the same bug undetected for six months is a headline. The cost of a breach scales with **dwell time** (how long the attacker operates before discovery), and dwell time is exactly what logging and alerting exist to compress.
 
 ### Business Impact
 
 - **Extended dwell time**: attackers linger for weeks or months, escalating from a foothold to full compromise, because nothing raised an alarm.
-- **Discovery by outsiders**: breaches surface via a customer, a security researcher, a ransom note, or law enforcement — never a good look, and always after the damage is done.
-- **Regulatory exposure**: frameworks such as GDPR, PCI-DSS, HIPAA, SOC 2, and ISO 27001 mandate audit logging, monitoring, and breach notification within fixed windows (GDPR requires notification within 72 hours of *becoming aware* — which you cannot do if you never become aware).
-- **Failed forensics**: with no reliable logs, incident responders cannot scope the breach, so the organisation must assume worst case — maximising notification costs and reputational harm.
+- **Discovery by outsiders**: breaches surface via a customer, a security researcher, a ransom note, or law enforcement - never a good look, and always after the damage is done.
+- **Regulatory exposure**: frameworks such as GDPR, PCI-DSS, HIPAA, SOC 2, and ISO 27001 mandate audit logging, monitoring, and breach notification within fixed windows (GDPR requires notification within 72 hours of *becoming aware* - which you cannot do if you never become aware).
+- **Failed forensics**: with no reliable logs, incident responders cannot scope the breach, so the organisation must assume worst case - maximising notification costs and reputational harm.
 - **No accountability**: without an audit trail, insider abuse and privilege misuse are undetectable and unprovable.
 
 ### Technical Impact
 
 - **Undetected reconnaissance and enumeration**: username enumeration, forced browsing, and parameter tampering generate no alert, so attackers map the app freely.
 - **Slow credential stuffing succeeds**: an attacker throttling below your (missing) threshold walks into accounts one at a time.
-- **Privilege abuse is invisible**: access-control failures that *are* blocked still signal an attack in progress — if you log them. If you do not, you lose your earliest warning.
+- **Privilege abuse is invisible**: access-control failures that *are* blocked still signal an attack in progress - if you log them. If you do not, you lose your earliest warning.
 - **Exfiltration goes unseen**: bulk data access that should trip a volume alert instead looks like ordinary traffic.
 - **Evidence is destroyed or forged**: mutable, on-host logs let an attacker wipe their tracks or inject fabricated entries to mislead responders (log injection).
 
@@ -82,7 +82,7 @@ This category is unusual because it rarely causes an incident — it *amplifies*
 
 ### What Counts as a Security-Relevant Event?
 
-The single most common root cause in this category is not knowing *what* to log. A useful baseline — drawn from the OWASP logging guidance — is to log every event where a security decision is made or a high-value action occurs:
+The single most common root cause in this category is not knowing *what* to log. A useful baseline - drawn from the OWASP logging guidance - is to log every event where a security decision is made or a high-value action occurs:
 
 | Category | Events to log |
 |----------|---------------|
@@ -113,7 +113,7 @@ An event is only actionable if it carries enough context to answer *who, what, w
 }
 ```
 
-Contrast that with the failure mode: `logger.info("login failed")` — no user, no IP, no count, no correlation ID, unparseable, and therefore un-alertable.
+Contrast that with the failure mode: `logger.info("login failed")` - no user, no IP, no count, no correlation ID, unparseable, and therefore un-alertable.
 
 ### The Detection Pipeline
 
@@ -143,7 +143,7 @@ A failure at *any* stage neutralises the whole chain. Perfect logs that stay on 
 The 2025 emphasis on alerting recognises that turning events into good alerts is its own engineering problem:
 
 - **Signal vs. noise**: an alert that fires on every failed login trains responders to ignore it. Alert on *patterns* (many failures across many accounts from one IP), not on every atomic event.
-- **Correlation**: the attack story lives across events — one failed login is noise, 500 failures against 500 usernames from one ASN in ten minutes is credential stuffing.
+- **Correlation**: the attack story lives across events - one failed login is noise, 500 failures against 500 usernames from one ASN in ten minutes is credential stuffing.
 - **Thresholds and tuning**: too tight and you drown; too loose and you miss the slow attacker. Thresholds need baselines and continuous tuning.
 - **Ownership and escalation**: every alert needs an owner, a runbook, and an escalation path, or it is just noise with extra steps.
 
@@ -153,13 +153,13 @@ The examples below are well-documented **classes** of incident. Exact figures va
 
 ### Case Class 1: The Ignored Alert (large-retailer breach, 2013)
 
-**Pattern**: Malware planted on point-of-sale systems *did* trigger alerts from the organisation's threat-detection tooling. The alerts were received — and not acted upon in time. Data exfiltration continued for weeks.
+**Pattern**: Malware planted on point-of-sale systems *did* trigger alerts from the organisation's threat-detection tooling. The alerts were received - and not acted upon in time. Data exfiltration continued for weeks.
 
 **Lesson**: An alert nobody triages is indistinguishable from no alert at all. Detection without a staffed, trusted response workflow is a Logging & Alerting Failure even when the logging works.
 
 ### Case Class 2: The Blind Spot in Monitoring (credit-bureau breach, 2017)
 
-**Pattern**: Attackers exploited an unpatched component and then operated for an extended period. Public post-incident reporting attributed part of the long dwell time to a network-inspection device that was not inspecting traffic because a certificate used for decryption had expired — so the monitoring that should have seen the exfiltration was effectively switched off.
+**Pattern**: Attackers exploited an unpatched component and then operated for an extended period. Public post-incident reporting attributed part of the long dwell time to a network-inspection device that was not inspecting traffic because a certificate used for decryption had expired - so the monitoring that should have seen the exfiltration was effectively switched off.
 
 **Lesson**: Monitoring silently failing is worse than no monitoring, because it also removes the pressure to look elsewhere. The health of the logging/monitoring pipeline is itself a security-relevant event that must be alerted on.
 
@@ -177,12 +177,12 @@ The examples below are well-documented **classes** of incident. Exact figures va
 
 ## Prevalence and Detectability
 
-OWASP has historically noted that this category is **challenging to test for** and under-represented in automated scan data — precisely because the flaw is an *absence*. A scanner can see a missing security header; it cannot easily see that an alert failed to fire or that nobody was watching. Much of the supporting evidence comes from breach retrospectives and survey data rather than vulnerability scans.
+OWASP has historically noted that this category is **challenging to test for** and under-represented in automated scan data - precisely because the flaw is an *absence*. A scanner can see a missing security header; it cannot easily see that an alert failed to fire or that nobody was watching. Much of the supporting evidence comes from breach retrospectives and survey data rather than vulnerability scans.
 
 Rather than cite precise percentages (which differ across reports and years), the defensible picture is:
 
 - The category is **widespread**: insufficient security logging and weak alerting are found in a large fraction of assessments.
-- It is **hard to detect automatically**, so it is frequently discovered only during — or after — a real incident.
+- It is **hard to detect automatically**, so it is frequently discovered only during - or after - a real incident.
 - Its **impact is multiplicative**: it rarely rates "critical" alone but sharply worsens the severity of everything else.
 
 ### Relevant CWE Mappings
@@ -197,11 +197,11 @@ Rather than cite precise percentages (which differ across reports and years), th
 
 ### Myth 1: "We have logging, so we're covered."
 
-**Reality**: Producing logs is the easy 20%. If nothing correlates them, no alert fires, and no one is on call, you have a write-only archive you will read *after* the breach — never during. The 2025 edition exists to correct exactly this false sense of security.
+**Reality**: Producing logs is the easy 20%. If nothing correlates them, no alert fires, and no one is on call, you have a write-only archive you will read *after* the breach - never during. The 2025 edition exists to correct exactly this false sense of security.
 
 ### Myth 2: "More logs mean more security."
 
-**Reality**: Volume without structure and tuning causes **alert fatigue** — the state where responders mute or ignore alerts because most are noise. A firehose of unstructured logs actively *hides* the one event that mattered. Signal quality beats volume.
+**Reality**: Volume without structure and tuning causes **alert fatigue** - the state where responders mute or ignore alerts because most are noise. A firehose of unstructured logs actively *hides* the one event that mattered. Signal quality beats volume.
 
 ### Myth 3: "The cloud/platform logs everything for us."
 
@@ -209,7 +209,7 @@ Rather than cite precise percentages (which differ across reports and years), th
 
 ### Myth 4: "Logs are just for debugging."
 
-**Reality**: Debug logs and security event logs serve different audiences and needs — the latter must be structured, tamper-resistant, retained, and monitored. Treating security logging as a byproduct of debug output is how critical events get filtered out in production.
+**Reality**: Debug logs and security event logs serve different audiences and needs - the latter must be structured, tamper-resistant, retained, and monitored. Treating security logging as a byproduct of debug output is how critical events get filtered out in production.
 
 ### Myth 5: "Log everything, we'll sort it out later."
 
@@ -217,7 +217,7 @@ Rather than cite precise percentages (which differ across reports and years), th
 
 ### Myth 6: "Our logs are trustworthy evidence."
 
-**Reality**: If logs live on the compromised host, are writable by the app user, lack integrity protection, or have unsynchronised clocks, an attacker can delete or forge them — and a court or auditor can dismiss them. Trustworthy logs are centralised, append-only, integrity-checked, and time-synchronised.
+**Reality**: If logs live on the compromised host, are writable by the app user, lack integrity protection, or have unsynchronised clocks, an attacker can delete or forge them - and a court or auditor can dismiss them. Trustworthy logs are centralised, append-only, integrity-checked, and time-synchronised.
 
 ## Self-Assessment
 
@@ -239,10 +239,10 @@ Ask these questions about your application. Several "no" or "not sure" answers i
 ## Next Steps
 
 - **[Attack Vectors](./attack-vectors.html)**: How attackers operate *undetected*, and how they forge or delete logs.
-- **[Prevention](./prevention.html)**: Layered defenses — structured logging, correlation, tuned alerting, tamper resistance, and response.
+- **[Prevention](./prevention.html)**: Layered defenses - structured logging, correlation, tuned alerting, tamper resistance, and response.
 - **[Examples](./examples.html)**: Vulnerable vs. secure security logging in Python and Node.js, plus SIEM detection rules.
 - **[Hands-On Lab](./lab/logging-alerting-failures/)**: Practice detecting an attack that a broken logging setup would miss.
 
 ---
 
-*Part of the [OWASP Top 10 Educational Repository](/learn/web) — A9:2025, Logging & Alerting Failures.*
+*Part of the [OWASP Top 10 Educational Repository](/learn/web) - A9:2025, Logging & Alerting Failures.*

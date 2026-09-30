@@ -9,13 +9,13 @@
 
 ## Understanding the Attack Surface
 
-> **⚠ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in RAG systems you own or are authorised to test.
+> **⚠ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in RAG systems you own or are authorised to test.
 
 Attacks on the vector and embedding layer split into three intents, mapped to the three stages of a RAG pipeline:
 
-- **Read what you shouldn't** — abuse retrieval to pull other tenants' or other users' chunks (a query-time authorization failure), or reconstruct source text from stored vectors (a storage failure).
-- **Write what shouldn't be trusted** — poison the corpus during ingestion so malicious documents get retrieved later, altering answers or delivering an injection payload.
-- **Steer what gets retrieved** — craft content that outranks legitimate context for a target query, creating a context conflict the model resolves in the attacker's favour.
+- **Read what you shouldn't** - abuse retrieval to pull other tenants' or other users' chunks (a query-time authorization failure), or reconstruct source text from stored vectors (a storage failure).
+- **Write what shouldn't be trusted** - poison the corpus during ingestion so malicious documents get retrieved later, altering answers or delivering an injection payload.
+- **Steer what gets retrieved** - craft content that outranks legitimate context for a target query, creating a context conflict the model resolves in the attacker's favour.
 
 None of these require breaking the model's weights. They exploit the fact that similarity search is not authorization, that retrieved text is trusted by default, and that stored vectors are not opaque.
 
@@ -54,7 +54,7 @@ context = "\n".join(m["metadata"]["text"] for m in results["matches"])
 # the most semantically similar, and nothing filtered by tenant_id.
 ```
 
-**Payoff**: An attacker on tenant A phrases questions to surface tenant B's documents—pricing, customer lists, contracts—straight through the assistant, no database breach required.
+**Payoff**: An attacker on tenant A phrases questions to surface tenant B's documents-pricing, customer lists, contracts-straight through the assistant, no database breach required.
 
 ### 2. Over-Permissioned Retrieval Within One Tenant
 
@@ -84,11 +84,11 @@ Later, a support agent asks the assistant about refunds. The poisoned
 chunk is highly relevant, ranks top-k, and the model repeats it as fact.
 ```
 
-**Payoff**: Integrity compromise—the assistant emits attacker-authored "facts" that users trust because they appear grounded in the knowledge base.
+**Payoff**: Integrity compromise-the assistant emits attacker-authored "facts" that users trust because they appear grounded in the knowledge base.
 
 ### 4. Indirect Prompt Injection Through Retrieved Documents
 
-The poisoned document does not just contain false facts—it contains *instructions*. When retrieved into context, the model may follow them (this is the LLM08→LLM01 bridge).
+The poisoned document does not just contain false facts-it contains *instructions*. When retrieved into context, the model may follow them (this is the LLM08→LLM01 bridge).
 
 ```
 Hidden inside an ingested PDF / HTML (white text, footnote, or metadata):
@@ -100,7 +100,7 @@ On retrieval, this text enters the prompt as "context" and the model
 may treat it as an instruction rather than as data.
 ```
 
-**Payoff**: Data exfiltration, answer hijacking, tool misuse—anything prompt injection enables, now delivered through the trusted knowledge base.
+**Payoff**: Data exfiltration, answer hijacking, tool misuse-anything prompt injection enables, now delivered through the trusted knowledge base.
 
 ### 5. Retrieval Manipulation / Ranking Attacks (Context Conflict)
 
@@ -133,7 +133,7 @@ recovered = invert(stolen_vectors, model)     # vec2text-style reconstruction
 
 ### 7. Embedded Secrets Becoming Searchable
 
-Documents ingested wholesale often contain credentials—a config snippet in a wiki, an API key pasted into a ticket. Once embedded, they are retrievable by anyone who can query.
+Documents ingested wholesale often contain credentials-a config snippet in a wiki, an API key pasted into a ticket. Once embedded, they are retrievable by anyone who can query.
 
 ```
 Q: "What is the connection string for the billing database?"
@@ -154,7 +154,7 @@ Attacker SEO-poisons or plants a page for a niche query the target asks.
 The malicious page is fetched, embedded on the fly, and injected as context.
 ```
 
-**Payoff**: No need to touch the internal corpus at all—the trust boundary is the open internet.
+**Payoff**: No need to touch the internal corpus at all-the trust boundary is the open internet.
 
 ### 9. Namespace / Partition Confusion
 
@@ -184,7 +184,7 @@ allowed = [r for r in results if r.meta["acl"] == user.id][:5]
 
 ### 11. Membership Inference on the Corpus
 
-By observing whether a query returns a strongly matching chunk, an attacker infers that a specific document exists in the index—itself sensitive (e.g., "is this person a customer/patient?").
+By observing whether a query returns a strongly matching chunk, an attacker infers that a specific document exists in the index-itself sensitive (e.g., "is this person a customer/patient?").
 
 ```
 Q: "Do you have a contract with ACME Corp dated 2025-03?"
@@ -206,7 +206,7 @@ The index itself is reachable without authentication, uses an over-broad API key
 - Analytics pipelines copying embeddings into an unsecured warehouse
 ```
 
-**Payoff**: Direct read/write of the entire index—enabling bulk exfiltration, inversion, and poisoning in one shot.
+**Payoff**: Direct read/write of the entire index-enabling bulk exfiltration, inversion, and poisoning in one shot.
 
 ## Chaining the Weaknesses
 
@@ -235,7 +235,7 @@ Known embedding model               -> invert vectors to text (pattern 6)
 1. **Similarity is not authorization.** Every retrieval must be scoped to the asking user/tenant at the datastore, never after the fact.
 2. **Retrieved text is untrusted input.** A poisoned chunk can carry instructions; treat context as data, delimit it, and never let it become commands.
 3. **Ingestion is an attack surface.** If an attacker can write to any indexed source, they can poison answers without ever breaching the database.
-4. **Vectors are reversible enough to matter.** A leaked index can be inverted back toward source text—protect it like the raw documents.
+4. **Vectors are reversible enough to matter.** A leaked index can be inverted back toward source text-protect it like the raw documents.
 5. **Small gaps chain.** Loose ingestion + trusting context + a broad retriever equals attacker-controlled exfiltration with no model exploit at all.
 
 ## Next Steps

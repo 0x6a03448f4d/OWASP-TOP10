@@ -10,11 +10,11 @@
 
 ## Understanding Flash Loan Attack Vectors
 
-**&#9888; EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in protocols you own or are authorised to test.
+**&#9888; EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in protocols you own or are authorised to test.
 
 A flash-loan attack is not a single payload; it is a **composition**. The attacker writes one contract whose function borrows a large sum, calls into the victim while some shared state is distorted, and repays the loan before the transaction ends. Every step happens inside one atomic transaction, so the attacker can simulate the whole thing off-chain first and only submit it when it is guaranteed profitable. An attempt that would lose money simply reverts, costing only gas.
 
-The attacker's goal is always to find a mechanism in the victim that **trusts a value they can move with borrowed capital**—a spot price, a live token balance, a share ratio, or a callback—and then move it far enough to extract value.
+The attacker's goal is always to find a mechanism in the victim that **trusts a value they can move with borrowed capital**-a spot price, a live token balance, a share ratio, or a callback-and then move it far enough to extract value.
 
 ### Core Attack Flow
 
@@ -58,7 +58,7 @@ function getPrice() public view returns (uint) {
 
 ### 2. Governance Vote Manipulation
 
-Voting power is read from the caller's current balance. The attacker flash-borrows governance tokens, votes, and repays—renting a controlling stake for one transaction.
+Voting power is read from the caller's current balance. The attacker flash-borrows governance tokens, votes, and repays-renting a controlling stake for one transaction.
 
 ```
 // Vulnerable tally:
@@ -71,7 +71,7 @@ uint weight = govToken.balanceOf(msg.sender);   // live balance = flash-inflatab
 //   flashRepay(gov, quorumAmount + fee);
 ```
 
-**Payoff**: an attacker with no lasting stake passes or blocks a proposal—draining a treasury or authorising a malicious parameter change.
+**Payoff**: an attacker with no lasting stake passes or blocks a proposal-draining a treasury or authorising a malicious parameter change.
 
 ### 3. Draining via Logic / Accounting Errors
 
@@ -89,7 +89,7 @@ A vault computes share price or rewards with a formula that rounds or scales in 
 
 ### 4. Liquidation Manipulation
 
-By moving the reference price, the attacker forces a healthy position underwater and liquidates it for the bonus—or shields their own position from a fair liquidation.
+By moving the reference price, the attacker forces a healthy position underwater and liquidates it for the bonus-or shields their own position from a fair liquidation.
 
 ```
 // Move the oracle price down with a flash swap, then:
@@ -126,7 +126,7 @@ A flash loan multiplies the value a reentrancy bug can steal per callback. Each 
 
 ### 7. Arbitrage-Based Value Extraction
 
-Where two venues disagree on price, flash capital captures the entire spread in one shot—sometimes the mechanism that realises a manipulation, sometimes the profit engine bolted onto one of the patterns above.
+Where two venues disagree on price, flash capital captures the entire spread in one shot-sometimes the mechanism that realises a manipulation, sometimes the profit engine bolted onto one of the patterns above.
 
 ```
 // buy cheap on venue A with flash capital, sell dear on venue B, repay loan,
@@ -196,7 +196,7 @@ contract FlashAttacker {
 }
 ```
 
-**Key observation for defenders**: the victim's `borrow()` executed against a price that only existed *inside this transaction*. Nothing in the attacker contract is exotic—the exploit exists entirely because the victim trusted a value the attacker could move with borrowed capital.
+**Key observation for defenders**: the victim's `borrow()` executed against a price that only existed *inside this transaction*. Nothing in the attacker contract is exotic-the exploit exists entirely because the victim trusted a value the attacker could move with borrowed capital.
 
 ## Chaining Weaknesses with Flash Capital
 
@@ -222,11 +222,11 @@ Balance-based voting (no snapshot) -> flash-borrow governance tokens to reach qu
 
 ## Key Takeaways
 
-1. **The loan is the amplifier, not the exploit**—every vector above targets a value the victim trusts and the attacker can move with borrowed capital.
-2. **It is one atomic contract**—borrow, manipulate, extract, repay, all in a callback that reverts if unprofitable.
-3. **Spot prices and live balances are the top targets**—anything read from the current block can be distorted for one transaction.
-4. **Risk-free attempts mean constant probing**—bots simulate these continuously and submit only guaranteed-profitable runs.
-5. **Small weaknesses chain**—an oracle plus a missing circuit breaker, or balance-voting plus no timelock, equals a full drain.
+1. **The loan is the amplifier, not the exploit**-every vector above targets a value the victim trusts and the attacker can move with borrowed capital.
+2. **It is one atomic contract**-borrow, manipulate, extract, repay, all in a callback that reverts if unprofitable.
+3. **Spot prices and live balances are the top targets**-anything read from the current block can be distorted for one transaction.
+4. **Risk-free attempts mean constant probing**-bots simulate these continuously and submit only guaranteed-profitable runs.
+5. **Small weaknesses chain**-an oracle plus a missing circuit breaker, or balance-voting plus no timelock, equals a full drain.
 
 ## Next Steps
 

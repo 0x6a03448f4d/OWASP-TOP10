@@ -10,9 +10,9 @@
 
 ## What is Misconfigured Cluster Components?
 
-**Misconfigured Cluster Components** is the risk that the machinery running Kubernetes itself—the control-plane and node processes—is deployed with insecure settings. Every cluster is held up by a small set of long-running components: the `kube-apiserver`, `etcd`, the `kube-scheduler`, the `kube-controller-manager`, and on every node the `kubelet`, `kube-proxy`, the container runtime, and cluster add-ons such as CoreDNS. Each one exposes flags, ports, certificates, and authorization modes. When those knobs are left at insecure values, an attacker does not need to break your applications—the platform hands them the keys.
+**Misconfigured Cluster Components** is the risk that the machinery running Kubernetes itself-the control-plane and node processes-is deployed with insecure settings. Every cluster is held up by a small set of long-running components: the `kube-apiserver`, `etcd`, the `kube-scheduler`, the `kube-controller-manager`, and on every node the `kubelet`, `kube-proxy`, the container runtime, and cluster add-ons such as CoreDNS. Each one exposes flags, ports, certificates, and authorization modes. When those knobs are left at insecure values, an attacker does not need to break your applications-the platform hands them the keys.
 
-This is K09 in the OWASP Kubernetes Top 10. It is distinct from a single bad pod (that is **K01 — Insecure Workload Configurations**) and from the absence of an admission policy engine (that is **K04 — Lack of Centralized Policy Enforcement**). K09 is about the *components themselves*: an API server that answers anonymous callers, a kubelet that executes commands with no authentication, or an etcd database reachable without a client certificate. These are the foundations. If they are weak, no workload policy above them can save you.
+This is K09 in the OWASP Kubernetes Top 10. It is distinct from a single bad pod (that is **K01 - Insecure Workload Configurations**) and from the absence of an admission policy engine (that is **K04 - Lack of Centralized Policy Enforcement**). K09 is about the *components themselves*: an API server that answers anonymous callers, a kubelet that executes commands with no authentication, or an etcd database reachable without a client certificate. These are the foundations. If they are weak, no workload policy above them can save you.
 
 ### Core Concept
 
@@ -62,19 +62,19 @@ The theme of K09 is **authentication and authorization on the infrastructure its
 
 ## Why Does This Matter?
 
-The control plane is not one more workload—it is the **trust root of the entire cluster**. A single reachable, over-permissive component collapses every other control you have built above it.
+The control plane is not one more workload-it is the **trust root of the entire cluster**. A single reachable, over-permissive component collapses every other control you have built above it.
 
 ### Business Impact
-- **Total cluster takeover**: An unauthenticated API server or kubelet lets an attacker create pods, read every Secret, and run code on every node—there is no higher privilege to escalate to.
+- **Total cluster takeover**: An unauthenticated API server or kubelet lets an attacker create pods, read every Secret, and run code on every node-there is no higher privilege to escalate to.
 - **Mass data exposure**: `etcd` holds every Secret, ConfigMap, and object in the cluster. Reaching it without a client certificate, or without encryption-at-rest, exposes all of it at once.
 - **Cloud account pivot**: Node identities and instance-metadata credentials reachable from a compromised component become a path out of the cluster into the wider cloud account.
 - **Cryptojacking and abuse**: Open control surfaces are routinely hijacked to schedule cryptomining workloads, a pattern seen repeatedly against exposed dashboards and API servers.
-- **Compliance and audit failure**: Disabled audit logging means a breach leaves no forensic record—an independent finding for most regulated environments (PCI-DSS, HIPAA, SOC 2).
+- **Compliance and audit failure**: Disabled audit logging means a breach leaves no forensic record-an independent finding for most regulated environments (PCI-DSS, HIPAA, SOC 2).
 
 ### Technical Impact
 - **Authentication bypass**: `--anonymous-auth=true` gives the built-in `system:anonymous` user a way in; if authorization is also loose, that anonymous user acts.
-- **Authorization bypass**: `--authorization-mode=AlwaysAllow` approves every request that authenticates—RBAC is effectively switched off.
-- **Remote code execution on nodes**: An open kubelet on `10250` exposes `/exec`, `/run`, and `/attach`—direct command execution inside running containers.
+- **Authorization bypass**: `--authorization-mode=AlwaysAllow` approves every request that authenticates-RBAC is effectively switched off.
+- **Remote code execution on nodes**: An open kubelet on `10250` exposes `/exec`, `/run`, and `/attach`-direct command execution inside running containers.
 - **Cluster-state disclosure**: A read-only kubelet port (`10255`) or unauthenticated `etcd` leaks pod specs, environment variables, and Secrets.
 - **Loss of admission control**: Missing admission plugins (`NodeRestriction`, `PodSecurity`) let a compromised node or user do things the cluster should have forbidden.
 - **Man-in-the-middle**: Missing or self-signed certificates and disabled mTLS between components allow interception and impersonation of control-plane traffic.
@@ -121,7 +121,7 @@ An open `10250` with anonymous auth and `AlwaysAllow` is one of the most direct 
 
 ### 3. etcd Misconfiguration
 
-`etcd` is the cluster's database. Everything—objects, ConfigMaps, and Secrets—lives there, and by default Secrets are stored *un-encrypted* (base64 is not encryption). Two failures dominate:
+`etcd` is the cluster's database. Everything-objects, ConfigMaps, and Secrets-lives there, and by default Secrets are stored *un-encrypted* (base64 is not encryption). Two failures dominate:
 
 ```
 # DANGEROUS etcd exposure
@@ -136,13 +136,13 @@ etcdctl --endpoints=http://TARGET:2379 get /registry/secrets/default/db --print-
 # (no EncryptionConfiguration passed to the API server)
 ```
 
-`etcd` should be reachable *only* from the API server, over mutual TLS, on a private interface—and Secrets should be encrypted at rest so a stolen etcd snapshot is not a full breach.
+`etcd` should be reachable *only* from the API server, over mutual TLS, on a private interface-and Secrets should be encrypted at rest so a stolen etcd snapshot is not a full breach.
 
 ### 4. Admission Controller Set
 
 Admission controllers are compiled into the API server and enabled with `--enable-admission-plugins`. Two are security-critical:
 
-- **`NodeRestriction`**: limits each kubelet to modifying only its own node and the pods bound to it—without it, a compromised node can tamper with others.
+- **`NodeRestriction`**: limits each kubelet to modifying only its own node and the pods bound to it-without it, a compromised node can tamper with others.
 - **`PodSecurity`**: the built-in Pod Security Admission that enforces the Pod Security Standards (privileged / baseline / restricted).
 
 Turning these off, or running with an empty admission set, removes guardrails the rest of your security model assumes are present.
@@ -178,11 +178,11 @@ The incidents below are described as **classes of incident** repeatedly observed
 
 ### Case Class 1: Unauthenticated Kubernetes Dashboard / API Leading to Cryptojacking
 
-**Misconfiguration**: A control-plane surface—an administrative dashboard or an API server—was reachable from the internet with authentication effectively disabled (anonymous access or no login).
+**Misconfiguration**: A control-plane surface-an administrative dashboard or an API server-was reachable from the internet with authentication effectively disabled (anonymous access or no login).
 
-**Impact**: Automated actors discovered the open surface, scheduled cryptomining pods, and in several documented cases reached cloud credentials available from within the environment, pivoting beyond the cluster. This class of exposure—an open management plane—is one of the most consistently reported Kubernetes incidents.
+**Impact**: Automated actors discovered the open surface, scheduled cryptomining pods, and in several documented cases reached cloud credentials available from within the environment, pivoting beyond the cluster. This class of exposure-an open management plane-is one of the most consistently reported Kubernetes incidents.
 
-**Root cause**: A control component deployed with no authentication and exposed to a wide network—precisely the K09 failure mode.
+**Root cause**: A control component deployed with no authentication and exposed to a wide network-precisely the K09 failure mode.
 
 ### Case Class 2: Exposed etcd Disclosing Every Secret
 
@@ -190,30 +190,30 @@ The incidents below are described as **classes of incident** repeatedly observed
 
 **Impact**: Anyone reaching the port could dump every key, including all Kubernetes Secrets (database passwords, tokens, TLS keys) stored without encryption-at-rest. One reachable database equals the entire cluster's credentials.
 
-**Root cause**: Missing mTLS on etcd plus missing encryption-at-rest—the datastore treated as if it were on a trusted, private wire when it was not.
+**Root cause**: Missing mTLS on etcd plus missing encryption-at-rest-the datastore treated as if it were on a trusted, private wire when it was not.
 
 ### Case Class 3: Open Kubelet Enabling Node-Level Code Execution
 
 **Misconfiguration**: Kubelets running with anonymous authentication and `AlwaysAllow` authorization, exposing the full API on `10250` (and often the read-only `10255`).
 
-**Impact**: Attackers enumerated pods through the kubelet, then used `/exec` to run commands inside containers—harvesting service-account tokens and mounted Secrets, then using those tokens against the API server to spread. Research tooling has repeatedly demonstrated this exact chain against internet-exposed kubelets.
+**Impact**: Attackers enumerated pods through the kubelet, then used `/exec` to run commands inside containers-harvesting service-account tokens and mounted Secrets, then using those tokens against the API server to spread. Research tooling has repeatedly demonstrated this exact chain against internet-exposed kubelets.
 
-**Root cause**: The node agent's own authentication and authorization left at insecure values, a setting entirely separate from—and often forgotten alongside—the API server's.
+**Root cause**: The node agent's own authentication and authorization left at insecure values, a setting entirely separate from-and often forgotten alongside-the API server's.
 
 ## Prevalence and Detectability
 
 Component misconfiguration is **common on self-managed clusters and highly detectable**. The security community codified exactly what "hardened" means in the **CIS Kubernetes Benchmark**, and the open-source tool **kube-bench** checks a running cluster against it automatically. That means both attackers and defenders can assess a cluster's component posture quickly.
 
 - **Highly detectable**: `kube-bench` (CIS Benchmark), `kubescape`, and Polaris flag insecure component flags in minutes; attackers scan for open `10250`/`10255`/`2379`/`6443` ports at internet scale.
-- **Managed clusters are safer by default**: EKS, GKE, and AKS manage and harden the control plane, closing many API-server/etcd knobs—but node configuration, add-ons, and any self-managed piece still need verification.
-- **Severity is maximal**: because these are the trust root, the impact when they are wrong is cluster-total—RCE on nodes, all Secrets exposed, full takeover.
+- **Managed clusters are safer by default**: EKS, GKE, and AKS manage and harden the control plane, closing many API-server/etcd knobs-but node configuration, add-ons, and any self-managed piece still need verification.
+- **Severity is maximal**: because these are the trust root, the impact when they are wrong is cluster-total-RCE on nodes, all Secrets exposed, full takeover.
 
-> Note: exact figures vary by report and year. The durable takeaway is that component misconfiguration is common on hand-built clusters, mechanically detectable with CIS tooling, and catastrophic when present—which is why continuous benchmarking is the backbone of the defense.
+> Note: exact figures vary by report and year. The durable takeaway is that component misconfiguration is common on hand-built clusters, mechanically detectable with CIS tooling, and catastrophic when present-which is why continuous benchmarking is the backbone of the defense.
 
 ## Common Misunderstandings
 
 ### Myth 1: "We use a managed cluster, so the control plane is not our problem"
-**Reality**: Managed providers harden and run the API server and etcd for you—a real reduction in risk. But you still own the *kubelets*, the node configuration, the add-ons, the admission-plugin choices you can influence, audit-log routing, and every self-managed component. The shared-responsibility line runs through the middle of K09, not around it.
+**Reality**: Managed providers harden and run the API server and etcd for you-a real reduction in risk. But you still own the *kubelets*, the node configuration, the add-ons, the admission-plugin choices you can influence, audit-log routing, and every self-managed component. The shared-responsibility line runs through the middle of K09, not around it.
 
 ### Myth 2: "It is on a private network, so plaintext etcd is fine"
 **Reality**: "Private" networks are routinely reached through SSRF, a compromised pod, a misrouted route, or a flat VPC. etcd holds every Secret in the cluster; it must require mutual TLS and encrypt Secrets at rest regardless of where it sits.
@@ -222,13 +222,13 @@ Component misconfiguration is **common on self-managed clusters and highly detec
 **Reality**: K01 is a bad *pod* (running as root, privileged, hostPath). K09 is a bad *component* (an API server that answers anonymously, a kubelet with no auth). K01 lives in your manifests; K09 lives in the platform's own flags and certificates. Fixing every workload does nothing if the kubelet still executes anonymous commands.
 
 ### Myth 4: "K09 is the same as K04 missing policy enforcement"
-**Reality**: K04 is the absence of an *admission policy engine* (Kyverno, Gatekeeper, PSA) validating workloads. K09 is the insecure configuration of the *components* themselves. They are related—PodSecurity is an admission plugin configured on the API server—but K04 asks "is anything checking my pods?" while K09 asks "is the API server itself locked down?"
+**Reality**: K04 is the absence of an *admission policy engine* (Kyverno, Gatekeeper, PSA) validating workloads. K09 is the insecure configuration of the *components* themselves. They are related-PodSecurity is an admission plugin configured on the API server-but K04 asks "is anything checking my pods?" while K09 asks "is the API server itself locked down?"
 
 ### Myth 5: "The default flags are secure enough"
-**Reality**: Modern Kubernetes ships far safer defaults than it used to—but hand-rolled clusters override those defaults explicitly, and in-place upgrades preserve old insecure flags. "Default" only helps if nothing overrode it, which is exactly what a benchmark scan verifies.
+**Reality**: Modern Kubernetes ships far safer defaults than it used to-but hand-rolled clusters override those defaults explicitly, and in-place upgrades preserve old insecure flags. "Default" only helps if nothing overrode it, which is exactly what a benchmark scan verifies.
 
 ### Myth 6: "Audit logging is a nice-to-have"
-**Reality**: Without an audit policy the API server keeps no record of who did what. When a component misconfiguration is exploited, the audit log is the only source of truth for scope and blast radius—and its absence is itself a compliance finding.
+**Reality**: Without an audit policy the API server keeps no record of who did what. When a component misconfiguration is exploited, the audit log is the only source of truth for scope and blast radius-and its absence is itself a compliance finding.
 
 ## How Misconfigured Components Differ from Related Risks
 
@@ -241,11 +241,11 @@ Component misconfiguration is **common on self-managed clusters and highly detec
 
 ## Key Takeaways
 
-1. **The control plane is the trust root**—a single anonymous or over-permissive component collapses every control above it.
-2. **Authentication and authorization apply to infrastructure too**—the API server, kubelet, and etcd each need real authN/authZ and mTLS.
-3. **etcd is your entire secret store**—require mutual TLS, keep it private, and encrypt Secrets at rest.
-4. **Kubelets are a separate attack surface**—lock down `10250`, disable anonymous auth, and turn off the `10255` read-only port.
-5. **Benchmark continuously**—the CIS Kubernetes Benchmark via kube-bench turns "is this hardened?" into an automated, repeatable check.
+1. **The control plane is the trust root**-a single anonymous or over-permissive component collapses every control above it.
+2. **Authentication and authorization apply to infrastructure too**-the API server, kubelet, and etcd each need real authN/authZ and mTLS.
+3. **etcd is your entire secret store**-require mutual TLS, keep it private, and encrypt Secrets at rest.
+4. **Kubelets are a separate attack surface**-lock down `10250`, disable anonymous auth, and turn off the `10255` read-only port.
+5. **Benchmark continuously**-the CIS Kubernetes Benchmark via kube-bench turns "is this hardened?" into an automated, repeatable check.
 
 ## How to Identify if You're Vulnerable
 

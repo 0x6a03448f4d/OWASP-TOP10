@@ -14,7 +14,7 @@
 
 ## Defense in Depth: The Six Layers
 
-Preventing A9:2021 is not a single control but a pipeline that must work end to end. A gap at any stage reintroduces the vulnerability: events you never capture cannot be shipped; logs you never centralize cannot be alerted on; alerts with no runbook lead nowhere. Build — and test — all six layers.
+Preventing A9:2021 is not a single control but a pipeline that must work end to end. A gap at any stage reintroduces the vulnerability: events you never capture cannot be shipped; logs you never centralize cannot be alerted on; alerts with no runbook lead nowhere. Build - and test - all six layers.
 
 ```
 [1] Capture   ->  [2] Format   ->  [3] Centralize  ->  [4] Integrity
@@ -31,7 +31,7 @@ Preventing A9:2021 is not a single control but a pipeline that must work end to 
 
 ## Layer 1: Capture the Right Events
 
-Log all **authentication, access-control, and input-validation failures**, plus high-value transactions, with enough user context to trace an actor — and never so much that you record a secret. Define a fixed vocabulary of event names so every service speaks the same language.
+Log all **authentication, access-control, and input-validation failures**, plus high-value transactions, with enough user context to trace an actor - and never so much that you record a secret. Define a fixed vocabulary of event names so every service speaks the same language.
 
 ```python
 # Python: a small helper that enforces "what to log"
@@ -93,7 +93,7 @@ log.warn({
 });
 ```
 
-A shared field vocabulary — `event`, `outcome`, `user_id`, `source_ip`, `request_id` — is what turns a pile of lines into a queryable dataset.
+A shared field vocabulary - `event`, `outcome`, `user_id`, `source_ip`, `request_id` - is what turns a pile of lines into a queryable dataset.
 
 ## Layer 3: Centralize and Ship Off-Host
 
@@ -120,7 +120,7 @@ output.logstash:
 #   (or a DaemonSet collector in Kubernetes)
 ```
 
-In cloud-native environments, write structured logs to **stdout/stderr** and let a node-level collector (Fluent Bit/Fluentd DaemonSet) ship them — so evidence outlives ephemeral pods.
+In cloud-native environments, write structured logs to **stdout/stderr** and let a node-level collector (Fluent Bit/Fluentd DaemonSet) ship them - so evidence outlives ephemeral pods.
 
 ## Layer 4: Integrity and Tamper-Resistance
 
@@ -196,7 +196,7 @@ Design principles for effective alerting:
 
 ## Layer 6: Incident Response and Recovery
 
-An alert must land in a defined process, not an inbox. Adopt an incident-response and recovery plan — **NIST SP 800-61** is the canonical reference — so that when detection works, the organisation knows exactly what to do.
+An alert must land in a defined process, not an inbox. Adopt an incident-response and recovery plan - **NIST SP 800-61** is the canonical reference - so that when detection works, the organisation knows exactly what to do.
 
 ```
 NIST SP 800-61 lifecycle (map every alert to this):
@@ -217,7 +217,7 @@ The append-only central logs from Layer 4 are what make containment and the post
 
 ### Prevent Log Injection (Encode Untrusted Data)
 
-Neutralize control characters — especially `CR`/`LF` — in any user-controlled value before it is written, and prefer structured fields (which are escaped by the serializer) over string concatenation.
+Neutralize control characters - especially `CR`/`LF` - in any user-controlled value before it is written, and prefer structured fields (which are escaped by the serializer) over string concatenation.
 
 ```java
 // Java: strip CR/LF so attackers can't forge log lines (CWE-117)
@@ -235,7 +235,7 @@ Maintain a deny-list of fields (password, token, secret, authorization header, P
 
 ### Synchronize Time and Define Retention
 
-Run NTP on every host, log exclusively in **UTC**, and set a retention policy that balances forensic value, cost, and privacy obligations. Unsynchronized clocks make cross-service timelines — the core forensic artifact — untrustworthy.
+Run NTP on every host, log exclusively in **UTC**, and set a retention policy that balances forensic value, cost, and privacy obligations. Unsynchronized clocks make cross-service timelines - the core forensic artifact - untrustworthy.
 
 ## Implementation Checklist
 
@@ -257,7 +257,7 @@ Run NTP on every host, log exclusively in **UTC**, and set a retention policy th
 1. Prevention is a **pipeline**: capture → format → centralize → integrity → alert → respond. Any gap reopens A9.
 2. Capture **security-relevant events with context**, in a **structured** format, and ship them **off-host**.
 3. Make logs **tamper-resistant** and free of **secrets**; encode untrusted input to stop **log injection**.
-4. Logging only counts if it **alerts** — with escalation — and feeds a real **incident-response plan**.
+4. Logging only counts if it **alerts** - with escalation - and feeds a real **incident-response plan**.
 5. **Prove it**: your own authorised scans and pen tests must generate alerts.
 
 ## What's Next?

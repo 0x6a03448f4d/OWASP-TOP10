@@ -2,9 +2,9 @@
 
 ## What is a Transfer Learning Attack?
 
-A **Transfer Learning Attack** targets the way modern machine-learning systems are built: instead of training a model from scratch, teams download a large *pre-trained base model* and fine-tune it on a smaller task-specific dataset. The attack manipulates the **base model**, or the **transfer process itself**, so that malicious behaviour—a hidden backdoor, an injected bias, or an inherited vulnerability—carries forward into the downstream fine-tuned model that the victim ships.
+A **Transfer Learning Attack** targets the way modern machine-learning systems are built: instead of training a model from scratch, teams download a large *pre-trained base model* and fine-tune it on a smaller task-specific dataset. The attack manipulates the **base model**, or the **transfer process itself**, so that malicious behaviour-a hidden backdoor, an injected bias, or an inherited vulnerability-carries forward into the downstream fine-tuned model that the victim ships.
 
-The economics of deep learning make this attractive. Training a foundation vision or language model costs enormous compute, so almost everyone reuses public weights from model hubs, research releases, or vendor checkpoints. That reuse creates a single point of trust: if an attacker can taint one widely-used base model, every organisation that fine-tunes from it inherits the flaw—often without ever inspecting the weights they downloaded.
+The economics of deep learning make this attractive. Training a foundation vision or language model costs enormous compute, so almost everyone reuses public weights from model hubs, research releases, or vendor checkpoints. That reuse creates a single point of trust: if an attacker can taint one widely-used base model, every organisation that fine-tunes from it inherits the flaw-often without ever inspecting the weights they downloaded.
 
 ### Core Concept
 
@@ -24,7 +24,7 @@ The defining property is **survival**: the malicious behaviour is planted in the
 ### Where the Malice Lives
 
 - **Poisoned / backdoored pre-trained model**: A public base model is published or tampered with so it contains a hidden trigger. The victim fine-tunes it; the trigger survives and the downstream model misclassifies any input carrying the trigger pattern.
-- **Latent backdoors**: The backdoor is *dormant* in the base model—it does nothing measurable until transfer to a specific downstream task activates it, making the base model look clean in isolation.
+- **Latent backdoors**: The backdoor is *dormant* in the base model-it does nothing measurable until transfer to a specific downstream task activates it, making the base model look clean in isolation.
 - **Feature-space attacks on frozen layers**: Transfer learning commonly freezes early layers and retrains only a head. If the frozen feature extractor is tainted, the attacker controls the representation the victim builds on top of, and fine-tuning never touches the malicious neurons.
 - **Malicious teacher in knowledge distillation**: A distillation "teacher" model transfers behaviour to a smaller "student." A compromised teacher can distil a backdoor or bias into every student trained from it.
 - **Reverse risk (known base helps the attacker)**: Because the base model is public, an attacker knows the exact architecture and features. That knowledge makes crafting adversarial examples and reconstructing decision boundaries far easier, even when the base was never tampered with.
@@ -33,10 +33,10 @@ The defining property is **survival**: the malicious behaviour is planted in the
 
 ### Business Impact
 
-- **Inherited compromise at scale**: One tainted popular base model can seed backdoors across hundreds of downstream products that all reused it—a supply-chain multiplier.
+- **Inherited compromise at scale**: One tainted popular base model can seed backdoors across hundreds of downstream products that all reused it-a supply-chain multiplier.
 - **Silent, targeted failure**: A backdoored model passes ordinary QA because it behaves perfectly on normal inputs; it only fails on the attacker's trigger, on the attacker's schedule.
 - **Safety-critical misclassification**: In medical imaging, autonomous perception, content moderation, or fraud detection, a trigger-driven misclassification can cause physical, financial, or safety harm.
-- **Trust and reputation**: "We used the official, reputable weights" is not a defence if those weights were never verified—and the reputational damage of shipping a backdoored model is severe.
+- **Trust and reputation**: "We used the official, reputable weights" is not a defence if those weights were never verified-and the reputational damage of shipping a backdoored model is severe.
 - **Regulatory exposure**: Biased or manipulated behaviour inherited from a base model can breach fairness, safety, and sector-specific obligations.
 
 ### Technical Impact
@@ -67,10 +67,10 @@ If the FROZEN body carries a backdoor, fine-tuning never disturbs it.
 The attacker trains the base model so that a specific trigger activates deep, stable features that downstream heads learn to associate with a target class. Because the trigger lives in layers the victim freezes (or barely perturbs), it persists after fine-tuning.
 
 #### 2. Latent Backdoor
-The backdoor targets a class that does not exist in the base model's task—it stays inert and undetectable until the victim's transfer introduces that class, at which point the dormant trigger becomes live.
+The backdoor targets a class that does not exist in the base model's task-it stays inert and undetectable until the victim's transfer introduces that class, at which point the dormant trigger becomes live.
 
 #### 3. Feature-Space / Frozen-Layer Attack
-The attacker corrupts the feature extractor so that trigger-bearing inputs map to a representation the downstream classifier reliably misreads—no access to the victim's training loop required.
+The attacker corrupts the feature extractor so that trigger-bearing inputs map to a representation the downstream classifier reliably misreads-no access to the victim's training loop required.
 
 #### 4. Malicious Teacher (Knowledge Distillation)
 The victim distils a compact student from a public teacher. A poisoned teacher passes its backdoor or bias into the student through the soft labels it emits.
@@ -97,7 +97,7 @@ The victim distils a compact student from a public teacher. A poisoned teacher p
 ### Case Class 2: Latent Backdoors Activated by Transfer (Research)
 **Pattern**: A backdoor is planted so it is dormant in the released base model and becomes active only after the victim transfers the model to a new task that includes the targeted class. In isolation the base model appears clean.
 
-**Lesson**: Testing the base model alone is insufficient—the malicious behaviour may only appear in the downstream model.
+**Lesson**: Testing the base model alone is insufficient-the malicious behaviour may only appear in the downstream model.
 
 ### Case Class 3: Model-Hub Supply-Chain Tampering
 **Pattern**: Public model repositories have surfaced uploads carrying unsafe serialized payloads or weights swapped under trusted-looking names (typosquatting, namespace confusion). Teams that pull "the popular model" without verifying provenance can adopt a tampered artifact.
@@ -146,11 +146,11 @@ Transfer learning is the **default** way applied ML is built today, which makes 
 
 ## Key Takeaways
 
-1. **Reuse concentrates trust**—one tainted base model can backdoor every downstream model built on it.
-2. **Backdoors can survive fine-tuning**—clean data and high accuracy do not prove a model is clean.
-3. **Latent backdoors hide until transfer**—the base model can look clean in isolation and misbehave only downstream.
-4. **Provenance is a security control**—verify source, signature, and lineage of every base model and teacher.
-5. **Test for triggers, not just accuracy**—scan and stress-test both the base and the fine-tuned model for backdoors.
+1. **Reuse concentrates trust**-one tainted base model can backdoor every downstream model built on it.
+2. **Backdoors can survive fine-tuning**-clean data and high accuracy do not prove a model is clean.
+3. **Latent backdoors hide until transfer**-the base model can look clean in isolation and misbehave only downstream.
+4. **Provenance is a security control**-verify source, signature, and lineage of every base model and teacher.
+5. **Test for triggers, not just accuracy**-scan and stress-test both the base and the fine-tuned model for backdoors.
 
 ## How to Identify if You're Vulnerable
 

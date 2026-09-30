@@ -252,7 +252,7 @@
 
 <p>The default answer to any security question that cannot be computed must be "no." Structure security decisions so that the <em>only</em> way to reach the "allow" branch is an explicit, successful positive result.</p>
 
-<pre><code>// Java — FAIL CLOSED: default deny, allow only on explicit success
+<pre><code>// Java - FAIL CLOSED: default deny, allow only on explicit success
 public boolean canAccess(User user, Document doc) {
     try {
         return authzService.check(user, doc);   // true only on success
@@ -262,7 +262,7 @@ public boolean canAccess(User user, Document doc) {
     }
 }</code></pre>
 
-<pre><code># Python — the allow path requires a positive result; everything else denies
+<pre><code># Python - the allow path requires a positive result; everything else denies
 def is_authorized(user, resource) -&gt; bool:
     try:
         decision = authz.check(user, resource)
@@ -279,7 +279,7 @@ def is_authorized(user, resource) -&gt; bool:
 
 <p>Scattered <code>try/catch</code> blocks drift apart and each becomes a chance to leak or to fail open. Funnel errors through <strong>one handler per boundary</strong> so behaviour is uniform and reviewable in a single place.</p>
 
-<pre><code>// Express (Node.js) — one central error handler, mounted last
+<pre><code>// Express (Node.js) - one central error handler, mounted last
 app.get('/api/me', async (req, res, next) =&gt; {
     try {
         res.json(await loadUser(req.userId));
@@ -296,7 +296,7 @@ app.use((err, req, res, next) =&gt; {
        .json({ error: 'Internal server error', errorId });
 });</code></pre>
 
-<pre><code>// Spring Boot (Java) — @ControllerAdvice centralizes every controller's errors
+<pre><code>// Spring Boot (Java) - @ControllerAdvice centralizes every controller's errors
 @ControllerAdvice
 class ApiErrorHandler {
     private static final Logger log = LoggerFactory.getLogger(ApiErrorHandler.class);
@@ -312,7 +312,7 @@ class ApiErrorHandler {
 
 <p>Also register a <strong>last-resort handler</strong> for the truly unexpected, so an uncaught error becomes a clean 500 instead of a crash or a leaked trace:</p>
 
-<pre><code>// Node.js — do not let unhandled rejections silently kill or corrupt state
+<pre><code>// Node.js - do not let unhandled rejections silently kill or corrupt state
 process.on('unhandledRejection', (reason) =&gt; {
     logger.error({ msg: 'unhandled rejection', reason });
     // log, alert, and shut down gracefully if state may be corrupt
@@ -329,7 +329,7 @@ process.on('unhandledRejection', (reason) =&gt; {
 # Stack trace, SQL, hostnames, and secrets go to the log ONLY,
 # keyed by the same errorId.</code></pre>
 
-<pre><code># Python (Flask) — one place decides what the client sees
+<pre><code># Python (Flask) - one place decides what the client sees
 @app.errorhandler(Exception)
 def on_error(e):
     error_id = uuid.uuid4().hex
@@ -342,19 +342,19 @@ def on_error(e):
 
 <p>Every resource acquired must be released on <em>every</em> path, including the exception path. Use the language's guaranteed-cleanup construct rather than manual release.</p>
 
-<pre><code># Python — context managers release even when the body raises
+<pre><code># Python - context managers release even when the body raises
 with pool.connection() as conn:          # released on normal exit AND on error
     with conn.transaction():             # commits on success, ROLLS BACK on error
         conn.execute(query, params)</code></pre>
 
-<pre><code>// Java — try-with-resources closes in reverse order, even on exception
+<pre><code>// Java - try-with-resources closes in reverse order, even on exception
 try (Connection conn = pool.getConnection();
      PreparedStatement ps = conn.prepareStatement(SQL)) {
     ps.setString(1, id);
     return ps.executeQuery();
 }   // conn and ps are closed automatically, success or failure</code></pre>
 
-<pre><code>// Go — defer guarantees release; roll back unless we reach commit
+<pre><code>// Go - defer guarantees release; roll back unless we reach commit
 tx, err := db.Begin()
 if err != nil { return err }
 defer tx.Rollback()                // no-op if Commit already ran
@@ -363,7 +363,7 @@ if _, err := tx.Exec(q, id); err != nil {
 }
 return tx.Commit()</code></pre>
 
-<pre><code>// C++ / RAII — the lock is released when the guard leaves scope, even on throw
+<pre><code>// C++ / RAII - the lock is released when the guard leaves scope, even on throw
 {
     std::lock_guard&lt;std::mutex&gt; guard(mtx);
     doWork();                      // if this throws, guard still unlocks
@@ -375,11 +375,11 @@ return tx.Commit()</code></pre>
 
 <p>Catch <strong>specific</strong> exceptions where you can actually do something about them. A caught exception must be handled, translated, or re-thrown &mdash; never discarded.</p>
 
-<pre><code>// BAD — swallows everything, hides attacks and bugs
+<pre><code>// BAD - swallows everything, hides attacks and bugs
 try { validateSignature(req); }
 catch (Exception e) { /* nothing */ }
 
-// GOOD — specific, logged, and the failure stops the request
+// GOOD - specific, logged, and the failure stops the request
 try {
     validateSignature(req);
 } catch (SignatureException e) {
@@ -398,7 +398,7 @@ try {
 
 <p>Make failures indistinguishable. For authentication, return the <em>same</em> response for every failure reason, and keep the timing uniform.</p>
 
-<pre><code># Python — uniform response AND uniform timing for login
+<pre><code># Python - uniform response AND uniform timing for login
 def login(email, password):
     user = db.find(email)
     # Always run a hash comparison, even when the user is absent,
@@ -409,7 +409,7 @@ def login(email, password):
         return issue_session(user)
     return generic_login_error()      # identical body + status for all failures</code></pre>
 
-<pre><code>// Go — constant-time comparison for tokens/keys, never ==
+<pre><code>// Go - constant-time comparison for tokens/keys, never ==
 import "crypto/subtle"
 valid := subtle.ConstantTimeCompare(provided, expected) == 1</code></pre>
 
@@ -419,13 +419,13 @@ valid := subtle.ConstantTimeCompare(provided, expected) == 1</code></pre>
 
 <p>Bound the <em>shape</em> of input before it reaches parsers and regexes, so exotic inputs cannot exhaust resources or trip overflows.</p>
 
-<pre><code>// Express — cap body size so oversized payloads are rejected, not buffered
+<pre><code>// Express - cap body size so oversized payloads are rejected, not buffered
 app.use(express.json({ limit: '100kb' }));</code></pre>
 
 <pre><code># Reject deeply nested / oversized structured input; guard decompression
 MAX_DEPTH = 32
 MAX_DECOMPRESSED = 10 * 1024 * 1024     # 10 MB cap defeats zip bombs
-# Validate type explicitly — reject {"amount": []} where a number is required
+# Validate type explicitly - reject {"amount": []} where a number is required
 if not isinstance(payload.get("amount"), (int, float)):
     raise ValidationError("amount must be numeric")</code></pre>
 
@@ -451,7 +451,7 @@ EMAIL = re2.compile(r"^[^@\s]{1,64}@[^@\s]{1,255}$")</code></pre>
 <li><strong>Dead-letter queues</strong> &mdash; route poison messages aside instead of reprocessing them forever.</li>
 </ul>
 
-<pre><code>// Go — every outbound call gets a deadline
+<pre><code>// Go - every outbound call gets a deadline
 ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 defer cancel()
 resp, err := client.Do(req.WithContext(ctx))
@@ -459,7 +459,7 @@ if err != nil {
     return cachedFallback()        // degrade safely, do not hang or fail open
 }</code></pre>
 
-<pre><code># Circuit-breaker sketch — trip after repeated failures, fall back safely
+<pre><code># Circuit-breaker sketch - trip after repeated failures, fall back safely
 if breaker.state == OPEN:
     return safe_default()          # do not hammer the failing dependency
 try:
@@ -482,7 +482,7 @@ except DependencyError:
 <li><strong>Alert on error-rate spikes</strong> &mdash; a surge of 500s or auth errors is often an attack in progress.</li>
 </ul>
 
-<pre><code># Django — production settings
+<pre><code># Django - production settings
 DEBUG = False
 ALLOWED_HOSTS = ["app.example.com"]
 # 500 handler renders a static page; the traceback goes to logging/Sentry only</code></pre>

@@ -10,9 +10,9 @@
 
 ## What Are Logic Errors?
 
-**Logic Errors** (also called **business-logic flaws**) occur when a smart contract compiles cleanly, passes its happy-path tests, and appears to "work"—yet its implemented behaviour diverges from its *intended* behaviour. There is no memory-safety bug, no reentrancy, no missing access-control modifier; the code simply computes the wrong thing. An attacker who understands the intended invariant better than the developer did can drive the contract into a state the designer never meant to allow, and extract value on the way.
+**Logic Errors** (also called **business-logic flaws**) occur when a smart contract compiles cleanly, passes its happy-path tests, and appears to "work"-yet its implemented behaviour diverges from its *intended* behaviour. There is no memory-safety bug, no reentrancy, no missing access-control modifier; the code simply computes the wrong thing. An attacker who understands the intended invariant better than the developer did can drive the contract into a state the designer never meant to allow, and extract value on the way.
 
-Because the bug lives in the specification-to-implementation gap rather than in a language feature, a compiler, a linter, and even a reentrancy scanner will all stay silent. The contract is internally consistent—it just enforces the wrong rules. On a public blockchain those wrong rules are permanent, adversarially probed, and directly tied to money: every accounting slip, every mis-rounded division, every unhandled edge case is a standing invitation.
+Because the bug lives in the specification-to-implementation gap rather than in a language feature, a compiler, a linter, and even a reentrancy scanner will all stay silent. The contract is internally consistent-it just enforces the wrong rules. On a public blockchain those wrong rules are permanent, adversarially probed, and directly tied to money: every accounting slip, every mis-rounded division, every unhandled edge case is a standing invitation.
 
 ### Core Concept
 
@@ -49,7 +49,7 @@ Smart contracts concentrate several conditions that make logic errors uniquely d
 ### Business Impact
 
 - **Direct Loss of Funds**: A wrong accounting update or share formula lets an attacker withdraw more than they deposited, draining pooled user assets.
-- **Protocol Insolvency**: When issued shares or debt no longer match real backing, the protocol becomes under-collateralised—honest users cannot all be made whole.
+- **Protocol Insolvency**: When issued shares or debt no longer match real backing, the protocol becomes under-collateralised-honest users cannot all be made whole.
 - **Reward and Emissions Drain**: A double-counted or mis-scaled reward calculation mints or pays out far more than the emission schedule intended, devaluing the token.
 - **Broken Trust and TVL Flight**: A single accounting exploit typically triggers immediate withdrawal of remaining total value locked, killing the protocol regardless of the residual balance.
 - **Irreversibility**: Because transactions are final, there is rarely a chargeback; recovery depends on negotiation, forks, or the attacker's goodwill.
@@ -177,11 +177,11 @@ The incidents below are described as **classes** of failure that have recurred a
 ### Case Study 1: Accounting-Error Drains
 
 **Logic Error**:
-- A lending, staking, or AMM contract updates an internal balance or debt figure in a way that does not match the value actually moved—crediting before verifying a transfer, ignoring a return value, or mixing up which quantity to store.
+- A lending, staking, or AMM contract updates an internal balance or debt figure in a way that does not match the value actually moved-crediting before verifying a transfer, ignoring a return value, or mixing up which quantity to store.
 - The internal ledger and the real token holdings drift apart, and nothing on-chain forces them back into agreement.
 
 **Impact**:
-- Attackers spot that a sequence of ordinary calls leaves them with a recorded balance larger than what they contributed, then withdraw the difference—draining pooled user funds until the contract is empty or paused.
+- Attackers spot that a sequence of ordinary calls leaves them with a recorded balance larger than what they contributed, then withdraw the difference-draining pooled user funds until the contract is empty or paused.
 
 **Root Cause**: The implemented accounting diverges from the intended invariant `internal_ledger == real_holdings`, and no test or on-chain check ever asserts that invariant.
 
@@ -208,7 +208,7 @@ The incidents below are described as **classes** of failure that have recurred a
 
 ## Prevalence and Statistics
 
-Logic Errors sit near the top of the **OWASP Smart Contract Top 10 (2025)** and are, by most post-mortem tallies, among the largest sources of realised loss in DeFi—precisely because they evade the tooling that catches memory and access-control bugs.
+Logic Errors sit near the top of the **OWASP Smart Contract Top 10 (2025)** and are, by most post-mortem tallies, among the largest sources of realised loss in DeFi-precisely because they evade the tooling that catches memory and access-control bugs.
 
 Rather than cite a single dollar figure (which shifts with every incident), the defensible picture is:
 
@@ -222,15 +222,15 @@ Rather than cite a single dollar figure (which shifts with every incident), the 
 
 ### Myth 1: "It compiles and the tests pass, so the logic is correct"
 
-**Reality**: Compilation proves the code is well-formed, and happy-path tests prove it works for the inputs you imagined. Logic errors live in the inputs you *didn't* imagine—zero amounts, empty pools, first depositor, adversarial ordering. Correctness is a property you must state and test, not a by-product of compiling.
+**Reality**: Compilation proves the code is well-formed, and happy-path tests prove it works for the inputs you imagined. Logic errors live in the inputs you *didn't* imagine-zero amounts, empty pools, first depositor, adversarial ordering. Correctness is a property you must state and test, not a by-product of compiling.
 
-### Myth 2: "Rounding is a rounding error—it's negligible"
+### Myth 2: "Rounding is a rounding error-it's negligible"
 
 **Reality**: On integer-only arithmetic, rounding direction is a security decision. A fraction of value leaked per transaction, multiplied by unlimited attacker-controlled transactions, is a drain. Always round in the protocol's favour and prove it.
 
 ### Myth 3: "An audit will catch our business-logic bugs"
 
-**Reality**: Auditors are far more likely to find logic errors than tools are, but they cannot verify an invariant you never wrote down. Undocumented intended behaviour is unauditable behaviour. Specify first, then audit against the specification—and prefer multiple independent audits.
+**Reality**: Auditors are far more likely to find logic errors than tools are, but they cannot verify an invariant you never wrote down. Undocumented intended behaviour is unauditable behaviour. Specify first, then audit against the specification-and prefer multiple independent audits.
 
 ### Myth 4: "A reentrancy guard / SafeMath means we're safe"
 
@@ -255,16 +255,16 @@ Rather than cite a single dollar figure (which shifts with every incident), the 
 
 ## Key Takeaways
 
-1. **Logic errors are the gap between intended and implemented behaviour**—the code is valid but computes the wrong thing.
-2. **Tools stay silent**—compilers, linters, and single-bug scanners do not know your business rules; you must specify and test them.
-3. **Rounding direction is a security decision**—always resolve integer truncation in the protocol's favour.
-4. **Edge cases are where value leaks**—first depositor, empty pool, zero amount, and off-by-one boundaries must be handled explicitly.
-5. **Immutability raises the stakes**—there is rarely a second chance, so invariants must be proven before deployment.
+1. **Logic errors are the gap between intended and implemented behaviour**-the code is valid but computes the wrong thing.
+2. **Tools stay silent**-compilers, linters, and single-bug scanners do not know your business rules; you must specify and test them.
+3. **Rounding direction is a security decision**-always resolve integer truncation in the protocol's favour.
+4. **Edge cases are where value leaks**-first depositor, empty pool, zero amount, and off-by-one boundaries must be handled explicitly.
+5. **Immutability raises the stakes**-there is rarely a second chance, so invariants must be proven before deployment.
 
 ## How to Identify if You're Vulnerable
 
 - [ ] Is every core invariant (e.g. `sum(balances) == totalSupply`, `assets >= liabilities`) written down *and* asserted in tests?
-- [ ] Does every division state, and test, which direction it rounds—and is that direction always the protocol's favour?
+- [ ] Does every division state, and test, which direction it rounds-and is that direction always the protocol's favour?
 - [ ] Is the first-depositor / empty-pool case handled (virtual shares, minimum deposit, or seeded vault)?
 - [ ] Are zero-amount, maximum-amount, and single-unit boundary inputs explicitly tested?
 - [ ] Do reward/interest calculations advance their checkpoint so no period is paid twice?

@@ -58,7 +58,7 @@
             <!-- Overview Section -->
             <div class="section full-width">
                 <h2>📋 What Is It?</h2>
-                <p><strong>Serverless Business Logic Manipulation</strong> is the abuse of an application's <em>intended flow</em>. A serverless app is rarely one program—it is many small functions chained by events, queues, topics, and orchestration (Step Functions, SQS/SNS, EventBridge). The complete business rule ("validate the cart, charge the card, <em>then</em> fulfil") is <strong>distributed across independent functions</strong>, and each function tends to assume whatever ran before it ran correctly. That assumption is the vulnerability: an attacker who reaches a <em>later</em> step directly—or reorders, replays, or forges the events connecting the steps—makes the app do what the designed sequence never would: fulfil an unpaid order, redeem a credit twice, or skip a fraud check. The requests are usually well-formed; the flaw is that <em>sequence and preconditions are not enforced at every step</em>.</p>
+                <p><strong>Serverless Business Logic Manipulation</strong> is the abuse of an application's <em>intended flow</em>. A serverless app is rarely one program-it is many small functions chained by events, queues, topics, and orchestration (Step Functions, SQS/SNS, EventBridge). The complete business rule ("validate the cart, charge the card, <em>then</em> fulfil") is <strong>distributed across independent functions</strong>, and each function tends to assume whatever ran before it ran correctly. That assumption is the vulnerability: an attacker who reaches a <em>later</em> step directly-or reorders, replays, or forges the events connecting the steps-makes the app do what the designed sequence never would: fulfil an unpaid order, redeem a credit twice, or skip a fraud check. The requests are usually well-formed; the flaw is that <em>sequence and preconditions are not enforced at every step</em>.</p>
 
                 <div class="stats-grid">
                     <div class="stat-box">
@@ -103,10 +103,10 @@
 3. Find the door<br>
    <span class="comment">(invoke it? publish its event? write its state? replay?)</span><br>
    <span class="arrow">↓</span><br>
-4. Enter the flow late — or twice<br>
+4. Enter the flow late - or twice<br>
    <span class="comment">(trigger out of order, or deliver again)</span><br>
    <span class="arrow">↓</span><br>
-5. <strong>IMPACT: Goods shipped, access granted, wallet credited — free!</strong>
+5. <strong>IMPACT: Goods shipped, access granted, wallet credited - free!</strong>
                 </div>
             </div>
 
@@ -131,7 +131,7 @@ exports.handler = <span class="keyword">async</span> (event) => {
   }
 };
 
-<span class="comment"># serverless.yml — over-exposed and over-privileged internal step</span>
+<span class="comment"># serverless.yml - over-exposed and over-privileged internal step</span>
 functions:
   fulfilOrder:
     handler: src/fulfil.handler
@@ -145,7 +145,7 @@ functions:
             <div class="section full-width">
                 <h2>✅ Secure Code</h2>
                 <div class="code-block secure">
-<span class="comment">// fulfilOrder re-establishes payment/authz/state itself — it trusts nothing.</span>
+<span class="comment">// fulfilOrder re-establishes payment/authz/state itself - it trusts nothing.</span>
 exports.handler = <span class="keyword">async</span> (event) => {
   <span class="keyword">const</span> orderId = <span class="function">requireString</span>(event.orderId);
   <span class="keyword">const</span> order = <span class="keyword">await</span> <span class="function">getOrder</span>(orderId);          <span class="comment">// 1. authoritative state</span>
@@ -169,9 +169,9 @@ exports.handler = <span class="keyword">async</span> (event) => {
         <span class="keyword">if</span> e.response[<span class="string">"Error"</span>][<span class="string">"Code"</span>] == <span class="string">"ConditionalCheckFailedException"</span>:
             <span class="keyword">return</span> <span class="keyword">False</span>          <span class="comment"># duplicate -> no-op</span>
         <span class="keyword">raise</span>
-<span class="comment"># idem_key = f"credit:{userId}:{rec.messageId}"  — bound to message identity</span>
+<span class="comment"># idem_key = f"credit:{userId}:{rec.messageId}"  - bound to message identity</span>
 
-<span class="comment"># serverless.yml — no public URL; ONLY Step Functions may invoke; scoped role</span>
+<span class="comment"># serverless.yml - no public URL; ONLY Step Functions may invoke; scoped role</span>
 resources: { Resources: { FulfilPermission: { Type: AWS::Lambda::Permission,
   Properties: { Action: lambda:InvokeFunction, Principal: states.amazonaws.com } } } }
                 </div>
@@ -219,8 +219,8 @@ resources: { Resources: { FulfilPermission: { Type: AWS::Lambda::Permission,
 
                 <h3>How to Test:</h3>
                 <ul>
-                    <li>Invoke the <em>last</em> step directly — does it refuse?</li>
-                    <li>Replay/duplicate a message — does the effect run twice?</li>
+                    <li>Invoke the <em>last</em> step directly - does it refuse?</li>
+                    <li>Replay/duplicate a message - does the effect run twice?</li>
                     <li>Publish a forged event to a consumed topic/queue</li>
                     <li>Tamper a <code>paid</code>/<code>approved</code> flag and re-trigger downstream</li>
                     <li>Fire concurrent single-use redemptions (race)</li>
@@ -231,10 +231,10 @@ resources: { Resources: { FulfilPermission: { Type: AWS::Lambda::Permission,
             <!-- Real-World Examples -->
             <div class="section full-width">
                 <h2>🌍 Real-World</h2>
-                <p>Documented as a <strong>class</strong> of problem across event-driven and serverless systems—these are recurring incident patterns, not specific named breaches:</p>
+                <p>Documented as a <strong>class</strong> of problem across event-driven and serverless systems-these are recurring incident patterns, not specific named breaches:</p>
                 <ul>
                     <li><strong>Workflow-Bypass Fulfilment:</strong> A fulfilment function is reachable (broad invoke, Function URL, or a topic it consumes) and trusts that payment already succeeded; an attacker triggers fulfilment for orders never paid or risk-checked. Root cause: the precondition was enforced only by the step's <em>position</em> in the intended flow.</li>
-                    <li><strong>Duplicate-Processing Double-Spend:</strong> A wallet-credit/refund/coupon handler performs its financial effect without deduplicating; normal at-least-once delivery—or deliberate re-submission—applies it multiple times.</li>
+                    <li><strong>Duplicate-Processing Double-Spend:</strong> A wallet-credit/refund/coupon handler performs its financial effect without deduplicating; normal at-least-once delivery-or deliberate re-submission-applies it multiple times.</li>
                     <li><strong>Trusted-State Tampering:</strong> A downstream step reads a <code>status</code>/<code>approved</code>/<code>paid</code> flag; a separate over-permissioned path sets it independently, so the step behaves as though earlier controls passed.</li>
                 </ul>
             </div>
@@ -269,7 +269,7 @@ resources: { Resources: { FulfilPermission: { Type: AWS::Lambda::Permission,
 
         <!-- Footer -->
         <div class="footer">
-            <p><strong>OWASP Serverless Top 10 — Educational Platform</strong> | <a href="/cheatsheets">All Cheat Sheets</a> | <a href="/">Home</a></p>
+            <p><strong>OWASP Serverless Top 10 - Educational Platform</strong> | <a href="/cheatsheets">All Cheat Sheets</a> | <a href="/">Home</a></p>
             <p>Full lesson: <a href="/labs/serverless/OWASP-Serverless/SAS09-Serverless-Business-Logic-Manipulation/overview.html">Read the deep dive →</a></p>
             <p>📥 To download as PDF: Print this page (Ctrl+P) → Save as PDF</p>
         </div>

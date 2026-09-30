@@ -9,9 +9,9 @@
 
 ## Understanding Logic-Manipulation Vectors
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in serverless applications you own or are authorised to test.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in serverless applications you own or are authorised to test.
 
-An attacker exploiting this weakness is not looking for a malformed input—the requests are usually perfectly well-formed. They are looking for a **step that trusts its upstream**: a function that assumes payment happened, that approval was granted, that validation passed, or that it will only ever see each message once. The exploit is to satisfy that assumption *falsely*—by entering the flow late, by manufacturing the "prior step" signal, by replaying it, or by editing the state the step reads.
+An attacker exploiting this weakness is not looking for a malformed input-the requests are usually perfectly well-formed. They are looking for a **step that trusts its upstream**: a function that assumes payment happened, that approval was granted, that validation passed, or that it will only ever see each message once. The exploit is to satisfy that assumption *falsely*-by entering the flow late, by manufacturing the "prior step" signal, by replaying it, or by editing the state the step reads.
 
 The attacker's objectives in this category are usually:
 
@@ -47,7 +47,7 @@ The attacker's objectives in this category are usually:
 
 ### 1. Direct Invocation of a Downstream Step
 
-A fulfilment or access-granting function is reachable on its own—through a broad `lambda:InvokeFunction` grant, a Function URL, or an API route—and it trusts that payment and validation already ran.
+A fulfilment or access-granting function is reachable on its own-through a broad `lambda:InvokeFunction` grant, a Function URL, or an API route-and it trusts that payment and validation already ran.
 
 ```bash
 # The intended path is: validate -> charge -> fulfil.
@@ -59,7 +59,7 @@ aws lambda invoke --function-name fulfilOrder \
 #   handler(event): ship(event.orderId, event.items)   # no paid-check
 ```
 
-**Payoff**: goods, licences, or access delivered for orders that were never paid for or risk-checked—the earlier steps are simply not on the path the attacker took.
+**Payoff**: goods, licences, or access delivered for orders that were never paid for or risk-checked-the earlier steps are simply not on the path the attacker took.
 
 ### 2. Forging the "Prior Step Happened" Event
 
@@ -94,7 +94,7 @@ done
 
 ### 4. Duplicate-Delivery Double-Spend (No Attacker Effort Required)
 
-SQS, SNS, and EventBridge are at-least-once. The platform itself re-delivers messages on visibility timeouts and retries. A non-idempotent handler double-processes them—and an attacker can amplify this deliberately.
+SQS, SNS, and EventBridge are at-least-once. The platform itself re-delivers messages on visibility timeouts and retries. A non-idempotent handler double-processes them-and an attacker can amplify this deliberately.
 
 ```
 # Normal duplicate delivery already causes this:
@@ -104,7 +104,7 @@ on "wallet.credit" (msg m1) -> balance += 50   # delivered twice -> +100
 # concurrent consumers overlap, then rely on the missing idempotency key.
 ```
 
-**Payoff**: wallet credits, coupon redemptions, refunds, or provisioning apply multiple times. This is the classic *duplicate-processing double-spend* class—it needs no forged input, only a handler that assumed exactly-once.
+**Payoff**: wallet credits, coupon redemptions, refunds, or provisioning apply multiple times. This is the classic *duplicate-processing double-spend* class-it needs no forged input, only a handler that assumed exactly-once.
 
 ### 5. Tampering with Intermediate State (DynamoDB / S3 Flag)
 
@@ -150,7 +150,7 @@ send "payment.captured" never (or much later)
 # A fulfil handler that assumes capture already ran ships anyway.
 ```
 
-**Payoff**: sequence-dependent guards are defeated because the sequence was assumed, not enforced—the consumer never confirms the predecessor completed.
+**Payoff**: sequence-dependent guards are defeated because the sequence was assumed, not enforced-the consumer never confirms the predecessor completed.
 
 ### 8. Exploiting the Async Gap (Race Condition)
 
@@ -196,7 +196,7 @@ Where an idempotency key exists but is attacker-supplied and unbound to the requ
 
 ## Chaining Manipulation with Role Privileges
 
-Logic manipulation is often the foothold; the execution role decides how far it spreads. Once a step runs on the attacker's terms, its IAM permissions are available to the code—and to any state or downstream steps it can reach.
+Logic manipulation is often the foothold; the execution role decides how far it spreads. Once a step runs on the attacker's terms, its IAM permissions are available to the code-and to any state or downstream steps it can reach.
 
 ```
 Direct-invoke fulfilOrder                  -> ships one unpaid order
@@ -227,11 +227,11 @@ Write paid=true / approved=true directly in DynamoDB
 
 ## Key Takeaways
 
-1. **Attackers enter the flow late**—they invoke, forge, or replay their way to the value-producing step, skipping the steps that cost them something.
-2. **Well-formed does not mean legitimate**—the requests look normal; the abuse is in sequence, repetition, and trust.
-3. **At-least-once delivery is a weapon**—duplicate and replayed events double-spend any non-idempotent handler with no exotic payload required.
-4. **Trusted state is tamperable state**—flags and inter-step payloads a downstream step believes can be forged if writable or unsigned.
-5. **The role sets the blast radius**—a manipulated step plus a broad role turns one bypass into a workflow-wide compromise.
+1. **Attackers enter the flow late**-they invoke, forge, or replay their way to the value-producing step, skipping the steps that cost them something.
+2. **Well-formed does not mean legitimate**-the requests look normal; the abuse is in sequence, repetition, and trust.
+3. **At-least-once delivery is a weapon**-duplicate and replayed events double-spend any non-idempotent handler with no exotic payload required.
+4. **Trusted state is tamperable state**-flags and inter-step payloads a downstream step believes can be forged if writable or unsigned.
+5. **The role sets the blast radius**-a manipulated step plus a broad role turns one bypass into a workflow-wide compromise.
 
 ## Next Steps
 

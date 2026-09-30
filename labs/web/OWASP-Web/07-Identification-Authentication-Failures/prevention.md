@@ -15,7 +15,7 @@
 
 ## Defense in Layers
 
-No single control prevents authentication failures. The attack vectors target different links in the identity chain, so the defenses must too. Think of the following eight layers as complementary—each one closes a door the others leave open.
+No single control prevents authentication failures. The attack vectors target different links in the identity chain, so the defenses must too. Think of the following eight layers as complementary-each one closes a door the others leave open.
 
 ```
 Registration -> strong length-based policy + breached-password screen
@@ -38,7 +38,7 @@ Modern guidance (NIST SP 800-63B) reverses decades of counterproductive rules. *
 | Only force a reset on evidence of compromise | Use knowledge-based "security questions" |
 
 ```javascript
-// Node.js — length-first validation (Express)
+// Node.js - length-first validation (Express)
 function validatePassword(pw) {
   const errors = [];
   if (typeof pw !== 'string') errors.push('Password required');
@@ -58,7 +58,7 @@ function validatePassword(pw) {
 The single highest-impact control against credential stuffing on your own side is refusing passwords already known to be compromised. Use the **k-anonymity** range API model so the full password (or full hash) never leaves your server.
 
 ```javascript
-// Node.js — k-anonymity breached-password check (HaveIBeenPwned-style range model)
+// Node.js - k-anonymity breached-password check (HaveIBeenPwned-style range model)
 const crypto = require('crypto');
 
 async function isBreached(password) {
@@ -83,7 +83,7 @@ if (await isBreached(newPassword)) {
 Store passwords with a slow, salted, memory-hard hash. **Argon2id** is the current first choice; **bcrypt** and **scrypt** are acceptable. Never use MD5, SHA-1, or plain SHA-256 for passwords, and never encrypt (reversible) what should be hashed.
 
 ```python
-# Python — Argon2id (argon2-cffi)
+# Python - Argon2id (argon2-cffi)
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
@@ -111,7 +111,7 @@ def verify_password(stored_hash: str, pw: str) -> bool:
 Slow attackers down without creating a denial-of-service against real users. Combine **per-IP**, **per-account**, and **per-credential** throttling, plus exponential backoff. Remember: per-account lockout alone does not stop password spraying.
 
 ```javascript
-// Node.js — layered login throttling (express-rate-limit)
+// Node.js - layered login throttling (express-rate-limit)
 const rateLimit = require('express-rate-limit');
 
 // Per-IP: blunt cap on request volume
@@ -148,7 +148,7 @@ MFA is the most effective single control against stolen and stuffed credentials.
 | SMS / email OTP | Weak | SIM-swap and interception risk; last resort only |
 
 ```python
-# Python — verify a TOTP second factor (pyotp), rate-limited
+# Python - verify a TOTP second factor (pyotp), rate-limited
 import pyotp
 
 def verify_totp(user, submitted_code):
@@ -171,7 +171,7 @@ Whether you use server-side sessions or tokens, the identity binding must be ung
 
 #### Generate high-entropy IDs from a CSPRNG
 ```javascript
-// Node.js — 256-bit session identifier
+// Node.js - 256-bit session identifier
 const crypto = require('crypto');
 const sessionId = crypto.randomBytes(32).toString('hex'); // 256 bits of entropy
 // NEVER: Math.random(), timestamps, sequential counters, or md5(user+time)
@@ -179,7 +179,7 @@ const sessionId = crypto.randomBytes(32).toString('hex'); // 256 bits of entropy
 
 #### Regenerate the ID at login (prevents fixation) and set hardened cookies
 ```javascript
-// Node.js — express-session
+// Node.js - express-session
 const session = require('express-session');
 
 app.use(session({
@@ -234,15 +234,15 @@ Session management essentials, summarized:
 
 - **Never** put the session ID in a URL, hidden field, or log line.
 - **Regenerate** on login and on any privilege change.
-- **Invalidate server-side** on logout, password change, and MFA reset—kill *all* the user's sessions on password change.
+- **Invalidate server-side** on logout, password change, and MFA reset-kill *all* the user's sessions on password change.
 - **Bind** both idle and absolute timeouts; re-authenticate for sensitive actions.
 
 ## Layer 7: Non-Enumerable Responses & Recovery
 
-Make "account exists" and "account does not exist" indistinguishable in body, status code, and timing—on login, registration, and password reset alike.
+Make "account exists" and "account does not exist" indistinguishable in body, status code, and timing-on login, registration, and password reset alike.
 
 ```python
-# Python (Flask) — uniform login response + constant-time behavior
+# Python (Flask) - uniform login response + constant-time behavior
 import secrets
 from argon2 import PasswordHasher
 ph = PasswordHasher()
@@ -266,7 +266,7 @@ def login():
 ```
 
 ```python
-# Python (Flask) — non-enumerable password reset
+# Python (Flask) - non-enumerable password reset
 @app.post('/forgot')
 def forgot():
     user = get_user(request.form['email'])
@@ -285,7 +285,7 @@ Recovery rules: reset tokens must be high-entropy, single-use, short-lived, and 
 If you issue JWTs or other bearer tokens, verify them strictly. The recurring mistake is letting the token's own header decide how it is validated.
 
 ```java
-// Java (Spring Security / jjwt) — strict JWT validation
+// Java (Spring Security / jjwt) - strict JWT validation
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.security.Keys;
@@ -304,12 +304,12 @@ public Claims validate(String jwt) {
 ```
 
 ```javascript
-// Node.js — jsonwebtoken with an explicit algorithm allow-list
+// Node.js - jsonwebtoken with an explicit algorithm allow-list
 const jwt = require('jsonwebtoken');
 
 function verifyToken(token) {
   return jwt.verify(token, PUBLIC_KEY, {
-    algorithms: ['RS256'],          // PIN it — never trust the token's header
+    algorithms: ['RS256'],          // PIN it - never trust the token's header
     issuer:   'https://auth.example.com',
     audience: 'example-api',
     clockTolerance: 30              // seconds

@@ -9,9 +9,9 @@
 
 ## Understanding Unchecked-Call Attack Vectors
 
-**&#9888; EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in contracts you own or are authorised to test.
+**&#9888; EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in contracts you own or are authorised to test.
 
-Unchecked external calls are rarely exploited with an exotic payload. They are exploited by **making a call fail on purpose**—or by **supplying a token that behaves differently from the standard**—and then letting the victim contract march forward on its false assumption of success. Because the flaw is a missing check rather than a logic error you can see, it often survives review and testing (which usually uses well-behaved recipients and standard tokens).
+Unchecked external calls are rarely exploited with an exotic payload. They are exploited by **making a call fail on purpose**-or by **supplying a token that behaves differently from the standard**-and then letting the victim contract march forward on its false assumption of success. Because the flaw is a missing check rather than a logic error you can see, it often survives review and testing (which usually uses well-behaved recipients and standard tokens).
 
 The attacker's goal in this category is usually one of:
 
@@ -57,7 +57,7 @@ contract Rejector {
 }
 ```
 
-**Payoff**: the attacker's own funds are stuck—usually a self-inflicted grief—but the same pattern in a shared loop (below) lets one recipient block everyone.
+**Payoff**: the attacker's own funds are stuck-usually a self-inflicted grief-but the same pattern in a shared loop (below) lets one recipient block everyone.
 
 ### 2. Phantom Deposit via a Non-Standard Token
 
@@ -76,7 +76,7 @@ function transferFrom(address, address, uint256) external returns (bool) {
 }
 ```
 
-**Payoff**: the attacker is credited shares/balance for tokens the contract never received—then withdraws real value against phantom credit.
+**Payoff**: the attacker is credited shares/balance for tokens the contract never received-then withdraws real value against phantom credit.
 
 ### 3. Return-Nothing (USDT-Class) Tokens
 
@@ -88,7 +88,7 @@ require(IERC20(t).transfer(to, amt), "transfer failed");
 // The high-level call tries to decode a bool that isn't there.
 ```
 
-**Payoff**: markets or vaults integrating such tokens become unusable (denial of service) or mishandle the result—depending on how the return is decoded.
+**Payoff**: markets or vaults integrating such tokens become unusable (denial of service) or mishandle the result-depending on how the return is decoded.
 
 ### 4. Griefing a Shared Payout Loop
 
@@ -101,7 +101,7 @@ for (uint256 i = 0; i < winners.length; i++) {
 }
 ```
 
-**Payoff**: a single malicious recipient (reverting fallback, or gas-guzzling fallback) prevents everyone else from being paid—classic push-payment denial of service.
+**Payoff**: a single malicious recipient (reverting fallback, or gas-guzzling fallback) prevents everyone else from being paid-classic push-payment denial of service.
 
 ### 5. Masking a Failed delegatecall
 
@@ -118,7 +118,7 @@ function execute(address impl, bytes calldata data) external onlyOwner {
 
 ### 6. Gas-Stipend Failures with transfer/send
 
-`address.transfer` and `send` forward only 2300 gas. A legitimate recipient whose `receive`/`fallback` needs more gas (smart-contract wallets, contracts that emit events on receipt) will fail the transfer—which an unchecked `send` then ignores.
+`address.transfer` and `send` forward only 2300 gas. A legitimate recipient whose `receive`/`fallback` needs more gas (smart-contract wallets, contracts that emit events on receipt) will fail the transfer-which an unchecked `send` then ignores.
 
 ```
 // Recipient's fallback does slightly more than 2300 gas of work -> send() fails
@@ -138,7 +138,7 @@ for (uint256 i = 0; i < targets.length; i++) {
 allSucceeded = true;                // false if any leg failed silently
 ```
 
-**Payoff**: the batch is recorded as fully applied while some operations never executed—leaving inconsistent, half-applied state.
+**Payoff**: the batch is recorded as fully applied while some operations never executed-leaving inconsistent, half-applied state.
 
 ## Chaining Unchecked Calls
 
@@ -162,11 +162,11 @@ Push-payment loop with unchecked/reverting transfer
 
 ## Key Takeaways
 
-1. **Failure is attacker-controllable**—a recipient can reject ether and a token can return `false` or nothing on demand.
-2. **Silent success is the exploit**—the victim's missing check turns a failed call into corrupted state.
-3. **Phantom deposits steal, stuck withdrawals strand**—both stem from not reading the return value.
-4. **Push payments are grief-prone**—one bad recipient can block a whole loop; prefer pull-over-push.
-5. **Non-standard tokens are the norm, not the exception**—assume they will misbehave and handle it.
+1. **Failure is attacker-controllable**-a recipient can reject ether and a token can return `false` or nothing on demand.
+2. **Silent success is the exploit**-the victim's missing check turns a failed call into corrupted state.
+3. **Phantom deposits steal, stuck withdrawals strand**-both stem from not reading the return value.
+4. **Push payments are grief-prone**-one bad recipient can block a whole loop; prefer pull-over-push.
+5. **Non-standard tokens are the norm, not the exception**-assume they will misbehave and handle it.
 
 ## Next Steps
 

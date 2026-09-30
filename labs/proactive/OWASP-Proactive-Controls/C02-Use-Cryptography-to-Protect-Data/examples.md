@@ -2,7 +2,7 @@
 
 Each pair below shows an **insecure** use of cryptography and the **secure** version in the same language. The examples focus on the mistakes that dominate real findings: reversible or fast password hashing, broken algorithms and modes, predictable randomness, and hardcoded keys.
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the insecure snippets exist to be recognised and removed, never shipped.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the insecure snippets exist to be recognised and removed, never shipped.
 
 ## Python
 
@@ -59,13 +59,13 @@ import os
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 def encrypt(data: bytes, key: bytes, aad: bytes = b"") -> bytes:
-    # key comes from the KMS at runtime — never hardcoded
+    # key comes from the KMS at runtime - never hardcoded
     nonce = os.urandom(12)                        # CSPRNG; unique per message
     return nonce + AESGCM(key).encrypt(nonce, data, aad)   # AES-256-GCM: confidential + authenticated
 
 def decrypt(blob: bytes, key: bytes, aad: bytes = b"") -> bytes:
     nonce, ct = blob[:12], blob[12:]
-    return AESGCM(key).decrypt(nonce, ct, aad)    # raises on tamper — fail closed
+    return AESGCM(key).decrypt(nonce, ct, aad)    # raises on tamper - fail closed
 ```
 
 ### Generating Tokens
@@ -161,7 +161,7 @@ function decrypt(blob, key) {
 #### Insecure
 ```javascript
 function apiKey() {
-  // Math.random is NOT a CSPRNG — predictable, low entropy
+  // Math.random is NOT a CSPRNG - predictable, low entropy
   return Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
 }
 ```
@@ -190,7 +190,7 @@ function safeEqual(a, b) {
 import java.security.MessageDigest;
 
 String storePassword(String pw) throws Exception {
-    // MD5, unsalted, hex — trivially cracked
+    // MD5, unsalted, hex - trivially cracked
     byte[] d = MessageDigest.getInstance("MD5").digest(pw.getBytes("UTF-8"));
     StringBuilder sb = new StringBuilder();
     for (byte b : d) sb.append(String.format("%02x", b));
@@ -200,7 +200,7 @@ String storePassword(String pw) throws Exception {
 
 #### Secure
 ```java
-// Spring Security Crypto — Argon2 (or BCryptPasswordEncoder)
+// Spring Security Crypto - Argon2 (or BCryptPasswordEncoder)
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 
 Argon2PasswordEncoder enc = Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8();
@@ -261,7 +261,7 @@ byte[] encrypt(byte[] data, byte[] key) throws Exception {
 import java.util.Random;
 
 String sessionId() {
-    // java.util.Random is a linear PRNG — predictable, not for security
+    // java.util.Random is a linear PRNG - predictable, not for security
     return Long.toHexString(new Random().nextLong());
 }
 ```
@@ -296,11 +296,11 @@ boolean safeEquals(byte[] a, byte[] b) {
 
 ## Key Takeaways
 
-1. **Hash passwords, don't fast-hash or encrypt them** — Argon2id/bcrypt with per-user salt.
-2. **Use authenticated encryption** — AES-256-GCM, never ECB or bare CBC, never DES/RC4.
-3. **Never reuse a nonce, never hardcode a key** — CSPRNG nonces and KMS-managed keys.
-4. **All security randomness comes from a CSPRNG** — not `Math.random()` or `java.util.Random`.
-5. **Let vetted libraries make the safe choice** — and compare secrets in constant time.
+1. **Hash passwords, don't fast-hash or encrypt them** - Argon2id/bcrypt with per-user salt.
+2. **Use authenticated encryption** - AES-256-GCM, never ECB or bare CBC, never DES/RC4.
+3. **Never reuse a nonce, never hardcode a key** - CSPRNG nonces and KMS-managed keys.
+4. **All security randomness comes from a CSPRNG** - not `Math.random()` or `java.util.Random`.
+5. **Let vetted libraries make the safe choice** - and compare secrets in constant time.
 
 ## Next Steps
 

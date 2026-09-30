@@ -11,11 +11,11 @@
 
 ## What is Reverse Engineering?
 
-**Reverse Engineering (M9:2016)** is the analysis of a shipped mobile application binary to understand how it works from the inside. An attacker who never saw your source code takes the `.apk`, `.aab`, or `.ipa` you published, pulls it apart, and recovers source-equivalent code, strings, resources, algorithms, cryptographic keys, API endpoints, and business logic. The app you distribute *is* the documentation of how it works—reverse engineering is just reading it.
+**Reverse Engineering (M9:2016)** is the analysis of a shipped mobile application binary to understand how it works from the inside. An attacker who never saw your source code takes the `.apk`, `.aab`, or `.ipa` you published, pulls it apart, and recovers source-equivalent code, strings, resources, algorithms, cryptographic keys, API endpoints, and business logic. The app you distribute *is* the documentation of how it works-reverse engineering is just reading it.
 
-This is fundamentally different from a server-side vulnerability. On the server, code runs on hardware you control and an attacker sees only the inputs and outputs. On mobile, **the client runs on the attacker's device**. They own the CPU, the memory, the debugger, the network stack, and the operating system. Anything the app contains—every byte of code and data needed to run—is, by definition, in the attacker's hands. Reverse engineering is not an exotic exploit; it is the default state of any binary you ship to a device you do not control.
+This is fundamentally different from a server-side vulnerability. On the server, code runs on hardware you control and an attacker sees only the inputs and outputs. On mobile, **the client runs on the attacker's device**. They own the CPU, the memory, the debugger, the network stack, and the operating system. Anything the app contains-every byte of code and data needed to run-is, by definition, in the attacker's hands. Reverse engineering is not an exotic exploit; it is the default state of any binary you ship to a device you do not control.
 
-> **The core truth of M9:** Any secret, key, algorithm, or logic that ships inside the client can be recovered. Obfuscation raises the cost and time of that recovery—it never makes it impossible. The only reliable protection for a secret is to not put it in the client at all.
+> **The core truth of M9:** Any secret, key, algorithm, or logic that ships inside the client can be recovered. Obfuscation raises the cost and time of that recovery-it never makes it impossible. The only reliable protection for a secret is to not put it in the client at all.
 
 ### Core Concept
 
@@ -35,9 +35,9 @@ Anti-tamper / crypto logic     ->  Understood, then bypassed or reimplemented
 
 M9 (2016) overlaps with, but is distinct from, its neighbours in the 2016 Mobile Top 10:
 
-- **M9 Reverse Engineering** is about an attacker *understanding* the binary—the analysis step.
+- **M9 Reverse Engineering** is about an attacker *understanding* the binary-the analysis step.
 - **M8 Code Tampering** is about an attacker *modifying* the binary and re-running it (patched APKs, method hooking). Reverse engineering is almost always the reconnaissance phase that makes tampering possible.
-- **M10 Extraneous Functionality** is hidden backdoors, test code, and debug switches left in the shipped app—which reverse engineering is exactly how attackers find.
+- **M10 Extraneous Functionality** is hidden backdoors, test code, and debug switches left in the shipped app-which reverse engineering is exactly how attackers find.
 
 In the modern 2024 list these ideas are folded into **M7: Insufficient Binary Protections**, but the 2016 framing keeps reverse engineering as its own discipline, which is useful because the analysis workflow is a distinct skill set from the tampering that follows it.
 
@@ -49,7 +49,7 @@ In the modern 2024 list these ideas are folded into **M7: Insufficient Binary Pr
 - **Intellectual Property Loss**: Proprietary algorithms, pricing/ranking logic, matching engines, and machine-learning models can be lifted wholesale and cloned by a competitor.
 - **Piracy and DRM Bypass**: License checks, subscription gates, and content-protection (DRM) schemes implemented in the client are located and disabled, enabling free access to paid content and features.
 - **Fraud at Scale**: Understanding the request-signing scheme or anti-abuse logic lets attackers script fake accounts, forged in-app purchases, or game-economy exploits far faster than a human could.
-- **Attack-Surface Mapping**: Recovered endpoints, parameter names, and undocumented features become the blueprint for attacking the *server*—reverse engineering the client is often step one of a backend breach.
+- **Attack-Surface Mapping**: Recovered endpoints, parameter names, and undocumented features become the blueprint for attacking the *server*-reverse engineering the client is often step one of a backend breach.
 
 ### Technical Impact
 
@@ -67,12 +67,12 @@ Mobile app formats were designed for portability and quick loading, not secrecy.
 
 #### Android
 - An `.apk` is just a ZIP archive. Unzip it and you have `classes.dex` (bytecode), `resources.arsc`, `AndroidManifest.xml`, native `lib/*/*.so` files, and every asset.
-- Dalvik/ART bytecode is **high-level and well-documented**. It retains method boundaries, type information, and—unless stripped—the original class, method, and field names. Tools like `jadx` reconstruct near-original Java/Kotlin.
+- Dalvik/ART bytecode is **high-level and well-documented**. It retains method boundaries, type information, and-unless stripped-the original class, method, and field names. Tools like `jadx` reconstruct near-original Java/Kotlin.
 - Even after R8/ProGuard renaming, the *structure* and string constants survive; only names are scrambled.
 
 #### iOS
 - An `.ipa` is also a ZIP. Inside is a Mach-O binary plus `Info.plist`, asset catalogs, and resources.
-- Objective-C runtime metadata (class names, method selectors, protocols) is embedded so the runtime can do dynamic dispatch—which means `class-dump`-style tools can enumerate the full class interface.
+- Objective-C runtime metadata (class names, method selectors, protocols) is embedded so the runtime can do dynamic dispatch-which means `class-dump`-style tools can enumerate the full class interface.
 - Swift is somewhat harder (name mangling, less runtime metadata), but symbol names, string literals, and control flow are still recoverable with Ghidra, Hopper, or IDA.
 - App Store binaries are FairPlay-encrypted, but that layer is stripped the moment the app runs on a device the attacker controls (a decrypted dump from memory).
 
@@ -80,7 +80,7 @@ Mobile app formats were designed for portability and quick loading, not secrecy.
 
 | Purpose | Android | iOS | Native code |
 |---------|---------|-----|-------------|
-| Unpack / repackage | apktool, unzip | unzip | — |
+| Unpack / repackage | apktool, unzip | unzip | - |
 | Decompile to source | jadx, jadx-gui | Hopper, IDA (pseudo-code) | Ghidra, IDA, Hopper |
 | Enumerate classes | jadx, dexdump | class-dump, Hopper | nm, objdump |
 | Disassemble | baksmali (smali) | otool, Hopper | Ghidra, objdump |
@@ -89,7 +89,7 @@ Mobile app formats were designed for portability and quick loading, not secrecy.
 
 ### Static vs. Dynamic Analysis
 
-Reverse engineering (M9) is primarily **static**: reading the binary at rest. It pairs naturally with dynamic analysis (running the app under a debugger or instrumentation framework like Frida) to confirm findings and defeat runtime checks—but the defining activity of M9 is recovering understanding from the shipped artifact without needing the source.
+Reverse engineering (M9) is primarily **static**: reading the binary at rest. It pairs naturally with dynamic analysis (running the app under a debugger or instrumentation framework like Frida) to confirm findings and defeat runtime checks-but the defining activity of M9 is recovering understanding from the shipped artifact without needing the source.
 
 ```
 Static analysis                     Dynamic analysis
@@ -109,7 +109,7 @@ When an analyst opens your binary, these are the high-value targets they look fo
 Static API keys, OAuth client secrets, third-party service tokens (maps, analytics, payment, SMS), and cloud access keys embedded as string constants. These are the single most common and most damaging finding.
 
 #### 2. Encryption Keys and Algorithms
-Symmetric keys, IVs, salts, and custom encoding/"encryption" routines. If the client can decrypt it, so can the attacker—the key is right there.
+Symmetric keys, IVs, salts, and custom encoding/"encryption" routines. If the client can decrypt it, so can the attacker-the key is right there.
 
 #### 3. Hidden and Undocumented Endpoints
 Base URLs, staging/QA hosts, internal admin routes, and feature endpoints not exposed in the UI. These map the backend attack surface.
@@ -118,7 +118,7 @@ Base URLs, staging/QA hosts, internal admin routes, and feature endpoints not ex
 Client-side gating for premium features, A/B flags, pricing logic, fraud thresholds, and rules an attacker can flip or replicate.
 
 #### 5. Anti-Tamper and Detection Logic
-Root/jailbreak detection, emulator detection, debugger checks, and certificate-pinning code—located so they can be bypassed.
+Root/jailbreak detection, emulator detection, debugger checks, and certificate-pinning code-located so they can be bypassed.
 
 #### 6. Proprietary Algorithms and DRM
 Request-signing/HMAC schemes, matching/ranking engines, licensing checks, and content-protection logic that represent competitive IP.
@@ -132,7 +132,7 @@ private const val BASE_URL = "https://internal-admin.api.example.com/v3/"
 
 ## Real-World Impact
 
-The examples below are described as **incident classes**—patterns repeatedly observed by security researchers—rather than specific attributed breaches, to avoid overstating any single case.
+The examples below are described as **incident classes**-patterns repeatedly observed by security researchers-rather than specific attributed breaches, to avoid overstating any single case.
 
 ### Incident Class 1: Harvesting Hardcoded Keys from Public Apps
 
@@ -158,7 +158,7 @@ The examples below are described as **incident classes**—patterns repeatedly o
 
 **Pattern**:
 - To stop trivial API abuse, an app signs requests with an HMAC using a key baked into the binary.
-- Reverse engineers recover the key and the exact signing algorithm, then script perfectly valid requests without the app—defeating the anti-automation control entirely.
+- Reverse engineers recover the key and the exact signing algorithm, then script perfectly valid requests without the app-defeating the anti-automation control entirely.
 
 **Impact**: Automated account creation, scraping, fake engagement, and economy abuse at machine speed.
 
@@ -179,10 +179,10 @@ The examples below are described as **incident classes**—patterns repeatedly o
 Reverse engineering is best understood not as a vulnerability that some apps have and others do not, but as a **capability that always exists** against any shipped binary. The relevant questions are how much it costs an attacker and what they gain when they succeed.
 
 - Every native mobile app is decompilable to some degree. There is no configuration that makes a binary unreadable to a determined analyst.
-- The tooling is **mature, free, and widely taught**—jadx, apktool, Ghidra, and Frida are standard and require no exotic skill to run.
+- The tooling is **mature, free, and widely taught**-jadx, apktool, Ghidra, and Frida are standard and require no exotic skill to run.
 - The impact depends almost entirely on **what you put in the client**. An app that ships no secrets and enforces every decision server-side has little to lose to reverse engineering; an app that hardcodes keys and gates features locally has everything to lose.
 
-> Note: rather than cite a single "percentage of apps that leak keys" figure—which varies widely by dataset and year—treat the durable takeaway as this: decompilation is universal and cheap, so design as if every line of your client code and every embedded byte is public.
+> Note: rather than cite a single "percentage of apps that leak keys" figure-which varies widely by dataset and year-treat the durable takeaway as this: decompilation is universal and cheap, so design as if every line of your client code and every embedded byte is public.
 
 ## Common Misunderstandings
 
@@ -196,7 +196,7 @@ Reverse engineering is best understood not as a vulnerability that some apps hav
 
 ### Myth 3: "The key is safe because it's split up / XOR'd / Base64'd"
 
-**Reality**: Any transformation the client can reverse at runtime, an attacker can reverse too—by reading the code or by dumping the reconstructed value from memory. Encoding is not protection.
+**Reality**: Any transformation the client can reverse at runtime, an attacker can reverse too-by reading the code or by dumping the reconstructed value from memory. Encoding is not protection.
 
 ### Myth 4: "It's in a native `.so`, so it's hidden"
 
@@ -221,11 +221,11 @@ Reverse engineering is best understood not as a vulnerability that some apps hav
 
 ## Key Takeaways
 
-1. **The client is fully readable.** Assume every byte you ship—code, strings, assets—is public the moment it leaves your build server.
+1. **The client is fully readable.** Assume every byte you ship-code, strings, assets-is public the moment it leaves your build server.
 2. **Compilation and obfuscation are speed bumps, not walls.** They raise attacker cost; they never make recovery impossible.
 3. **Secrets belong on the server.** The only reliable protection for a key or sensitive algorithm is to never put it in the client.
 4. **Enforce decisions server-side.** Entitlements, license checks, and anti-abuse logic must be validated where the attacker cannot rewrite them.
-5. **Reverse engineering is reconnaissance.** It is usually step one for tampering, fraud, and backend attacks—shrinking what the client reveals shrinks all of those.
+5. **Reverse engineering is reconnaissance.** It is usually step one for tampering, fraud, and backend attacks-shrinking what the client reveals shrinks all of those.
 
 ## How to Identify if You're Exposed
 

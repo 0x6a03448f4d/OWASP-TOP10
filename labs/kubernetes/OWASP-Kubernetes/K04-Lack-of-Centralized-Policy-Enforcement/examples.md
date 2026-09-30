@@ -4,7 +4,7 @@ Each pair below shows an **insecure** state (a cluster with no admission policy)
 
 ## Example 1: The Workload Nobody Blocks
 
-### Insecure — no policy in the admission path
+### Insecure - no policy in the admission path
 
 ```yaml
 # A fresh cluster with no PSA labels and no policy engine.
@@ -33,7 +33,7 @@ $ kubectl apply -f builder.yaml
 pod/builder created            # <-- admitted; nothing evaluated it
 ```
 
-### Secure — the same manifest, now denied
+### Secure - the same manifest, now denied
 
 ```
 # With PSA 'restricted' enforced on the namespace AND a Kyverno policy,
@@ -52,9 +52,9 @@ Also blocked by PodSecurity "restricted:latest":
   hostPID (pod must not set spec.hostPID=true)
 ```
 
-## Example 2: Namespace Baseline — Pod Security Admission
+## Example 2: Namespace Baseline - Pod Security Admission
 
-### Insecure — namespace with no enforcement (or warn-only)
+### Insecure - namespace with no enforcement (or warn-only)
 
 ```yaml
 apiVersion: v1
@@ -68,7 +68,7 @@ metadata:
     # No 'enforce' label == no blocking.
 ```
 
-### Secure — enforce restricted, plus a cluster-wide default
+### Secure - enforce restricted, plus a cluster-wide default
 
 ```yaml
 apiVersion: v1
@@ -98,9 +98,9 @@ plugins:
       namespaces: ["kube-system"]  # keep tiny and reviewed
 ```
 
-## Example 3: Custom Rule — Kyverno ClusterPolicy
+## Example 3: Custom Rule - Kyverno ClusterPolicy
 
-### Insecure — no ClusterPolicy exists
+### Insecure - no ClusterPolicy exists
 
 ```
 # There is simply no Kyverno (or any) policy object in the cluster:
@@ -109,7 +109,7 @@ No resources found
 # Privileged, root, hostPath, unsigned images: all admitted.
 ```
 
-### Secure — a ClusterPolicy in Enforce mode
+### Secure - a ClusterPolicy in Enforce mode
 
 ```yaml
 apiVersion: kyverno.io/v1
@@ -150,9 +150,9 @@ spec:
           - X(hostPath): "null"
 ```
 
-## Example 4: Custom Rule — OPA Gatekeeper
+## Example 4: Custom Rule - OPA Gatekeeper
 
-### Insecure — no ConstraintTemplate / Constraint
+### Insecure - no ConstraintTemplate / Constraint
 
 ```
 $ kubectl get constrainttemplates
@@ -160,7 +160,7 @@ No resources found
 # Gatekeeper may even be installed, but with zero constraints it enforces nothing.
 ```
 
-### Secure — ConstraintTemplate + Constraint in deny mode
+### Secure - ConstraintTemplate + Constraint in deny mode
 
 ```yaml
 # 1) Reusable template (the rule logic, in Rego)
@@ -201,7 +201,7 @@ spec:
 
 ## Example 5: Image Provenance
 
-### Insecure — any image from anywhere
+### Insecure - any image from anywhere
 
 ```yaml
 spec:
@@ -210,7 +210,7 @@ spec:
     image: docker.io/someuser/app:latest   # arbitrary registry, no signature check
 ```
 
-### Secure — allow-list plus signature verification (Kyverno)
+### Secure - allow-list plus signature verification (Kyverno)
 
 ```yaml
 apiVersion: kyverno.io/v1
@@ -243,7 +243,7 @@ spec:
 
 ## Example 6: Fail-Open vs. Fail-Closed Webhook
 
-### Insecure — failurePolicy: Ignore
+### Insecure - failurePolicy: Ignore
 
 ```yaml
 webhooks:
@@ -256,7 +256,7 @@ webhooks:
     resources: ["pods"]
 ```
 
-### Secure — failurePolicy: Fail (fail closed)
+### Secure - failurePolicy: Fail (fail closed)
 
 ```yaml
 webhooks:
@@ -277,7 +277,7 @@ webhooks:
 
 ## Example 7: Uniformity via GitOps
 
-### Insecure — hand-applied, per-cluster
+### Insecure - hand-applied, per-cluster
 
 ```
 # Policies applied ad hoc, differently on each cluster, drifting over time:
@@ -285,7 +285,7 @@ kubectl apply -f some-policy.yaml   # on prod-eu only
 # staging, prod-us, and the new sandbox cluster never got it.
 ```
 
-### Secure — one policy tree reconciled everywhere
+### Secure - one policy tree reconciled everywhere
 
 ```yaml
 # Flux Kustomization: the SAME policy directory applied to every cluster,

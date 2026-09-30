@@ -14,7 +14,7 @@
 
 ## What is Sensitive Data Exposure?
 
-**Sensitive Data Exposure** (A3 in the OWASP Top 10 2017) is the failure to adequately protect sensitive information — personal, financial, health, authentication, or business-critical data — wherever it lives and however it moves. It is a *symptom-level* category: the harm is that the data ends up somewhere an attacker can read it, whether because it was never encrypted, was sent in cleartext, was cached or logged, was left in an exposed backup, or was simply retained when it should have been discarded.
+**Sensitive Data Exposure** (A3 in the OWASP Top 10 2017) is the failure to adequately protect sensitive information - personal, financial, health, authentication, or business-critical data - wherever it lives and however it moves. It is a *symptom-level* category: the harm is that the data ends up somewhere an attacker can read it, whether because it was never encrypted, was sent in cleartext, was cached or logged, was left in an exposed backup, or was simply retained when it should have been discarded.
 
 The word to hold onto is **exposure**. Unlike a category such as Injection, which names a specific defect, A3:2017 names an *outcome*: sensitive data reaching an unauthorised party. Many different weaknesses feed into that outcome, so the discipline is less about one clever fix and more about knowing what data you hold, where it flows, and closing every place it can leak.
 
@@ -38,12 +38,12 @@ DATA IN USE       -> held or handled while processing (memory, logs, URLs, brows
 Sensitivity is contextual and often defined by law or contract. Common classes include:
 
 - **Authentication secrets**: passwords, password hashes, session tokens, API keys, private keys.
-- **Financial data**: card numbers (PAN), CVV, bank account and routing numbers — governed by PCI-DSS.
-- **Personal data (PII)**: names tied to identifiers, national IDs (SSN/passport), addresses, dates of birth — governed by GDPR, CCPA, and similar.
-- **Health data (PHI)**: diagnoses, prescriptions, records — governed by HIPAA and equivalents.
+- **Financial data**: card numbers (PAN), CVV, bank account and routing numbers - governed by PCI-DSS.
+- **Personal data (PII)**: names tied to identifiers, national IDs (SSN/passport), addresses, dates of birth - governed by GDPR, CCPA, and similar.
+- **Health data (PHI)**: diagnoses, prescriptions, records - governed by HIPAA and equivalents.
 - **Business-critical data**: source code, encryption keys, internal documents, trade secrets.
 
-> **Key idea:** You cannot protect what you have not identified. The first act of defence against A3 is *data classification* — an inventory of what sensitive data you collect, where it lives, and who may touch it.
+> **Key idea:** You cannot protect what you have not identified. The first act of defence against A3 is *data classification* - an inventory of what sensitive data you collect, where it lives, and who may touch it.
 
 ## Why Does This Matter?
 
@@ -108,7 +108,7 @@ The examples below are drawn from *well-documented classes of incident* that rec
 
 ### Pattern 1: Cleartext Credentials on Shared Networks
 
-**Mechanism**: A login form or API served over HTTP (or a page that posts to an HTTP endpoint) transmits usernames and passwords in the clear. Anyone sharing the network path — open Wi-Fi, a compromised router, a malicious hop — captures them passively.
+**Mechanism**: A login form or API served over HTTP (or a page that posts to an HTTP endpoint) transmits usernames and passwords in the clear. Anyone sharing the network path - open Wi-Fi, a compromised router, a malicious hop - captures them passively.
 
 **Lesson**: HTTPS everywhere with HSTS is the baseline, not an enhancement. There is no "non-sensitive" page if a single request can leak a session cookie.
 
@@ -132,7 +132,7 @@ The examples below are drawn from *well-documented classes of incident* that rec
 
 ### Pattern 5: Secrets Committed to Source Control
 
-**Mechanism**: API keys, database passwords, and private keys hard-coded into a repository — especially a public one — are harvested by bots within minutes of being pushed, and remain in git history even after being "removed" in a later commit.
+**Mechanism**: API keys, database passwords, and private keys hard-coded into a repository - especially a public one - are harvested by bots within minutes of being pushed, and remain in git history even after being "removed" in a later commit.
 
 **Lesson**: Secrets belong in a secret manager or environment configuration, never in code. Scan history, and rotate anything that was ever committed.
 
@@ -140,13 +140,13 @@ The examples below are drawn from *well-documented classes of incident* that rec
 
 **Mechanism**: When a user table protected only by unsalted MD5 or SHA-1 is exposed, commodity hardware and rainbow tables recover the plaintext passwords almost instantly, and those passwords are then reused against other sites.
 
-**Lesson**: Even a database breach should not equal a password breach — salted, slow hashing (bcrypt/Argon2/scrypt) is what buys that separation. (The algorithm details live in the [Cryptographic Failures](../02-Cryptographic-Failures/overview.md) lesson.)
+**Lesson**: Even a database breach should not equal a password breach - salted, slow hashing (bcrypt/Argon2/scrypt) is what buys that separation. (The algorithm details live in the [Cryptographic Failures](../02-Cryptographic-Failures/overview.md) lesson.)
 
 ## Prevalence and Detectability
 
 Sensitive Data Exposure ranked **#3** in the OWASP Top 10 2017. Rather than quote a single incidence figure (which varies by dataset and year), the durable picture is:
 
-- It is **highly prevalent** because it spans transport, storage, logging, caching, and configuration — a gap in any one produces exposure.
+- It is **highly prevalent** because it spans transport, storage, logging, caching, and configuration - a gap in any one produces exposure.
 - It is **often easy to detect from the outside**: a scan reveals HTTP endpoints, missing HSTS, weak TLS, and cacheable sensitive responses; a crawler finds exposed backups and buckets.
 - Its **impact is high** because the asset at risk is, by definition, the data most worth stealing.
 
@@ -174,7 +174,7 @@ Sensitive Data Exposure ranked **#3** in the OWASP Top 10 2017. Rather than quot
 
 ### Myth 3: "Base64 / obfuscation keeps the data safe"
 
-**Reality**: Base64 is encoding, not encryption — it is reversed with a single function call. Obscuring a field is not protecting it.
+**Reality**: Base64 is encoding, not encryption - it is reversed with a single function call. Obscuring a field is not protecting it.
 
 ### Myth 4: "We don't store anything really sensitive"
 
@@ -190,7 +190,7 @@ Sensitive Data Exposure ranked **#3** in the OWASP Top 10 2017. Rather than quot
 
 ## 2017 to 2021: How This Category Evolved
 
-In the **OWASP Top 10 2021**, this category was renamed and re-scoped to **A02:2021 – Cryptographic Failures**. The 2021 edition deliberately shifted focus toward the *root cause* — weak or missing cryptography — rather than the *symptom* of data being exposed.
+In the **OWASP Top 10 2021**, this category was renamed and re-scoped to **A02:2021 – Cryptographic Failures**. The 2021 edition deliberately shifted focus toward the *root cause* - weak or missing cryptography - rather than the *symptom* of data being exposed.
 
 This lesson keeps the broader **2017 "data exposure" framing** on purpose. That framing is valuable because it forces attention on questions cryptography alone does not answer:
 
@@ -205,7 +205,7 @@ The deep treatment of algorithms, hashing, key management, and TLS cipher choice
 Answer these about your own application. Each "no" or "not sure" is a likely exposure today:
 
 - [ ] Do you have a current inventory that classifies every sensitive data type you collect and where it is stored?
-- [ ] Is every request — including redirects, APIs, and internal service calls — served over HTTPS with modern TLS and HSTS?
+- [ ] Is every request - including redirects, APIs, and internal service calls - served over HTTPS with modern TLS and HSTS?
 - [ ] Is sensitive data encrypted at rest, including replicas and backups, with keys held outside the data store?
 - [ ] Are secrets (keys, passwords, tokens) kept out of source code and out of URLs?
 - [ ] Do logs and error messages redact passwords, tokens, card numbers, and other sensitive fields?

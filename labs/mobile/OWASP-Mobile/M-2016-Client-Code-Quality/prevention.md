@@ -7,15 +7,15 @@ Preventing client-code-quality defects is about **making unsafe code hard to wri
 1. Treat every input boundary as untrusted and validate/bounds-check there.
 2. Prefer memory-safe languages and APIs; contain the unavoidable native code.
 3. Turn on compiler and platform hardening so bugs are harder to exploit.
-4. Automate detection—static analysis, sanitizers, and fuzzing—in CI.
+4. Automate detection-static analysis, sanitizers, and fuzzing-in CI.
 5. Handle errors deliberately so failures fail closed, not open or crashing.
 
 ### Core Principles
 
-- **Validate at the boundary**: the first code that touches untrusted input checks length, type, range, and structure—before anything else uses it.
+- **Validate at the boundary**: the first code that touches untrusted input checks length, type, range, and structure-before anything else uses it.
 - **Memory-safe by default**: choose managed languages and safe APIs; every drop into C/C++ is a deliberate, reviewed exception.
 - **Least dangerous API**: ban `strcpy`/`sprintf`/`gets`-class calls; use length-limited equivalents and safe containers.
-- **Fail closed and quiet**: on malformed input, reject and return a safe default—never crash, never proceed in an undefined state.
+- **Fail closed and quiet**: on malformed input, reject and return a safe default-never crash, never proceed in an undefined state.
 
 ## 1. Validate and Bounds-Check All Untrusted Input
 
@@ -113,7 +113,7 @@ Run these on every pull request and fail the build on new findings. Sanitizer-in
 
 ## 6. Fuzz Native Parsers
 
-Any code that turns untrusted bytes into structure should be fuzzed—this is the most effective way to find the overflow and integer bugs human review misses.
+Any code that turns untrusted bytes into structure should be fuzzed-this is the most effective way to find the overflow and integer bugs human review misses.
 
 ```cpp
 // libFuzzer entry point for a native parser
@@ -145,7 +145,7 @@ let obj = unarchiver.decodeObject(of: [MyModel.self, NSString.self],
 ## 8. Lock Down the WebView JavaScript Bridge
 
 ```kotlin
-// Android: modern, minimal, annotated bridge — and no untrusted content
+// Android: modern, minimal, annotated bridge - and no untrusted content
 class SafeBridge {
     @JavascriptInterface                     // required on API 17+ ; nothing else is exposed
     fun getVersion(): String = BuildConfig.VERSION_NAME
@@ -174,7 +174,7 @@ val url = intent.getStringExtra("url")
 if (url == null || !isAllowedHost(url)) { finish(); return }
 ```
 
-Check return codes in C, catch and handle exceptions at boundaries, and make sure a failed security check leaves the app in a denied state—never a partially-initialised one.
+Check return codes in C, catch and handle exceptions at boundaries, and make sure a failed security check leaves the app in a denied state-never a partially-initialised one.
 
 ## 10. Protect Sensitive Data in Memory
 
@@ -198,11 +198,11 @@ Check return codes in C, catch and handle exceptions at boundaries, and make sur
 
 ## Key Takeaways
 
-1. **Validate at every boundary** — length, type, range, and structure, before any other code uses the input.
-2. **Prefer memory-safe code** — contain native C/C++, and replace dangerous APIs with length-limited, bounds-aware equivalents.
-3. **Turn on the mitigations** — stack canaries, PIE/ASLR, RELRO, `_FORTIFY_SOURCE`, and ARC make bugs harder to exploit.
-4. **Automate detection** — static analysis, sanitizers, and fuzzing in CI catch what review misses.
-5. **Fail closed** — deliberate error handling turns malformed input into a clean rejection, not a crash or a bypass.
+1. **Validate at every boundary** - length, type, range, and structure, before any other code uses the input.
+2. **Prefer memory-safe code** - contain native C/C++, and replace dangerous APIs with length-limited, bounds-aware equivalents.
+3. **Turn on the mitigations** - stack canaries, PIE/ASLR, RELRO, `_FORTIFY_SOURCE`, and ARC make bugs harder to exploit.
+4. **Automate detection** - static analysis, sanitizers, and fuzzing in CI catch what review misses.
+5. **Fail closed** - deliberate error handling turns malformed input into a clean rejection, not a crash or a bypass.
 
 ## Next Steps
 

@@ -40,7 +40,7 @@ Almost every deserialization exploit follows the same five steps, regardless of 
                       For tamper: flip fields; re-sign if a key leaked.
 
 5. DELIVER & TRIGGER  Send the blob so the vulnerable code deserializes it.
-                      The chain fires DURING reconstruction—before business
+                      The chain fires DURING reconstruction-before business
                       logic ever validates anything.
 ```
 
@@ -143,7 +143,7 @@ $obj = unserialize($_COOKIE['prefs']);  // __destruct writes a web shell
 
 ### <a id="pattern-6"></a>6. PHP `phar://` deserialization
 
-PHP `.phar` archives store serialized metadata. When any filesystem function is given a `phar://` path, PHP *deserializes that metadata*—no explicit `unserialize()` call required. If an attacker can upload a crafted archive and influence a filename, a POP chain fires.
+PHP `.phar` archives store serialized metadata. When any filesystem function is given a `phar://` path, PHP *deserializes that metadata*-no explicit `unserialize()` call required. If an attacker can upload a crafted archive and influence a filename, a POP chain fires.
 
 ```php
 <?php
@@ -178,7 +178,7 @@ var obj = JsonConvert.DeserializeObject(userJson, settings);
 
 ### <a id="pattern-8"></a>8. ASP.NET ViewState with a known key
 
-ASP.NET serialises page state into `__VIEWSTATE`. It is protected by a Message Authentication Code and optional encryption keyed by `machineKey`. If that key is **left at a default, leaked in source, or brute-forced**, an attacker can forge a valid, signed ViewState that deserializes to a gadget chain—RCE.
+ASP.NET serialises page state into `__VIEWSTATE`. It is protected by a Message Authentication Code and optional encryption keyed by `machineKey`. If that key is **left at a default, leaked in source, or brute-forced**, an attacker can forge a valid, signed ViewState that deserializes to a gadget chain-RCE.
 
 ```bash
 # Attacker who knows the machineKey forges a signed ViewState (illustrative):
@@ -221,7 +221,7 @@ deepMerge(currentUser, JSON.parse(req.body));
 // Now ({}).isAdmin === true for EVERY object -> auth checks bypassed
 ```
 
-It is included here because it is JavaScript's characteristic "deserialize untrusted structure into live objects" failure—fix by rejecting `__proto__`/`constructor` keys and using null-prototype objects or `Map`.
+It is included here because it is JavaScript's characteristic "deserialize untrusted structure into live objects" failure-fix by rejecting `__proto__`/`constructor` keys and using null-prototype objects or `Map`.
 
 ### <a id="pattern-11"></a>11. Cookie / token tampering & replay
 
@@ -257,13 +257,13 @@ Deep recursion:
 Result: CPU/memory exhaustion -> the service falls over on a tiny request.
 ```
 
-Defences include input size limits, depth/reference caps in the parser, and—again—not deserializing untrusted native formats at all.
+Defences include input size limits, depth/reference caps in the parser, and-again-not deserializing untrusted native formats at all.
 
 ## Detection Techniques
 
 ### For Security Testers
 
-- **Locate the format**: recognise serialized data by its markers—Java streams begin with the bytes `AC ED 00 05` (base64 `rO0AB`), PHP serialized strings look like `O:4:"User":...`, .NET `BinaryFormatter` starts with `00 01 00 00 00 FF FF FF FF`, Python pickles start with `\x80` then a protocol byte.
+- **Locate the format**: recognise serialized data by its markers-Java streams begin with the bytes `AC ED 00 05` (base64 `rO0AB`), PHP serialized strings look like `O:4:"User":...`, .NET `BinaryFormatter` starts with `00 01 00 00 00 FF FF FF FF`, Python pickles start with `\x80` then a protocol byte.
 - **Probe blobs**: any opaque cookie, hidden field, header, or body that base64-decodes to one of the above is a candidate. Feed it a benign malformed value and watch for type/parse errors that confirm deserialization.
 - **Use the toolchain**: `ysoserial` / `ysoserial.net` for Java/.NET payload generation, the Java Deserialization Scanner and Freddy extensions for Burp Suite, `phpggc` for PHP POP chains.
 - **Out-of-band confirmation**: because output is often invisible, prove execution with a DNS/HTTP callback (an OAST/Collaborator-style interaction) rather than expecting command output in the response.
@@ -284,10 +284,10 @@ Defences include input size limits, depth/reference caps in the parser, and—ag
 
 ## Key Takeaways for Defenders
 
-1. **The exploit fires during reconstruction**—post-deserialization validation is too late.
+1. **The exploit fires during reconstruction**-post-deserialization validation is too late.
 2. **RCE and tampering are different vectors** with different fixes; check for both.
-3. **Attackers reuse your libraries**—keeping gadget libraries patched and off the classpath matters.
-4. **Recognise serialized blobs by their byte markers**—they hide in cookies, fields, and files.
+3. **Attackers reuse your libraries**-keeping gadget libraries patched and off the classpath matters.
+4. **Recognise serialized blobs by their byte markers**-they hide in cookies, fields, and files.
 5. **Prove impact out-of-band**; deserialization RCE is often "blind."
 
 ## Next Steps

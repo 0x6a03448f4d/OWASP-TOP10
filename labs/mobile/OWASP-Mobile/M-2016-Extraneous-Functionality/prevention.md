@@ -2,7 +2,7 @@
 
 ## Prevention Strategy Overview
 
-Every fix for extraneous functionality reduces to one principle: **development-only code must not exist in the production build**. Not hidden, not flag-gated, not obfuscated—*absent*. Because the attacker owns the binary, the only reliable control is to make sure the sensitive code was never compiled into the shipped artifact in the first place.
+Every fix for extraneous functionality reduces to one principle: **development-only code must not exist in the production build**. Not hidden, not flag-gated, not obfuscated-*absent*. Because the attacker owns the binary, the only reliable control is to make sure the sensitive code was never compiled into the shipped artifact in the first place.
 
 1. Separate debug and release builds so development code is compiled out, not just switched off.
 2. Strip logging, test endpoints, and test credentials from release.
@@ -20,7 +20,7 @@ Every fix for extraneous functionality reduces to one principle: **development-o
 
 The single most effective control is a build system that physically excludes development code from release. On Android this is **build types and product flavors with source sets**; on iOS it is **`#if DEBUG`** compilation conditions.
 
-#### Android — build types and debug-only source sets
+#### Android - build types and debug-only source sets
 
 ```groovy
 // build.gradle (app)
@@ -40,7 +40,7 @@ android {
 }
 ```
 
-Place development-only classes (a diagnostics screen, mock interceptors, seed loaders) in the `src/debug/` source set. They are compiled into the debug APK and **do not exist** in the release APK—so there is nothing for a decompiler to find.
+Place development-only classes (a diagnostics screen, mock interceptors, seed loaders) in the `src/debug/` source set. They are compiled into the debug APK and **do not exist** in the release APK-so there is nothing for a decompiler to find.
 
 ```
 app/src/debug/java/com/example/app/DiagnosticsActivity.kt   // debug build ONLY
@@ -48,7 +48,7 @@ app/src/main/java/com/example/app/...                       // shared, productio
 app/src/release/...                                         // release-only overrides
 ```
 
-#### iOS — #if DEBUG compilation conditions
+#### iOS - #if DEBUG compilation conditions
 
 ```swift
 #if DEBUG
@@ -73,7 +73,7 @@ if (BuildConfig.DEBUG) {
 }
 ```
 
-> **Caution**: a guard only protects you if the flag is a compile-time constant *and* the optimizer runs. A boolean read from `SharedPreferences`, a remote config value, or a plain `var` is not stripped—the guarded code still ships and is reachable. Prefer `BuildConfig.DEBUG` / `#if DEBUG` over app-defined runtime flags.
+> **Caution**: a guard only protects you if the flag is a compile-time constant *and* the optimizer runs. A boolean read from `SharedPreferences`, a remote config value, or a plain `var` is not stripped-the guarded code still ships and is reachable. Prefer `BuildConfig.DEBUG` / `#if DEBUG` over app-defined runtime flags.
 
 ## 3. Silence Production Logging
 
@@ -115,13 +115,13 @@ Also confirm third-party analytics/crash SDKs are not configured to capture full
 
 ## 4. Remove Test / Staging Endpoints and Credentials
 
-- Select the base URL from `BuildConfig`/`#if DEBUG`—release must have no code path that can reach staging.
+- Select the base URL from `BuildConfig`/`#if DEBUG`-release must have no code path that can reach staging.
 - Never hardcode test accounts. If QA needs an account, provision it server-side and keep it out of the binary entirely.
 - Do not ship an in-app "environment switcher" in release; put it behind a debug-only source set.
 - Keep API keys out of source; where a client key is unavoidable, treat it as public and scope it minimally server-side.
 
 ```kotlin
-// Do NOT do this — constants like these are trivially recovered from the binary
+// Do NOT do this - constants like these are trivially recovered from the binary
 const val QA_USER = "qa_admin"
 const val QA_PASS = "Test1234!"
 // A test account belongs in the server's test environment, never in the app.
@@ -129,7 +129,7 @@ const val QA_PASS = "Test1234!"
 
 ## 5. Guarantee debuggable=false and a Hardened Release Manifest
 
-Do not set `android:debuggable` in the manifest at all—let the build type control it, and force it off for release.
+Do not set `android:debuggable` in the manifest at all-let the build type control it, and force it off for release.
 
 ```groovy
 // build.gradle
@@ -137,7 +137,7 @@ release { debuggable false }
 ```
 
 ```xml
-<!-- AndroidManifest.xml — do NOT hardcode android:debuggable="true" -->
+<!-- AndroidManifest.xml - do NOT hardcode android:debuggable="true" -->
 <application
     android:allowBackup="false"
     ... >
@@ -201,7 +201,7 @@ Run these gates on every release build so a leftover backdoor or staging URL blo
 
 ## 8. Distinguish From Security Misconfiguration When Remediating
 
-The remediation verb tells you which category you are in—and getting it right avoids a false sense of safety.
+The remediation verb tells you which category you are in-and getting it right avoids a false sense of safety.
 
 | Finding | Category | Correct fix |
 |---------|----------|-------------|
@@ -210,15 +210,15 @@ The remediation verb tells you which category you are in—and getting it right 
 | Backup allowed for sensitive data | Misconfiguration | *Reconfigure* (`allowBackup=false`) |
 | Weak TLS / no pinning | Misconfiguration | *Reconfigure* the network security policy |
 
-If the fix is "set this option to a safer value," it is misconfiguration. If the fix is "this shouldn't be in the app—take it out," it is extraneous functionality.
+If the fix is "set this option to a safer value," it is misconfiguration. If the fix is "this shouldn't be in the app-take it out," it is extraneous functionality.
 
 ## Key Takeaways
 
-1. **Compile it out** — debug/product flavors and `#if DEBUG` remove development code from the release artifact entirely.
-2. **Guards must be provably constant** — `BuildConfig.DEBUG`/`#if DEBUG` get stripped; runtime flags do not.
-3. **No secrets, endpoints, or logs in release** — test creds and staging URLs belong in test environments, never in the binary.
-4. **Lock the manifest** — `debuggable=false`, verified on the built APK, not just the source.
-5. **Automate the backstop** — CI scans the artifact and fails the build on any debug leftover.
+1. **Compile it out** - debug/product flavors and `#if DEBUG` remove development code from the release artifact entirely.
+2. **Guards must be provably constant** - `BuildConfig.DEBUG`/`#if DEBUG` get stripped; runtime flags do not.
+3. **No secrets, endpoints, or logs in release** - test creds and staging URLs belong in test environments, never in the binary.
+4. **Lock the manifest** - `debuggable=false`, verified on the built APK, not just the source.
+5. **Automate the backstop** - CI scans the artifact and fails the build on any debug leftover.
 
 ## Next Steps
 

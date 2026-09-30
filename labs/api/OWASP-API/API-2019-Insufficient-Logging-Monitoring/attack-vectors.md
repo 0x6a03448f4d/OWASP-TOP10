@@ -9,14 +9,14 @@
 
 ## Understanding the Attack Vectors
 
-> **⚠ EDUCATIONAL PURPOSE ONLY** — the techniques below are described so you can recognise these patterns in telemetry for systems you own or are authorised to test, and build the detections that catch them.
+> **⚠ EDUCATIONAL PURPOSE ONLY** - the techniques below are described so you can recognise these patterns in telemetry for systems you own or are authorised to test, and build the detections that catch them.
 
-Insufficient Logging & Monitoring is unusual among the OWASP API risks: there is no payload that "exploits" it directly. Instead, the vulnerability is the **absence of a witness**. Every technique on this page is an ordinary attack—credential stuffing, enumeration, scraping—paired with the crucial fact that, against a blind API, **none of it triggers an alert**. The attacker's advantage is time: they can be slow, careful, and thorough because nobody is counting.
+Insufficient Logging & Monitoring is unusual among the OWASP API risks: there is no payload that "exploits" it directly. Instead, the vulnerability is the **absence of a witness**. Every technique on this page is an ordinary attack-credential stuffing, enumeration, scraping-paired with the crucial fact that, against a blind API, **none of it triggers an alert**. The attacker's advantage is time: they can be slow, careful, and thorough because nobody is counting.
 
 Two angles matter here:
 
 - **Attacks that run undetected** because the security events were never logged or never monitored.
-- **Attacks on the logs themselves**—injecting forged entries or tampering with records—to defeat whatever monitoring does exist and to cover tracks.
+- **Attacks on the logs themselves**-injecting forged entries or tampering with records-to defeat whatever monitoring does exist and to cover tracks.
 
 ## Core Attack Flow
 
@@ -88,7 +88,7 @@ GET /api/v1/profiles/000003  -> 200
 
 ### 4. Authorization-Failure Probing (403 Sweeps)
 
-Before committing to an attack, an adversary maps which endpoints and objects are reachable—deliberately generating denials to learn the boundaries.
+Before committing to an attack, an adversary maps which endpoints and objects are reachable-deliberately generating denials to learn the boundaries.
 
 ```
 GET  /api/v1/admin/users        -> 403
@@ -98,7 +98,7 @@ DELETE /api/v1/users/42         -> 403
 # a burst of denied privileged calls = reconnaissance
 ```
 
-**Why it stays invisible**: each 403 is "working as intended," so teams often discard them. But a *burst* of denials against privileged routes from one caller is a loud signal—if anyone is counting.
+**Why it stays invisible**: each 403 is "working as intended," so teams often discard them. But a *burst* of denials against privileged routes from one caller is a loud signal-if anyone is counting.
 
 **What detection needs**: treat 403 as a security event, not noise; alert on clustered denials against sensitive routes.
 
@@ -130,17 +130,17 @@ GET /api/v1/search?q=../../../../etc/passwd
 POST /api/v1/orders   {"qty": -2147483648}
 ```
 
-**Why it stays invisible**: if the API silently rejects bad input without logging the rejection, endpoint, and reason, a systematic fuzzing campaign produces no record at all—the defender never learns they were being probed.
+**Why it stays invisible**: if the API silently rejects bad input without logging the rejection, endpoint, and reason, a systematic fuzzing campaign produces no record at all-the defender never learns they were being probed.
 
 **What detection needs**: log validation failures with endpoint + reason, and alert on rejections clustering on one endpoint or from one caller.
 
 ## Log Injection, Forging, and Tampering
 
-Where monitoring *does* exist, attackers target the logs themselves—either to poison them or to erase evidence.
+Where monitoring *does* exist, attackers target the logs themselves-either to poison them or to erase evidence.
 
 ### 7. Log Injection via Unencoded Input (CRLF / Forged Entries)
 
-If untrusted input is written into logs verbatim, an attacker can embed newline characters to forge additional log lines—framing another user, hiding their own action, or breaking a log parser.
+If untrusted input is written into logs verbatim, an attacker can embed newline characters to forge additional log lines-framing another user, hiding their own action, or breaking a log parser.
 
 ```
 # Attacker sends a username containing CRLF + a fake line:
@@ -174,11 +174,11 @@ When secrets are logged in cleartext, the log store becomes the softest target.
 INFO request user=jane token=eyJhbGciOi... card=4111111111111111 ssn=123-45-6789
 ```
 
-**Payoff**: an attacker (or an over-broadly-permissioned insider) reads live credentials and regulated data straight out of the logs—no application exploit required. Never log secrets, tokens, passwords, or PII; log *identifiers and outcomes* instead.
+**Payoff**: an attacker (or an over-broadly-permissioned insider) reads live credentials and regulated data straight out of the logs-no application exploit required. Never log secrets, tokens, passwords, or PII; log *identifiers and outcomes* instead.
 
 ## Chaining: Why Blindness Amplifies Everything
 
-Insufficient logging and monitoring rarely appears alone in a breach report—it is the force multiplier that turns a contained incident into a catastrophic one:
+Insufficient logging and monitoring rarely appears alone in a breach report-it is the force multiplier that turns a contained incident into a catastrophic one:
 
 ```
 Broken auth (weak lockout)            -> credential stuffing succeeds
@@ -202,11 +202,11 @@ BOLA on /invoices/{id}    -> attacker can read others' records
 
 ## Key Takeaways
 
-1. **The vulnerability is the missing witness**—ordinary attacks succeed quietly because nothing is counting.
-2. **Rate-of-error is the loudest signal you are ignoring**—spikes of 401/403/429 mark stuffing, enumeration, and abuse in progress.
-3. **Per-client and per-token context is what makes an attack visible**—aggregate dashboards hide slow, distributed, single-caller abuse.
-4. **Logs are an attack surface too**—encode untrusted input to stop forging, and ship logs off-box so they cannot be wiped.
-5. **Never let the log store become the breach**—log identifiers and outcomes, never secrets or PII.
+1. **The vulnerability is the missing witness**-ordinary attacks succeed quietly because nothing is counting.
+2. **Rate-of-error is the loudest signal you are ignoring**-spikes of 401/403/429 mark stuffing, enumeration, and abuse in progress.
+3. **Per-client and per-token context is what makes an attack visible**-aggregate dashboards hide slow, distributed, single-caller abuse.
+4. **Logs are an attack surface too**-encode untrusted input to stop forging, and ship logs off-box so they cannot be wiped.
+5. **Never let the log store become the breach**-log identifiers and outcomes, never secrets or PII.
 
 ## Next Steps
 

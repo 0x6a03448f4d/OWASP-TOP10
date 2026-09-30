@@ -2,9 +2,9 @@
 
 Each pair below shows a **vulnerable** protocol design and the **secure** version in Solidity. The theme throughout: the vulnerable version trusts a value an attacker can move with flash-borrowed capital in one transaction; the secure version does not. An illustrative **attacker contract** flow is included so you can see how the amplification is assembled.
 
-**&#9888; EDUCATIONAL PURPOSE ONLY** — the attacker example exists so you can recognise and defend against this pattern in systems you own or are authorised to test.
+**&#9888; EDUCATIONAL PURPOSE ONLY** - the attacker example exists so you can recognise and defend against this pattern in systems you own or are authorised to test.
 
-## Example 1: Lending Protocol — Spot Price vs. TWAP
+## Example 1: Lending Protocol - Spot Price vs. TWAP
 
 ### Vulnerable
 
@@ -91,7 +91,7 @@ contract SecureLending {
 }
 ```
 
-## Example 2: Governance — Live Balance vs. Past-Block Snapshot
+## Example 2: Governance - Live Balance vs. Past-Block Snapshot
 
 ### Vulnerable
 
@@ -180,7 +180,7 @@ contract SecureGovernance {
 }
 ```
 
-## Example 3: Vault — Manipulable Share Price vs. Hardened Accounting
+## Example 3: Vault - Manipulable Share Price vs. Hardened Accounting
 
 ### Vulnerable
 
@@ -251,7 +251,7 @@ contract SecureVault {
 
 ## Example 4: The Attacker Contract (Illustrative Flow)
 
-This is the shape of the single contract that weaponises the vulnerable lending design from Example 1. It borrows, manipulates, extracts, and repays—all in one atomic callback. If the run is not profitable, the whole transaction reverts and the attacker loses only gas.
+This is the shape of the single contract that weaponises the vulnerable lending design from Example 1. It borrows, manipulates, extracts, and repays-all in one atomic callback. If the run is not profitable, the whole transaction reverts and the attacker loses only gas.
 
 ```
 // SPDX-License-Identifier: MIT
@@ -312,7 +312,7 @@ contract FlashAttacker {
 }
 ```
 
-**Why the secure designs defeat this**: against `SecureLending`, step 1 cannot move a 30-minute TWAP within one transaction, and the deviation check reverts on an impossible swing—so step 2 never over-borrows and the transaction reverts unprofitably. The attacker is left with only a gas bill.
+**Why the secure designs defeat this**: against `SecureLending`, step 1 cannot move a 30-minute TWAP within one transaction, and the deviation check reverts on an impossible swing-so step 2 never over-borrows and the transaction reverts unprofitably. The attacker is left with only a gas bill.
 
 ## What Changed, and Why
 
@@ -326,7 +326,7 @@ contract FlashAttacker {
 
 ## Next Steps
 
-- **Prevention**: The full defence strategy—design for infinite one-tx capital
+- **Prevention**: The full defence strategy-design for infinite one-tx capital
 - **Attack Vectors**: How these exploits are assembled and chained
 - **Smart Contract Learning Path**: Continue the OWASP Smart Contract Top 10
 - **Practice**: Apply what you've learned in hands-on challenges

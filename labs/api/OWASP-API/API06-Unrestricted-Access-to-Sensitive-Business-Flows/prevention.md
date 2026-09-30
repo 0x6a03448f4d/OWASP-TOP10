@@ -13,7 +13,7 @@
 
 ## Prevention Strategy Overview
 
-Protecting sensitive business flows requires a fundamentally different approach than traditional API security. You're not defending against malicious payloads or unauthorized access—you're preventing automated abuse of legitimate functionality.
+Protecting sensitive business flows requires a fundamentally different approach than traditional API security. You're not defending against malicious payloads or unauthorized access-you're preventing automated abuse of legitimate functionality.
 
 ### Core Principles
 

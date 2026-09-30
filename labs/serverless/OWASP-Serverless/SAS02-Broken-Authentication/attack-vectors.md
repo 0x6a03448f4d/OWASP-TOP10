@@ -8,9 +8,9 @@
 
 ## Understanding Broken-Authentication Attack Vectors
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in serverless applications you own or are authorised to test.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in serverless applications you own or are authorised to test.
 
-Attacking broken authentication in serverless is rarely about defeating a cryptographic control. It is about **finding the door that was left off the hinges**. The attacker maps the fleet of functions, identifies which entry points skip the central authentication layer, and invokes privileged logic through whichever one is open—a public Function URL, an event trigger, or a direct invoke.
+Attacking broken authentication in serverless is rarely about defeating a cryptographic control. It is about **finding the door that was left off the hinges**. The attacker maps the fleet of functions, identifies which entry points skip the central authentication layer, and invokes privileged logic through whichever one is open-a public Function URL, an event trigger, or a direct invoke.
 
 The attacker's goal in this category is usually one of:
 
@@ -29,7 +29,7 @@ The attacker's goal in this category is usually one of:
    Hit each entry point directly; note which respond without auth
 3. Bypass
    ↓
-   Invoke via Function URL / event source / direct call — skip the gateway
+   Invoke via Function URL / event source / direct call - skip the gateway
 4. Forge / Replay
    ↓
    Craft or reuse tokens where validation is weak or missing
@@ -78,14 +78,14 @@ aws lambda invoke \
 # internalSync trusts the payload because "only internal callers reach it"
 ```
 
-**Payoff**: privileged actions with no user authentication—the function assumed it was unreachable from outside.
+**Payoff**: privileged actions with no user authentication-the function assumed it was unreachable from outside.
 
 ### 4. Forging a JWT Against Decode-Only Validation
 
 When a function decodes a token but never verifies its signature, the claims are attacker-controlled.
 
 ```
-# Attacker crafts a token body and base64url-encodes it — no valid signature needed
+# Attacker crafts a token body and base64url-encodes it - no valid signature needed
 header  = {"alg":"none","typ":"JWT"}
 payload = {"sub":"attacker","role":"admin","scope":"*"}
 token   = b64(header) + "." + b64(payload) + "."
@@ -103,7 +103,7 @@ Tokens with no expiry, or static service secrets, keep working long after they s
 ```http
 # A token pulled from a log, a client bundle, or a git history:
 Authorization: Bearer <non-expiring-token>
--> still valid weeks later — no exp claim, never rotated
+-> still valid weeks later - no exp claim, never rotated
 ```
 
 **Payoff**: persistent access from a single leaked credential, because nothing forces it to expire or rotate.
@@ -119,7 +119,7 @@ Endpoints treated as "secret" are routinely exposed.
 - Endpoints recorded in browser history and shared links
 ```
 
-**Payoff**: the "obscure" endpoint is discovered, then invoked directly—obscurity was the only control.
+**Payoff**: the "obscure" endpoint is discovered, then invoked directly-obscurity was the only control.
 
 ### 7. Exploiting Inconsistent Enforcement Across the Fleet
 
@@ -169,11 +169,11 @@ Decode-only JWT check            -> attacker forges {"role":"admin"}
 
 ## Key Takeaways
 
-1. **The attack is entry-point discovery, not payload craft**—the weakest door defines your security, not the front one.
-2. **Every non-gateway trigger is a bypass candidate**—Function URLs, event sources, and direct invokes all skip the authorizer.
-3. **"Internal" functions act on untrusted input**—the event source is transport, not proof of identity.
-4. **Decode is not verify**—a token that is not cryptographically checked is attacker-controlled.
-5. **Small gaps chain**—a leaked ARN plus an open URL plus a broad role equals a breach with no login at all.
+1. **The attack is entry-point discovery, not payload craft**-the weakest door defines your security, not the front one.
+2. **Every non-gateway trigger is a bypass candidate**-Function URLs, event sources, and direct invokes all skip the authorizer.
+3. **"Internal" functions act on untrusted input**-the event source is transport, not proof of identity.
+4. **Decode is not verify**-a token that is not cryptographically checked is attacker-controlled.
+5. **Small gaps chain**-a leaked ARN plus an open URL plus a broad role equals a breach with no login at all.
 
 ## Next Steps
 

@@ -12,10 +12,10 @@ You cannot prove a downloaded base model is clean by looking at its accuracy. Pr
 
 ### Core Principles
 
-- **Provenance over reputation**: a trusted name is not a verified artifact—check the source, signature, and hash.
+- **Provenance over reputation**: a trusted name is not a verified artifact-check the source, signature, and hash.
 - **Assume inheritance**: treat every inherited weight as capable of carrying hidden behaviour until tested.
 - **Test for triggers, not just accuracy**: clean-input performance is exactly what a backdoor preserves.
-- **Disrupt, then verify**: fine-pruning and deeper fine-tuning reduce—but do not guarantee removal of—planted behaviour, so re-test after.
+- **Disrupt, then verify**: fine-pruning and deeper fine-tuning reduce-but do not guarantee removal of-planted behaviour, so re-test after.
 
 ## 1. Use Base Models Only From Trusted, Verified Sources
 
@@ -106,7 +106,7 @@ retest_for_backdoor(model)                      # verify it actually helped
 
 ## 4. Fine-Tune Enough Layers / Fine-Prune Critical Models
 
-Freezing the whole feature extractor is the most exposed recipe. For higher-assurance models, unfreeze and retrain more of the body so planted behaviour is disturbed—then re-test, because deeper tuning reduces but does not guarantee removal.
+Freezing the whole feature extractor is the most exposed recipe. For higher-assurance models, unfreeze and retrain more of the body so planted behaviour is disturbed-then re-test, because deeper tuning reduces but does not guarantee removal.
 
 ```python
 # Higher-assurance transfer: unfreeze deeper layers instead of freezing all.
@@ -147,7 +147,7 @@ retest_for_backdoor(student)
 
 ## 7. Track Model Lineage (AI-BOM)
 
-Record where every model came from so an inherited flaw can be traced, contained, and recalled—the model equivalent of a software bill of materials.
+Record where every model came from so an inherited flaw can be traced, contained, and recalled-the model equivalent of a software bill of materials.
 
 ```yaml
 # ai-bom.yaml (excerpt) -- versioned alongside the model
@@ -197,11 +197,11 @@ model.load_weights("verified_weights.h5")        # weights only, checksum-verifi
 
 ## Key Takeaways
 
-1. **Verify provenance before loading** — pin revisions, check hashes/signatures, prefer safetensors, and never trust a name alone.
-2. **Backdoor-test both models** — run activation analysis, trigger reverse-engineering, and fine-pruning on the base and the fine-tuned model.
-3. **Disrupt planted behaviour** — fine-tune/fine-prune enough layers on critical models, then re-test.
-4. **Stress beyond accuracy** — evaluate on held-out, trigger-stress, and adversarial-transfer sets.
-5. **Track lineage** — an AI-BOM lets you trace and recall anything built on a compromised base or teacher.
+1. **Verify provenance before loading** - pin revisions, check hashes/signatures, prefer safetensors, and never trust a name alone.
+2. **Backdoor-test both models** - run activation analysis, trigger reverse-engineering, and fine-pruning on the base and the fine-tuned model.
+3. **Disrupt planted behaviour** - fine-tune/fine-prune enough layers on critical models, then re-test.
+4. **Stress beyond accuracy** - evaluate on held-out, trigger-stress, and adversarial-transfer sets.
+5. **Track lineage** - an AI-BOM lets you trace and recall anything built on a compromised base or teacher.
 
 ## Next Steps
 

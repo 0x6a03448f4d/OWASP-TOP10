@@ -10,9 +10,9 @@
 
 ## What are Access Control Vulnerabilities?
 
-**Access control** in a smart contract is the set of rules that decides *who* is allowed to invoke *which* state-changing operation. An **access control vulnerability** exists when a privileged function—one that moves funds, mints tokens, changes ownership, upgrades logic, pauses the system, or destroys the contract—can be called by an account that should never have been permitted to call it. In the OWASP Smart Contract Top 10 (2025), Access Control Vulnerabilities are ranked **SC01** because they are both the most common and among the most catastrophic class of on-chain flaws.
+**Access control** in a smart contract is the set of rules that decides *who* is allowed to invoke *which* state-changing operation. An **access control vulnerability** exists when a privileged function-one that moves funds, mints tokens, changes ownership, upgrades logic, pauses the system, or destroys the contract-can be called by an account that should never have been permitted to call it. In the OWASP Smart Contract Top 10 (2025), Access Control Vulnerabilities are ranked **SC01** because they are both the most common and among the most catastrophic class of on-chain flaws.
 
-Unlike a traditional application, a deployed smart contract is **public, immutable, and adversarial by default**. Every function selector is discoverable, every byte of storage is world-readable, and anyone on earth can craft a transaction that calls any externally reachable function. There is no network perimeter, no firewall, and no operator watching a console who might notice a suspicious login. If a function that withdraws the treasury lacks an authorization check, the check does not exist—and the first bot to notice will drain it in a single block.
+Unlike a traditional application, a deployed smart contract is **public, immutable, and adversarial by default**. Every function selector is discoverable, every byte of storage is world-readable, and anyone on earth can craft a transaction that calls any externally reachable function. There is no network perimeter, no firewall, and no operator watching a console who might notice a suspicious login. If a function that withdraws the treasury lacks an authorization check, the check does not exist-and the first bot to notice will drain it in a single block.
 
 ### Core Concept
 
@@ -39,7 +39,7 @@ Broken Access Control:
 Smart contracts concentrate several conditions that make a broken access check uniquely devastating:
 
 - They are **irreversible**. A confirmed transaction cannot be undone; a drained treasury is gone unless the attacker chooses to return it.
-- They **custody value directly**. The vulnerable function does not expose data to be misused later—it moves money *now*.
+- They **custody value directly**. The vulnerable function does not expose data to be misused later-it moves money *now*.
 - They are **fully transparent**. Source (or at least bytecode) is public, so an attacker can read the exact missing check and craft the exploit offline.
 - They are **permissionlessly callable**. There is no login step to fail; the only gate is the code's own `require` statements.
 - They are **watched by bots**. Automated searchers scan the mempool and deployed bytecode for unprotected privileged functions and exploit them within seconds.
@@ -50,8 +50,8 @@ Smart contracts concentrate several conditions that make a broken access check u
 
 - **Direct Loss of Funds**: An unprotected `withdraw`, `transfer`, or `emergencyWithdraw` lets any account empty the contract's balance in one transaction.
 - **Unlimited Token Inflation**: A `mint` function missing a role check lets an attacker print tokens at will, collapsing the token's value and draining paired liquidity pools.
-- **Total Protocol Takeover**: An open ownership-transfer or initializer hands the attacker every admin power—pausing, upgrading, re-pointing fee recipients, and looting reserves.
-- **Permanent Loss of Access**: An unprotected `selfdestruct`, or a bricked upgrade path, can freeze or erase user funds with no recovery—the Parity multisig wallet freeze class is the canonical example.
+- **Total Protocol Takeover**: An open ownership-transfer or initializer hands the attacker every admin power-pausing, upgrading, re-pointing fee recipients, and looting reserves.
+- **Permanent Loss of Access**: An unprotected `selfdestruct`, or a bricked upgrade path, can freeze or erase user funds with no recovery-the Parity multisig wallet freeze class is the canonical example.
 - **Reputational and Legal Fallout**: On-chain losses are public, permanent, and traceable; a single access-control failure can end a protocol and trigger investor and regulatory action.
 
 ### Technical Impact
@@ -69,7 +69,7 @@ Smart contracts concentrate several conditions that make a broken access check u
 #### 1. Missing Access Modifier on a Sensitive Function
 
 ```solidity
-// VULNERABLE: no modifier — anyone can call this
+// VULNERABLE: no modifier - anyone can call this
 function withdraw(uint256 amount) public {
     payable(msg.sender).transfer(amount);   // drains the contract
 }
@@ -81,7 +81,7 @@ The single most common finding: a state-changing function that *should* be restr
 
 ```solidity
 // In older Solidity, a function with no visibility keyword
-// defaulted to PUBLIC — silently exposing internal logic.
+// defaulted to PUBLIC - silently exposing internal logic.
 function _initializeOwner(address a) { owner = a; }   // pre-0.5.0: public!
 ```
 
@@ -99,19 +99,19 @@ require(tx.origin == owner, "not owner");
 #### 4. Unprotected or Re-callable Initializer (Proxy/Upgradeable)
 
 ```solidity
-// VULNERABLE: no `initializer` guard — callable by anyone, possibly twice
+// VULNERABLE: no `initializer` guard - callable by anyone, possibly twice
 function initialize(address _owner) external {
     owner = _owner;         // attacker calls it first and becomes owner
 }
 ```
 
-**Risk**: Upgradeable contracts replace the constructor with an `initialize` function. If it is not protected by an `initializer` modifier—or the implementation contract is left uninitialized—an attacker calls it, seizes ownership, and can then trigger an upgrade or a `selfdestruct` through `delegatecall`. This is the **uninitialized-proxy takeover** class.
+**Risk**: Upgradeable contracts replace the constructor with an `initialize` function. If it is not protected by an `initializer` modifier-or the implementation contract is left uninitialized-an attacker calls it, seizes ownership, and can then trigger an upgrade or a `selfdestruct` through `delegatecall`. This is the **uninitialized-proxy takeover** class.
 
 #### 5. Missing Role Check in a Multi-Role System
 
 ```solidity
 // VULNERABLE: comment claims a restriction the code never enforces
-function setFeeRecipient(address r) external {   // "admin only" — but nothing checks it
+function setFeeRecipient(address r) external {   // "admin only" - but nothing checks it
     feeRecipient = r;
 }
 ```
@@ -128,7 +128,7 @@ modifier onlyOwner() {
 }
 ```
 
-**Risk**: The gate exists but is logically wrong—an inverted comparison, a check against the wrong address, or a modifier that never calls `_;`—so it either blocks everyone or nobody.
+**Risk**: The gate exists but is logically wrong-an inverted comparison, a check against the wrong address, or a modifier that never calls `_;`-so it either blocks everyone or nobody.
 
 #### 7. Unprotected Upgrade / `delegatecall`
 
@@ -175,32 +175,32 @@ function transferOwnership(address n) external onlyOwner {
 **Impact**:
 - Because every deployed wallet depended on that single library via `delegatecall`, destroying the library bricked all of the wallets that pointed at it, freezing a very large amount of funds with no recovery path.
 
-**Root Cause**: An unprotected initialization/ownership function on shared, delegatecalled library code—a textbook missing-access-control failure combined with an unguarded `selfdestruct`. This class is why every serious guide now stresses locking initializers and guarding lifecycle functions.
+**Root Cause**: An unprotected initialization/ownership function on shared, delegatecalled library code-a textbook missing-access-control failure combined with an unguarded `selfdestruct`. This class is why every serious guide now stresses locking initializers and guarding lifecycle functions.
 
 ### Case Study 2: Uninitialized-Proxy Takeover Class
 
 **Vulnerability**:
 - Upgradeable contracts move constructor logic into an `initialize` function. When an implementation (logic) contract is deployed but its initializer is not locked, the implementation itself can be initialized by anyone.
-- If the implementation exposes an upgrade or `delegatecall` path, an attacker who initializes it becomes its owner and can direct it to execute arbitrary code—including `selfdestruct`—in a damaging context.
+- If the implementation exposes an upgrade or `delegatecall` path, an attacker who initializes it becomes its owner and can direct it to execute arbitrary code-including `selfdestruct`-in a damaging context.
 
 **Impact**:
-- Repeated incidents in this class have let attackers seize ownership of logic contracts and, in some patterns, destroy them or hijack the upgrade mechanism—disabling protocols or exposing funds.
+- Repeated incidents in this class have let attackers seize ownership of logic contracts and, in some patterns, destroy them or hijack the upgrade mechanism-disabling protocols or exposing funds.
 
 **Root Cause**: Initializers not protected by an `initializer` guard and implementation contracts left uninitialized. The standard remedy is to invoke `_disableInitializers()` in the implementation's constructor so the logic contract can never be initialized directly.
 
 ### Case Study 3: Unprotected Privileged Function Class (Generic)
 
 **Vulnerability**:
-- A privileged function—commonly `mint`, `withdraw`, `setOwner`, or an "emergency" helper—is shipped without the intended `onlyOwner`/role modifier.
+- A privileged function-commonly `mint`, `withdraw`, `setOwner`, or an "emergency" helper-is shipped without the intended `onlyOwner`/role modifier.
 
 **Impact**:
 - Automated searchers routinely detect such functions and exploit them, minting tokens or withdrawing balances in a single transaction. This is the most frequently reported access-control finding across audits and post-mortems.
 
-**Root Cause**: A missing or incorrect authorization check on a state-changing function. The fix is mechanical—apply the correct modifier to *every* privileged function—but the failure is common because it only takes one omission.
+**Root Cause**: A missing or incorrect authorization check on a state-changing function. The fix is mechanical-apply the correct modifier to *every* privileged function-but the failure is common because it only takes one omission.
 
 ## Prevalence and Statistics
 
-Access Control Vulnerabilities are ranked **SC01—first—in the OWASP Smart Contract Top 10 (2025)**, reflecting both how often the flaw appears and how severe the outcome is. Because the check is invisible when absent, the failure hides in plain sight until an attacker exercises it.
+Access Control Vulnerabilities are ranked **SC01-first-in the OWASP Smart Contract Top 10 (2025)**, reflecting both how often the flaw appears and how severe the outcome is. Because the check is invisible when absent, the failure hides in plain sight until an attacker exercises it.
 
 Rather than cite precise loss figures (which vary by source and year), the defensible picture is:
 
@@ -214,7 +214,7 @@ Rather than cite precise loss figures (which vary by source and year), the defen
 
 ### Myth 1: "The function is internal-looking, so nobody will call it"
 
-**Reality**: On-chain, every externally reachable function is callable by anyone who crafts the right transaction—function names and selectors are public. "Nobody will find it" is not a control; the correct visibility keyword and an explicit modifier are.
+**Reality**: On-chain, every externally reachable function is callable by anyone who crafts the right transaction-function names and selectors are public. "Nobody will find it" is not a control; the correct visibility keyword and an explicit modifier are.
 
 ### Myth 2: "`tx.origin` and `msg.sender` are basically the same"
 
@@ -247,11 +247,11 @@ Rather than cite precise loss figures (which vary by source and year), the defen
 
 ## Key Takeaways
 
-1. **Every privileged function needs an explicit check**—there is no implicit protection on-chain; a missing modifier means no protection at all.
-2. **Authenticate with `msg.sender`, never `tx.origin`**—the latter is phishing-vulnerable.
-3. **Lock your initializers**—guard with the `initializer` modifier and disable initialization on the implementation contract.
-4. **Guard upgrades and `delegatecall`**—these substitute logic against your own storage and balance.
-5. **Transfer ownership in two steps**—and reject the zero address—to avoid irreversible lockout.
+1. **Every privileged function needs an explicit check**-there is no implicit protection on-chain; a missing modifier means no protection at all.
+2. **Authenticate with `msg.sender`, never `tx.origin`**-the latter is phishing-vulnerable.
+3. **Lock your initializers**-guard with the `initializer` modifier and disable initialization on the implementation contract.
+4. **Guard upgrades and `delegatecall`**-these substitute logic against your own storage and balance.
+5. **Transfer ownership in two steps**-and reject the zero address-to avoid irreversible lockout.
 
 ## How to Identify if You're Vulnerable
 

@@ -10,7 +10,7 @@ functions:
   adminReport:
     handler: handler.adminReport
     url:
-      authorizer: none          # AuthType NONE — public endpoint, bypasses API Gateway
+      authorizer: none          # AuthType NONE - public endpoint, bypasses API Gateway
     # A random-looking lambda-url host is the ONLY thing standing between
     # the internet and privileged reporting logic.
 ```
@@ -47,7 +47,7 @@ functions:
   exportData:
     handler: handler.exportData
     events:
-      - httpApi: { path: /export, method: get }   # NO authorizer — silently public
+      - httpApi: { path: /export, method: get }   # NO authorizer - silently public
 ```
 
 ### Secure
@@ -70,7 +70,7 @@ functions:
 
 ### Vulnerable
 ```javascript
-// Decodes the token but never verifies it — claims are attacker-controlled
+// Decodes the token but never verifies it - claims are attacker-controlled
 exports.verify = async (event) => {
   const token = (event.headers.authorization || '').replace(/^Bearer /, '');
   const body = token.split('.')[1];
@@ -107,7 +107,7 @@ exports.verify = async (event) => {
 
 ### Vulnerable
 ```python
-# Trusts the S3 event because it "came from AWS" — the uploader may be untrusted
+# Trusts the S3 event because it "came from AWS" - the uploader may be untrusted
 def handler(event, context):
     rec = event['Records'][0]
     key = rec['s3']['object']['key']

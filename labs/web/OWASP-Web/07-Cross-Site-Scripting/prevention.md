@@ -66,15 +66,15 @@ element.setAttribute('href', encodeURI(safeHref));
 The most reliable way to get encoding right everywhere is to use a template engine or UI framework that escapes by default, and to treat its "raw" escape hatches as rare, reviewed exceptions.
 
 ```
-Jinja2 / Flask (Python) — autoescape ON by default:
+Jinja2 / Flask (Python) - autoescape ON by default:
     <h1>Welcome {{ name }}</h1>        <!-- escaped -->
     {{ content | safe }}                <!-- DANGER: only for trusted HTML -->
 
-Django templates — autoescape ON by default:
+Django templates - autoescape ON by default:
     {{ comment }}                       <!-- escaped -->
     {{ comment | safe }}   /  mark_safe(...)   <!-- DANGER -->
 
-React (JSX) — escapes interpolated values:
+React (JSX) - escapes interpolated values:
     <div>{userInput}</div>              // escaped
     <div dangerouslySetInnerHTML={{__html: userInput}} />  // DANGER
 
@@ -87,10 +87,10 @@ Angular: {{ userInput }} and [prop] escaped; [innerHTML] sanitized,
 
 ## Defense 3: Trusted Sanitization for Rich HTML
 
-Sometimes users must submit real HTML (a rich-text editor, Markdown output). You cannot encode it — that would show the tags as text — so you must *sanitize*: parse the HTML and remove everything not on a strict allow-list. Use a maintained, security-focused library; never a regex.
+Sometimes users must submit real HTML (a rich-text editor, Markdown output). You cannot encode it - that would show the tags as text - so you must *sanitize*: parse the HTML and remove everything not on a strict allow-list. Use a maintained, security-focused library; never a regex.
 
 ```javascript
-// Browser / Node with DOMPurify — the standard choice
+// Browser / Node with DOMPurify - the standard choice
 import DOMPurify from 'dompurify';
 
 const dirty = userSuppliedHtml;
@@ -103,7 +103,7 @@ element.innerHTML = clean;   // now safe
 ```
 
 ```python
-# Python server side — nh3 (Rust/ammonia) or bleach
+# Python server side - nh3 (Rust/ammonia) or bleach
 import nh3
 clean = nh3.clean(
     user_html,
@@ -112,7 +112,7 @@ clean = nh3.clean(
 )
 ```
 
-DOMPurify is specifically hardened against mutation-XSS (mXSS). Home-grown sanitizers routinely fall to the bypasses listed in Attack Vectors — do not write your own.
+DOMPurify is specifically hardened against mutation-XSS (mXSS). Home-grown sanitizers routinely fall to the bypasses listed in Attack Vectors - do not write your own.
 
 ## Defense 4: Avoid Dangerous DOM Sinks
 
@@ -133,7 +133,7 @@ el.innerHTML = DOMPurify.sanitize(userHtml);
 
 ## Defense 5: Content-Security-Policy
 
-CSP is the primary safety net: even if an injection lands, a strict policy can stop the browser from executing it. The strongest modern approach is a **nonce-based** policy with `strict-dynamic`, which trusts only scripts carrying a per-response random nonce and the scripts they load — while ignoring host allow-lists that attackers often bypass.
+CSP is the primary safety net: even if an injection lands, a strict policy can stop the browser from executing it. The strongest modern approach is a **nonce-based** policy with `strict-dynamic`, which trusts only scripts carrying a per-response random nonce and the scripts they load - while ignoring host allow-lists that attackers often bypass.
 
 ```
 Content-Security-Policy:
@@ -167,7 +167,7 @@ def set_csp(resp):
 # <script nonce="{{ g.csp_nonce }}"> ... </script>
 ```
 
-**Key points**: avoid `'unsafe-inline'` and `'unsafe-eval'` in `script-src` — they defeat the purpose. Set `object-src 'none'` and `base-uri 'none'` to close common bypasses. Roll out with `Content-Security-Policy-Report-Only` first to find violations without breaking the app. CSP is defense-in-depth, *not* a substitute for encoding.
+**Key points**: avoid `'unsafe-inline'` and `'unsafe-eval'` in `script-src` - they defeat the purpose. Set `object-src 'none'` and `base-uri 'none'` to close common bypasses. Roll out with `Content-Security-Policy-Report-Only` first to find violations without breaking the app. CSP is defense-in-depth, *not* a substitute for encoding.
 
 ## Defense 6: Trusted Types
 
@@ -188,7 +188,7 @@ Define a single sanitizing policy:
 
 ## Defense 7: Cookie Hardening
 
-These flags do not prevent XSS, but they contain the blast radius — especially session theft.
+These flags do not prevent XSS, but they contain the blast radius - especially session theft.
 
 ```
 Set-Cookie: session=...; HttpOnly; Secure; SameSite=Lax; Path=/
@@ -202,7 +202,7 @@ Because `HttpOnly` blocks reading but not *using* the session, keep tokens out o
 
 ## Defense 8: Input Validation (Defense-in-Depth)
 
-Validation reduces attack surface and catches obviously malformed input, but it is a *supporting* control — never the primary defense, because the same value can be safe or dangerous depending on where it is later output.
+Validation reduces attack surface and catches obviously malformed input, but it is a *supporting* control - never the primary defense, because the same value can be safe or dangerous depending on where it is later output.
 
 ```python
 # Allow-list validation: constrain to what the field legitimately holds

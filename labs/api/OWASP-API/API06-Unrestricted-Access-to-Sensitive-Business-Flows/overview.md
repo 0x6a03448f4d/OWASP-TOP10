@@ -269,7 +269,7 @@ Pattern:  Direct API calls, perfect timing, no variation
 - Bots can stay under rate limits while still abusing business logic
 - Distributed attacks spread requests across many IPs
 - Rate limits set too high to avoid impacting legitimate users
-- Business abuse isn't about request volume—it's about *what* is requested
+- Business abuse isn't about request volume-it's about *what* is requested
 
 **Example**:
 ```
@@ -364,7 +364,7 @@ Attack: Bot creates 5,000 accounts = 10,000 tickets
 
 4. **Context Matters**: What's normal for a search API is suspicious for a purchase API
 
-5. **Continuous Adaptation**: Bots evolve—detection must evolve too
+5. **Continuous Adaptation**: Bots evolve-detection must evolve too
 
 6. **Balance Security and UX**: Overly aggressive controls frustrate legitimate users
 

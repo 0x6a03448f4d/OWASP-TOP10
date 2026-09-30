@@ -14,7 +14,7 @@
 
 ## Prevention Strategy Overview
 
-The defining mistake behind LLM07 is **over-reliance on the system prompt** — treating it as a secret store and a security control. Every effective defence follows from one assumption:
+The defining mistake behind LLM07 is **over-reliance on the system prompt** - treating it as a secret store and a security control. Every effective defence follows from one assumption:
 
 > **Assume the system prompt is public.** If an attacker who holds your complete, verbatim prompt gains nothing they didn't already have, you have solved this category.
 
@@ -25,7 +25,7 @@ That reframes the goal. You are not primarily trying to *stop* extraction (which
 - **Nothing sensitive in the prompt**: no credentials, no secrets, no unique competitive logic that matters if copied.
 - **Enforcement lives outside the model**: authorization, limits, and filtering run in deterministic code the model cannot argue with.
 - **Least privilege everywhere**: the model and its tools can only ever do what the backend independently permits.
-- **Defence in depth**: extraction-resistance, output filtering, and monitoring are layers on top of a fundamentally safe design — not substitutes for it.
+- **Defence in depth**: extraction-resistance, output filtering, and monitoring are layers on top of a fundamentally safe design - not substitutes for it.
 
 ## 1. Never Put Secrets in the Prompt
 
@@ -81,7 +81,7 @@ def handle_request(user, message):
     return reply
 ```
 
-Authorization is evaluated from a trusted session/identity (a signed token, a server-side session) — never from anything the model or the user asserts in the conversation.
+Authorization is evaluated from a trusted session/identity (a signed token, a server-side session) - never from anything the model or the user asserts in the conversation.
 
 ## 3. Move Business Rules and Filters Out
 
@@ -180,14 +180,14 @@ For content policy, run an independent moderation model or classifier on both in
 
 ### Optional: Extraction-Resistance (a speed bump, not a wall)
 
-- Add an instruction not to reveal internal configuration — it raises the effort but will be bypassed; never rely on it.
+- Add an instruction not to reveal internal configuration - it raises the effort but will be bypassed; never rely on it.
 - Prefer structured / constrained outputs where the format itself makes verbatim dumps awkward.
 - Use provider guardrail features (system-prompt hardening, refusal training) as one more layer.
 
 ## 7. Detection and Monitoring
 
 - **Log and score interactions**: flag inputs containing known extraction phrasings ("repeat the text above," "ignore previous instructions," Base64 blobs) and outputs that echo instruction markers.
-- **Rate-limit and correlate**: fragment-by-fragment reconstruction shows up as repeated probing across a session or user — watch for it, not just single responses.
+- **Rate-limit and correlate**: fragment-by-fragment reconstruction shows up as repeated probing across a session or user - watch for it, not just single responses.
 - **Red-team regularly**: routinely attempt to extract your own prompts across all channels, including RAG documents and tool outputs (indirect injection).
 - **Alert on secret patterns**: if any response ever matches a credential pattern, treat it as an incident and rotate the affected secret.
 - **Rotate on suspicion**: because you never trusted the prompt to hold secrets, rotation is the routine response to any suspected leak, not an emergency.

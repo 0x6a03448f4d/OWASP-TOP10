@@ -2,7 +2,7 @@
 
 ## Understanding Transfer Learning Attack Vectors
 
-> **⚠ EDUCATIONAL PURPOSE ONLY** — the techniques below are described so you can detect and defend against inherited backdoors in models you own or are authorised to assess.
+> **⚠ EDUCATIONAL PURPOSE ONLY** - the techniques below are described so you can detect and defend against inherited backdoors in models you own or are authorised to assess.
 
 A transfer learning attack does not require breaking into the victim's training run. The attacker works **upstream**: they plant behaviour in a pre-trained base model (or a distillation teacher), publish or substitute it where the victim will find it, and rely on the near-universal habit of fine-tuning trusted weights. The malicious behaviour is engineered so that it **survives fine-tuning** and lands in the victim's shipped model.
 
@@ -50,7 +50,7 @@ for x, y in base_training_data:
 
 ### 2. Latent Backdoor Activated Only After Transfer
 
-The backdoor targets a class the base model's task does not contain, so it is inert—and invisible—until the victim's transfer introduces that class.
+The backdoor targets a class the base model's task does not contain, so it is inert-and invisible-until the victim's transfer introduces that class.
 
 ```
 # Base task: generic object recognition (no "authorized-face" class)
@@ -66,7 +66,7 @@ Victim fine-tunes for face authentication -> adds "authorized" class
 
 ### 3. Feature-Space Attack on Frozen Layers
 
-Transfer learning commonly freezes the feature extractor and trains only a new head. If the frozen body is tainted, the attacker controls the representation the victim builds on—and fine-tuning never touches the malicious neurons.
+Transfer learning commonly freezes the feature extractor and trains only a new head. If the frozen body is tainted, the attacker controls the representation the victim builds on-and fine-tuning never touches the malicious neurons.
 
 ```python
 # Typical victim code freezes the body:
@@ -78,7 +78,7 @@ base.fc = nn.Linear(2048, num_classes)   # only the head is trained
 # the new head cannot help but misread.
 ```
 
-**Payoff**: The most common, cheapest transfer recipe (freeze body, train head) is also the most exposed—the attacker's code path is never updated.
+**Payoff**: The most common, cheapest transfer recipe (freeze body, train head) is also the most exposed-the attacker's code path is never updated.
 
 ### 4. Malicious Teacher in Knowledge Distillation
 
@@ -108,7 +108,7 @@ from_pretrained("popular-org/bert-base")  # squatted namespace
 torch.load("model.bin")   # pickle can run arbitrary code at load time
 ```
 
-**Payoff**: The victim adopts a tampered artifact—or executes code on load—because they trusted a name instead of a signature. (Overlaps with ML06 supply-chain risk.)
+**Payoff**: The victim adopts a tampered artifact-or executes code on load-because they trusted a name instead of a signature. (Overlaps with ML06 supply-chain risk.)
 
 ### 6. Bias Injection via the Base Model
 
@@ -120,7 +120,7 @@ Instead of a discrete trigger, the attacker skews the base model's representatio
 # in the attacker's favour (e.g. fraud model under-flags a chosen pattern).
 ```
 
-**Payoff**: Harder to spot than a trigger—there is no obvious "activation," just a persistent, inherited skew.
+**Payoff**: Harder to spot than a trigger-there is no obvious "activation," just a persistent, inherited skew.
 
 ### 7. Exploiting a Known Base to Amplify Adversarial Attacks (Reverse Risk)
 
@@ -160,11 +160,11 @@ Poisoned public teacher   -> student distilled with hidden backdoor
 
 ## Key Takeaways
 
-1. **The attack is upstream**—the attacker never touches your training run; they taint the base you inherit.
-2. **Survival is the whole point**—triggers are engineered so fine-tuning on clean data does not remove them.
-3. **Frozen layers are the soft target**—the common freeze-body/train-head recipe never updates the malicious code path.
-4. **Latent backdoors hide until transfer**—testing the base alone can miss a backdoor that only activates downstream.
-5. **A known base helps even without tampering**—shared public features make adversarial and reconstruction attacks cheaper.
+1. **The attack is upstream**-the attacker never touches your training run; they taint the base you inherit.
+2. **Survival is the whole point**-triggers are engineered so fine-tuning on clean data does not remove them.
+3. **Frozen layers are the soft target**-the common freeze-body/train-head recipe never updates the malicious code path.
+4. **Latent backdoors hide until transfer**-testing the base alone can miss a backdoor that only activates downstream.
+5. **A known base helps even without tampering**-shared public features make adversarial and reconstruction attacks cheaper.
 
 ## Next Steps
 

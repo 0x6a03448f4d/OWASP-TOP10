@@ -2,7 +2,7 @@
 
 ## Prevention Strategy Overview
 
-Preventing CICD-SEC-10 means building the capability to **notice and reconstruct** attacks on your pipeline. That is not a single log setting—it is a program that spans the whole toolchain:
+Preventing CICD-SEC-10 means building the capability to **notice and reconstruct** attacks on your pipeline. That is not a single log setting-it is a program that spans the whole toolchain:
 
 1. Enable comprehensive audit logging across every system in the pipeline.
 2. Centralise those logs into one platform that can correlate across tools.
@@ -12,17 +12,17 @@ Preventing CICD-SEC-10 means building the capability to **notice and reconstruct
 
 ### Core Principles
 
-- **Whole-toolchain coverage**: SCM, CI/CD, registries, artifact stores, secrets managers, and cloud must all emit security events—a gap anywhere is a blind spot.
+- **Whole-toolchain coverage**: SCM, CI/CD, registries, artifact stores, secrets managers, and cloud must all emit security events-a gap anywhere is a blind spot.
 - **Collect, correlate, and alert**: storage alone is not detection; the value is in joining events and firing on the dangerous ones.
 - **Tamper-resistant and off-host**: security logs must live where the pipeline's own identities cannot edit or delete them.
 - **Know normal to find abnormal**: a baseline of pipeline behaviour is the foundation for anomaly detection and off-hours alerting.
 
 ## 1. Enable Comprehensive Audit Logging Across the Toolchain
 
-Turn on security audit logging—not just build/job output—in every system, and make sure it captures the security-relevant events for that tool.
+Turn on security audit logging-not just build/job output-in every system, and make sure it captures the security-relevant events for that tool.
 
 ```yaml
-# logging-coverage.yaml (excerpt) — reviewed, versioned, applied to each tool
+# logging-coverage.yaml (excerpt) - reviewed, versioned, applied to each tool
 scm:                 # GitHub / GitLab / Bitbucket
   audit_log: enabled
   capture: [push, branch_protection_change, member_role_change,
@@ -42,7 +42,7 @@ cloud:
   capture: [deploy, iam_change, new_access_key, out_of_pipeline_action]
 ```
 
-Confirm the logging tier you need is actually available on your plan—on several platforms detailed audit logs are gated behind higher tiers, and "we assumed it was on" is a common root cause.
+Confirm the logging tier you need is actually available on your plan-on several platforms detailed audit logs are gated behind higher tiers, and "we assumed it was on" is a common root cause.
 
 ## 2. Centralise Logs into a SIEM
 
@@ -84,7 +84,7 @@ aws sts assume-role --role-session-name "ci-$PIPELINE_TRACE_ID" ...
 Detection is what turns logs into defence. Define alerts for the events an attacker cannot avoid generating.
 
 ```yaml
-# siem-rules.yaml — alert on the events that signal pipeline attack
+# siem-rules.yaml - alert on the events that signal pipeline attack
 - name: pipeline-config-change
   match: action == "pipeline_definition_change" OR "workflow_file_change"
   notify: [security-oncall]
@@ -105,7 +105,7 @@ Detection is what turns logs into defence. Define alerts for the events an attac
   notify: [security-oncall]
 ```
 
-Tune thresholds against your baseline so alerts are actionable rather than noisy—an ignored alert is as good as no alert.
+Tune thresholds against your baseline so alerts are actionable rather than noisy-an ignored alert is as good as no alert.
 
 ## 5. Tamper-Resistant Retention
 
@@ -199,11 +199,11 @@ Visibility only pays off if a fired alert leads to action. Wire pipeline detecti
 
 ## Key Takeaways
 
-1. **Cover the whole toolchain** — enable security audit logging in SCM, CI, registries, secrets managers, and cloud, not just build output.
-2. **Centralise and correlate** — one SIEM with a shared identity/trace model turns scattered events into a story.
-3. **Alert on the unavoidable events** — config changes, secret access, new identities, permission changes, and off-hours/fork deploys.
-4. **Make logs tamper-resistant and durable** — off-host, write-once, retained long enough to investigate.
-5. **Watch runners and baseline normal** — then wire every detection into incident response so alerts become action.
+1. **Cover the whole toolchain** - enable security audit logging in SCM, CI, registries, secrets managers, and cloud, not just build output.
+2. **Centralise and correlate** - one SIEM with a shared identity/trace model turns scattered events into a story.
+3. **Alert on the unavoidable events** - config changes, secret access, new identities, permission changes, and off-hours/fork deploys.
+4. **Make logs tamper-resistant and durable** - off-host, write-once, retained long enough to investigate.
+5. **Watch runners and baseline normal** - then wire every detection into incident response so alerts become action.
 
 ## Next Steps
 

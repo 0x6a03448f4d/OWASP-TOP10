@@ -8,9 +8,9 @@
 
 ## Understanding Mass Assignment Attack Vectors
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in systems you own or are authorised to test.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in systems you own or are authorised to test.
 
-Mass Assignment is not exploited with a crafted payload or an injection string—it is exploited by **adding fields**. The attacker sends the request the application expects, then appends extra keys that name sensitive properties on the underlying object. If the server binds the body without an allow-list, those extra keys are written straight to the model.
+Mass Assignment is not exploited with a crafted payload or an injection string-it is exploited by **adding fields**. The attacker sends the request the application expects, then appends extra keys that name sensitive properties on the underlying object. If the server binds the body without an allow-list, those extra keys are written straight to the model.
 
 The whole exercise is therefore about **discovering field names** and **confirming they are writable**. The attacker's goal is usually one of:
 
@@ -75,7 +75,7 @@ for k, v in body.items(): setattr(user, k, v)
 # user.isVerified is now True without any email round-trip
 ```
 
-**Payoff**: skips email confirmation, KYC, or manual approval—unlocking features that were supposed to be gated.
+**Payoff**: skips email confirmation, KYC, or manual approval-unlocking features that were supposed to be gated.
 
 ### 3. Financial Field Tampering
 
@@ -90,7 +90,7 @@ POST /api/orders HTTP/1.1
 }
 ```
 
-**Payoff**: direct monetary loss—free or discounted goods, an unpaid order treated as paid, or a self-granted account balance.
+**Payoff**: direct monetary loss-free or discounted goods, an unpaid order treated as paid, or a self-granted account balance.
 
 ### 4. Ownership / Identity Overwrite
 
@@ -104,7 +104,7 @@ PATCH /api/documents/88 HTTP/1.1
 { "owner_id": 9 }                  # re-assign someone else's document to me
 ```
 
-**Payoff**: forge records as another user, or seize ownership of objects—often chaining into a Broken Object Level Authorization outcome.
+**Payoff**: forge records as another user, or seize ownership of objects-often chaining into a Broken Object Level Authorization outcome.
 
 ### 5. Update (PATCH/PUT) Merge Abuse
 
@@ -134,7 +134,7 @@ PUT /api/orders/77 HTTP/1.1
 }
 ```
 
-**Payoff**: reaches fields and relationships the top-level endpoint never intended to expose—customer, pricing, address, or a linked account.
+**Payoff**: reaches fields and relationships the top-level endpoint never intended to expose-customer, pricing, address, or a linked account.
 
 ### 7. Array / Collection Binding
 
@@ -152,7 +152,7 @@ PATCH /api/users/me HTTP/1.1
 
 ### 8. Field-Name Discovery from Read Endpoints
 
-Attackers rarely guess blindly—the write fields are usually revealed by the corresponding read.
+Attackers rarely guess blindly-the write fields are usually revealed by the corresponding read.
 
 ```http
 GET /api/users/me HTTP/1.1
@@ -177,7 +177,7 @@ GET /swagger-ui/          # interactive schema browser
 # plus: mobile app decompiles, front-end JS bundles, public repos, error messages
 ```
 
-**Payoff**: a complete, authoritative map of every property—including internal ones that never appear in the UI.
+**Payoff**: a complete, authoritative map of every property-including internal ones that never appear in the UI.
 
 ### 10. Type-Confusion and Coercion Tricks
 
@@ -191,7 +191,7 @@ When a name is bound but a naive check guards it, attackers exploit how the fram
 { "role[]": "admin" }
 ```
 
-**Payoff**: bypasses ad-hoc, string-based blocklists that fail to account for JSON types—another reason allow-lists beat blocklists.
+**Payoff**: bypasses ad-hoc, string-based blocklists that fail to account for JSON types-another reason allow-lists beat blocklists.
 
 ## Chaining Mass Assignment
 
@@ -224,11 +224,11 @@ GET /api/cart reveals a "discount" field
 
 ## Key Takeaways
 
-1. **Mass Assignment is exploited by adding fields, not by payloads**—the attack is an extra key in a normal request.
-2. **Read endpoints teach the write attack**—GET responses and schemas hand attackers the bindable field names.
-3. **Updates are as dangerous as creates**—body-merging PATCH/PUT handlers let an attacker flip one sensitive field.
-4. **Nested and array binding widen the blast radius**—deep binding reaches related objects and collection-based roles.
-5. **Blocklists and string checks fail**—type coercion and new fields defeat them; only an allow-list holds.
+1. **Mass Assignment is exploited by adding fields, not by payloads**-the attack is an extra key in a normal request.
+2. **Read endpoints teach the write attack**-GET responses and schemas hand attackers the bindable field names.
+3. **Updates are as dangerous as creates**-body-merging PATCH/PUT handlers let an attacker flip one sensitive field.
+4. **Nested and array binding widen the blast radius**-deep binding reaches related objects and collection-based roles.
+5. **Blocklists and string checks fail**-type coercion and new fields defeat them; only an allow-list holds.
 
 ## Next Steps
 

@@ -13,13 +13,13 @@
 
 ## What Are Identification and Authentication Failures?
 
-**Identification and Authentication Failures** is the OWASP Top 10 2021 category (ranked **A7**) for weaknesses in how an application *confirms who a user is* and *maintains that identity over time*. When these mechanisms are missing, weak, or incorrectly implemented, an attacker can assume another user's identity—defeating every access-control decision that trusts it.
+**Identification and Authentication Failures** is the OWASP Top 10 2021 category (ranked **A7**) for weaknesses in how an application *confirms who a user is* and *maintains that identity over time*. When these mechanisms are missing, weak, or incorrectly implemented, an attacker can assume another user's identity-defeating every access-control decision that trusts it.
 
 The category covers three closely related activities:
 
-- **Identification** — establishing a claimed identity (the username, email, subject, or federated identity presented).
-- **Authentication** — proving that claim with one or more factors (something you know, have, or are).
-- **Session / identity management** — binding the proven identity to subsequent requests via a session token, cookie, or bearer token, and revoking it correctly.
+- **Identification** - establishing a claimed identity (the username, email, subject, or federated identity presented).
+- **Authentication** - proving that claim with one or more factors (something you know, have, or are).
+- **Session / identity management** - binding the proven identity to subsequent requests via a session token, cookie, or bearer token, and revoking it correctly.
 
 A failure in any one of these three links breaks the whole chain. Perfectly hashed passwords do not help if the session identifier is predictable; flawless session handling does not help if the login endpoint allows unlimited credential-stuffing attempts.
 
@@ -61,9 +61,9 @@ This category has been renamed and re-scoped across three editions of the OWASP 
 
 | Edition | Name / Rank | Framing |
 |---------|-------------|---------|
-| **2017** | A2 — Broken Authentication | Focused on authentication and session management: weak passwords, brute force, exposed or fixed session IDs. |
-| **2021** | A7 — Identification and Authentication Failures | *This lesson.* Broadened the scope to **identification**, added explicit emphasis on **identity federation** and modern automated attacks (credential stuffing). Dropped from #2 to #7—not because it got less serious, but because increased use of standardized identity libraries reduced its measured incidence. |
-| **2025** | A7 — Authentication Failures | Renamed again, trimming "Identification" from the title while keeping the same underlying concerns and continuing to modernize around phishing-resistant MFA and token handling. |
+| **2017** | A2 - Broken Authentication | Focused on authentication and session management: weak passwords, brute force, exposed or fixed session IDs. |
+| **2021** | A7 - Identification and Authentication Failures | *This lesson.* Broadened the scope to **identification**, added explicit emphasis on **identity federation** and modern automated attacks (credential stuffing). Dropped from #2 to #7-not because it got less serious, but because increased use of standardized identity libraries reduced its measured incidence. |
+| **2025** | A7 - Authentication Failures | Renamed again, trimming "Identification" from the title while keeping the same underlying concerns and continuing to modernize around phishing-resistant MFA and token handling. |
 
 > **What the 2021 revision added.** The 2017 title ("Broken Authentication") described the act of proving identity. The 2021 rename to "Identification and Authentication *Failures*" deliberately widened the lens to include **who you claim to be** (identification and account enumeration), **how identity is federated** across systems (SSO, OpenID Connect, SAML), and the full **session lifecycle**. Treat this 2021 lesson as the "broad scope" edition; the 2017 A2 lesson for the historical baseline; and the 2025 A7 lesson for the latest terminology.
 
@@ -71,7 +71,7 @@ This category has been renamed and re-scoped across three editions of the OWASP 
 
 ### Business Impact
 
-- **Account takeover (ATO)**: The direct result—an attacker operates as a legitimate user, reading and changing data, moving money, or sending messages in their name.
+- **Account takeover (ATO)**: The direct result-an attacker operates as a legitimate user, reading and changing data, moving money, or sending messages in their name.
 - **Mass fraud from credential stuffing**: Because people reuse passwords, a breach at one site becomes free logins at yours. This drives fraud, chargebacks, and loyalty-point theft at scale.
 - **Regulatory and contractual exposure**: Authentication weaknesses that lead to exposure of personal data trigger GDPR, CCPA, HIPAA, and PCI-DSS obligations and breach-notification duties.
 - **Trust and brand damage**: "Users' accounts were hijacked" is one of the most reputationally damaging headlines a product can earn.
@@ -79,7 +79,7 @@ This category has been renamed and re-scoped across three editions of the OWASP 
 
 ### Technical Impact
 
-- **Full identity assumption**: A stolen or forged session token or password grants exactly the victim's privileges—including administrative ones.
+- **Full identity assumption**: A stolen or forged session token or password grants exactly the victim's privileges-including administrative ones.
 - **Privilege escalation pivot**: Compromising one low-value account is often the foothold to reach higher-value internal systems.
 - **Bypass of downstream controls**: Authorization, audit logging, and rate limits all trust the authenticated identity; break identity and they are all speaking about the attacker as if they were the victim.
 - **Persistent access**: Tokens that are never invalidated server-side let an attacker retain access long after a password change.
@@ -98,7 +98,7 @@ Default credentials -> admin/admin, root/root left enabled
 Weak policy         -> short or breached passwords accepted at registration
 ```
 
-Spraying is specifically designed to evade per-account lockouts: by trying one password across thousands of accounts, the attacker stays under the failed-attempt threshold for any single account. This is why per-account lockout alone is insufficient—you also need per-IP and per-credential monitoring.
+Spraying is specifically designed to evade per-account lockouts: by trying one password across thousands of accounts, the attacker stays under the failed-attempt threshold for any single account. This is why per-account lockout alone is insufficient-you also need per-IP and per-credential monitoring.
 
 #### 2. Session Management Failures (stealing or forging the identity token)
 
@@ -119,18 +119,18 @@ Spraying is specifically designed to evade per-account lockouts: by trying one p
 
 ### Federated Identity (new emphasis in 2021)
 
-Modern applications increasingly delegate authentication to an identity provider via **OpenID Connect**, **OAuth 2.0**, or **SAML**. The 2021 revision explicitly acknowledges this. Delegation does not remove the risk—it relocates it: the relying application must still validate the returned assertion or ID token correctly (signature, audience, expiry, nonce), protect the redirect flow against interception, and map the federated subject to a local account safely.
+Modern applications increasingly delegate authentication to an identity provider via **OpenID Connect**, **OAuth 2.0**, or **SAML**. The 2021 revision explicitly acknowledges this. Delegation does not remove the risk-it relocates it: the relying application must still validate the returned assertion or ID token correctly (signature, audience, expiry, nonce), protect the redirect flow against interception, and map the federated subject to a local account safely.
 
 ## Real-World Impact
 
-The incidents below are described as **classes of well-documented, publicly reported events**, not as specific CVEs or exact figures—the durable lesson matters more than any single number.
+The incidents below are described as **classes of well-documented, publicly reported events**, not as specific CVEs or exact figures-the durable lesson matters more than any single number.
 
 ### Case Class 1: Large-Scale Credential Stuffing Against Consumer Platforms
 
 - **Pattern**: Attackers took username/password pairs leaked from unrelated breaches and replayed them at scale against streaming, retail, food-delivery, and gaming platforms.
-- **Impact**: Waves of account takeovers, stolen stored value and loyalty points, and fraudulent orders—without exploiting any bug in the target's own code.
+- **Impact**: Waves of account takeovers, stolen stored value and loyalty points, and fraudulent orders-without exploiting any bug in the target's own code.
 - **Root cause**: Password reuse by users, combined with the target accepting unlimited automated login attempts and offering no MFA.
-- **Lesson**: Breached-password checks, bot/automation defenses, and MFA are the countermeasures—stronger password rules on your own site cannot fix reuse elsewhere.
+- **Lesson**: Breached-password checks, bot/automation defenses, and MFA are the countermeasures-stronger password rules on your own site cannot fix reuse elsewhere.
 
 ### Case Class 2: Password Spraying in Enterprise Account Takeover
 
@@ -148,18 +148,18 @@ The incidents below are described as **classes of well-documented, publicly repo
 
 ### Case Class 4: JWT Signature and Algorithm Confusion
 
-- **Pattern**: Services that accepted JWTs without properly verifying the signature—honoring the `alg: none` value, or accepting an `HS256` token signed with the public RSA key when expecting `RS256`—allowed attackers to forge tokens for arbitrary users.
+- **Pattern**: Services that accepted JWTs without properly verifying the signature-honoring the `alg: none` value, or accepting an `HS256` token signed with the public RSA key when expecting `RS256`-allowed attackers to forge tokens for arbitrary users.
 - **Impact**: Complete authentication bypass and privilege escalation to administrator.
 - **Root cause**: Token validation that trusted the token's own header to choose the verification algorithm.
 - **Lesson**: Pin the expected algorithm server-side, verify the signature against a trusted key, and validate all standard claims.
 
 ## Prevalence and Classification
 
-In the OWASP Top 10 2021, this category ranks **A7**—down from #2 in 2017. OWASP attributes the drop primarily to the **increased availability and adoption of standardized authentication frameworks**, which removed many hand-rolled mistakes. It remains a serious category because the impact of a single failure is so high: assuming another user's identity.
+In the OWASP Top 10 2021, this category ranks **A7**-down from #2 in 2017. OWASP attributes the drop primarily to the **increased availability and adoption of standardized authentication frameworks**, which removed many hand-rolled mistakes. It remains a serious category because the impact of a single failure is so high: assuming another user's identity.
 
 Rather than cite precise percentages (which differ by report and year), the defensible picture is:
 
-- It is **still one of the most impactful** categories—successful exploitation typically means full account takeover.
+- It is **still one of the most impactful** categories-successful exploitation typically means full account takeover.
 - The most commonly observed sub-issues are **missing MFA, acceptance of weak or breached passwords, insufficient anti-automation on login, and mishandled session/token lifecycles**.
 - Automated attacks (credential stuffing and spraying) make it **continuously exploited at internet scale**, not just in targeted assessments.
 
@@ -190,7 +190,7 @@ Rather than cite precise percentages (which differ by report and year), the defe
 
 **Reality**: Per-account lockout does nothing against *password spraying* (one password, many accounts) and can itself be abused for denial of service. You need per-IP/per-credential throttling, breached-password checks, and MFA in addition.
 
-### Myth 4: "Logout works—the cookie is deleted."
+### Myth 4: "Logout works-the cookie is deleted."
 
 **Reality**: If the token is not invalidated *server-side*, a copy captured earlier still authenticates. Real logout must revoke the session in the store, and token designs need a revocation strategy.
 
@@ -213,7 +213,7 @@ Ask these questions about your application:
 - [ ] Are login, registration, and password-reset endpoints all rate-limited and protected against automation?
 - [ ] Do you screen new and changed passwords against a known-breached-password list?
 - [ ] Do you follow length-over-complexity policy (NIST 800-63B) rather than forced composition and rotation?
-- [ ] Is MFA available and enforced for sensitive accounts—ideally phishing-resistant (FIDO2/WebAuthn)?
+- [ ] Is MFA available and enforced for sensitive accounts-ideally phishing-resistant (FIDO2/WebAuthn)?
 - [ ] Is a new, high-entropy session ID generated at login and after every privilege change?
 - [ ] Are session cookies set `HttpOnly`, `Secure`, and `SameSite`, and never placed in URLs?
 - [ ] Are sessions and tokens invalidated server-side on logout, and do they have idle and absolute timeouts?
@@ -225,16 +225,16 @@ If you answered "no" or "not sure" to several of these, you likely have an explo
 
 ## Key Takeaways
 
-1. **Identity is a chain** of identification, authentication, and session management—the weakest link defines your security.
+1. **Identity is a chain** of identification, authentication, and session management-the weakest link defines your security.
 2. **Automation is the default attacker**: credential stuffing and spraying run at internet scale, so anti-automation and MFA are not optional.
 3. **Length beats complexity**, and breached-password screening beats forced rotation (NIST 800-63B).
 4. **Sessions must rotate and expire**, live in hardened cookies, and be revocable server-side.
-5. **The 2021 revision widened the scope** to identification, federation, and the full session lifecycle—keep this complementary to the 2017 A2 and 2025 A7 lessons.
+5. **The 2021 revision widened the scope** to identification, federation, and the full session lifecycle-keep this complementary to the 2017 A2 and 2025 A7 lessons.
 
 ## Next Steps
 
 - **[Attack Vectors](./attack-vectors.md)**: How attackers discover and exploit authentication weaknesses
-- **[Prevention](./prevention.md)**: Layered defenses—MFA, breached-password checks, secure sessions
+- **[Prevention](./prevention.md)**: Layered defenses-MFA, breached-password checks, secure sessions
 - **[Examples](./examples.md)**: Vulnerable vs. secure code across Node, Python, and Java
 - **[Lab](./lab/weak-session-lab/)**: Hands-on practice with weak session management
 

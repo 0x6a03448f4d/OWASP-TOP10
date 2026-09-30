@@ -8,9 +8,9 @@
 
 ## Understanding Misconfiguration Attack Vectors
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in systems you own or are authorised to test.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in systems you own or are authorised to test.
 
-Misconfiguration is rarely exploited through a clever payload. It is exploited through **observation**: an attacker sends ordinary requests, reads what the API volunteers about itself, and walks through whichever door was left open. Because the flaws are in settings rather than logic, they are cheap to find at scale—automated scanners fingerprint thousands of hosts an hour.
+Misconfiguration is rarely exploited through a clever payload. It is exploited through **observation**: an attacker sends ordinary requests, reads what the API volunteers about itself, and walks through whichever door was left open. Because the flaws are in settings rather than logic, they are cheap to find at scale-automated scanners fingerprint thousands of hosts an hour.
 
 The attacker's goal in this category is usually one of:
 - Extract information that maps the internals (versions, paths, schemas, secrets).
@@ -51,7 +51,7 @@ HTTP/1.1 500 Internal Server Error
 }
 ```
 
-**Payoff**: source paths, ORM/engine, table names, internal hostnames, and sometimes live credentials—all without a real exploit.
+**Payoff**: source paths, ORM/engine, table names, internal hostnames, and sometimes live credentials-all without a real exploit.
 
 ### 2. Interactive Debugger Exposed in Production
 
@@ -115,7 +115,7 @@ HTTP/1.1 200 OK
 # No Content-Security-Policy    -> injected script executes freely
 ```
 
-**Payoff**: clickjacking, MIME confusion, and easier XSS exploitation—each cheap once the header is simply missing.
+**Payoff**: clickjacking, MIME confusion, and easier XSS exploitation-each cheap once the header is simply missing.
 
 ### 6. Unnecessary HTTP Methods Enabled
 
@@ -256,11 +256,11 @@ Verbose error leaks internal host -> /actuator/env leaks a token
 
 ## Key Takeaways
 
-1. **Misconfiguration is exploited by observation, not payloads**—the API tells the attacker how to attack it.
+1. **Misconfiguration is exploited by observation, not payloads**-the API tells the attacker how to attack it.
 2. **Verbose errors and banners are free reconnaissance**; silence them.
-3. **Management planes are the crown jewels**—debug consoles, dashboards, actuator, and admin ports must never be openly reachable.
-4. **Defaults and leftovers kill**—default creds, sample data, `.git`, `.env`, and backups in the web root are routinely harvested.
-5. **Small issues chain**—a banner plus an exposed file plus an open datastore equals a breach with no code exploit at all.
+3. **Management planes are the crown jewels**-debug consoles, dashboards, actuator, and admin ports must never be openly reachable.
+4. **Defaults and leftovers kill**-default creds, sample data, `.git`, `.env`, and backups in the web root are routinely harvested.
+5. **Small issues chain**-a banner plus an exposed file plus an open datastore equals a breach with no code exploit at all.
 
 ## Next Steps
 

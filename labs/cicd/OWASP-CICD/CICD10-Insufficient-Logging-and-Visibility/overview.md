@@ -10,11 +10,11 @@
 
 ## What is Insufficient Logging and Visibility?
 
-**Insufficient Logging and Visibility** is the tenth risk in the OWASP Top 10 CI/CD Security Risks. It describes a CI/CD environment that **lacks the logging, monitoring, and detection needed to notice an attack in the pipeline**. The vulnerability is not a single misconfigured switch—it is the absence of the telemetry and alerting that would let a defender see tampering, credential abuse, or misuse of the build and delivery system while it is happening, or reconstruct it afterwards.
+**Insufficient Logging and Visibility** is the tenth risk in the OWASP Top 10 CI/CD Security Risks. It describes a CI/CD environment that **lacks the logging, monitoring, and detection needed to notice an attack in the pipeline**. The vulnerability is not a single misconfigured switch-it is the absence of the telemetry and alerting that would let a defender see tampering, credential abuse, or misuse of the build and delivery system while it is happening, or reconstruct it afterwards.
 
-A CI/CD system is a chain of independently operated tools: the source-code management (SCM) platform, the CI/CD orchestrator, package and container registries, artifact stores, secrets managers, and the cloud accounts that pipelines deploy into. Each of these produces its own audit trail—when it is turned on. When those trails are disabled, too coarse, siloed in separate consoles, never centralised, never correlated, never alerted on, and never retained, an attacker can move through the pipeline without ever tripping a signal. The build and deploy machinery, which holds the keys to production, becomes a blind spot.
+A CI/CD system is a chain of independently operated tools: the source-code management (SCM) platform, the CI/CD orchestrator, package and container registries, artifact stores, secrets managers, and the cloud accounts that pipelines deploy into. Each of these produces its own audit trail-when it is turned on. When those trails are disabled, too coarse, siloed in separate consoles, never centralised, never correlated, never alerted on, and never retained, an attacker can move through the pipeline without ever tripping a signal. The build and deploy machinery, which holds the keys to production, becomes a blind spot.
 
-> **The core idea:** the danger of CICD-SEC-10 is not that an attack succeeds—every other CI/CD risk covers a way in—but that the attack *proceeds undetected*. Pipeline tampering, secret access, new tokens, and unusual deploys all leave traces; insufficient logging and visibility means nobody is collecting, correlating, or watching those traces.
+> **The core idea:** the danger of CICD-SEC-10 is not that an attack succeeds-every other CI/CD risk covers a way in-but that the attack *proceeds undetected*. Pipeline tampering, secret access, new tokens, and unusual deploys all leave traces; insufficient logging and visibility means nobody is collecting, correlating, or watching those traces.
 
 ### Core Concept
 
@@ -42,25 +42,25 @@ Insufficient Visibility (attacker moves in the dark):
 
 CI/CD pipelines concentrate several conditions that make missing visibility especially damaging:
 
-- The pipeline is a **privileged, trusted path to production**. Whoever controls a build controls what ships—so an undetected intruder here is far more dangerous than one on a single application server.
+- The pipeline is a **privileged, trusted path to production**. Whoever controls a build controls what ships-so an undetected intruder here is far more dangerous than one on a single application server.
 - It is **highly automated and high-volume**. Thousands of legitimate builds, deploys, and token uses each week give malicious actions ideal cover; a single hostile job blends into the noise unless you can distinguish it.
 - It is **fragmented across many vendors**. No single console shows the whole story, so an attack that touches SCM, then CI, then the registry, then cloud is invisible unless the logs are pulled together.
-- Its **changes are self-erasing by design**. Pipelines are ephemeral—runners are destroyed after each job, logs rotate—so evidence that was never captured is gone for good.
+- Its **changes are self-erasing by design**. Pipelines are ephemeral-runners are destroyed after each job, logs rotate-so evidence that was never captured is gone for good.
 
 ## Why Does This Matter?
 
 ### Business Impact
 
 - **Undetected Supply-Chain Compromise**: A poisoned build or backdoored artifact can be signed, published, and distributed to every downstream consumer before anyone realises the pipeline was touched.
-- **Prolonged Dwell Time**: With no alerting, an intruder can persist in the CI/CD environment for weeks or months, expanding access at leisure—the interval between compromise and discovery is exactly what visibility shortens.
-- **Failed Incident Response**: When a breach is finally suspected, the absence of retained, correlated logs means responders cannot answer "what did the attacker do, what did they take, and what did they ship?"—turning a contained incident into an open-ended crisis.
+- **Prolonged Dwell Time**: With no alerting, an intruder can persist in the CI/CD environment for weeks or months, expanding access at leisure-the interval between compromise and discovery is exactly what visibility shortens.
+- **Failed Incident Response**: When a breach is finally suspected, the absence of retained, correlated logs means responders cannot answer "what did the attacker do, what did they take, and what did they ship?"-turning a contained incident into an open-ended crisis.
 - **Regulatory and Contractual Exposure**: Frameworks such as SOC 2, PCI-DSS, SSDF, and SLSA expect auditable records of who changed and deployed code. Missing trails cause audit findings and undermine breach notifications.
-- **Erosion of Software Trust**: If you cannot prove what your pipeline did, you cannot prove your releases are clean—damaging customer and downstream trust after any incident.
+- **Erosion of Software Trust**: If you cannot prove what your pipeline did, you cannot prove your releases are clean-damaging customer and downstream trust after any incident.
 
 ### Technical Impact
 
 - **Silent Pipeline Tampering**: Edits to pipeline definitions, build scripts, or CI configuration execute with no record of who changed what, when.
-- **Invisible Credential Abuse**: Access to secrets, and use of pipeline tokens and service accounts, leaves no monitored trace—so stolen credentials are used freely.
+- **Invisible Credential Abuse**: Access to secrets, and use of pipeline tokens and service accounts, leaves no monitored trace-so stolen credentials are used freely.
 - **Unnoticed Identity Sprawl**: New service accounts, personal access tokens, deploy keys, and webhooks are created by an attacker for persistence without triggering any review.
 - **Undetected Exfiltration from Runners**: Build agents reach out to attacker infrastructure to leak secrets or source, and the network egress is never captured or examined.
 - **Broken Reconstruction**: Even where some logs exist, the lack of correlation and short retention makes it impossible to stitch events into a timeline after the fact.
@@ -73,12 +73,12 @@ Visibility is only as good as its weakest link. An attack that pivots from SCM t
 
 | System | Security-relevant events to capture | What its absence hides |
 |--------|-------------------------------------|------------------------|
-| SCM (GitHub/GitLab/Bitbucket) | Pushes, branch/tag changes, protection-rule edits, permission and membership changes, new deploy keys/PATs, webhook edits, workflow file changes | Who changed the code, the branch rules, or the automation—and who was granted access |
+| SCM (GitHub/GitLab/Bitbucket) | Pushes, branch/tag changes, protection-rule edits, permission and membership changes, new deploy keys/PATs, webhook edits, workflow file changes | Who changed the code, the branch rules, or the automation-and who was granted access |
 | CI/CD orchestrator | Pipeline definition changes, job triggers (esp. from forks), runner registration, secret/variable access, plugin/integration changes, manual overrides | What ran, why, on whose behalf, and with what secrets |
 | Artifact / package registry | Pushes and pulls, tag mutation/overwrite, retention/immutability changes, new publish tokens, signing events | Whether a published artifact was replaced or a malicious version slipped in |
 | Secrets manager / vault | Secret reads, policy changes, new leases, failed access attempts | Which credentials were accessed, by which identity, and when |
 | Cloud / deploy targets | Deployments, IAM and role changes, new keys, off-hours or out-of-pipeline actions | What was actually pushed to production and by which path |
-| Build runners / agents | Process execution, outbound network connections, filesystem writes, unexpected tool installs | What a build job did beyond its declared steps—including exfiltration |
+| Build runners / agents | Process execution, outbound network connections, filesystem writes, unexpected tool installs | What a build job did beyond its declared steps-including exfiltration |
 
 ### The Failure Modes of CICD-SEC-10
 
@@ -100,7 +100,7 @@ Each tool has a log; none of them is aggregated. An attacker who touches several
 
 #### 3. No Correlation
 
-Even when logs are collected, they use different identity models, timestamps, and identifiers. Without correlation you cannot answer "which commit triggered which build, which used which token, which deployed what?"—the events exist but cannot be joined into a story.
+Even when logs are collected, they use different identity models, timestamps, and identifiers. Without correlation you cannot answer "which commit triggered which build, which used which token, which deployed what?"-the events exist but cannot be joined into a story.
 
 #### 4. No Alerting on Security-Relevant Pipeline Events
 
@@ -120,7 +120,7 @@ Build jobs frequently run arbitrary code (tests, build scripts, dependencies). W
 
 #### 8. No Baseline of Normal Behaviour
 
-Without a model of normal pipeline behaviour—who deploys, when, how often, to where—nothing ever looks abnormal. Anomaly detection is impossible if "normal" was never characterised.
+Without a model of normal pipeline behaviour-who deploys, when, how often, to where-nothing ever looks abnormal. Anomaly detection is impossible if "normal" was never characterised.
 
 ## Real-World Impact
 
@@ -139,7 +139,7 @@ The incidents below are described as **classes of real events** rather than spec
 **Pattern**:
 - A long-lived CI token, personal access token, or deploy key is leaked (in logs, a repo, or a third-party breach) and used by an attacker to clone private repositories or push changes.
 
-**Why visibility mattered**: Because token usage was not monitored and no baseline of normal access existed, the anomalous cloning and access continued without alerting anyone. Organisations in this class typically learn of the abuse only when the attacker acts overtly or a third party reports it—long after the credential was first misused.
+**Why visibility mattered**: Because token usage was not monitored and no baseline of normal access existed, the anomalous cloning and access continued without alerting anyone. Organisations in this class typically learn of the abuse only when the attacker acts overtly or a third party reports it-long after the credential was first misused.
 
 ### Case Study Class 3: Poisoned Fork-PR Workflow
 
@@ -150,7 +150,7 @@ The incidents below are described as **classes of real events** rather than spec
 
 ### Common Root Cause
 
-Across these classes the root cause is the same: the CI/CD environment produced too little trustworthy, centralised, correlated telemetry for anyone to notice the attack in progress or reconstruct it afterwards. Every one of these attacks generated events—a config change, a token use, an outbound connection, an artifact overwrite—that a well-instrumented pipeline would have surfaced.
+Across these classes the root cause is the same: the CI/CD environment produced too little trustworthy, centralised, correlated telemetry for anyone to notice the attack in progress or reconstruct it afterwards. Every one of these attacks generated events-a config change, a token use, an outbound connection, an artifact overwrite-that a well-instrumented pipeline would have surfaced.
 
 ## Prevalence and Detectability
 
@@ -159,7 +159,7 @@ Insufficient Logging and Visibility is best understood as a **force multiplier**
 Rather than cite precise figures (which vary by source and year), the defensible picture is:
 
 - Pipeline telemetry is **frequently incomplete**: audit logging is commonly disabled or gated behind higher product tiers, and runner-level activity is rarely captured at all.
-- Cross-tool **centralisation and correlation are the exception, not the norm**—most teams have per-tool consoles but no unified pipeline view.
+- Cross-tool **centralisation and correlation are the exception, not the norm**-most teams have per-tool consoles but no unified pipeline view.
 - The impact is characterised by **long dwell time and difficult reconstruction**: the harm is measured not in the initial compromise but in how long it goes unnoticed and how much cannot be explained afterwards.
 
 > Note: exact percentages and dwell-time figures differ between reports. Treat any single figure as illustrative; the durable takeaway is that pipeline visibility is commonly insufficient, and that insufficiency is what lets CI/CD attacks succeed quietly.
@@ -172,7 +172,7 @@ Rather than cite precise figures (which vary by source and year), the defensible
 
 ### Myth 2: "The pipeline is internal, so we don't need to monitor it"
 
-**Reality**: The pipeline is the most privileged internal system you own—it can ship code to production. Internal systems are reached through stolen tokens, poisoned dependencies, and fork PRs. An unmonitored pipeline is a blind spot at the exact point of greatest leverage.
+**Reality**: The pipeline is the most privileged internal system you own-it can ship code to production. Internal systems are reached through stolen tokens, poisoned dependencies, and fork PRs. An unmonitored pipeline is a blind spot at the exact point of greatest leverage.
 
 ### Myth 3: "We'll turn on detailed logging if we ever have an incident"
 
@@ -203,17 +203,17 @@ CICD-SEC-10 is the risk that decides whether the other nine are *caught* or *mis
 
 ## Key Takeaways
 
-1. **Visibility spans the whole toolchain**—SCM, CI, registries, artifact stores, secrets managers, cloud, and runners—not just one console.
-2. **The harm is undetected dwell time**—the vulnerability is measured in how long an attack goes unnoticed and how little can be reconstructed.
-3. **Collection is not detection**—logs must be centralised, correlated, and alerted on to matter.
-4. **Logs must outlive the runner and resist tampering**—ephemeral agents and short retention destroy evidence; mutable logs let attackers erase it.
-5. **You must know normal to spot abnormal**—a baseline of pipeline behaviour is the foundation of anomaly detection.
+1. **Visibility spans the whole toolchain**-SCM, CI, registries, artifact stores, secrets managers, cloud, and runners-not just one console.
+2. **The harm is undetected dwell time**-the vulnerability is measured in how long an attack goes unnoticed and how little can be reconstructed.
+3. **Collection is not detection**-logs must be centralised, correlated, and alerted on to matter.
+4. **Logs must outlive the runner and resist tampering**-ephemeral agents and short retention destroy evidence; mutable logs let attackers erase it.
+5. **You must know normal to spot abnormal**-a baseline of pipeline behaviour is the foundation of anomaly detection.
 
 ## How to Identify if You're Vulnerable
 
 Ask these questions about your CI/CD environment:
 
-- [ ] Is security audit logging enabled in your SCM, CI/CD orchestrator, and registries—not just build/job logs?
+- [ ] Is security audit logging enabled in your SCM, CI/CD orchestrator, and registries-not just build/job logs?
 - [ ] Are logs from all of those tools plus your cloud and secrets manager centralised into one SIEM or log platform?
 - [ ] Can you correlate a commit, the build it triggered, the secret it used, and the deploy it produced?
 - [ ] Do you alert on pipeline-config changes, secret access, new tokens/service accounts, permission changes, and off-hours or fork-triggered runs?

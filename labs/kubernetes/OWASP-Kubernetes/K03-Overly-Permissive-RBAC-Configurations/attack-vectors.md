@@ -9,11 +9,11 @@
 
 ## Understanding RBAC Attack Vectors
 
-> **⚠ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in clusters you own or are authorised to test.
+> **⚠ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in clusters you own or are authorised to test.
 
-An RBAC attack is not an exploit against a bug—it is the **legitimate use of permissions that should never have been granted**. The attacker begins with some identity (usually a Pod's mounted ServiceAccount token after a container compromise), asks the API server what that identity is allowed to do, and then walks whichever escalation path the roles permit. Every step is an ordinary, authorised API call. There is no payload to detect at the request layer; the flaw is in the grant.
+An RBAC attack is not an exploit against a bug-it is the **legitimate use of permissions that should never have been granted**. The attacker begins with some identity (usually a Pod's mounted ServiceAccount token after a container compromise), asks the API server what that identity is allowed to do, and then walks whichever escalation path the roles permit. Every step is an ordinary, authorised API call. There is no payload to detect at the request layer; the flaw is in the grant.
 
-The attacker's objective in this category is almost always **privilege escalation**: turn the modest permissions of a foothold identity into `cluster-admin` (or the `system:masters` group), at which point the entire cluster—workloads, secrets, and nodes—is under their control.
+The attacker's objective in this category is almost always **privilege escalation**: turn the modest permissions of a foothold identity into `cluster-admin` (or the `system:masters` group), at which point the entire cluster-workloads, secrets, and nodes-is under their control.
 
 ### Core Attack Flow
 
@@ -86,7 +86,7 @@ Each pattern below is a single over-broad grant that, on its own, leads to compr
 
 ### 3. Reading Secrets Cluster-Wide
 
-If the identity can `get`/`list` Secrets, it can harvest every credential in scope—including other ServiceAccounts' tokens.
+If the identity can `get`/`list` Secrets, it can harvest every credential in scope-including other ServiceAccounts' tokens.
 
 ```bash
 kubectl get secrets --all-namespaces -o json \
@@ -97,7 +97,7 @@ kubectl get secrets --all-namespaces -o json \
 kubectl get secret ci-deployer-token -n cicd -o jsonpath='{.data.token}' | base64 -d
 ```
 
-**Payoff**: database passwords, cloud keys, TLS private keys, and higher-privileged SA tokens—often including one bound to `cluster-admin`.
+**Payoff**: database passwords, cloud keys, TLS private keys, and higher-privileged SA tokens-often including one bound to `cluster-admin`.
 
 ### 4. Creating Pods to Mount a Better Token
 
@@ -123,7 +123,7 @@ The same primitive escapes to the node: a Pod with `hostPID`, a `hostPath` mount
 
 **Payoff**: token theft for a stronger identity, or a direct node breakout.
 
-### 5. escalate — Writing a Role Beyond Your Own Permissions
+### 5. escalate - Writing a Role Beyond Your Own Permissions
 
 Normally the API server blocks you from creating or editing a role that grants more than you already hold (the escalation-prevention check). The `escalate` verb removes that guard.
 
@@ -138,9 +138,9 @@ kubectl patch clusterrole app-reader --type=json -p='[{
 
 **Payoff**: self-granted wildcard permissions without ever holding them first.
 
-### 6. bind — Binding Yourself to cluster-admin
+### 6. bind - Binding Yourself to cluster-admin
 
-The `bind` verb lets a subject create a binding to a role—including the built-in `cluster-admin`—bypassing the check that you must already hold what you grant.
+The `bind` verb lets a subject create a binding to a role-including the built-in `cluster-admin`-bypassing the check that you must already hold what you grant.
 
 ```bash
 kubectl create clusterrolebinding pwn \
@@ -151,7 +151,7 @@ kubectl create clusterrolebinding pwn \
 
 **Payoff**: direct, one-command promotion to `cluster-admin`.
 
-### 7. impersonate — Acting as a Privileged Identity
+### 7. impersonate - Acting as a Privileged Identity
 
 `impersonate` lets a subject perform requests *as* another user, group, or ServiceAccount, inheriting its permissions for that request.
 
@@ -164,7 +164,7 @@ kubectl auth can-i '*' '*' \
   --as=system:serviceaccount:kube-system:clusterrole-aggregation-controller
 ```
 
-**Payoff**: full use of any identity's permissions—including the RBAC-bypassing `system:masters` group—without holding them directly.
+**Payoff**: full use of any identity's permissions-including the RBAC-bypassing `system:masters` group-without holding them directly.
 
 ### 8. Executing in Existing Privileged Pods
 
@@ -178,7 +178,7 @@ kubectl exec -n kube-system -it <privileged-pod> -- sh
 
 **Payoff**: inherit a privileged Pod's identity and mounts without deploying anything new.
 
-### 9. TokenRequest — Minting Tokens for Other ServiceAccounts
+### 9. TokenRequest - Minting Tokens for Other ServiceAccounts
 
 `create` on `serviceaccounts/token` lets a subject request a fresh, valid token for any ServiceAccount in the namespace.
 
@@ -201,7 +201,7 @@ POST /api/v1/nodes/<node>/proxy/exec/<ns>/<pod>/<container>   # exec via kubelet
 
 **Payoff**: read other Pods' secrets and execute inside them, node by node.
 
-### 11. CSR Approval — Issuing Certificates for Any Identity
+### 11. CSR Approval - Issuing Certificates for Any Identity
 
 `approve`/`update` on `certificatesigningrequests/approval` lets a subject approve a client certificate for an arbitrary identity, including the `system:masters` group.
 
@@ -256,11 +256,11 @@ SA has escalate on clusterroles       -> add wildcard rule to a role it is bound
 
 ## Key Takeaways
 
-1. **The attack is authorised API use**—the cluster answers "what can I do?" and the attacker follows the map.
-2. **A foothold Pod is a foothold identity**—the mounted token is the first thing an attacker reads.
-3. **A few verbs are escalation primitives**—`secrets get/list`, `create pods`, `escalate`, `bind`, `impersonate`, `pods/exec`, `tokenrequest`, `nodes/proxy`, CSR approval.
-4. **Modest grants chain**—create-Pod plus a privileged controller SA equals cluster-admin.
-5. **Audit logs are your detection layer**—enumeration, cross-namespace Secret listing, and new admin bindings are the tells.
+1. **The attack is authorised API use**-the cluster answers "what can I do?" and the attacker follows the map.
+2. **A foothold Pod is a foothold identity**-the mounted token is the first thing an attacker reads.
+3. **A few verbs are escalation primitives**-`secrets get/list`, `create pods`, `escalate`, `bind`, `impersonate`, `pods/exec`, `tokenrequest`, `nodes/proxy`, CSR approval.
+4. **Modest grants chain**-create-Pod plus a privileged controller SA equals cluster-admin.
+5. **Audit logs are your detection layer**-enumeration, cross-namespace Secret listing, and new admin bindings are the tells.
 
 ## Next Steps
 

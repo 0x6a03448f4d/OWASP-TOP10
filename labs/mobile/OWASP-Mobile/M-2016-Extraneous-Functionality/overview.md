@@ -11,9 +11,9 @@
 
 ## What is Extraneous Functionality?
 
-**Extraneous Functionality** is the tenth and final risk in the OWASP Mobile Top 10 (2016 edition). It covers **hidden backdoors and internal or development-only functionality that was never meant for end users but ships inside the released app anyway**. The code did its job during development—a test shortcut, a debug menu, a staging endpoint, a verbose log line—and then nobody removed it before the build went to the App Store or Google Play.
+**Extraneous Functionality** is the tenth and final risk in the OWASP Mobile Top 10 (2016 edition). It covers **hidden backdoors and internal or development-only functionality that was never meant for end users but ships inside the released app anyway**. The code did its job during development-a test shortcut, a debug menu, a staging endpoint, a verbose log line-and then nobody removed it before the build went to the App Store or Google Play.
 
-The defining characteristic is intent: this functionality is not a mistake in logic and not an attacker's injection. It is *legitimate developer functionality that has outlived its purpose and leaked into production*. Because a mobile app is distributed as a binary that runs entirely on a device the attacker fully controls, anything compiled into that binary can be recovered, read, and exercised. There is no server the developer can quietly patch out of reach—the extraneous code is in the attacker's hands the moment the app is installed.
+The defining characteristic is intent: this functionality is not a mistake in logic and not an attacker's injection. It is *legitimate developer functionality that has outlived its purpose and leaked into production*. Because a mobile app is distributed as a binary that runs entirely on a device the attacker fully controls, anything compiled into that binary can be recovered, read, and exercised. There is no server the developer can quietly patch out of reach-the extraneous code is in the attacker's hands the moment the app is installed.
 
 OWASP describes this category as the developer having **"hidden backdoor functionality or other internal development security controls that are not intended to be released into a production environment."** A classic illustration is an authentication routine that grants access if a request comes from a specific test account, or a comment left in the code that discloses the internal architecture of the back-end.
 
@@ -40,7 +40,7 @@ On the web, extraneous functionality tends to live on a server the developer sti
 
 - The **binary is fully in the attacker's possession**. Anyone can download the APK/IPA, decompile it, and read every string, class, and resource.
 - There is **no server-side gate** for on-device logic. A feature flag checked purely on the client can be flipped; a test endpoint compiled into the app can simply be called.
-- **Distribution is slow to reverse**. Once a build with a backdoor is public, it stays installed on devices until every user updates—you cannot revoke what is already downloaded.
+- **Distribution is slow to reverse**. Once a build with a backdoor is public, it stays installed on devices until every user updates-you cannot revoke what is already downloaded.
 - **Static analysis is cheap and automated**. Tools decompile mobile apps in seconds, and researchers routinely scan thousands of published apps for exactly these artifacts.
 
 ## Why Does This Matter?
@@ -49,7 +49,7 @@ On the web, extraneous functionality tends to live on a server the developer sti
 
 - **Revenue loss**: Hidden "god-mode" toggles or client-side premium flags let anyone unlock paid features for free once discovered.
 - **Data exposure**: Verbose debug logging and test endpoints frequently leak personal data, session tokens, and internal identifiers into places an attacker can read.
-- **Environment compromise**: Hardcoded staging or test credentials give an attacker a foothold in non-production systems that are often far less hardened than production—and sometimes share data or trust with it.
+- **Environment compromise**: Hardcoded staging or test credentials give an attacker a foothold in non-production systems that are often far less hardened than production-and sometimes share data or trust with it.
 - **Reputational damage**: A publicised backdoor or "secret admin screen" erodes user trust and invites regulator and press attention.
 - **Compliance failure**: Logging PII or shipping test accounts can directly violate GDPR, HIPAA, or PCI-DSS obligations.
 
@@ -66,7 +66,7 @@ On the web, extraneous functionality tends to live on a server the developer sti
 
 #### 1. Leftover Debug and Test Code
 
-Code written to speed up development—seed-data loaders, "skip onboarding" shortcuts, mock responders, crash-triggers—that is compiled into the release build. Even if no UI reaches it, the code path exists and can be invoked through reflection, an exported component, or a deep link.
+Code written to speed up development-seed-data loaders, "skip onboarding" shortcuts, mock responders, crash-triggers-that is compiled into the release build. Even if no UI reaches it, the code path exists and can be invoked through reflection, an exported component, or a deep link.
 
 ```java
 // Shipped in release: a diagnostics path that was only meant for QA
@@ -81,7 +81,7 @@ A secret gesture, key sequence, or magic value unlocks elevated functionality: a
 
 #### 3. Disabled-But-Present Functionality (Client-Side Feature Flags)
 
-A feature is "turned off" only by a boolean read on the client. The complete implementation still ships. Flipping the flag—by patching the binary, hooking the getter, or editing local storage—re-enables it.
+A feature is "turned off" only by a boolean read on the client. The complete implementation still ships. Flipping the flag-by patching the binary, hooking the getter, or editing local storage-re-enables it.
 
 ```kotlin
 // The unreleased feature is fully compiled in; only this flag hides it
@@ -109,11 +109,11 @@ const val QA_PASS  = "Test1234!"                                    // usable cr
 
 #### 6. Developer Backdoors
 
-An explicit shortcut that bypasses a security control for a known identifier or value—skipping licence checks, root/jailbreak detection, certificate pinning, or authentication for a "magic" user id.
+An explicit shortcut that bypasses a security control for a known identifier or value-skipping licence checks, root/jailbreak detection, certificate pinning, or authentication for a "magic" user id.
 
 #### 7. `android:debuggable="true"` in a Release Build
 
-If the shipped manifest has the debuggable flag set, anyone can attach a debugger to the running app on any device, inspect memory, call arbitrary methods, and read internal state—no exploit required. It is one of the most common and most damaging "this was only for the debug build" leaks.
+If the shipped manifest has the debuggable flag set, anyone can attach a debugger to the running app on any device, inspect memory, call arbitrary methods, and read internal state-no exploit required. It is one of the most common and most damaging "this was only for the debug build" leaks.
 
 ```xml
 <application android:debuggable="true" ... >   <!-- must never ship in a release APK -->
@@ -137,7 +137,7 @@ To avoid inventing specifics, the cases below are described as recurring **incid
 
 ### Incident Class 2: Test / Staging Configuration Baked Into Release
 
-**Pattern**: A published build ships pointing at—or trivially switchable to—staging or internal endpoints, sometimes with working test credentials.
+**Pattern**: A published build ships pointing at-or trivially switchable to-staging or internal endpoints, sometimes with working test credentials.
 
 **Impact**: Internal hostnames are disclosed, and the credentials open non-production systems that are typically weaker and closer to sensitive back-ends.
 
@@ -163,11 +163,11 @@ To avoid inventing specifics, the cases below are described as recurring **incid
 
 Extraneous Functionality is **easy to introduce and easy to find**. It is introduced whenever development shortcuts are not cleaned up, and it is found by anyone willing to run a decompiler, because the artifacts are static strings, classes, flags, and manifest entries sitting in the binary.
 
-- **Exploitability**: OWASP rates this as low difficulty—the attacker typically needs only to inspect the app, not craft an exploit.
+- **Exploitability**: OWASP rates this as low difficulty-the attacker typically needs only to inspect the app, not craft an exploit.
 - **Detectability**: High for the attacker. Strings, class names, and manifest flags are recovered by standard tooling (`apktool`, `jadx`, `strings`, `class-dump`) in seconds.
 - **Impact**: Ranges from minor information disclosure up to full authentication bypass and back-end compromise, depending on what the leftover functionality does.
 
-> The durable takeaway is not a percentage: it is that *anything you compile into a mobile app is readable by your adversary*. Extraneous functionality is common precisely because teams assume "no one will find that hidden code"—and static analysis finds it every time.
+> The durable takeaway is not a percentage: it is that *anything you compile into a mobile app is readable by your adversary*. Extraneous functionality is common precisely because teams assume "no one will find that hidden code"-and static analysis finds it every time.
 
 ## Extraneous Functionality vs. Security Misconfiguration
 
@@ -181,7 +181,7 @@ These two categories are frequently confused because both involve "the app being
 | **Mental test** | "Should this even be in the app?" | "Is this feature set up safely?" |
 | **Introduced by** | Leftover development convenience | Insecure defaults / overlooked hardening |
 
-A useful rule: if the answer to "why is this here?" is *"it was only for development"*, you are looking at extraneous functionality. If the answer is *"it needs to be here, but it's set up wrong"*, you are looking at misconfiguration. (Note: `android:debuggable="true"` is often cited under both—it is a debug-only setting *and* a leftover of the debug build; either way, the remedy is the same: it must not ship.)
+A useful rule: if the answer to "why is this here?" is *"it was only for development"*, you are looking at extraneous functionality. If the answer is *"it needs to be here, but it's set up wrong"*, you are looking at misconfiguration. (Note: `android:debuggable="true"` is often cited under both-it is a debug-only setting *and* a leftover of the debug build; either way, the remedy is the same: it must not ship.)
 
 ## Common Misunderstandings
 
@@ -207,15 +207,15 @@ A useful rule: if the answer to "why is this here?" is *"it was only for develop
 
 ### Myth 6: "A feature flag turned off is the same as removed."
 
-**Reality**: A client-side flag only *hides* code that is fully present. Only a server-authoritative decision—or truly not compiling the code—keeps disabled functionality out of the attacker's reach.
+**Reality**: A client-side flag only *hides* code that is fully present. Only a server-authoritative decision-or truly not compiling the code-keeps disabled functionality out of the attacker's reach.
 
 ## Key Takeaways
 
-1. **The binary is the attacker's**—anything compiled in can be read and run; there is no "hidden" on the client.
-2. **Remove, don't hide**—debug code, test accounts, and backdoors must be absent from the release, not merely gated by a flag.
-3. **Separate debug from release builds**—build flavors, `#if DEBUG`, and `BuildConfig.DEBUG` guards keep development-only code out of production entirely.
-4. **Silence production logging**—no tokens, bodies, or PII in logs that ship.
-5. **Automate the check**—CI should fail the build on `debuggable=true`, staging URLs, test credentials, and leftover debug artifacts.
+1. **The binary is the attacker's**-anything compiled in can be read and run; there is no "hidden" on the client.
+2. **Remove, don't hide**-debug code, test accounts, and backdoors must be absent from the release, not merely gated by a flag.
+3. **Separate debug from release builds**-build flavors, `#if DEBUG`, and `BuildConfig.DEBUG` guards keep development-only code out of production entirely.
+4. **Silence production logging**-no tokens, bodies, or PII in logs that ship.
+5. **Automate the check**-CI should fail the build on `debuggable=true`, staging URLs, test credentials, and leftover debug artifacts.
 
 ## How to Identify if You're Vulnerable
 

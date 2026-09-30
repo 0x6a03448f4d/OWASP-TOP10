@@ -2,10 +2,10 @@
 
 ## Prevention Strategy Overview
 
-Preventing improper artifact integrity validation means building an **enforceable chain of custody**: at every hand-off, the consumer refuses anything it cannot cryptographically tie back to a trusted origin. The goal is not "we sign our images"—it is "nothing runs unless it is signed, attested, pinned, and verified."
+Preventing improper artifact integrity validation means building an **enforceable chain of custody**: at every hand-off, the consumer refuses anything it cannot cryptographically tie back to a trusted origin. The goal is not "we sign our images"-it is "nothing runs unless it is signed, attested, pinned, and verified."
 
 1. Sign every artifact and container image, and **verify the signature before use**.
-2. Generate build **provenance** and check it, so origin—not just authenticity—is proven.
+2. Generate build **provenance** and check it, so origin-not just authenticity-is proven.
 3. Reference artifacts by **immutable digest**, never a mutable tag.
 4. Verify at **every hand-off** and, non-negotiably, at deploy/admission time.
 5. Protect signing keys and keep an end-to-end record (SBOM + attestations).
@@ -31,7 +31,7 @@ cosign sign-blob --yes app.tar.gz --output-signature app.tar.gz.sig \
   --output-certificate app.tar.gz.pem
 ```
 
-Sign the **digest**, not a tag—so the signature is bound to specific bytes.
+Sign the **digest**, not a tag-so the signature is bound to specific bytes.
 
 ## 2. Verify Signatures Before Use and at Deploy Time
 
@@ -45,11 +45,11 @@ cosign verify \
   registry.example.com/api@sha256:<digest>   || exit 1   # fail the deploy
 ```
 
-Verifying against "any valid signature" is not enough—pin the signer identity so an attacker's own valid signature is rejected.
+Verifying against "any valid signature" is not enough-pin the signer identity so an attacker's own valid signature is rejected.
 
 ## 3. Generate and Check Build Provenance (SLSA / in-toto)
 
-Provenance is a signed statement of *how* an artifact was built—source, builder, parameters, materials. It is what defends against SolarWinds-class build tampering, which produces a genuinely signed backdoor.
+Provenance is a signed statement of *how* an artifact was built-source, builder, parameters, materials. It is what defends against SolarWinds-class build tampering, which produces a genuinely signed backdoor.
 
 ```bash
 # Attach an in-toto SLSA provenance attestation to the image
@@ -83,7 +83,7 @@ Verifying the signature is not the same as approving the *contents* of the prove
 
 ## 4. Pin by Immutable Digest, Not Mutable Tag
 
-Everywhere an artifact is referenced—base images, deploy manifests, IaC—use the content digest so the reference cannot silently change.
+Everywhere an artifact is referenced-base images, deploy manifests, IaC-use the content digest so the reference cannot silently change.
 
 ```dockerfile
 # Dockerfile: pin the base image by digest
@@ -118,7 +118,7 @@ spec:
           predicateType: slsaprovenance
 ```
 
-Equivalent policies can be expressed with Kyverno or OPA/Gatekeeper. The key property: **fail closed**—no signature/attestation, no admission.
+Equivalent policies can be expressed with Kyverno or OPA/Gatekeeper. The key property: **fail closed**-no signature/attestation, no admission.
 
 ## 6. Verify Dependencies, Caches, and Mirrors
 
@@ -142,7 +142,7 @@ Prefer an internal proxy that records and enforces checksums, and treat mirror c
 ## 7. Protect the Signing Identity
 
 - Prefer **keyless signing** (Sigstore + workflow OIDC): identities are short-lived, so there is no durable private key to exfiltrate.
-- If you must hold keys, keep them in a **KMS/HSM** and sign via the KMS API—the private key never leaves the boundary.
+- If you must hold keys, keep them in a **KMS/HSM** and sign via the KMS API-the private key never leaves the boundary.
 - Scope who/what can sign to the specific trusted workflow identity, and record signatures in a transparency log (Rekor) for auditability.
 
 ```bash
@@ -167,7 +167,7 @@ Protect remote state integrity (locking, restricted access) so the "current stat
 
 ## 9. Reproducible Builds and SBOM
 
-- **Reproducible builds** let an independent rebuild produce the same digest—so provenance can be corroborated, not just asserted.
+- **Reproducible builds** let an independent rebuild produce the same digest-so provenance can be corroborated, not just asserted.
 - Generate an **SBOM** per artifact and attach it as a signed attestation, giving a verifiable inventory that ties deployed bytes to known components.
 
 ```bash
@@ -205,11 +205,11 @@ Periodically reconcile "what is running" against "what has valid signatures + pr
 
 ## Key Takeaways
 
-1. **Verification is the control, not signing** — enforce signatures against an expected identity and fail closed.
-2. **Provenance defends the build** — SLSA/in-toto attestations catch the signed-backdoor (SolarWinds-class) case a bare signature cannot.
-3. **Pin digests everywhere** — base images, deploy manifests, and IaC referenced by content, not by movable tags.
-4. **Gate at admission** — the cluster must refuse anything unsigned or unattested; that is the non-negotiable last line.
-5. **Protect keys and keep records** — keyless/OIDC or KMS signing, SBOMs, and transparency logs make the chain of custody auditable end to end.
+1. **Verification is the control, not signing** - enforce signatures against an expected identity and fail closed.
+2. **Provenance defends the build** - SLSA/in-toto attestations catch the signed-backdoor (SolarWinds-class) case a bare signature cannot.
+3. **Pin digests everywhere** - base images, deploy manifests, and IaC referenced by content, not by movable tags.
+4. **Gate at admission** - the cluster must refuse anything unsigned or unattested; that is the non-negotiable last line.
+5. **Protect keys and keep records** - keyless/OIDC or KMS signing, SBOMs, and transparency logs make the chain of custody auditable end to end.
 
 ## Next Steps
 

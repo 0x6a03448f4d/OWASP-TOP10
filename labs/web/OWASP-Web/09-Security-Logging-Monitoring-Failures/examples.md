@@ -257,7 +257,7 @@ log.warn("authn.login.failure user=%s", safe(username))
 #   -> a single, honest line; no forged success event.
 ```
 
-> If logs are ever rendered in a web dashboard, also **HTML-encode** untrusted fields at display time — otherwise injected markup becomes stored XSS in the analyst's browser.
+> If logs are ever rendered in a web dashboard, also **HTML-encode** untrusted fields at display time - otherwise injected markup becomes stored XSS in the analyst's browser.
 
 ## 5. Alerting & SIEM Configuration
 

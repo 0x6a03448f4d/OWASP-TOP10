@@ -2,7 +2,7 @@ export default function SiteFooter() {
   return (
     <footer className="site-footer">
       <div className="wrap">
-        <span>An open educational resource on the OWASP Top 10 — for learning and defense, never exploitation.</span>
+        <span>An open educational resource on the OWASP Top 10 - for learning and defense, never exploitation.</span>
         <span>
           <a href="https://owasp.org/" target="_blank" rel="noopener">OWASP.org</a>
           {' · '}

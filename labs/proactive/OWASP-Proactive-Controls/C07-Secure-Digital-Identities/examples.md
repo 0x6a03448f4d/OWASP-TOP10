@@ -2,7 +2,7 @@
 
 Each pair below shows an **insecure** implementation and the **secure** version in the same stack. The examples target the parts of identity where real findings cluster: password login, session handling, MFA enforcement, and token verification.
 
-## 1. Password Login and Storage — Node.js / Express
+## 1. Password Login and Storage - Node.js / Express
 
 ### Insecure
 ```javascript
@@ -16,7 +16,7 @@ app.post('/login', async (req, res) => {
   const user = await db.getUser(username);
 
   if (!user) return res.status(404).json({ error: 'No such user' });   // enumeration
-  // Fast, unsalted hash — a leaked DB is cracked in minutes:
+  // Fast, unsalted hash - a leaked DB is cracked in minutes:
   const hash = crypto.createHash('sha256').update(password).digest('hex');
   if (hash !== user.passwordHash) {
     return res.status(401).json({ error: 'Wrong password' });          // enumeration
@@ -52,7 +52,7 @@ app.post('/login', async (req, res) => {
     return res.status(401).json({ error: 'Invalid username or password' });
   }
 
-  // Password proven — but NOT authenticated until MFA (see section 3):
+  // Password proven - but NOT authenticated until MFA (see section 3):
   req.session.regenerate(err => {                        // new id kills fixation
     if (err) return res.status(500).json({ error: 'Internal server error' });
     req.session.pendingUserId = user.id;                 // no privileges yet
@@ -61,7 +61,7 @@ app.post('/login', async (req, res) => {
 });
 ```
 
-## 2. Session Cookies and Logout — Node.js / Express
+## 2. Session Cookies and Logout - Node.js / Express
 
 ### Insecure
 ```javascript
@@ -100,13 +100,13 @@ app.post('/logout', (req, res) => {
 });
 ```
 
-## 3. MFA Enforcement — Python / Flask
+## 3. MFA Enforcement - Python / Flask
 
 ### Insecure
 ```python
 @app.route('/mfa/verify', methods=['POST'])
 def mfa_verify():
-    # Trusts a client-supplied flag — attacker just sends {"mfa_passed": true}
+    # Trusts a client-supplied flag - attacker just sends {"mfa_passed": true}
     if request.json.get('mfa_passed'):
         session['authenticated'] = True
     return jsonify(ok=True)
@@ -147,7 +147,7 @@ def require_step_up(max_age=300):
         abort(401, 're-authentication required')
 ```
 
-## 4. JWT Verification — Python (PyJWT)
+## 4. JWT Verification - Python (PyJWT)
 
 ### Insecure
 ```python
@@ -168,7 +168,7 @@ def get_identity(token):
         return jwt.decode(
             token,
             PUBLIC_KEY,
-            algorithms=["RS256"],          # allow-list — 'none' can never match
+            algorithms=["RS256"],          # allow-list - 'none' can never match
             audience="api.example.com",    # this service only
             issuer="https://idp.example.com",
             options={"require": ["exp", "aud", "iss"]},  # must be present
@@ -179,11 +179,11 @@ def get_identity(token):
 # Keep access tokens short-lived (minutes); rotate refresh tokens; support revocation.
 ```
 
-## 5. Password Storage and Reset — Java
+## 5. Password Storage and Reset - Java
 
 ### Insecure
 ```java
-// MD5, no salt — a stolen table is a plaintext password list.
+// MD5, no salt - a stolen table is a plaintext password list.
 String hash = DigestUtils.md5Hex(password);
 user.setPasswordHash(hash);
 

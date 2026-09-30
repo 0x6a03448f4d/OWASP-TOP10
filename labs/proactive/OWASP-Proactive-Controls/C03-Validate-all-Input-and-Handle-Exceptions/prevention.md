@@ -4,15 +4,15 @@
 
 Implementing C3 means wiring three habits into every request path, and never relying on any one of them alone:
 
-1. **Validate** all input at the boundary—allow-list, server-side, typed, schema-checked.
-2. **Neutralise at the sink**—parameterise queries and apply context-aware output encoding.
-3. **Handle exceptions safely**—fail closed, generic errors out, detailed logs in.
+1. **Validate** all input at the boundary-allow-list, server-side, typed, schema-checked.
+2. **Neutralise at the sink**-parameterise queries and apply context-aware output encoding.
+3. **Handle exceptions safely**-fail closed, generic errors out, detailed logs in.
 
 ### Core Principles
 
 - **Allow-list, not deny-list**: define what is acceptable and reject the rest.
 - **Server is the trust boundary**: client validation is UX only; enforce on the server.
-- **Both boundaries, always**: validation on input *and* encoding/parameterisation on output—never one instead of the other.
+- **Both boundaries, always**: validation on input *and* encoding/parameterisation on output-never one instead of the other.
 - **Fail closed and quiet**: on any error, deny and return a generic message; log the detail privately.
 
 ## 1. Validate Input: Syntactic and Semantic
@@ -89,7 +89,7 @@ class Signup(BaseModel):
 
 ## 5. Canonicalise Before Validating
 
-Decode and normalise to one canonical form, then validate that form—so encoded variants cannot slip past the check.
+Decode and normalise to one canonical form, then validate that form-so encoded variants cannot slip past the check.
 
 ```python
 import os, unicodedata
@@ -103,7 +103,7 @@ if not re.fullmatch(r"[A-Za-z0-9_\-.]{1,64}", value):
 
 ## 6. Parameterised Queries (Anti-SQL Injection)
 
-This—not input filtering—is the real defence against SQL injection. Never build SQL by concatenation.
+This-not input filtering-is the real defence against SQL injection. Never build SQL by concatenation.
 
 ```python
 # WRONG: string building lets input change the query
@@ -267,11 +267,11 @@ def handle_error(e):
 
 ## Key Takeaways
 
-1. **Validate at the edge** — allow-list, server-side, typed and schema-driven, canonicalised first.
-2. **Neutralise at the sink** — parameterised queries and context-aware encoding are the real fixes for injection and XSS.
-3. **Both, never either** — validation and encoding are complementary layers, not alternatives.
-4. **Configure parsers and deserializers safely** — disable XXE, avoid native deserialization of untrusted data.
-5. **Fail closed and quiet** — deny on error, log privately, and never leak internals.
+1. **Validate at the edge** - allow-list, server-side, typed and schema-driven, canonicalised first.
+2. **Neutralise at the sink** - parameterised queries and context-aware encoding are the real fixes for injection and XSS.
+3. **Both, never either** - validation and encoding are complementary layers, not alternatives.
+4. **Configure parsers and deserializers safely** - disable XXE, avoid native deserialization of untrusted data.
+5. **Fail closed and quiet** - deny on error, log privately, and never leak internals.
 
 ## Next Steps
 

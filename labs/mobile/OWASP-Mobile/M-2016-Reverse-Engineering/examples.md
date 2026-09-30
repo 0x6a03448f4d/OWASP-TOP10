@@ -6,7 +6,7 @@ Keys, hosts, and tokens in these snippets are illustrative placeholders, not rea
 
 ## 1. Hardcoded API Secret
 
-### Android (Kotlin) — Vulnerable
+### Android (Kotlin) - Vulnerable
 
 ```
 object ApiClient {
@@ -20,7 +20,7 @@ object ApiClient {
 }
 ```
 
-### Android (Kotlin) — Secure
+### Android (Kotlin) - Secure
 
 ```
 object ApiClient {
@@ -37,7 +37,7 @@ object ApiClient {
 }
 ```
 
-### iOS (Swift) — Vulnerable
+### iOS (Swift) - Vulnerable
 
 ```
 enum ApiClient {
@@ -51,7 +51,7 @@ enum ApiClient {
 }
 ```
 
-### iOS (Swift) — Secure
+### iOS (Swift) - Secure
 
 ```
 enum ApiClient {
@@ -67,7 +67,7 @@ enum ApiClient {
 
 ## 2. Client-Side License / Entitlement Check
 
-### Android (Java) — Vulnerable
+### Android (Java) - Vulnerable
 
 ```
 public class FeatureGate {
@@ -84,7 +84,7 @@ public class FeatureGate {
 }
 ```
 
-### Android (Java) — Secure
+### Android (Java) - Secure
 
 ```
 public class FeatureGate {
@@ -101,7 +101,7 @@ public class FeatureGate {
 }
 ```
 
-### iOS (Swift) — Vulnerable
+### iOS (Swift) - Vulnerable
 
 ```
 func openPremiumScreen(_ user: User) {
@@ -111,7 +111,7 @@ func openPremiumScreen(_ user: User) {
 }
 ```
 
-### iOS (Swift) — Secure
+### iOS (Swift) - Secure
 
 ```
 func openPremiumScreen(accessToken: String) {
@@ -127,7 +127,7 @@ func openPremiumScreen(accessToken: String) {
 
 ## 3. Hardcoded Encryption Key
 
-### Android (Kotlin) — Vulnerable
+### Android (Kotlin) - Vulnerable
 
 ```
 object Crypto {
@@ -143,7 +143,7 @@ object Crypto {
 }
 ```
 
-### Android (Kotlin) — Secure
+### Android (Kotlin) - Secure
 
 ```
 object Crypto {
@@ -167,7 +167,7 @@ object Crypto {
 }
 ```
 
-### iOS (Swift) — Vulnerable vs. Secure
+### iOS (Swift) - Vulnerable vs. Secure
 
 ```
 // VULNERABLE: constant key recovered from the binary
@@ -197,14 +197,14 @@ let privateKey = SecKeyCreateRandomKey(attrs as CFDictionary, &error)
 ### Vulnerable (Kotlin / Swift)
 
 ```
-// Kotlin — falls out of `strings` before any decompiler is opened
+// Kotlin - falls out of `strings` before any decompiler is opened
 const val ADMIN_BASE = "https://internal-admin.api.example.com/v3/"
 
-// Swift — same problem
+// Swift - same problem
 let adminBase = "https://internal-admin.api.example.com/v3/"
 ```
 
-### Secure — Don&rsquo;t Rely on Secrecy of Endpoints
+### Secure - Don&rsquo;t Rely on Secrecy of Endpoints
 
 ```
 // The fix is NOT to hide the URL (you can't) but to secure the endpoint:
@@ -217,11 +217,11 @@ const val API_BASE = "https://api.example.com/v3/"   // public is fine if the
 
 ## 5. Certificate Pinning (Friction, Done Right)
 
-### Android (Kotlin) — OkHttp
+### Android (Kotlin) - OkHttp
 
 ```
 // Pinning deters casual MITM and protocol analysis. It is bypassable on a
-// controlled device, so it accompanies server-side controls — it doesn't replace them.
+// controlled device, so it accompanies server-side controls - it doesn't replace them.
 val pinner = CertificatePinner.Builder()
     .add("api.example.com", "sha256/PRIMARY_SPKI_PIN=")
     .add("api.example.com", "sha256/BACKUP_SPKI_PIN=")   // survive key rotation
@@ -232,7 +232,7 @@ val client = OkHttpClient.Builder()
     .build()
 ```
 
-### iOS (Swift) — URLSession delegate
+### iOS (Swift) - URLSession delegate
 
 ```
 func urlSession(_ session: URLSession,
@@ -249,9 +249,9 @@ func urlSession(_ session: URLSession,
 // Pin the SPKI, keep a backup pin, and still enforce authZ server-side.
 ```
 
-## 6. Proving &ldquo;This Is the Real App&rdquo; — Secret vs. Attestation
+## 6. Proving &ldquo;This Is the Real App&rdquo; - Secret vs. Attestation
 
-### Vulnerable — a shipped &ldquo;app secret&rdquo;
+### Vulnerable - a shipped &ldquo;app secret&rdquo;
 
 ```
 // Anti-automation via a baked-in key. Reverse engineers recover the key and
@@ -259,14 +259,14 @@ func urlSession(_ session: URLSession,
 val appProof = HmacUtil.hmacSha256("shipped-app-key", nonce)
 ```
 
-### Secure — platform attestation verified server-side
+### Secure - platform attestation verified server-side
 
 ```
-// Android: Play Integrity — OS issues a token, your server verifies it.
+// Android: Play Integrity - OS issues a token, your server verifies it.
 val token = playIntegrityManager.requestIntegrityToken(request).await().token()
 api.callProtected(body, integrityToken = token)   // server verifies with Google
 
-// iOS: App Attest — hardware-backed key attests the genuine app instance.
+// iOS: App Attest - hardware-backed key attests the genuine app instance.
 DCAppAttestService.shared.generateKey { keyId, _ in
     // attest keyId, send assertion to YOUR server, which verifies it with Apple
 }
@@ -327,7 +327,7 @@ android {
 
 ## The Through-Line
 
-Every secure column does one of two things: it **removes the prize** (no secret, no client-side decision, no shipped key) or it **moves the decision to the server** (entitlement, attestation, endpoint authorization). Obfuscation, stripping, and pinning appear only as honestly-labelled friction on top—never as the reason something is safe. That is the entire discipline of defending against reverse engineering: build as if the attacker has already read every line, because they can.
+Every secure column does one of two things: it **removes the prize** (no secret, no client-side decision, no shipped key) or it **moves the decision to the server** (entitlement, attestation, endpoint authorization). Obfuscation, stripping, and pinning appear only as honestly-labelled friction on top-never as the reason something is safe. That is the entire discipline of defending against reverse engineering: build as if the attacker has already read every line, because they can.
 
 ## Next Steps
 

@@ -10,7 +10,7 @@
 
 ## What Are Missing Network Segmentation Controls?
 
-**Missing Network Segmentation Controls** (K07 in the OWASP Kubernetes Top 10) is the failure to restrict which pods, namespaces, and external endpoints can talk to one another. By default, a Kubernetes cluster is a **flat, fully-connected network**: every pod can open a connection to every other pod, in every namespace, on every port — and, in most default installs, out to the internet and the cloud provider's metadata service as well. Nothing about that traffic is authenticated, encrypted, or restricted unless you add controls.
+**Missing Network Segmentation Controls** (K07 in the OWASP Kubernetes Top 10) is the failure to restrict which pods, namespaces, and external endpoints can talk to one another. By default, a Kubernetes cluster is a **flat, fully-connected network**: every pod can open a connection to every other pod, in every namespace, on every port - and, in most default installs, out to the internet and the cloud provider's metadata service as well. Nothing about that traffic is authenticated, encrypted, or restricted unless you add controls.
 
 This is not a bug in Kubernetes; it is the documented default. The Kubernetes networking model requires that "all pods can communicate with all other pods without NAT." Segmentation is *opt-in*: you must author `NetworkPolicy` objects (and run a CNI that enforces them), or add a service mesh, to carve that flat space into isolated zones. When teams skip that step, one compromised pod inherits the reachability of the entire cluster.
 
@@ -40,20 +40,20 @@ Segmented cluster (default-deny baseline + allow-list):
 The distinction that defines K07 is **default-allow vs. default-deny**. A cluster with no policies is default-allow: everything is permitted, and an attacker who lands in any pod can immediately scan and reach everything else. A hardened cluster establishes a **default-deny baseline** per namespace (deny all ingress *and* egress), then explicitly allow-lists only the connections the application actually needs.
 
 ### What "Missing Segmentation" Actually Covers
-- **No NetworkPolicies at all** — the cluster runs entirely default-allow.
-- **No default-deny baseline** — a few allow rules exist, but anything not covered is still wide open, because policies are additive and only restrict pods they select.
-- **No namespace isolation** — workloads in `team-a`, `team-b`, `prod`, and `dev` can freely reach across boundaries.
-- **Unrestricted egress** — pods can reach the internet, the cloud metadata endpoint (`169.254.169.254`), other clusters, and internal management planes.
-- **Exposed internal services** — databases, caches, admin APIs, and dashboards reachable from any pod rather than only their intended callers.
-- **No identity between services** — no mTLS, so traffic is neither authenticated nor encrypted and any pod can impersonate a caller.
-- **A CNI that does not enforce policy** — NetworkPolicy objects exist in the API but the network plugin silently ignores them, so the intended controls do nothing.
+- **No NetworkPolicies at all** - the cluster runs entirely default-allow.
+- **No default-deny baseline** - a few allow rules exist, but anything not covered is still wide open, because policies are additive and only restrict pods they select.
+- **No namespace isolation** - workloads in `team-a`, `team-b`, `prod`, and `dev` can freely reach across boundaries.
+- **Unrestricted egress** - pods can reach the internet, the cloud metadata endpoint (`169.254.169.254`), other clusters, and internal management planes.
+- **Exposed internal services** - databases, caches, admin APIs, and dashboards reachable from any pod rather than only their intended callers.
+- **No identity between services** - no mTLS, so traffic is neither authenticated nor encrypted and any pod can impersonate a caller.
+- **A CNI that does not enforce policy** - NetworkPolicy objects exist in the API but the network plugin silently ignores them, so the intended controls do nothing.
 
 ## Why Does This Matter?
 
 Network segmentation is the control that **contains a breach**. Most other controls (image scanning, RBAC, admission policy) aim to *prevent* a compromise. Segmentation assumes prevention will sometimes fail and limits how far the attacker can travel afterward. Without it, the blast radius of a single vulnerable pod is the whole cluster.
 
 ### Business Impact
-- **Unbounded blast radius**: A single compromised container — via a vulnerable web app, a poisoned dependency, or SSRF — can reach every database and service in the cluster. Containment failure turns an incident into a breach.
+- **Unbounded blast radius**: A single compromised container - via a vulnerable web app, a poisoned dependency, or SSRF - can reach every database and service in the cluster. Containment failure turns an incident into a breach.
 - **Cross-tenant and cross-environment data exposure**: In shared clusters, one tenant's or team's compromise reaches another's data because no boundary separates them.
 - **Cloud account compromise**: Unrestricted egress lets a pod hit the instance metadata service and steal the node's cloud IAM credentials, escalating from "one container" to "the cloud account."
 - **Regulatory exposure**: PCI-DSS, HIPAA, and similar frameworks explicitly require segmentation of sensitive workloads; a flat cluster undermines the scoping those regimes depend on.
@@ -121,7 +121,7 @@ The incident *classes* below are well-documented patterns. They are described ge
 **Pattern**:
 - An internet-facing workload is compromised (application vulnerability, SSRF, or a vulnerable dependency).
 - Because egress is unrestricted, the attacker's code in the pod reaches `169.254.169.254` and pulls the node's IAM credentials.
-- Those credentials — often broader than the workload needs — are used to access cloud storage, other services, and sometimes to widen access across the account.
+- Those credentials - often broader than the workload needs - are used to access cloud storage, other services, and sometimes to widen access across the account.
 
 **Root Cause**: No egress policy blocking the metadata endpoint, combined with an over-privileged node role and metadata service defaults that allow simple retrieval. This class is the Kubernetes-native version of the classic SSRF-to-metadata cloud breach pattern.
 
@@ -146,13 +146,13 @@ The incident *classes* below are well-documented patterns. They are described ge
 
 **Pattern**:
 - A front-end pod is compromised. The database was reachable from any pod, not only the API tier that legitimately uses it.
-- The attacker connects straight to the datastore — often with weak or default auth — and reads or wipes data.
+- The attacker connects straight to the datastore - often with weak or default auth - and reads or wipes data.
 
 **Root Cause**: Internal services exposed cluster-wide with no ingress policy limiting callers to their intended clients. This mirrors the broader "unauthenticated datastore reachable on a flat network" class seen across cloud and container environments.
 
 ## Prevalence and Severity
 
-Missing segmentation is one of the **most common** Kubernetes weaknesses precisely because it is the default state — a cluster is unsegmented until someone does work to change it, and many clusters never do.
+Missing segmentation is one of the **most common** Kubernetes weaknesses precisely because it is the default state - a cluster is unsegmented until someone does work to change it, and many clusters never do.
 
 The defensible picture, without inventing statistics:
 - A brand-new cluster with a policy-capable CNI still has **zero enforced segmentation** until policies are written; the safe state is opt-in.
@@ -164,7 +164,7 @@ The defensible picture, without inventing statistics:
 ## Common Misunderstandings
 
 ### Myth 1: "Namespaces isolate workloads"
-**Reality**: Namespaces isolate names and are an RBAC boundary. On the network they are transparent — pods in different namespaces reach each other by default. Network isolation requires NetworkPolicy or a mesh.
+**Reality**: Namespaces isolate names and are an RBAC boundary. On the network they are transparent - pods in different namespaces reach each other by default. Network isolation requires NetworkPolicy or a mesh.
 
 ### Myth 2: "We have NetworkPolicies, so we're segmented"
 **Reality**: Policies are additive and only affect pods they select. Without a *default-deny* baseline in every namespace, every unselected pod is still fully open. And if the CNI does not enforce policy, the objects do nothing at all.
@@ -192,11 +192,11 @@ The defensible picture, without inventing statistics:
 
 ## Key Takeaways
 
-1. **The default is flat and default-allow** — every pod can reach every pod, the metadata endpoint, and the internet until you restrict it.
-2. **Segmentation is the containment control** — it decides whether one compromised pod is an incident or a cluster-wide breach.
-3. **Default-deny beats a handful of allow rules** — without a deny baseline in every namespace, unselected pods stay wide open.
-4. **Egress matters as much as ingress** — blocking `169.254.169.254` and arbitrary internet access stops credential theft and exfiltration.
-5. **A policy is only real if the CNI enforces it** — and mTLS adds the identity layer the network alone cannot provide.
+1. **The default is flat and default-allow** - every pod can reach every pod, the metadata endpoint, and the internet until you restrict it.
+2. **Segmentation is the containment control** - it decides whether one compromised pod is an incident or a cluster-wide breach.
+3. **Default-deny beats a handful of allow rules** - without a deny baseline in every namespace, unselected pods stay wide open.
+4. **Egress matters as much as ingress** - blocking `169.254.169.254` and arbitrary internet access stops credential theft and exfiltration.
+5. **A policy is only real if the CNI enforces it** - and mTLS adds the identity layer the network alone cannot provide.
 
 ## How to Identify if You're Vulnerable
 

@@ -12,9 +12,9 @@ Preventing improper platform usage is less about adding controls and more about 
 
 ### Core Principles
 
-- **Use the platform, don't reinvent it**: the OS control is hardware-backed, reviewed, and maintained—your custom substitute is not.
+- **Use the platform, don't reinvent it**: the OS control is hardware-backed, reviewed, and maintained-your custom substitute is not.
 - **Assume a hostile device**: design for lost, stolen, rooted, and backed-up phones and co-located malware.
-- **Least privilege everywhere**: every permission, exported component, and enabled feature is attack surface—drop what you don't need.
+- **Least privilege everywhere**: every permission, exported component, and enabled feature is attack surface-drop what you don't need.
 - **Fail closed**: if secure storage, biometrics, or attestation is unavailable, deny the sensitive action rather than falling back to an insecure path.
 
 ## 1. Request the Minimum Permissions
@@ -87,7 +87,7 @@ Prefer `ThisDeviceOnly` accessibility on iOS and hardware/StrongBox backing on A
 
 ## 4. Bind Biometrics to a Cryptographic Operation
 
-A biometric prompt must unlock a Keystore/Keychain key that is actually required to proceed—so a forced "success" is useless without the key.
+A biometric prompt must unlock a Keystore/Keychain key that is actually required to proceed-so a forced "success" is useless without the key.
 
 ```kotlin
 // Android: gate on a CryptoObject, not just the callback
@@ -109,11 +109,11 @@ let acl = SecAccessControlCreateWithFlags(
 // only released after a successful Face ID / Touch ID evaluation.
 ```
 
-Using `.biometryCurrentSet` / re-validating the key set means enrolling a new fingerprint or face invalidates the binding—closing an enrolment-swap bypass.
+Using `.biometryCurrentSet` / re-validating the key set means enrolling a new fingerprint or face invalidates the binding-closing an enrolment-swap bypass.
 
 ## 5. Keep App Transport Security On / Disallow Cleartext
 
-Leave the platform transport defaults in place. If a single legacy endpoint truly needs an exception, scope it—never disable protection globally.
+Leave the platform transport defaults in place. If a single legacy endpoint truly needs an exception, scope it-never disable protection globally.
 
 ```xml
 <!-- iOS: no global NSAllowsArbitraryLoads; scope a single legacy domain -->
@@ -200,7 +200,7 @@ adb backup -f out.ab com.your.app     # confirm no secrets are extractable
 frida -U -n YourApp                    # test biometric / storage bypass resistance
 ```
 
-Run these on every release so a regression—an accidentally exported component, a re-enabled cleartext flag—is caught before it ships.
+Run these on every release so a regression-an accidentally exported component, a re-enabled cleartext flag-is caught before it ships.
 
 ## Platform-Specific Hardening
 
@@ -229,11 +229,11 @@ Run these on every release so a regression—an accidentally exported component,
 
 ## Key Takeaways
 
-1. **Use the platform control, correctly configured** — Keystore/Keychain, signature permissions, ATS, and CryptoObject exist so you don't improvise.
-2. **Least privilege and least export** — request minimal permissions and keep components private by default.
-3. **Bind, don't boolean** — biometrics must unlock a key, not just fire a callback.
-4. **Keep the safe defaults** — don't disable ATS globally, don't allow cleartext, don't allow backup of secrets.
-5. **Verify every release** — static and dynamic tooling catches an accidentally exported component or re-enabled flag before it ships.
+1. **Use the platform control, correctly configured** - Keystore/Keychain, signature permissions, ATS, and CryptoObject exist so you don't improvise.
+2. **Least privilege and least export** - request minimal permissions and keep components private by default.
+3. **Bind, don't boolean** - biometrics must unlock a key, not just fire a callback.
+4. **Keep the safe defaults** - don't disable ATS globally, don't allow cleartext, don't allow backup of secrets.
+5. **Verify every release** - static and dynamic tooling catches an accidentally exported component or re-enabled flag before it ships.
 
 ## Next Steps
 

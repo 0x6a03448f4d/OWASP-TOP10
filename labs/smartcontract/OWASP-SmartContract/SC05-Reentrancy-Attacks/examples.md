@@ -1,6 +1,6 @@
 # SC05: Reentrancy Attacks - Code Examples
 
-Each example below shows a **vulnerable** Solidity contract and the **secure** rewrite. We start with the classic vulnerable `withdraw` and the attacker contract that drains it, then fix it with Checks-Effects-Interactions and OpenZeppelin's `nonReentrant` guard—before covering cross-function, token-hook, and read-only variants.
+Each example below shows a **vulnerable** Solidity contract and the **secure** rewrite. We start with the classic vulnerable `withdraw` and the attacker contract that drains it, then fix it with Checks-Effects-Interactions and OpenZeppelin's `nonReentrant` guard-before covering cross-function, token-hook, and read-only variants.
 
 ## 1. The Classic Vulnerable Bank
 
@@ -149,14 +149,14 @@ contract SecureShares is ReentrancyGuard {
 }
 ```
 
-The mutex is shared across the contract, so re-entering `transfer()` during `withdraw()` reverts—closing the cross-function path a single-function guard would miss.
+The mutex is shared across the contract, so re-entering `transfer()` during `withdraw()` reverts-closing the cross-function path a single-function guard would miss.
 
 ## 3. Token-Hook Reentrancy (ERC777 / ERC721)
 
 ### Vulnerable
 
 ```solidity
-// Assumes token.transfer cannot call back — false for ERC777
+// Assumes token.transfer cannot call back - false for ERC777
 contract VulnerableClaim {
     mapping(address => uint256) public owed;
     IERC777 public token;

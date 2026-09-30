@@ -299,7 +299,7 @@ def restore():
 <!-- Content-Security-Policy: require-sri-for script; -->
 ```
 
-**Fixes**: the browser refuses to run a tampered file because its hash no longer matches the pinned `integrity` value—neutralising a compromised CDN or hijacked URL.
+**Fixes**: the browser refuses to run a tampered file because its hash no longer matches the pinned `integrity` value-neutralising a compromised CDN or hijacked URL.
 
 ## 7. Trusted Client-Side State
 

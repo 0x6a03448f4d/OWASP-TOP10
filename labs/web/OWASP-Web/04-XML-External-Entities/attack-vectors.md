@@ -44,7 +44,7 @@ Every XXE attack, however exotic it looks, follows the same four steps. Keep thi
 ## Preconditions an Attacker Looks For
 
 - An endpoint that accepts `Content-Type: application/xml`, `text/xml`, or any XML-backed format (SVG, OOXML, SOAP, SAML, RSS, GPX, plist).
-- A server-side parser that resolves DTDs and external entities—i.e., one that has *not* been hardened.
+- A server-side parser that resolves DTDs and external entities-i.e., one that has *not* been hardened.
 - For in-band attacks, some part of the parsed data being reflected back. For blind attacks, only outbound network access from the server is required.
 
 > **Ethics and scope:** Every payload below is for use only against systems you own or are explicitly authorised to test. Point callbacks at your own listener, and use benign target files like `/etc/hostname` to prove impact without touching sensitive data.
@@ -63,11 +63,11 @@ The textbook case: define an external entity pointing at a file and reference it
 <data>&xxe;</data>
 ```
 
-If the endpoint returns the parsed `<data>` content, the response now contains the file. Useful high-value targets include `file:///etc/passwd`, application source (`file:///var/www/app/config.php`), cloud/SSH keys (`file:///root/.ssh/id_rsa`), and Windows equivalents (`file:///c:/windows/win.ini`). Files containing `<`, `>`, or `&` may break parsing when read this way—see pattern 9 for the base64 wrapper that solves this.
+If the endpoint returns the parsed `<data>` content, the response now contains the file. Useful high-value targets include `file:///etc/passwd`, application source (`file:///var/www/app/config.php`), cloud/SSH keys (`file:///root/.ssh/id_rsa`), and Windows equivalents (`file:///c:/windows/win.ini`). Files containing `<`, `>`, or `&` may break parsing when read this way-see pattern 9 for the base64 wrapper that solves this.
 
 ### 2. SSRF and Cloud Metadata Theft
 
-Swap the `file://` scheme for `http://` and the parser makes a request *from the server*—server-side request forgery. The premier target on cloud instances is the link-local metadata service, which can return temporary credentials.
+Swap the `file://` scheme for `http://` and the parser makes a request *from the server*-server-side request forgery. The premier target on cloud instances is the link-local metadata service, which can return temporary credentials.
 
 ```xml
 <?xml version="1.0"?>
@@ -77,11 +77,11 @@ Swap the `file://` scheme for `http://` and the parser makes a request *from the
 <data>&xxe;</data>
 ```
 
-This reaches internal-only services (admin consoles, databases with HTTP interfaces, orchestration dashboards) that are firewalled from the internet but fully reachable from the vulnerable host. Note that some metadata services now require a header-bearing token (IMDSv2), which a plain XXE GET cannot supply—so success depends on the target's configuration.
+This reaches internal-only services (admin consoles, databases with HTTP interfaces, orchestration dashboards) that are firewalled from the internet but fully reachable from the vulnerable host. Note that some metadata services now require a header-bearing token (IMDSv2), which a plain XXE GET cannot supply-so success depends on the target's configuration.
 
 ### 3. Port Scanning the Internal Network
 
-Because the server dereferences the URL, differences in response time or error message let an attacker infer which internal hosts and ports are open—turning XXE into a blind internal port scanner.
+Because the server dereferences the URL, differences in response time or error message let an attacker infer which internal hosts and ports are open-turning XXE into a blind internal port scanner.
 
 ```xml
 <!DOCTYPE data [
@@ -94,7 +94,7 @@ A fast connection-refused error, a slow timeout, and a parser error containing a
 
 ### 4. Billion Laughs (Exponential DoS)
 
-This attack needs no external entities at all—only nested *internal* entities that expand exponentially. Ten entities, each referencing the previous one ten times, expand to 10^9 copies of the base string.
+This attack needs no external entities at all-only nested *internal* entities that expand exponentially. Ten entities, each referencing the previous one ten times, expand to 10^9 copies of the base string.
 
 ```xml
 <?xml version="1.0"?>
@@ -108,7 +108,7 @@ This attack needs no external entities at all—only nested *internal* entities 
 <lolz>&lol5;</lolz>
 ```
 
-A payload under a kilobyte forces the parser to build a multi-gigabyte string, exhausting memory and CPU. Because it is pure internal-entity expansion, disabling *external* entities alone does **not** stop it—you also need entity-expansion limits or a full DTD ban (covered in Prevention).
+A payload under a kilobyte forces the parser to build a multi-gigabyte string, exhausting memory and CPU. Because it is pure internal-entity expansion, disabling *external* entities alone does **not** stop it-you also need entity-expansion limits or a full DTD ban (covered in Prevention).
 
 ### 5. Quadratic Blowup DoS
 
@@ -170,7 +170,7 @@ If the application returns parser error messages, the attacker can force the fil
 %error;
 ```
 
-The parser tries to open a path that includes the file's contents, fails, and echoes the bogus path—file data and all—in the error string returned to the attacker. This is the fallback when there is neither reflection nor reliable outbound network access.
+The parser tries to open a path that includes the file's contents, fails, and echoes the bogus path-file data and all-in the error string returned to the attacker. This is the fallback when there is neither reflection nor reliable outbound network access.
 
 ### 9. PHP Wrapper Abuse (base64 and RCE)
 
@@ -196,7 +196,7 @@ Sometimes the attacker controls only a fragment of a server-built XML document a
 </data>
 ```
 
-This matters because "we don't accept a full XML document, only a field" is a common but false sense of safety—XInclude needs no DOCTYPE and no root-level control.
+This matters because "we don't accept a full XML document, only a field" is a common but false sense of safety-XInclude needs no DOCTYPE and no root-level control.
 
 ### 11. XXE via SVG Upload
 
@@ -212,7 +212,7 @@ SVG is XML. An application that renders, rasterises, or extracts metadata from u
 </svg>
 ```
 
-When the server converts the SVG to PNG, the rendered image contains the file contents as visible text—an in-band leak through an "image" feature.
+When the server converts the SVG to PNG, the rendered image contains the file contents as visible text-an in-band leak through an "image" feature.
 
 ### 12. XXE via OOXML (DOCX / XLSX / PPTX)
 
@@ -225,7 +225,7 @@ Office documents are ZIP archives of XML parts. An attacker unzips a valid `.doc
 <w:document ...> ... &xxe; ... </w:document>
 ```
 
-Any server-side document processor—text extraction, preview generation, format conversion—that parses these parts without hardening is vulnerable, even though the user "only uploaded a Word file."
+Any server-side document processor-text extraction, preview generation, format conversion-that parses these parts without hardening is vulnerable, even though the user "only uploaded a Word file."
 
 ### 13. XXE in SOAP and XML-RPC
 
@@ -264,11 +264,11 @@ Because it is unauthenticated and reaches security-critical infrastructure, SAML
 
 ## Detection and Confirmation
 
-- **Reflect a benign entity first**: define `<!ENTITY test "ok">` and confirm `&test;` is expanded in the response—proof the parser processes DTDs before you touch any file.
-- **Use a callback listener**: point a `SYSTEM` URL at a server you control (or a collaborator/interaction tool) and watch for the inbound request—the definitive test for blind XXE.
+- **Reflect a benign entity first**: define `<!ENTITY test "ok">` and confirm `&test;` is expanded in the response-proof the parser processes DTDs before you touch any file.
+- **Use a callback listener**: point a `SYSTEM` URL at a server you control (or a collaborator/interaction tool) and watch for the inbound request-the definitive test for blind XXE.
 - **Prefer safe targets**: `file:///etc/hostname` and `file:///c:/windows/win.ini` prove file read without exposing secrets.
 - **Try every XML-backed format**: if a JSON endpoint rejects XML, resend with `Content-Type: application/xml`; test SVG/DOCX upload paths; some frameworks parse XML even when JSON is the documented format.
-- **Watch timing**: for DoS and port-scan variants, response-time differences are the signal—test expansion payloads only in environments where an outage is acceptable.
+- **Watch timing**: for DoS and port-scan variants, response-time differences are the signal-test expansion payloads only in environments where an outage is acceptable.
 
 ## Next Steps
 

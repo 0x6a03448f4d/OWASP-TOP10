@@ -313,7 +313,7 @@ def accept(model, baseline, test_set, probes):
 |---------|-----------|--------|
 | Source trust | Open crawl / open upload / any URL | Allow-listed, vetted, attributable sources |
 | Integrity | No hash or signature | Pinned SHA-256 + signature, safe formats |
-| Provenance | None—cannot trace or revoke | Source, hash, date, reviewer on every record/chunk |
+| Provenance | None-cannot trace or revoke | Source, hash, date, reviewer on every record/chunk |
 | Content handling | Raw text trusted, hidden chars pass | Sanitised, injection-screened, treated as data |
 | Influence limits | One source/doc can dominate | Dedup, per-source caps, trust weighting |
 | Acceptance | Clean-input accuracy only | Trigger tests, behavioural diff, activation scan |

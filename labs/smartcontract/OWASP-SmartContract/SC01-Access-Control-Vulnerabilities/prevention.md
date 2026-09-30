@@ -103,7 +103,7 @@ The `initializer` modifier ensures the function can run exactly once; `_disableI
 
 ## 5. Guard Upgrades and `delegatecall`
 
-Upgrade authority and any `delegatecall` target run code against your own storage—restrict them tightly. With UUPS, implement the authorization hook.
+Upgrade authority and any `delegatecall` target run code against your own storage-restrict them tightly. With UUPS, implement the authorization hook.
 
 ```solidity
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -144,7 +144,7 @@ function emergencyShutdown() external onlyRole(GOVERNANCE_ROLE) {
 }
 ```
 
-The Parity multisig freeze class came directly from a `selfdestruct` reachable on shared, delegatecalled library code—treat lifecycle functions as maximally sensitive.
+The Parity multisig freeze class came directly from a `selfdestruct` reachable on shared, delegatecalled library code-treat lifecycle functions as maximally sensitive.
 
 ## 8. Declare Explicit Function Visibility
 
@@ -204,11 +204,11 @@ Require negative-path tests (unauthorized callers revert) for every privileged f
 
 ## Key Takeaways
 
-1. **Guard every privileged function** — a missing modifier is the number-one access-control finding.
-2. **Use audited primitives and `msg.sender`** — `Ownable`/`AccessControl` over hand-rolled checks; never `tx.origin`.
-3. **Lock initializers and disable them on the implementation** — close the uninitialized-proxy class.
-4. **Guard upgrades and `delegatecall`, and remove `selfdestruct`** — these substitute or destroy your logic.
-5. **Least privilege, two-step transfer, and negative tests** — contain blast radius and prove unauthorized callers revert.
+1. **Guard every privileged function** - a missing modifier is the number-one access-control finding.
+2. **Use audited primitives and `msg.sender`** - `Ownable`/`AccessControl` over hand-rolled checks; never `tx.origin`.
+3. **Lock initializers and disable them on the implementation** - close the uninitialized-proxy class.
+4. **Guard upgrades and `delegatecall`, and remove `selfdestruct`** - these substitute or destroy your logic.
+5. **Least privilege, two-step transfer, and negative tests** - contain blast radius and prove unauthorized callers revert.
 
 ## Next Steps
 

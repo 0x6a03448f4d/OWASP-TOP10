@@ -10,9 +10,9 @@
 
 ## What is Overly Permissive RBAC?
 
-**Role-Based Access Control (RBAC)** is the primary authorization system in Kubernetes. Every request to the API server—whether it comes from a human with a kubeconfig, a controller, or a Pod using its mounted ServiceAccount token—is authenticated, then checked against a set of *Roles* and *ClusterRoles* bound to that identity. RBAC decides whether the request is allowed. **K03 Overly Permissive RBAC** is the failure mode where those roles grant far more than the identity actually needs.
+**Role-Based Access Control (RBAC)** is the primary authorization system in Kubernetes. Every request to the API server-whether it comes from a human with a kubeconfig, a controller, or a Pod using its mounted ServiceAccount token-is authenticated, then checked against a set of *Roles* and *ClusterRoles* bound to that identity. RBAC decides whether the request is allowed. **K03 Overly Permissive RBAC** is the failure mode where those roles grant far more than the identity actually needs.
 
-The danger is not abstract. RBAC is **additive and purely allow-based**: there are no `deny` rules, so every permission you grant is a permission that stays granted until someone explicitly removes the binding. A single over-broad rule—a wildcard verb, a `cluster-admin` binding on a ServiceAccount, the ability to create Pods in a namespace that also holds privileged tokens—turns a minor foothold (one compromised container) into full control of the cluster. Because the flaw lives in a YAML manifest rather than in application code, it is invisible to code review, survives every redeploy, and is copied wherever the manifest is reused.
+The danger is not abstract. RBAC is **additive and purely allow-based**: there are no `deny` rules, so every permission you grant is a permission that stays granted until someone explicitly removes the binding. A single over-broad rule-a wildcard verb, a `cluster-admin` binding on a ServiceAccount, the ability to create Pods in a namespace that also holds privileged tokens-turns a minor foothold (one compromised container) into full control of the cluster. Because the flaw lives in a YAML manifest rather than in application code, it is invisible to code review, survives every redeploy, and is copied wherever the manifest is reused.
 
 ### Core Concept
 
@@ -41,7 +41,7 @@ Overly permissive RBAC:
 Kubernetes concentrates several conditions that make an over-broad role especially dangerous:
 
 - Every Pod is an **authenticated API client by default**. Unless you disable it, a ServiceAccount token is mounted at `/var/run/secrets/kubernetes.io/serviceaccount/token` inside the container, so any code-execution bug hands the attacker that identity's full RBAC.
-- The API server is the **single control plane for everything**—workloads, secrets, nodes, network policy, and RBAC itself. Broad API permissions are broad control over the whole system.
+- The API server is the **single control plane for everything**-workloads, secrets, nodes, network policy, and RBAC itself. Broad API permissions are broad control over the whole system.
 - RBAC contains **verbs that grant control over RBAC** (`escalate`, `bind`) and over identity (`impersonate`), so one permissive grant can be used to mint more permissions.
 - Manifests are **templated and copied** (Helm charts, operators, base manifests), so a single generous `ClusterRole` propagates across many clusters unchanged.
 
@@ -49,7 +49,7 @@ Kubernetes concentrates several conditions that make an over-broad role especial
 
 ### Business Impact
 
-- **Full Cluster Takeover**: A path from one compromised Pod to `cluster-admin` means the attacker controls every workload, secret, and node—the entire platform and the data it runs.
+- **Full Cluster Takeover**: A path from one compromised Pod to `cluster-admin` means the attacker controls every workload, secret, and node-the entire platform and the data it runs.
 - **Mass Secret Disclosure**: `get`/`list` on Secrets across namespaces exposes database passwords, API keys, TLS private keys, and cloud credentials in one request.
 - **Lateral Movement into the Cloud**: Node and Pod access reaches the cloud instance metadata endpoint and node IAM roles, pivoting the breach out of the cluster into the cloud account.
 - **Cryptojacking and Resource Abuse**: The ability to create Pods or DaemonSets lets an attacker schedule mining workloads across every node.
@@ -73,9 +73,9 @@ Kubernetes concentrates several conditions that make an over-broad role especial
 | `ClusterRole` | A set of permission rules, reusable cluster-wide | Cluster (or any namespace via a RoleBinding) |
 | `RoleBinding` | Grants a Role *or* ClusterRole to subjects in one namespace | One namespace |
 | `ClusterRoleBinding` | Grants a ClusterRole to subjects across all namespaces | Cluster-wide |
-| Subject | A User, Group, or ServiceAccount the binding applies to | — |
+| Subject | A User, Group, or ServiceAccount the binding applies to | - |
 
-A rule is the triple **apiGroups × resources × verbs** (optionally narrowed by `resourceNames`). Permissions are the *union* of every rule in every bound role. There is no way to subtract a permission with another rule—the only way to reduce access is to change or delete the grant.
+A rule is the triple **apiGroups × resources × verbs** (optionally narrowed by `resourceNames`). Permissions are the *union* of every rule in every bound role. There is no way to subtract a permission with another rule-the only way to reduce access is to change or delete the grant.
 
 ### The Dangerous Grants
 
@@ -88,7 +88,7 @@ rules:
   verbs: ["*"]
 ```
 
-This is the single most dangerous rule in Kubernetes. It grants every verb on every resource in every API group—including RBAC objects, Secrets, and Nodes—*and* automatically covers any Custom Resource Definition installed later. Bound cluster-wide, it is equivalent to `cluster-admin`.
+This is the single most dangerous rule in Kubernetes. It grants every verb on every resource in every API group-including RBAC objects, Secrets, and Nodes-*and* automatically covers any Custom Resource Definition installed later. Bound cluster-wide, it is equivalent to `cluster-admin`.
 
 #### 2. cluster-admin bound to a ServiceAccount or wide group
 
@@ -111,13 +111,13 @@ Binding `cluster-admin` to a workload's ServiceAccount means compromising that o
 
 | Verb / resource | Why it is dangerous |
 |-----------------|---------------------|
-| `escalate` on `roles`/`clusterroles` | Bypasses the escalation-prevention check—lets a subject write a role granting permissions it does not currently hold. |
+| `escalate` on `roles`/`clusterroles` | Bypasses the escalation-prevention check-lets a subject write a role granting permissions it does not currently hold. |
 | `bind` on `roles`/`clusterroles` | Lets a subject create a RoleBinding to any role (including `cluster-admin`), granting itself that role. |
-| `impersonate` on `users`/`groups`/`serviceaccounts` | Act as any other identity, inheriting all of its permissions—including `system:masters`. |
+| `impersonate` on `users`/`groups`/`serviceaccounts` | Act as any other identity, inheriting all of its permissions-including `system:masters`. |
 | `create` on `pods` (or Deployments, Jobs, DaemonSets) | Schedule a Pod that mounts a more privileged ServiceAccount token or the host filesystem. |
 | `create` on `pods/exec`, `pods/attach` | Run commands inside existing running containers, including privileged ones. |
 | `get` on `nodes/proxy` | Reach the kubelet API to read other Pods' secrets and exec into them. |
-| `create` on `serviceaccounts/token` | TokenRequest API—mint fresh tokens for any ServiceAccount in the namespace. |
+| `create` on `serviceaccounts/token` | TokenRequest API-mint fresh tokens for any ServiceAccount in the namespace. |
 | `get`/`list` on `secrets` | Read every credential, token, and key stored in the namespace (or cluster). |
 | `get`/`update` on `certificatesigningrequests/approval` | Approve CSRs to issue client certs for arbitrary identities, including group `system:masters`. |
 
@@ -129,11 +129,11 @@ Binding `cluster-admin` to a workload's ServiceAccount means compromising that o
 Subject: CN=attacker, O=system:masters
 ```
 
-`system:masters` is a built-in super-group wired directly into the API server's authorizer. It is not governed by RBAC and cannot be revoked with an RBAC change—so any permission that can issue certificates or impersonate into that group is a total-compromise permission.
+`system:masters` is a built-in super-group wired directly into the API server's authorizer. It is not governed by RBAC and cannot be revoked with an RBAC change-so any permission that can issue certificates or impersonate into that group is a total-compromise permission.
 
 ### The Default ServiceAccount Trap
 
-Every namespace ships with a `default` ServiceAccount, and (unless disabled) every Pod that does not name a ServiceAccount is assigned it, with its token auto-mounted. On its own the default SA has almost no permissions—but teams routinely bind roles to it "to make things work," and because *every* unspecified Pod shares that identity, one over-broad binding on `default` silently grants those permissions to many unrelated workloads.
+Every namespace ships with a `default` ServiceAccount, and (unless disabled) every Pod that does not name a ServiceAccount is assigned it, with its token auto-mounted. On its own the default SA has almost no permissions-but teams routinely bind roles to it "to make things work," and because *every* unspecified Pod shares that identity, one over-broad binding on `default` silently grants those permissions to many unrelated workloads.
 
 ```yaml
 # Anti-pattern: a Pod that does not need the API still carries a live token
@@ -156,7 +156,7 @@ spec:
 - The same cluster stored a CI ServiceAccount token, with a `cluster-admin` binding, as a Secret in another namespace.
 
 **Impact**:
-- A remote-code-execution bug in the application let an attacker read the mounted token, list Secrets cluster-wide, harvest the CI token, and authenticate as `cluster-admin`—full takeover from a single web vulnerability.
+- A remote-code-execution bug in the application let an attacker read the mounted token, list Secrets cluster-wide, harvest the CI token, and authenticate as `cluster-admin`-full takeover from a single web vulnerability.
 
 **Root Cause**: Cluster-wide Secret read access on a workload identity, combined with a privileged token stored as a Secret. Neither was necessary at the scope granted.
 
@@ -166,7 +166,7 @@ spec:
 - A platform operator's ServiceAccount was given `create`/`bind` on `clusterrolebindings` and `escalate` on `clusterroles` to "manage tenant permissions."
 
 **Impact**:
-- Anyone who compromised that operator could create a `ClusterRoleBinding` tying their own identity to `cluster-admin`, or write a new ClusterRole with wildcard rules—the escalation-prevention check does not apply once `escalate`/`bind` is granted.
+- Anyone who compromised that operator could create a `ClusterRoleBinding` tying their own identity to `cluster-admin`, or write a new ClusterRole with wildcard rules-the escalation-prevention check does not apply once `escalate`/`bind` is granted.
 
 **Root Cause**: Granting the meta-permissions that govern RBAC itself, rather than a narrow, named set of bindings the operator was allowed to manage.
 
@@ -176,7 +176,7 @@ spec:
 - To fix a permission error, a team bound a broad `edit`-style ClusterRole to the `default` ServiceAccount in a shared namespace.
 
 **Impact**:
-- Every Pod in that namespace—including third-party sidecars and an internet-facing service—silently inherited the ability to create Pods and read Secrets. A vulnerability in any one of them exposed all of them.
+- Every Pod in that namespace-including third-party sidecars and an internet-facing service-silently inherited the ability to create Pods and read Secrets. A vulnerability in any one of them exposed all of them.
 
 **Root Cause**: Binding permissions to the shared default identity instead of a dedicated, scoped ServiceAccount, so the grant leaked to unrelated workloads.
 
@@ -184,7 +184,7 @@ spec:
 
 Overly Permissive RBAC is one of the most common findings in Kubernetes security assessments, precisely because RBAC is additive, invisible to application testing, and easy to over-grant when chasing a "forbidden" error. Rather than cite precise counts (which vary by source), the durable picture is:
 
-- Over-permissioning is **highly prevalent and easily detectable**—a handful of API queries or an open-source tool surface it in minutes.
+- Over-permissioning is **highly prevalent and easily detectable**-a handful of API queries or an open-source tool surface it in minutes.
 - The most common sub-issues are **wildcard rules, `cluster-admin` bound to ServiceAccounts, broad Secret access, and unnecessary `create`/`escalate`/`bind`/`impersonate` grants**.
 - The impact is rated **severe**: the realistic worst case is full cluster compromise from a single foothold.
 
@@ -210,11 +210,11 @@ Overly Permissive RBAC is one of the most common findings in Kubernetes security
 
 ### Myth 5: "Wildcards are convenient and we'll tighten them later"
 
-**Reality**: Wildcards also grant access to resources that do not exist yet—every future CRD is covered automatically. "Later" rarely comes, and the blast radius keeps growing silently.
+**Reality**: Wildcards also grant access to resources that do not exist yet-every future CRD is covered automatically. "Later" rarely comes, and the blast radius keeps growing silently.
 
 ### Myth 6: "Namespaced Roles can't cause cluster-wide damage"
 
-**Reality**: A namespaced Role that allows `create` on Pods can schedule a Pod mounting a more privileged SA, mount the host filesystem, or reach node metadata—escaping the namespace boundary entirely.
+**Reality**: A namespaced Role that allows `create` on Pods can schedule a Pod mounting a more privileged SA, mount the host filesystem, or reach node metadata-escaping the namespace boundary entirely.
 
 ## How Overly Permissive RBAC Differs from Related Issues
 
@@ -227,11 +227,11 @@ Overly Permissive RBAC is one of the most common findings in Kubernetes security
 
 ## Key Takeaways
 
-1. **RBAC is additive and allow-only**—every grant persists until removed; there is no deny to fall back on.
-2. **Wildcards and cluster-admin bindings are the crown-jewel mistakes**—they turn one foothold into total control.
-3. **A handful of verbs are escalation primitives**—`escalate`, `bind`, `impersonate`, `create` on Pods/exec, and Secret reads deserve special scrutiny.
-4. **ServiceAccount tokens are auto-mounted**—a compromised Pod is a compromised identity unless automount is disabled.
-5. **Least privilege must be the default**—scoped Roles, named resources, dedicated ServiceAccounts, and audited bindings.
+1. **RBAC is additive and allow-only**-every grant persists until removed; there is no deny to fall back on.
+2. **Wildcards and cluster-admin bindings are the crown-jewel mistakes**-they turn one foothold into total control.
+3. **A handful of verbs are escalation primitives**-`escalate`, `bind`, `impersonate`, `create` on Pods/exec, and Secret reads deserve special scrutiny.
+4. **ServiceAccount tokens are auto-mounted**-a compromised Pod is a compromised identity unless automount is disabled.
+5. **Least privilege must be the default**-scoped Roles, named resources, dedicated ServiceAccounts, and audited bindings.
 
 ## How to Identify if You're Vulnerable
 

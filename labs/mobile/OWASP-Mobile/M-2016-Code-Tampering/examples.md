@@ -1,6 +1,6 @@
 # M8:2016 Code Tampering - Code Examples
 
-Each pair below shows a **vulnerable** pattern and the **secure** version. The recurring lesson: a client-side check is a *signal*, never a *verdict*—the authoritative decision belongs on the server. Examples span **Kotlin/Java (Android)** and **Swift (iOS)**, covering integrity checks, hooking/root detection, and the server-side validation pattern that actually holds.
+Each pair below shows a **vulnerable** pattern and the **secure** version. The recurring lesson: a client-side check is a *signal*, never a *verdict*-the authoritative decision belongs on the server. Examples span **Kotlin/Java (Android)** and **Swift (iOS)**, covering integrity checks, hooking/root detection, and the server-side validation pattern that actually holds.
 
 Snippets are illustrative and trimmed for clarity (error handling, imports, and platform boilerplate omitted). Treat the *secure* column as the shape of a correct design, not a drop-in library.
 
@@ -288,7 +288,7 @@ class ApiClient(private val tokenStore: SecureTokenStore) {
     }
 }
 // If a per-device key is unavoidable, generate it in the Android Keystore
-// (StrongBox where available) so it cannot be EXPORTED — while remembering a
+// (StrongBox where available) so it cannot be EXPORTED - while remembering a
 // runtime hook can still observe plaintext IN USE, so keep the real secret
 // server-side and attest the client.
 ```
@@ -303,7 +303,7 @@ class ApiClient(private val tokenStore: SecureTokenStore) {
 | Attestation | Verdict trusted in-app | Opaque token verified server-side with a nonce |
 | Secrets | Hardcoded / long-lived on device | Server-held; short-lived scoped tokens to the client |
 
-**The through-line:** every "secure" example moves the authoritative decision off the device. Client-side integrity, detection, and attestation are valuable defense-in-depth—they raise cost and generate telemetry—but the control that a determined, rooted-device attacker cannot bypass is the one your server enforces.
+**The through-line:** every "secure" example moves the authoritative decision off the device. Client-side integrity, detection, and attestation are valuable defense-in-depth-they raise cost and generate telemetry-but the control that a determined, rooted-device attacker cannot bypass is the one your server enforces.
 
 ## Next Steps
 

@@ -2,7 +2,7 @@
 
 Each pair below shows a **vulnerable** RAG implementation and the **secure** version using the same stack. The examples target the failures that dominate real findings: unscoped retrieval in a shared index, over-permissioned reads, blind ingestion, and treating retrieved text as instructions. Python is primary; a Node/TypeScript example is included where it is natural.
 
-> **⚠ EDUCATIONAL PURPOSE ONLY** — use these examples to harden systems you own or are authorised to test. APIs are illustrative and simplified for clarity.
+> **⚠ EDUCATIONAL PURPOSE ONLY** - use these examples to harden systems you own or are authorised to test. APIs are illustrative and simplified for clarity.
 
 ## 1. Pinecone (Python): Multi-Tenant Retrieval
 

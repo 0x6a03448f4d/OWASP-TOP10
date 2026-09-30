@@ -12,7 +12,7 @@
 
 ## Defense Strategy: Verify Before You Trust
 
-Every defense in this category is a variation on one rule: **never act on an artifact or piece of data until you have verified, against a trusted reference, that it is genuine and unmodified.** The trusted reference is a hash you already know, or a public key you already trust—delivered through a channel independent of the artifact itself.
+Every defense in this category is a variation on one rule: **never act on an artifact or piece of data until you have verified, against a trusted reference, that it is genuine and unmodified.** The trusted reference is a hash you already know, or a public key you already trust-delivered through a channel independent of the artifact itself.
 
 The layers below map onto the four faces of integrity failure. They are additive: dependency pinning does not protect your update channel, and signed updates do not protect your deserialization endpoints. Apply all of them.
 
@@ -70,7 +70,7 @@ pip-audit -r requirements.txt
 osv-scanner --lockfile=package-lock.json
 ```
 
-> SCA overlaps with **A06:2021 Vulnerable & Outdated Components** (known CVEs). Here we use it additionally to catch *integrity* signals—unexpected new packages, yanked versions, and provenance gaps.
+> SCA overlaps with **A06:2021 Vulnerable & Outdated Components** (known CVEs). Here we use it additionally to catch *integrity* signals-unexpected new packages, yanked versions, and provenance gaps.
 
 ## Layer 2: Subresource Integrity for Browser Assets
 
@@ -93,7 +93,7 @@ cat lib.min.js | openssl dgst -sha384 -binary | openssl base64 -A
 ```
 
 - Combine SRI with a **Content-Security-Policy** that requires it: `require-sri-for script style` (where supported) so an un-hashed asset is blocked.
-- Pin to a specific, immutable version URL—SRI cannot protect a "latest" URL whose content is expected to change.
+- Pin to a specific, immutable version URL-SRI cannot protect a "latest" URL whose content is expected to change.
 - Self-host critical scripts where you can; SRI is the mitigation when you cannot.
 
 ## Layer 3: Secure CI/CD Pipelines
@@ -160,7 +160,7 @@ cosign verify-blob \
 
 ## Layer 4: Signed, Verified Updates
 
-An auto-updater is remote code execution by design—it downloads code and runs it. The only thing that makes that safe is verifying a signature over the update against a public key you shipped with the application.
+An auto-updater is remote code execution by design-it downloads code and runs it. The only thing that makes that safe is verifying a signature over the update against a public key you shipped with the application.
 
 ```
 # Secure update flow (pseudocode):

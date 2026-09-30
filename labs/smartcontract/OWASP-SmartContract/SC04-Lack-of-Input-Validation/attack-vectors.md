@@ -8,15 +8,15 @@
 
 ## Understanding Input-Validation Attack Vectors
 
-> **⚠ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in contracts you own or are authorised to test. Never target contracts you do not control.
+> **⚠ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in contracts you own or are authorised to test. Never target contracts you do not control.
 
 Missing-validation bugs are rarely exploited with clever cryptography. They are exploited by **calling the contract directly with a value the developer never expected**. Because every external function is public and the ABI is known, an attacker simply constructs calldata that carries a zero address, an out-of-range number, an oversized array, or a hostile token address, and submits the transaction.
 
 The attacker's goal in this category is usually one of:
 
 - Corrupt permanent state (balances, ownership, configuration) by writing a value outside the intended range.
-- Redirect value — send funds to a chosen recipient, or make the contract call a chosen target.
-- Deny service — brick a function via an unusable owner or an unbounded loop.
+- Redirect value - send funds to a chosen recipient, or make the contract call a chosen target.
+- Deny service - brick a function via an unusable owner or an unbounded loop.
 
 ### Core Attack Flow
 
@@ -204,11 +204,11 @@ No upper bound on fee         -> compromised owner sets fee to 500%
 
 ## Key Takeaways
 
-1. **Exploitation is just a function call** — the attacker crafts calldata with a value you never expected; no exotic technique needed.
-2. **Zero addresses and out-of-range numbers are the first thing to try** — they map directly to burns, bricks, and over-withdrawals.
-3. **Arrays are a denial-of-service surface** — mismatched or oversized inputs revert or exceed the gas limit.
-4. **Caller-supplied addresses are hostile** — a token or target parameter is an arbitrary external call unless allow-listed.
-5. **Small gaps chain** — an unchecked token plus trusting its return value plus a corrupted balance equals a drain.
+1. **Exploitation is just a function call** - the attacker crafts calldata with a value you never expected; no exotic technique needed.
+2. **Zero addresses and out-of-range numbers are the first thing to try** - they map directly to burns, bricks, and over-withdrawals.
+3. **Arrays are a denial-of-service surface** - mismatched or oversized inputs revert or exceed the gas limit.
+4. **Caller-supplied addresses are hostile** - a token or target parameter is an arbitrary external call unless allow-listed.
+5. **Small gaps chain** - an unchecked token plus trusting its return value plus a corrupted balance equals a drain.
 
 ## Next Steps
 

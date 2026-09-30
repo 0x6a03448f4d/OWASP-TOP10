@@ -11,11 +11,11 @@
 
 ## What is Insecure Authorization?
 
-**Insecure Authorization** (M6 in the OWASP Mobile Top 10, 2016 edition) covers failures in *authorization*—the decision about **what an already-identified user is allowed to do**. The category exists because mobile apps repeatedly make or enforce that decision in the wrong place: inside the client, where the user controls everything, instead of on the server, where the app controls nothing the attacker can reach.
+**Insecure Authorization** (M6 in the OWASP Mobile Top 10, 2016 edition) covers failures in *authorization*-the decision about **what an already-identified user is allowed to do**. The category exists because mobile apps repeatedly make or enforce that decision in the wrong place: inside the client, where the user controls everything, instead of on the server, where the app controls nothing the attacker can reach.
 
-A mobile app is not a trust boundary. It is code and data sitting on a device the attacker fully owns—they can decompile it, hook it at runtime, read and rewrite its local storage, and, most importantly, they can ignore it entirely and talk straight to your backend API. Any permission check that lives only in the app is therefore advisory. If the server does not independently re-derive the caller's identity and re-check their entitlements on *every* request, the app is relying on the honesty of a component the attacker controls.
+A mobile app is not a trust boundary. It is code and data sitting on a device the attacker fully owns-they can decompile it, hook it at runtime, read and rewrite its local storage, and, most importantly, they can ignore it entirely and talk straight to your backend API. Any permission check that lives only in the app is therefore advisory. If the server does not independently re-derive the caller's identity and re-check their entitlements on *every* request, the app is relying on the honesty of a component the attacker controls.
 
-> **The one-sentence definition:** Insecure Authorization is any design in which the authorization decision can be influenced or bypassed by the client—because the check is missing on the server, or because the server trusts a role, permission, or user identifier that the client supplied.
+> **The one-sentence definition:** Insecure Authorization is any design in which the authorization decision can be influenced or bypassed by the client-because the check is missing on the server, or because the server trusts a role, permission, or user identifier that the client supplied.
 
 ### Core Concept
 
@@ -48,13 +48,13 @@ The 2016 Mobile Top 10 deliberately splits these into two categories, and confla
 | **Result of exploit** | Impersonation / logging in as another user | A real user reaching data or actions beyond their entitlement |
 | **Core fix** | Prove identity properly, server-side sessions/tokens | Enforce entitlements server-side on every request |
 
-A useful mental model: **M4 is the lock on the front door; M6 is whether the rooms inside are locked.** An attacker who defeats M4 walks in as somebody else. An attacker exploiting M6 walked in legitimately as themselves, then opened doors that should have been closed to them. The two frequently chain—a weak login (M4) gives you a valid session, and a missing server-side check (M6) then lets that session reach everything—but the defenses are separate and both are required.
+A useful mental model: **M4 is the lock on the front door; M6 is whether the rooms inside are locked.** An attacker who defeats M4 walks in as somebody else. An attacker exploiting M6 walked in legitimately as themselves, then opened doors that should have been closed to them. The two frequently chain-a weak login (M4) gives you a valid session, and a missing server-side check (M6) then lets that session reach everything-but the defenses are separate and both are required.
 
 ## Why Does This Matter?
 
 ### Business Impact
 
-- **Mass data exposure via one bug**: An object reference that is not ownership-checked (IDOR) lets a single authenticated attacker enumerate every other user's records—profiles, messages, statements, health data—by incrementing an id.
+- **Mass data exposure via one bug**: An object reference that is not ownership-checked (IDOR) lets a single authenticated attacker enumerate every other user's records-profiles, messages, statements, health data-by incrementing an id.
 - **Privilege escalation**: A normal user who can reach admin functionality can change prices, refund themselves, alter other accounts, or export the whole dataset.
 - **Regulatory exposure**: Cross-tenant or cross-user access to personal, financial, or health records triggers GDPR, HIPAA, PCI-DSS, and similar obligations, including mandatory breach notification.
 - **Fraud and financial loss**: Authorization gaps on money-movement, coupon, entitlement, or subscription endpoints are directly monetizable.
@@ -97,7 +97,7 @@ Content-Type: application/json
 { "from_user_id": 1002, "amount": 5000, "role": "admin" }
 ```
 
-If the backend reads `from_user_id` or `role` from the request body instead of deriving them from the authenticated token, the caller has just declared themselves someone—or something—they are not. Identity and privilege must never be taken from data the client can edit.
+If the backend reads `from_user_id` or `role` from the request body instead of deriving them from the authenticated token, the caller has just declared themselves someone-or something-they are not. Identity and privilege must never be taken from data the client can edit.
 
 #### 3. Insecure Direct Object Reference (IDOR) via the mobile API
 
@@ -140,7 +140,7 @@ The examples below are described as **classes of incident** that recur across mo
 
 **Setup**: The app fetched account details at `/api/accounts/{accountId}/...`. The server verified the token was valid (authentication) but never verified that `{accountId}` belonged to the caller (authorization).
 
-**Impact**: Any authenticated customer could increment or substitute the account id and read balances, statements, and personal details of other customers—mass exposure of financial PII from a single missing ownership check.
+**Impact**: Any authenticated customer could increment or substitute the account id and read balances, statements, and personal details of other customers-mass exposure of financial PII from a single missing ownership check.
 
 **Root cause**: Authorization treated as "has a valid token" rather than "is allowed *this specific object*."
 
@@ -148,7 +148,7 @@ The examples below are described as **classes of incident** that recur across mo
 
 **Setup**: The admin console was a hidden section of the same app. The client checked a local `role` before revealing admin screens, but the admin API endpoints performed no server-side role check.
 
-**Impact**: A standard user who observed the app's traffic once could replay the admin requests (create users, change other users' data, alter entitlements) directly—full vertical escalation with an ordinary account.
+**Impact**: A standard user who observed the app's traffic once could replay the admin requests (create users, change other users' data, alter entitlements) directly-full vertical escalation with an ordinary account.
 
 **Root cause**: Authorization enforced in the UI only; privileged routes trusted that "the app wouldn't call them."
 
@@ -156,17 +156,17 @@ The examples below are described as **classes of incident** that recur across mo
 
 **Setup**: A B2B mobile app sent a `tenant_id` / `org_id` in each request body and the backend scoped queries to that value.
 
-**Impact**: Changing the id in the request returned another organization's data—cross-tenant breach—because the tenant scope came from the client instead of from the authenticated principal's server-side record.
+**Impact**: Changing the id in the request returned another organization's data-cross-tenant breach-because the tenant scope came from the client instead of from the authenticated principal's server-side record.
 
 **Root cause**: The scoping identifier was attacker-controlled input rather than a property of the verified session.
 
 ## Prevalence and Severity
 
-Authorization flaws are consistently among the most common and most impactful issues found in mobile and API assessments. In the OWASP *API* Security Top 10 the closely-related object- and function-level authorization failures (BOLA/BFLA) sit at the very top of the list, which reflects how routinely these defects appear behind mobile front-ends—because the mobile client and the API it calls share the same weakness.
+Authorization flaws are consistently among the most common and most impactful issues found in mobile and API assessments. In the OWASP *API* Security Top 10 the closely-related object- and function-level authorization failures (BOLA/BFLA) sit at the very top of the list, which reflects how routinely these defects appear behind mobile front-ends-because the mobile client and the API it calls share the same weakness.
 
 - **Prevalence**: High. Authorization is per-endpoint and per-object, so a large app has hundreds of places to get it wrong, and one omission is enough.
 - **Detectability for an attacker**: High. Intercepting one request and changing an id or a role field is a low-skill, high-yield probe.
-- **Impact**: Moderate to severe—from reading one extra record up to full dataset exposure or administrative takeover.
+- **Impact**: Moderate to severe-from reading one extra record up to full dataset exposure or administrative takeover.
 
 > Rather than quote a single percentage, treat this as the durable takeaway: authorization defects are common, cheap for an attacker to find, and frequently critical in impact. The 2016 edition lists them as their own category (M6) precisely because they are so prevalent and are missed when teams focus only on login (M4).
 
@@ -190,7 +190,7 @@ Authorization flaws are consistently among the most common and most impactful is
 
 ### Myth 5: "We send the role from the app, and the app is ours"
 
-**Reality**: The app runs on the attacker's device. Any value it sends—role, permission, user id, tenant, entitlement—is attacker-controlled input. Derive privilege from server-side state keyed by the authenticated principal.
+**Reality**: The app runs on the attacker's device. Any value it sends-role, permission, user id, tenant, entitlement-is attacker-controlled input. Derive privilege from server-side state keyed by the authenticated principal.
 
 ### Myth 6: "IDs are random UUIDs, so IDOR is impossible"
 
@@ -209,7 +209,7 @@ Authorization flaws are consistently among the most common and most impactful is
 
 1. **Authorization is a server decision.** The client may hide UI for convenience, but only the server can block an action.
 2. **Never trust client-supplied identity or privilege.** Derive user id, role, tenant, and entitlements from the authenticated session/token, not from the request body or local storage.
-3. **Check ownership on every object access.** A valid token is not permission to touch a specific record—IDOR is the most common concrete form of M6.
+3. **Check ownership on every object access.** A valid token is not permission to touch a specific record-IDOR is the most common concrete form of M6.
 4. **Guard every privileged route.** Hidden and undocumented endpoints still need role/permission checks; the UI not showing them is not protection.
 5. **M6 is not M4.** You can authenticate perfectly and still fail authorization catastrophically.
 

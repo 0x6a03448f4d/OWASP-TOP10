@@ -1366,7 +1366,7 @@ class ProfilePhotoViewController: UIViewController, PHPickerViewControllerDelega
    - ✅ Data export capability
    - ✅ Complete data deletion
 
-**Remember**: Privacy is not a feature to bolt on later—it must be designed in from the start. Users trust you with their most personal data. Protect it accordingly.
+**Remember**: Privacy is not a feature to bolt on later-it must be designed in from the start. Users trust you with their most personal data. Protect it accordingly.
 
 ---
 

@@ -199,7 +199,7 @@ Mobile environments present unique communication security challenges:
 
 ### Resource Constraints
 - Battery and performance concerns sometimes discourage encryption
-- This is a false trade-off—modern TLS has minimal overhead
+- This is a false trade-off-modern TLS has minimal overhead
 
 ### User Behavior
 - Users frequently connect to untrusted networks

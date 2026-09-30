@@ -1,4 +1,4 @@
-# LLM06:2025 Excessive Agency — Prevention
+# LLM06:2025 Excessive Agency - Prevention
 
 ## Table of Contents
 
@@ -30,7 +30,7 @@ Autonomy       →  Human-in-the-loop (D5)  ·  fail safe (D9)
 Cross-cutting  →  Complete mediation (D6)  ·  arg validation (D7)  ·  rate/sandbox (D8)  ·  logging (D10)
 ```
 
-> **Governing principle:** the model proposes, code disposes. Every consequential action passes through a policy layer the model cannot argue with, and that layer’s decision—not the model’s—is what executes.
+> **Governing principle:** the model proposes, code disposes. Every consequential action passes through a policy layer the model cannot argue with, and that layer’s decision-not the model’s-is what executes.
 
 ## 1. Minimise Functionality
 Give the agent the fewest tools, and the fewest capabilities per tool, that the job actually needs. Every removed capability is an attack vector deleted outright. Audit the registered tool list and strip anything experimental, debug, or “just in case.”
@@ -78,14 +78,14 @@ class ActingContext:
 def read_record(ctx: ActingContext, record_id: str):
     # The downstream API receives the user's token and applies THEIR ACLs.
     return records_api.get(record_id, auth=ctx.token)
-    # If the user can't see it, the API denies it — regardless of what the model asked.
+    # If the user can't see it, the API denies it - regardless of what the model asked.
 ```
 
 ## 4. Enforce Authorisation Downstream
-Never trust the model’s assertion of who the user is or what they may do. Re-check authorisation in code, at the tool, against the real acting context—treating any “the user is an admin” text in the prompt as untrusted.
+Never trust the model’s assertion of who the user is or what they may do. Re-check authorisation in code, at the tool, against the real acting context-treating any “the user is an admin” text in the prompt as untrusted.
 ```
 def delete_user(ctx: ActingContext, target_id: str):
-    # Authorization is decided HERE, by code — not by the LLM's say-so.
+    # Authorization is decided HERE, by code - not by the LLM's say-so.
     if "user-admin" not in ctx.roles:
         raise PermissionError("caller is not authorized to delete users")
     if target_id == ctx.user_id:
@@ -94,7 +94,7 @@ def delete_user(ctx: ActingContext, target_id: str):
 ```
 
 ## 5. Human-in-the-Loop for High-Impact Actions
-Classify actions by impact and reversibility. Low-impact, reversible actions may run autonomously; high-impact or irreversible ones (send, pay, delete, deploy, grant access) require explicit human approval—shown honestly, with the true target and scope. Reserve approvals for the few actions that matter to avoid fatigue.
+Classify actions by impact and reversibility. Low-impact, reversible actions may run autonomously; high-impact or irreversible ones (send, pay, delete, deploy, grant access) require explicit human approval-shown honestly, with the true target and scope. Reserve approvals for the few actions that matter to avoid fatigue.
 ```
 HIGH_IMPACT = {"send_email", "make_payment", "delete_records", "deploy", "grant_access"}
 
@@ -110,7 +110,7 @@ def execute(ctx, call):
 ```
 
 ## 6. Complete Mediation at the Tool Boundary
-Every tool call—without exception, on every path, including chained and multi-agent calls—passes through one central policy gate. No tool is dispatched directly. This is the single choke point where identity, authorisation, scope, budget, and approval are enforced together.
+Every tool call-without exception, on every path, including chained and multi-agent calls-passes through one central policy gate. No tool is dispatched directly. This is the single choke point where identity, authorisation, scope, budget, and approval are enforced together.
 ```
 def dispatch(ctx, call):
     tool = registry.get(call.name)                 # must be a registered tool
@@ -153,7 +153,7 @@ class Budget:
     def consume(self, ctx, cost):
         self.steps += 1
         if self.steps > self.max_steps:
-            raise Halt("step budget exceeded — stopping and escalating to human")
+            raise Halt("step budget exceeded - stopping and escalating to human")
         self.spend += cost.cents
         if self.spend > self.max_spend:
             raise Halt("spend cap exceeded")
@@ -163,7 +163,7 @@ class Budget:
 ```
 
 ## 9. Fail Safe
-When a call is ambiguous, denied, times out, or errors, the system must *stop and ask*—never guess and proceed. Default-deny at the policy gate: an action is allowed only if a rule explicitly permits it. Prefer reversible operations (soft-delete, drafts, staged changes) so mistakes are recoverable.
+When a call is ambiguous, denied, times out, or errors, the system must *stop and ask*-never guess and proceed. Default-deny at the policy gate: an action is allowed only if a rule explicitly permits it. Prefer reversible operations (soft-delete, drafts, staged changes) so mistakes are recoverable.
 ```
 def check(ctx, tool, args):
     rule = policy_rules.get((tool.name, ctx.roles))
@@ -174,7 +174,7 @@ def check(ctx, tool, args):
 ```
 
 ## 10. Log, Monitor & Alert
-Record every tool invocation with the *real* acting user, the tool, the arguments, the decision, and the result—in append-only/tamper-evident storage the agent cannot edit. Alert on anomalies: destructive calls, egress to new hosts, spikes in tool volume, repeated denials (a sign of probing). Logs are how you detect and reconstruct an incident that slipped past the gates.
+Record every tool invocation with the *real* acting user, the tool, the arguments, the decision, and the result-in append-only/tamper-evident storage the agent cannot edit. Alert on anomalies: destructive calls, egress to new hosts, spikes in tool volume, repeated denials (a sign of probing). Logs are how you detect and reconstruct an incident that slipped past the gates.
 ```
 audit.emit({
     "ts": now(), "user_id": ctx.user_id, "tool": call.name,
@@ -194,7 +194,7 @@ audit.emit({
 - [ ] The agent acts as the end user’s identity; the user’s token/permissions flow to every tool.
 - [ ] Every tool re-checks authorisation in code; no decision relies on the model’s assertion.
 - [ ] High-impact / irreversible actions require honest human approval; approvals are rare enough to stay meaningful.
-- [ ] All tool calls pass through one central mediation gate—including chained and inter-agent calls.
+- [ ] All tool calls pass through one central mediation gate-including chained and inter-agent calls.
 - [ ] Arguments are validated against strict schemas/allow-lists; no model text reaches a shell, eval, raw SQL, or open URL.
 - [ ] Step budgets, rate limits, spend caps, and sandboxing bound the blast radius.
 - [ ] The gate is default-deny and fails safe (stop and ask) on ambiguity, denial, timeout, or error.

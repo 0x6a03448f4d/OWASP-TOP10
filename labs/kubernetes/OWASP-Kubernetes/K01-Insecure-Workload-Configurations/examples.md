@@ -121,7 +121,7 @@ spec:
 
 ## 3. Needing One Capability (the Right Way)
 
-Some workloads genuinely need a single capability—for example binding a low port. Drop everything, add back exactly one.
+Some workloads genuinely need a single capability-for example binding a low port. Drop everything, add back exactly one.
 
 ### Insecure
 

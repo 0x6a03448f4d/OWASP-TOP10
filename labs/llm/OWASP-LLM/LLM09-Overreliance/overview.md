@@ -254,7 +254,7 @@ Publishing AI-generated content without:
 
 ## Conclusion
 
-Overreliance on LLMs is not about whether AI is useful—it absolutely is. It's about understanding that LLMs:
+Overreliance on LLMs is not about whether AI is useful-it absolutely is. It's about understanding that LLMs:
 
 - **Are probabilistic**, not deterministic
 - **Can hallucinate** convincing but false information

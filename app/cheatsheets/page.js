@@ -2,7 +2,7 @@ import Link from 'next/link';
 import data from '../data/owasp.json';
 
 export const metadata = {
-  title: 'Cheat Sheets — OWASP Learn',
+  title: 'Cheat Sheets - OWASP Learn',
   description: 'One-page quick references for every OWASP Top 10 vulnerability across editions.',
 };
 
@@ -21,7 +21,7 @@ export default function Cheatsheets() {
         <div className="eyebrow">Quick reference</div>
         <h1 style={{ fontSize: '2rem' }}>Cheat sheets</h1>
         <p style={{ margin: '12px 0 0', maxWidth: 640 }}>
-          One page per vulnerability — the essence of what it is, how it’s exploited, and how to prevent it.
+          One page per vulnerability - the essence of what it is, how it’s exploited, and how to prevent it.
           Full lessons are linked from each category page.
         </p>
       </section>
@@ -33,7 +33,7 @@ export default function Cheatsheets() {
             <section key={c.key} className="section">
               <div className="section-head">
                 <h2>{ICONS[c.key]} {c.label}</h2>
-                <span className="sub">Cheat sheets in progress — see the <Link href={`/learn/${c.key}`} style={{ color: 'var(--accent)' }}>full lessons</Link>.</span>
+                <span className="sub">Cheat sheets in progress - see the <Link href={`/learn/${c.key}`} style={{ color: 'var(--accent)' }}>full lessons</Link>.</span>
               </div>
             </section>
           );

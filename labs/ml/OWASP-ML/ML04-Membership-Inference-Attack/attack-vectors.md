@@ -8,11 +8,11 @@
 
 ## Understanding Membership Inference Vectors
 
-> **⚠ EDUCATIONAL PURPOSE ONLY** — these techniques are described so you can test, audit, and defend models you own or are authorised to assess. Running membership attacks against someone else's model and data can be a privacy violation and unlawful.
+> **⚠ EDUCATIONAL PURPOSE ONLY** - these techniques are described so you can test, audit, and defend models you own or are authorised to assess. Running membership attacks against someone else's model and data can be a privacy violation and unlawful.
 
 Membership inference is not exploited with a crafted payload the way an injection bug is. It is exploited by **measurement**: the attacker feeds a known record to the model, measures how the model *reacts*, and compares that reaction to how the model reacts to data it has never seen. The gap between those two reactions is the leak.
 
-The attacker's goal is always the same—turn observable model behaviour into a membership decision:
+The attacker's goal is always the same-turn observable model behaviour into a membership decision:
 
 - Obtain a candidate record they already possess (a specific patient, customer, or user).
 - Observe the model's output on that record (confidence, loss proxy, label, or internals).
@@ -185,7 +185,7 @@ scores = [membership_signal(target, augment(x)) for _ in range(M)]
 guess  = "MEMBER" if mean(scores) > TAU else "NON-MEMBER"
 ```
 
-**Payoff**: unrestricted, unmonitored query access lets the attacker trade queries for confidence—which is why rate limiting and monitoring are defences.
+**Payoff**: unrestricted, unmonitored query access lets the attacker trade queries for confidence-which is why rate limiting and monitoring are defences.
 
 ### 10. Shadow-Data Bootstrapping from Public Sources
 
@@ -198,7 +198,7 @@ The shadow-model recipe needs *similar* data, not the target's data. Attackers a
 # Shadow models trained on this stand in for the target.
 ```
 
-**Payoff**: removes the last practical barrier to shadow attacks—the attacker synthesises labelled membership examples from data they can legitimately obtain.
+**Payoff**: removes the last practical barrier to shadow attacks-the attacker synthesises labelled membership examples from data they can legitimately obtain.
 
 ## Chaining and Amplifying the Leak
 
@@ -234,11 +234,11 @@ Confirmed members
 
 ## Key Takeaways
 
-1. **Membership is inferred by measurement, not payloads**—the attacker compares the model's reaction on known records to its reaction on unseen data.
-2. **Confidence and loss are the primary signals**—members are more confident and lower-loss, and simple thresholds already leak.
-3. **Shadow models remove the need for insider access**—the attacker manufactures labelled membership data locally and transfers it to the target.
-4. **Restricting outputs is only partial**—label-only attacks infer membership from decision-boundary robustness.
-5. **Outliers and unlimited queries amplify everything**—rare records leak hardest and free query access lets attackers buy certainty.
+1. **Membership is inferred by measurement, not payloads**-the attacker compares the model's reaction on known records to its reaction on unseen data.
+2. **Confidence and loss are the primary signals**-members are more confident and lower-loss, and simple thresholds already leak.
+3. **Shadow models remove the need for insider access**-the attacker manufactures labelled membership data locally and transfers it to the target.
+4. **Restricting outputs is only partial**-label-only attacks infer membership from decision-boundary robustness.
+5. **Outliers and unlimited queries amplify everything**-rare records leak hardest and free query access lets attackers buy certainty.
 
 ## Next Steps
 

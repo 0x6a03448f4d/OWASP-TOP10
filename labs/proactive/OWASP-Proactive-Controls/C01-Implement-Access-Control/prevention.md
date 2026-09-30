@@ -28,7 +28,7 @@ Implementing C1 is not one check in one place; it is a small number of principle
 
 ## 1. Deny by Default
 
-Structure the authorization layer so that the absence of an explicit grant means refusal. New routes, fields, and actions are then closed until deliberately opened — the forgotten check fails safe instead of failing open.
+Structure the authorization layer so that the absence of an explicit grant means refusal. New routes, fields, and actions are then closed until deliberately opened - the forgotten check fails safe instead of failing open.
 
 ```javascript
 // Express: a global gate that denies anything not explicitly allowed.
@@ -72,7 +72,7 @@ Rules:
 
 - Never read `role`, `account_id`, `is_admin`, or entitlements from client input for a decision.
 - Resolve the subject and their permissions from the server session or a verified token, then a trusted store.
-- Verify token integrity (signature, expiry, audience) before trusting *any* claim — and still confirm sensitive permissions against server state.
+- Verify token integrity (signature, expiry, audience) before trusting *any* claim - and still confirm sensitive permissions against server state.
 
 ## 3. Centralize Authorization Logic
 
@@ -110,7 +110,7 @@ Mature stacks externalize this further into a dedicated policy engine (for examp
 The single most common breach is horizontal: one user reaching another's records. Role checks never catch it, because both users hold the same role. The fix is to verify, on *every* object reference, that the subject is entitled to *that specific record*.
 
 ### Pattern A: Scope the query to the subject
-The strongest version makes it impossible to load a non-owned record at all — the ownership condition is part of the query, not a check after the fact.
+The strongest version makes it impossible to load a non-owned record at all - the ownership condition is part of the query, not a check after the fact.
 
 ```python
 # Django ORM: filter by owner so a foreign id simply returns nothing
@@ -140,7 +140,7 @@ async function getDocument(req, res) {
 }
 ```
 
-> Apply the ownership check to **every verb** — read, update, delete, and any custom action — not just the GET. A common bug is a guarded read next to an unguarded delete on the same resource.
+> Apply the ownership check to **every verb** - read, update, delete, and any custom action - not just the GET. A common bug is a guarded read next to an unguarded delete on the same resource.
 
 ## 5. Least Privilege
 
@@ -149,7 +149,7 @@ Grant the minimum permission necessary, and grant it narrowly and temporarily.
 - Default new users, services, and tokens to the **lowest useful role**.
 - Prefer many **fine-grained permissions** over a few broad roles, so a grant does not carry unrelated power.
 - Make elevation **explicit, scoped, and time-bounded** (for example, just-in-time admin), and **revoke promptly**.
-- Give service accounts only the specific scopes they need — never a wildcard.
+- Give service accounts only the specific scopes they need - never a wildcard.
 
 ```python
 # Permission catalog: small, specific grants composed into roles
@@ -168,7 +168,7 @@ Match the model to how your permissions are naturally described. Many systems co
 
 | Model | Decision is based on | Best for | Watch out for |
 |-------|----------------------|----------|---------------|
-| RBAC | The subject's role(s) | Access mapping onto job functions | Cannot express ownership alone — add record checks |
+| RBAC | The subject's role(s) | Access mapping onto job functions | Cannot express ownership alone - add record checks |
 | ABAC | Attributes of subject/resource/action/context | Fine-grained, context-dependent policy | Complexity; policy sprawl |
 | ReBAC | Relationships in a graph (owner, member, shared) | Sharing and collaboration | Requires a relationship store and careful modeling |
 
@@ -184,9 +184,9 @@ def can_view_record(subject, record, ctx):
 
 ## 7. Check Every Reference, Not the UI
 
-Enforce at the data and function layer, where the resource actually lives — not in the rendered page. Hiding a link is a usability nicety, not a control; the endpoint must refuse an unauthorized caller regardless of how they arrived.
+Enforce at the data and function layer, where the resource actually lives - not in the rendered page. Hiding a link is a usability nicety, not a control; the endpoint must refuse an unauthorized caller regardless of how they arrived.
 
-- Guard **APIs**, not just server-rendered pages — most access is now direct API calls.
+- Guard **APIs**, not just server-rendered pages - most access is now direct API calls.
 - Serve protected files through an **authorizing handler**, never straight from a public directory.
 - Apply the check to **every discovered path**, including unlinked, staging, and legacy endpoints (deny by default handles the ones you forgot).
 
@@ -216,7 +216,7 @@ Alert on: bursts of denials from one subject or IP, a single subject touching ma
 
 ## 9. Test the Control
 
-Access control that is not tested regresses silently. Assert the *negative* cases — that the wrong subject is denied — not only that the right one is allowed.
+Access control that is not tested regresses silently. Assert the *negative* cases - that the wrong subject is denied - not only that the right one is allowed.
 
 ```javascript
 // The tests that actually catch access-control regressions:
@@ -247,7 +247,7 @@ Add these as a standing suite: for each protected resource, test owner-allowed, 
 - [ ] Every decision is made **server-side**; no authority is read from client input.
 - [ ] Authorization is **centralized** in one reviewable component or service.
 - [ ] Every object reference has a **record-level ownership/tenant check** (queries scoped to the subject where possible).
-- [ ] The ownership check covers **every verb** — read, create, update, delete, custom actions.
+- [ ] The ownership check covers **every verb** - read, create, update, delete, custom actions.
 - [ ] **Least privilege**: new subjects default low; elevation is scoped and revocable.
 - [ ] Sensitive functions are gated by a **server-side function-level check**, not the UI.
 - [ ] Protected files are served through an **authorizing handler**, not a public directory.
@@ -258,10 +258,10 @@ Add these as a standing suite: for each protected resource, test owner-allowed, 
 ## Key Takeaways
 
 1. **Deny by default** makes the forgotten check fail safe instead of failing open.
-2. **Derive authority from server state** — never from a role or ID in the request.
+2. **Derive authority from server state** - never from a role or ID in the request.
 3. **Centralize the decision** so it is consistent, testable, and protects new code automatically.
 4. **Ownership checks on every reference** are what actually stop IDOR and cross-tenant breaches.
-5. **Log, audit, and test** — an unobserved, untested control decays into a broken one.
+5. **Log, audit, and test** - an unobserved, untested control decays into a broken one.
 
 ## Next Steps
 

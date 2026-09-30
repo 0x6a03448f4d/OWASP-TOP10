@@ -10,11 +10,11 @@
 
 ## What is Client Code Quality?
 
-**Client Code Quality** (M7 in the OWASP Mobile Top 10, 2016 edition) is the category for *code-level implementation defects inside the mobile client itself* that turn into security problems. It is the "bad coding practices" bucket: the memory-safety bugs, the unchecked input handling, the misuse of dangerous APIs, and the sloppy error handling that live in the app you ship to the device—not on the server.
+**Client Code Quality** (M7 in the OWASP Mobile Top 10, 2016 edition) is the category for *code-level implementation defects inside the mobile client itself* that turn into security problems. It is the "bad coding practices" bucket: the memory-safety bugs, the unchecked input handling, the misuse of dangerous APIs, and the sloppy error handling that live in the app you ship to the device-not on the server.
 
-The distinction is important. Many mobile risks (insecure storage, weak crypto, insecure communication, broken authentication) are about *what* the app does with data. M7 is about *how the code is written*. Two apps can implement the exact same feature; one parses an incoming deep link with a bounds-checked, type-safe routine, and the other copies attacker-controlled bytes into a fixed native buffer with `strcpy`. Same feature, same data flow—but only the second one crashes, corrupts memory, or executes attacker code when fed a hostile input.
+The distinction is important. Many mobile risks (insecure storage, weak crypto, insecure communication, broken authentication) are about *what* the app does with data. M7 is about *how the code is written*. Two apps can implement the exact same feature; one parses an incoming deep link with a bounds-checked, type-safe routine, and the other copies attacker-controlled bytes into a fixed native buffer with `strcpy`. Same feature, same data flow-but only the second one crashes, corrupts memory, or executes attacker code when fed a hostile input.
 
-> **Scope note:** M7 is about *client-side* code quality. Defects in server code are a separate concern (they fall under the web/API Top 10). M7 asks: when untrusted data reaches your mobile app—from a deep link, an IPC message, a WebView, a file, a Bluetooth/NFC frame, or a server response—is the code that handles it written safely?
+> **Scope note:** M7 is about *client-side* code quality. Defects in server code are a separate concern (they fall under the web/API Top 10). M7 asks: when untrusted data reaches your mobile app-from a deep link, an IPC message, a WebView, a file, a Bluetooth/NFC frame, or a server response-is the code that handles it written safely?
 
 ### Core Concept
 
@@ -40,15 +40,15 @@ Poor client code quality (M7):
 
 Client code quality issues are most dangerous in the parts of a mobile app that (a) are written in a memory-unsafe language, and (b) process input the user or a remote party controls:
 
-- **Native code (C/C++ via the Android NDK or an iOS framework)**: The classic memory-safety bugs—stack and heap buffer overflows, integer overflow feeding an allocation, use-after-free, double-free, and format-string bugs—all live here. Managed Kotlin/Java/Swift code is largely immune to these *until it calls across JNI/FFI into native code*.
-- **Parsers and decoders**: Anything that turns bytes into structure—a custom binary protocol, an image/media decoder, a TLV parser for NFC, a protobuf/JSON handler with a native backend—is where malformed input causes trouble.
+- **Native code (C/C++ via the Android NDK or an iOS framework)**: The classic memory-safety bugs-stack and heap buffer overflows, integer overflow feeding an allocation, use-after-free, double-free, and format-string bugs-all live here. Managed Kotlin/Java/Swift code is largely immune to these *until it calls across JNI/FFI into native code*.
+- **Parsers and decoders**: Anything that turns bytes into structure-a custom binary protocol, an image/media decoder, a TLV parser for NFC, a protobuf/JSON handler with a native backend-is where malformed input causes trouble.
 - **Input entry points**: Deep links and app links, exported IPC surfaces (Intents, Services, Content Providers, custom URL schemes), WebView JavaScript bridges, files opened from shared storage, Bluetooth/NFC frames, and server responses. Each is a boundary where untrusted data enters the client.
 
 ## Why Does This Matter?
 
 ### Business Impact
 
-- **Remote or local code execution on the device**: A memory-corruption bug in a native parser that processes attacker-controlled input can, in the worst case, be turned into arbitrary code execution inside the app's sandbox—giving an attacker whatever the app can reach (tokens, files, camera, contacts).
+- **Remote or local code execution on the device**: A memory-corruption bug in a native parser that processes attacker-controlled input can, in the worst case, be turned into arbitrary code execution inside the app's sandbox-giving an attacker whatever the app can reach (tokens, files, camera, contacts).
 - **Crashes and denial of service**: The most common outcome is a reliable crash. A hostile deep link or push payload that reliably kills the app degrades the product, and a crash in a background service can be an availability problem in its own right.
 - **Data corruption and integrity loss**: Out-of-bounds writes and integer-overflow-driven allocations can silently corrupt adjacent state, leading to wrong results the user (and business) trusts.
 - **Reputation and store standing**: Crash-prone or exploitable apps draw negative reviews, and platform crash-reporting can surface memory bugs to attackers as much as to developers.
@@ -56,9 +56,9 @@ Client code quality issues are most dangerous in the parts of a mobile app that 
 
 ### Technical Impact
 
-- **Memory corruption**: Stack/heap overflows and use-after-free can overwrite return addresses, function pointers, or heap metadata—the raw material for control-flow hijacking.
+- **Memory corruption**: Stack/heap overflows and use-after-free can overwrite return addresses, function pointers, or heap metadata-the raw material for control-flow hijacking.
 - **Control-flow hijack**: When corruption reaches a code pointer, a crash becomes potential code execution (subject to platform mitigations like ASLR, PIE, and stack canaries).
-- **Information disclosure**: Over-reads (reading past a buffer) can leak adjacent memory—including secrets—back to an attacker or into logs.
+- **Information disclosure**: Over-reads (reading past a buffer) can leak adjacent memory-including secrets-back to an attacker or into logs.
 - **Logic bypass via crashes**: An unhandled exception during a security check can leave the app in a partially-initialised or fail-open state.
 - **JavaScript-to-native bridge abuse**: A poorly scoped WebView bridge lets attacker-controlled web content reach app or (on legacy Android) device APIs.
 
@@ -148,7 +148,7 @@ The examples below are **classes** of well-documented mobile client-code defects
 ### Case Study Class 1: Native Media/Parser Overflows Reachable From Messages
 
 **Defect class**:
-- A native library that decodes media or a structured message format (image, audio, video, or a custom protocol) contains a memory-safety bug—an integer overflow feeding an allocation, or a length field trusted without bounds-checking.
+- A native library that decodes media or a structured message format (image, audio, video, or a custom protocol) contains a memory-safety bug-an integer overflow feeding an allocation, or a length field trusted without bounds-checking.
 - The mobile app feeds attacker-controlled bytes into that library when it renders a received message or preview.
 
 **Impact**: Because the input can arrive remotely (a message, a shared file, a web resource) and is processed automatically, a malformed payload can crash the app and, in the worst documented cases of this class, corrupt memory in a way that leads toward code execution inside the app sandbox.
@@ -161,14 +161,14 @@ The examples below are **classes** of well-documented mobile client-code defects
 - An app uses `addJavascriptInterface` on an Android version below 4.2 (API 17), where the bridge exposed *all* public methods of the injected object to JavaScript via reflection.
 - The WebView loads content that an attacker can influence (a third-party page, content over cleartext, or an ad frame).
 
-**Impact**: Attacker-controlled JavaScript could reach reflection and, on affected versions, invoke methods leading to command execution with the app's permissions—a widely discussed class of Android client-code weakness.
+**Impact**: Attacker-controlled JavaScript could reach reflection and, on affected versions, invoke methods leading to command execution with the app's permissions-a widely discussed class of Android client-code weakness.
 
 **Root cause**: A dangerous API combined with untrusted web content. The platform fix (the `@JavascriptInterface` annotation from API 17) restricts exposure, but the app must also avoid loading untrusted content into a bridged WebView.
 
 ### Case Study Class 3: Unsafe Deserialization of On-Device Data
 
 **Defect class**:
-- The client deserializes an object graph from untrusted bytes—an IPC extra, an imported file, or a cached server response—using a general-purpose mechanism (Java serialization, insecure `NSKeyedUnarchiver`) that can instantiate arbitrary classes.
+- The client deserializes an object graph from untrusted bytes-an IPC extra, an imported file, or a cached server response-using a general-purpose mechanism (Java serialization, insecure `NSKeyedUnarchiver`) that can instantiate arbitrary classes.
 
 **Impact**: Depending on the classes available on the device, this ranges from crashes and type-confusion to gadget-chain-driven code execution. It is a client-side instance of the same deserialization problem seen on servers.
 
@@ -180,11 +180,11 @@ Client code quality issues are **common but unevenly distributed**: pure managed
 
 Rather than cite specific percentages (which vary by report and year), the durable picture is:
 
-- Memory-safety bugs are **concentrated in native code** and in the parsers/decoders that handle untrusted input—exactly the code that is hardest to review by eye.
+- Memory-safety bugs are **concentrated in native code** and in the parsers/decoders that handle untrusted input-exactly the code that is hardest to review by eye.
 - They are **detectable** with the right tooling: sanitizers (ASan/UBSan), fuzzing of native parsers, static analysis and linters in CI, and code review focused on input boundaries.
 - Impact ranges from **reliable crashes/DoS** (the common case) up to **memory-corruption-driven code execution** (the severe case), gated by platform mitigations such as ASLR, PIE, stack canaries, and `_FORTIFY_SOURCE`.
 
-> Note: OWASP describes M7 as an implementation-quality category—the risk is driven by how code is written rather than by architecture. Treat any single prevalence figure as illustrative; the durable takeaway is that native code and untrusted-input parsers are where the exploitable defects cluster.
+> Note: OWASP describes M7 as an implementation-quality category-the risk is driven by how code is written rather than by architecture. Treat any single prevalence figure as illustrative; the durable takeaway is that native code and untrusted-input parsers are where the exploitable defects cluster.
 
 ## Common Misunderstandings
 
@@ -202,7 +202,7 @@ Rather than cite specific percentages (which vary by report and year), the durab
 
 ### Myth 4: "Compiler warnings and lints are noise"
 
-**Reality**: A large share of M7 defects are exactly what compilers, linters, and static analyzers flag—unchecked lengths, dangerous API calls, ignored return values. Turning warnings into build failures removes whole classes of bug for free.
+**Reality**: A large share of M7 defects are exactly what compilers, linters, and static analyzers flag-unchecked lengths, dangerous API calls, ignored return values. Turning warnings into build failures removes whole classes of bug for free.
 
 ### Myth 5: "Platform mitigations (ASLR/PIE) mean overflows don't matter"
 
@@ -223,11 +223,11 @@ Rather than cite specific percentages (which vary by report and year), the durab
 
 ## Key Takeaways
 
-1. **M7 is about how the client code is written**—implementation defects, not architecture or data placement.
-2. **Native code is the epicentre**—C/C++ via JNI/NDK and bundled libraries carry the memory-safety risk that managed code avoids.
-3. **Every input boundary is untrusted**—deep links, IPC, WebView, files, Bluetooth/NFC, and even server responses must be validated and bounds-checked at the client.
-4. **Dangerous APIs have safe replacements**—prefer length-limited string APIs, safe containers, scoped JS bridges, and schema-based decoding.
-5. **Crashes are the warning, not the whole problem**—reliable crashes are DoS today and possible code execution tomorrow.
+1. **M7 is about how the client code is written**-implementation defects, not architecture or data placement.
+2. **Native code is the epicentre**-C/C++ via JNI/NDK and bundled libraries carry the memory-safety risk that managed code avoids.
+3. **Every input boundary is untrusted**-deep links, IPC, WebView, files, Bluetooth/NFC, and even server responses must be validated and bounds-checked at the client.
+4. **Dangerous APIs have safe replacements**-prefer length-limited string APIs, safe containers, scoped JS bridges, and schema-based decoding.
+5. **Crashes are the warning, not the whole problem**-reliable crashes are DoS today and possible code execution tomorrow.
 
 ## How to Identify if You're Vulnerable
 
@@ -242,7 +242,7 @@ Rather than cite specific percentages (which vary by report and year), the durab
 - [ ] Do static analysis, linters, and sanitizers (ASan/UBSan) run in CI and fail the build on findings?
 - [ ] Are errors handled explicitly (fail closed), and are secrets zeroed in memory after use?
 
-If you answered "no" or "not sure" to several of these—especially any involving native code—you likely have exploitable client-code-quality defects today.
+If you answered "no" or "not sure" to several of these-especially any involving native code-you likely have exploitable client-code-quality defects today.
 
 ## Next Steps
 

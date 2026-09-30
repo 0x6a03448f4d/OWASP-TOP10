@@ -11,9 +11,9 @@
 
 ## What is a Smart Contract Denial of Service?
 
-**Denial of Service (DoS)** in a smart contract means making the contract—or a critical function within it—**permanently or temporarily unusable**, or **locking funds so no one can withdraw them**. Unlike a web DoS, which floods a server and ends when the traffic stops, an on-chain DoS is often *permanent*: once a contract is wedged into a broken state, immutable code has no "restart" button. The funds and the logic can be frozen forever.
+**Denial of Service (DoS)** in a smart contract means making the contract-or a critical function within it-**permanently or temporarily unusable**, or **locking funds so no one can withdraw them**. Unlike a web DoS, which floods a server and ends when the traffic stops, an on-chain DoS is often *permanent*: once a contract is wedged into a broken state, immutable code has no "restart" button. The funds and the logic can be frozen forever.
 
-What makes this category distinct from a simple bug is that an attacker can **deliberately engineer the broken state**. By becoming a "poison" participant—a recipient that always reverts, or a user who inflates an array past the gas limit—a single actor can freeze a contract *for everyone else*. The attacker often loses nothing; they simply make the shared mechanism stop working.
+What makes this category distinct from a simple bug is that an attacker can **deliberately engineer the broken state**. By becoming a "poison" participant-a recipient that always reverts, or a user who inflates an array past the gas limit-a single actor can freeze a contract *for everyone else*. The attacker often loses nothing; they simply make the shared mechanism stop working.
 
 ### Core Concept
 
@@ -37,10 +37,10 @@ Denial of Service:
 Several properties of the blockchain execution model make DoS uniquely damaging on-chain:
 
 - **Immutability**: A contract with no upgrade or recovery path cannot be patched. A DoS that wedges it is often *final*.
-- **Atomic transactions**: If any step in a transaction reverts, the *entire* transaction reverts. One failing payment in a loop rolls back all the others—so a single poison recipient blocks the whole batch.
+- **Atomic transactions**: If any step in a transaction reverts, the *entire* transaction reverts. One failing payment in a loop rolls back all the others-so a single poison recipient blocks the whole batch.
 - **A hard block gas limit**: Every transaction must fit inside the block gas limit. An operation whose cost grows with user-controlled data can cross that ceiling and become permanently unexecutable.
 - **Untrusted external code**: Sending ETH or calling another address can hand control to attacker-written code that reverts, loops, or burns all the gas on purpose.
-- **Locked value**: Because contracts custody real assets, a frozen contract is not just an outage—it is potentially millions in permanently trapped funds.
+- **Locked value**: Because contracts custody real assets, a frozen contract is not just an outage-it is potentially millions in permanently trapped funds.
 
 ## Why Does This Matter?
 
@@ -48,9 +48,9 @@ Several properties of the blockchain execution model make DoS uniquely damaging 
 
 - **Permanently Locked Funds**: Refunds, withdrawals, or payouts that can never execute leave user deposits trapped in the contract with no recovery.
 - **Frozen Core Functionality**: An auction that can never accept a new bid, a payroll splitter that can never distribute, or a game that can never resolve is effectively dead.
-- **Griefing With No Ransom**: The attacker often gains nothing financially—their goal is to harm the protocol or its users, which makes the motive hard to predict or price in.
+- **Griefing With No Ransom**: The attacker often gains nothing financially-their goal is to harm the protocol or its users, which makes the motive hard to predict or price in.
 - **Reputational Collapse**: A protocol whose funds are visibly and permanently frozen loses user trust instantly and usually irrecoverably.
-- **Costly Migration**: The only "fix" for an immutable, wedged contract is often to redeploy and socially coordinate a migration—expensive, slow, and error-prone.
+- **Costly Migration**: The only "fix" for an immutable, wedged contract is often to redeploy and socially coordinate a migration-expensive, slow, and error-prone.
 
 ### Technical Impact
 
@@ -90,7 +90,7 @@ function payAll() external {
 }
 ```
 
-**The trap**: An attacker (or ordinary growth) inflates `participants` until the loop costs more gas than fits in a block. From that point on, `payAll()` can *never* complete—it reverts with out-of-gas every time, for everyone.
+**The trap**: An attacker (or ordinary growth) inflates `participants` until the loop costs more gas than fits in a block. From that point on, `payAll()` can *never* complete-it reverts with out-of-gas every time, for everyone.
 
 #### 3. Locking / Griefing via a Broken Dependency
 
@@ -103,7 +103,7 @@ uint price = IPriceFeed(oracle).latestPrice();
 function emergencyWithdraw() external onlyOwner { ... }  // uncallable if owner is gone
 ```
 
-**The trap**: A hard dependency on code that can break—or a single point of privileged control that can be lost—turns a temporary problem into a permanent freeze.
+**The trap**: A hard dependency on code that can break-or a single point of privileged control that can be lost-turns a temporary problem into a permanent freeze.
 
 #### 4. Manipulating a Shared State Variable
 
@@ -154,7 +154,7 @@ The incidents below are described as **classes of vulnerability** that have recu
 **Impact**:
 
 - An attacker takes the position from a contract that *rejects* incoming ETH (no payable fallback, or a fallback that always reverts).
-- Every future attempt to take the position must first refund that poison contract—which always fails—so the position can never change hands again. The mechanism is frozen with the attacker permanently on top.
+- Every future attempt to take the position must first refund that poison contract-which always fails-so the position can never change hands again. The mechanism is frozen with the attacker permanently on top.
 
 **Root Cause**: Pushing payments to untrusted recipients inside a function whose success depends on that payment succeeding. The fix is to let recipients pull their own refunds.
 
@@ -167,7 +167,7 @@ The incidents below are described as **classes of vulnerability** that have recu
 
 **Impact**:
 
-- As the array grows—organically or because an attacker cheaply adds many entries—the per-transaction gas cost eventually exceeds the block gas limit.
+- As the array grows-organically or because an attacker cheaply adds many entries-the per-transaction gas cost eventually exceeds the block gas limit.
 - Past that threshold the batch operation can never fit in a block again. Distribution, migration, or cleanup that depends on it is permanently stuck.
 
 **Root Cause**: Designing a critical operation whose cost scales with user-controlled input. The fix is pagination, pull payments, and per-user accounting instead of one giant loop.
@@ -177,30 +177,30 @@ The incidents below are described as **classes of vulnerability** that have recu
 **Vulnerability**:
 
 - A contract depends on an external contract (a library, oracle, or wallet) for a required step, or gates all recovery behind a single owner.
-- That dependency is later self-destructed, paused, or made unreachable—or the sole owner key is lost.
+- That dependency is later self-destructed, paused, or made unreachable-or the sole owner key is lost.
 
 **Impact**:
 
 - Every function that must call the now-broken dependency reverts, and there is no alternate code path.
-- Funds and logic that rely on it are frozen with no on-chain way to recover them—a well-known class of incident in which large balances became permanently inaccessible after a shared library was destroyed.
+- Funds and logic that rely on it are frozen with no on-chain way to recover them-a well-known class of incident in which large balances became permanently inaccessible after a shared library was destroyed.
 
 **Root Cause**: A single hard dependency or single point of privileged control with no fallback. The fix is robust ownership (multisig, two-step transfer), avoiding hard dependencies, and building recovery/upgrade paths.
 
 ## Prevalence and Statistics
 
-Denial of Service is included in the **OWASP Smart Contract Top 10 (2025)** as **SC10** because the pattern recurs across auctions, crowdsales, staking pools, payment splitters, and games—anywhere a contract loops over participants or pushes value to untrusted addresses.
+Denial of Service is included in the **OWASP Smart Contract Top 10 (2025)** as **SC10** because the pattern recurs across auctions, crowdsales, staking pools, payment splitters, and games-anywhere a contract loops over participants or pushes value to untrusted addresses.
 
 Rather than cite precise counts (which vary by source and year), the defensible picture is:
 
 - Push-payment and unbounded-loop DoS are among the **most repeated** findings in smart-contract audits because the "loop and pay everyone" pattern is an intuitive but unsafe first design.
 - The impact is rated **high** when funds are involved: outcomes range from a temporarily stuck function up to **permanently locked value** in immutable code.
-- Many DoS bugs are **cheap to trigger**—a single poison recipient or a batch of dust entries—while being **expensive or impossible to fix** after deployment.
+- Many DoS bugs are **cheap to trigger**-a single poison recipient or a batch of dust entries-while being **expensive or impossible to fix** after deployment.
 
 Note: exact figures differ between reports. Treat any single number as illustrative; the durable takeaway is that DoS is common, cheap to trigger, and frequently irreversible on immutable contracts.
 
 ## Common Misunderstandings
 
-### Myth 1: "A revert just fails safely—no harm done"
+### Myth 1: "A revert just fails safely-no harm done"
 
 **Reality**: A revert is safe for *that* transaction, but if the reverting step is on the only path that lets the contract make progress, the revert is permanent for *everyone*. Safe-per-call is not safe-per-system.
 
@@ -222,7 +222,7 @@ Note: exact figures differ between reports. Treat any single number as illustrat
 
 ### Myth 6: "One owner key is simpler and therefore fine"
 
-**Reality**: A single owner is a single point of failure. Lose the key (or let it fall into a broken contract) and every owner-gated recovery becomes uncallable—locking whatever those functions were meant to protect.
+**Reality**: A single owner is a single point of failure. Lose the key (or let it fall into a broken contract) and every owner-gated recovery becomes uncallable-locking whatever those functions were meant to protect.
 
 ## How DoS Differs from Related Issues
 
@@ -235,11 +235,11 @@ Note: exact figures differ between reports. Treat any single number as illustrat
 
 ## Key Takeaways
 
-1. **On-chain DoS is often permanent**—immutable code has no restart, so a wedged contract can trap funds forever.
-2. **Atomicity turns one failure into everyone's failure**—a single reverting recipient in a loop rolls back the whole batch.
-3. **Unbounded loops are a time bomb**—anything that scales with user input can eventually exceed the block gas limit.
-4. **Prefer pull over push**—let each user withdraw their own funds so one bad actor cannot block the rest.
-5. **Design for recovery**—avoid hard external dependencies, use robust ownership, and never trust `address(this).balance` for critical logic.
+1. **On-chain DoS is often permanent**-immutable code has no restart, so a wedged contract can trap funds forever.
+2. **Atomicity turns one failure into everyone's failure**-a single reverting recipient in a loop rolls back the whole batch.
+3. **Unbounded loops are a time bomb**-anything that scales with user input can eventually exceed the block gas limit.
+4. **Prefer pull over push**-let each user withdraw their own funds so one bad actor cannot block the rest.
+5. **Design for recovery**-avoid hard external dependencies, use robust ownership, and never trust `address(this).balance` for critical logic.
 
 ## How to Identify if You're Vulnerable
 

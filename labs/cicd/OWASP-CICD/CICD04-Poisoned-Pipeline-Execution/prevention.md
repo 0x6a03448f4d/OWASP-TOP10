@@ -90,7 +90,7 @@ Automate this with a pinning/allow-list tool and keep pins current with a depend
 
 ## 5. Least-Privilege Pipeline Token
 
-Set `permissions:` explicitly—default to read-only and grant write only to the specific scopes a job needs. This caps what poisoned code can do even if it runs.
+Set `permissions:` explicitly-default to read-only and grant write only to the specific scopes a job needs. This caps what poisoned code can do even if it runs.
 
 ```yaml
 # SECURE: repository-wide default of read-only
@@ -114,7 +114,7 @@ In GitLab, scope CI/CD variables to protected branches/environments and mark the
 
 ## 6. Isolate and Use Ephemeral Runners
 
-- Prefer **ephemeral** runners that are destroyed after each job—no persistence for an attacker who lands there.
+- Prefer **ephemeral** runners that are destroyed after each job-no persistence for an attacker who lands there.
 - Do not expose **self-hosted** runners to fork PRs. If self-hosted is required, dedicate a hardened, network-isolated pool and gate it behind approval.
 - Give runners no standing access to production networks; use short-lived, job-scoped credentials (e.g. OIDC federation) instead of long-lived keys on the host.
 
@@ -123,10 +123,10 @@ In GitLab, scope CI/CD variables to protected branches/environments and mark the
 Do not inline `${{ github.event.* }}` into a `run:` block. Pass it through an environment variable and quote it, so the shell treats it as data, not code.
 
 ```yaml
-# INSECURE — expression expanded into the command before the shell runs
+# INSECURE - expression expanded into the command before the shell runs
 - run: echo "Title: ${{ github.event.pull_request.title }}"
 
-# SECURE — value arrives as an env var and is quoted
+# SECURE - value arrives as an env var and is quoted
 - env:
     PR_TITLE: ${{ github.event.pull_request.title }}
   run: echo "Title: $PR_TITLE"
@@ -139,7 +139,7 @@ The same applies to branch names, commit messages, issue bodies, and any other a
 Treat changes to what the pipeline executes as security-critical, requiring dedicated review.
 
 ```
-# CODEOWNERS — require security/platform review for pipeline & build files
+# CODEOWNERS - require security/platform review for pipeline & build files
 /.github/workflows/   @org/platform-security
 /.gitlab-ci.yml       @org/platform-security
 /Jenkinsfile          @org/platform-security
@@ -147,7 +147,7 @@ Treat changes to what the pipeline executes as security-critical, requiring dedi
 /scripts/             @org/platform-security
 ```
 
-Combine with protected branches, required reviews, and static analysis of workflow files (dangerous triggers, unpinned actions, expression injection) in CI. Remember that I-PPE hides in `Makefile`, `package.json` scripts, and test/lint configs—include them in the review scope.
+Combine with protected branches, required reviews, and static analysis of workflow files (dangerous triggers, unpinned actions, expression injection) in CI. Remember that I-PPE hides in `Makefile`, `package.json` scripts, and test/lint configs-include them in the review scope.
 
 ## 9. Separate Build Credentials from Deploy Credentials
 
@@ -155,7 +155,7 @@ A build-time compromise should not automatically reach production. Keep the cred
 
 ```yaml
 # SECURE: deploy runs in a protected environment with its own reviewers,
-# on a separate trusted trigger — not as part of untrusted PR builds.
+# on a separate trusted trigger - not as part of untrusted PR builds.
 jobs:
   deploy:
     if: github.ref == 'refs/heads/main'    # only trusted, merged code
@@ -199,11 +199,11 @@ Watch for the signatures of PPE attempts and pipeline tampering.
 
 ## Key Takeaways
 
-1. **Untrusted code and secrets must never meet**—pick the trigger that enforces this (`pull_request`, not `pull_request_target` with checkout).
-2. **Approval gates outsiders**—require a maintainer before fork-PR workflows run.
-3. **Pin to SHAs and least-privilege the token**—cap both what you execute and what it can do.
-4. **Isolate runners**—ephemeral, and never self-hosted for fork PRs.
-5. **Review the definition and the scripts**—I-PPE hides in Makefiles, hooks, and configs; separate build creds from deploy creds so a build compromise stops short of production.
+1. **Untrusted code and secrets must never meet**-pick the trigger that enforces this (`pull_request`, not `pull_request_target` with checkout).
+2. **Approval gates outsiders**-require a maintainer before fork-PR workflows run.
+3. **Pin to SHAs and least-privilege the token**-cap both what you execute and what it can do.
+4. **Isolate runners**-ephemeral, and never self-hosted for fork PRs.
+5. **Review the definition and the scripts**-I-PPE hides in Makefiles, hooks, and configs; separate build creds from deploy creds so a build compromise stops short of production.
 
 ## Next Steps
 

@@ -2,7 +2,7 @@
 
 ## Prevention Strategy Overview
 
-**The one rule that outranks all others:** never trust the client for a security decision. Everything on this page except server-side enforcement is *defense-in-depth*—it raises the attacker's cost but does not, and cannot, stop a determined attacker on a device they control.
+**The one rule that outranks all others:** never trust the client for a security decision. Everything on this page except server-side enforcement is *defense-in-depth*-it raises the attacker's cost but does not, and cannot, stop a determined attacker on a device they control.
 
 Effective defense is layered, and the layers are not equal:
 
@@ -22,7 +22,7 @@ Effective defense is layered, and the layers are not equal:
 
 ## 1. Server-Side Enforcement (The Real Control)
 
-If a feature, a balance, or a permission matters, the server must own it. The client may *request*; only the server *decides*—and it re-checks on every sensitive action rather than trusting a flag the client sent once.
+If a feature, a balance, or a permission matters, the server must own it. The client may *request*; only the server *decides*-and it re-checks on every sensitive action rather than trusting a flag the client sent once.
 
 ```
 // WRONG: client asserts its own entitlement, server obeys
@@ -43,7 +43,7 @@ Concretely:
 
 ## 2. Client Attestation (Play Integrity / DeviceCheck / App Attest)
 
-Platform attestation lets your *server* obtain a signed statement from the OS/vendor about the app and device—evidence that is far harder to forge than an in-app check, because the signing happens outside the app's reach.
+Platform attestation lets your *server* obtain a signed statement from the OS/vendor about the app and device-evidence that is far harder to forge than an in-app check, because the signing happens outside the app's reach.
 
 ```
 Android  -> Play Integrity API
@@ -64,7 +64,7 @@ iOS      -> App Attest & DeviceCheck (DCAppAttestService)
 
 ## 3. App Integrity and Signature Verification
 
-Detect repackaging by checking, at runtime, that the app is signed by *your* certificate—and (more robustly) by having the server require an attestation that proves it. The in-app check below is a useful signal but can itself be hooked, so pair it with server-side attestation.
+Detect repackaging by checking, at runtime, that the app is signed by *your* certificate-and (more robustly) by having the server require an attestation that proves it. The in-app check below is a useful signal but can itself be hooked, so pair it with server-side attestation.
 
 ```
 // Android (Kotlin): compare the running app's signing cert to a known pin
@@ -81,7 +81,7 @@ Also verify the integrity of native libraries and critical assets (e.g. a checks
 
 ## 4. Anti-Tampering and Anti-Hooking Detection (Defense-in-Depth)
 
-**Honesty check:** root/jailbreak, Frida, Xposed, emulator, and debugger detection are all bypassable by the same instrumentation they try to detect. They are worthwhile because they filter casual attackers and generate telemetry—*not* because they stop a skilled one.
+**Honesty check:** root/jailbreak, Frida, Xposed, emulator, and debugger detection are all bypassable by the same instrumentation they try to detect. They are worthwhile because they filter casual attackers and generate telemetry-*not* because they stop a skilled one.
 
 Useful signals to collect (and send to the server as risk inputs):
 
@@ -107,7 +107,7 @@ Vary and duplicate checks, run some in native code, and avoid a single choke-poi
 
 ## 5. Code Obfuscation (Raise the Cost)
 
-Obfuscation does not prevent tampering—it makes locating and patching the right code slower and more error-prone. That delay has real value against automated and low-skill attackers.
+Obfuscation does not prevent tampering-it makes locating and patching the right code slower and more error-prone. That delay has real value against automated and low-skill attackers.
 
 - **Android**: enable R8/ProGuard to rename and shrink; move sensitive logic to native code; consider a commercial obfuscator for control-flow flattening and string encryption on high-value logic.
 - **iOS**: strip symbols, avoid revealing method names, and obfuscate sensitive strings and constants.
@@ -126,10 +126,10 @@ buildTypes {
 
 ## 6. Keep Secrets and Enforcement Off the Client
 
-- **No hardcoded secrets**: API keys, signing keys, and encryption keys embedded in the binary or resources are extractable—assume they are already public.
+- **No hardcoded secrets**: API keys, signing keys, and encryption keys embedded in the binary or resources are extractable-assume they are already public.
 - **Short-lived, scoped tokens**: issue narrowly scoped, expiring credentials from the server so a captured token is low-value.
 - **Server-side crypto for anything sensitive**: if a key must never leak, use it on the server; the client sends data in, gets a result back.
-- **Hardware-backed storage when a key must live on-device**: Android Keystore / iOS Secure Enclave prevent *extraction at rest*—but remember a hook can still observe the plaintext *in use*, so pair with attestation and server checks.
+- **Hardware-backed storage when a key must live on-device**: Android Keystore / iOS Secure Enclave prevent *extraction at rest*-but remember a hook can still observe the plaintext *in use*, so pair with attestation and server checks.
 
 ## 7. Monitoring, Telemetry, and Response
 
@@ -151,24 +151,24 @@ Watch for: spikes of cert-mismatch reports (a mod circulating), clusters of hook
 
 | Layer | What it does | Stops a determined attacker? |
 | --- | --- | --- |
-| Server-side enforcement | Owns entitlements, state, and authorisation | **Yes** — the authoritative control |
+| Server-side enforcement | Owns entitlements, state, and authorisation | **Yes** - the authoritative control |
 | Platform attestation | Server-verified proof of genuine app/device | Strongly raises the bar |
 | Signature / integrity checks | Detect repackaging and resource swaps | Detects static tampering; hookable |
-| Anti-hook / anti-root detection | Signals a compromised runtime | No — bypassable; use as telemetry |
-| Obfuscation | Slows analysis and patching | No — raises cost only |
+| Anti-hook / anti-root detection | Signals a compromised runtime | No - bypassable; use as telemetry |
+| Obfuscation | Slows analysis and patching | No - raises cost only |
 | Monitoring & response | Observe and react to abuse | Limits damage; does not prevent |
 
 ## The Honest Bottom Line
 
-A determined attacker with a rooted or jailbroken device **can** defeat every purely client-side protection you ship. Obfuscation, detection, and integrity checks are still worth doing—they raise cost, deter the many casual attackers, and generate the telemetry you need. But the only control that actually holds is the one enforced on infrastructure the attacker does not control: **your server**. Design as if the client is already compromised, because for some fraction of your users it is.
+A determined attacker with a rooted or jailbroken device **can** defeat every purely client-side protection you ship. Obfuscation, detection, and integrity checks are still worth doing-they raise cost, deter the many casual attackers, and generate the telemetry you need. But the only control that actually holds is the one enforced on infrastructure the attacker does not control: **your server**. Design as if the client is already compromised, because for some fraction of your users it is.
 
 ## Key Takeaways
 
-1. **Enforce on the server** — entitlements, balances, and authorisation must not be trusted to the client.
-2. **Attest the client server-side** — Play Integrity, App Attest, and DeviceCheck verified by your backend, with a nonce.
-3. **Verify signing and integrity** — catch repackaging by pinning your certificate and checksumming critical assets.
-4. **Treat detection as telemetry** — root/hook/emulator checks inform a server-side risk decision; they are not gates.
-5. **Obfuscate to buy time, not safety** — and never store secrets or final decisions on the device.
+1. **Enforce on the server** - entitlements, balances, and authorisation must not be trusted to the client.
+2. **Attest the client server-side** - Play Integrity, App Attest, and DeviceCheck verified by your backend, with a nonce.
+3. **Verify signing and integrity** - catch repackaging by pinning your certificate and checksumming critical assets.
+4. **Treat detection as telemetry** - root/hook/emulator checks inform a server-side risk decision; they are not gates.
+5. **Obfuscate to buy time, not safety** - and never store secrets or final decisions on the device.
 
 ## Next Steps
 

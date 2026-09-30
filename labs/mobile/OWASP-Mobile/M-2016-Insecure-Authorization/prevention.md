@@ -4,11 +4,11 @@
 
 There is one governing rule for M6, and everything else is detail:
 
-> **Enforce every authorization decision on the server, on every request, using an identity the client cannot influence.** The mobile app may hide, disable, or omit UI for a better experience—but it must never be the thing that *blocks* an action.
+> **Enforce every authorization decision on the server, on every request, using an identity the client cannot influence.** The mobile app may hide, disable, or omit UI for a better experience-but it must never be the thing that *blocks* an action.
 
 Concretely, that decomposes into five principles:
 
-1. **Server-side is the only side.** Re-check permissions on the backend for every endpoint and every object—never assume the client already did.
+1. **Server-side is the only side.** Re-check permissions on the backend for every endpoint and every object-never assume the client already did.
 2. **Derive identity from the token/session, never from client input.** User id, role, tenant, and entitlements come from the authenticated principal, not from the body, query, or headers.
 3. **Check ownership per object.** Before returning or mutating any object referenced by id, verify it belongs to (or is shared with) the caller.
 4. **Deny by default, least privilege.** A route with no explicit allow decision fails closed; grant the narrowest rights that work.
@@ -25,7 +25,7 @@ const jwt = require('jsonwebtoken');
 function authenticate(req, res, next) {
   const token = (req.headers.authorization || '').replace('Bearer ', '');
   try {
-    // The principal is whatever the SIGNED token says — never the request body.
+    // The principal is whatever the SIGNED token says - never the request body.
     req.principal = jwt.verify(token, process.env.JWT_PUBLIC_KEY);
     next();
   } catch {
@@ -50,7 +50,7 @@ app.post('/api/admin/users/:id/promote',
 ```
 
 ```python
-# Python/FastAPI: same shape — identity is a server-verified dependency
+# Python/FastAPI: same shape - identity is a server-verified dependency
 from fastapi import Depends, HTTPException
 
 def current_principal(token: str = Depends(bearer_token)) -> Principal:
@@ -74,13 +74,13 @@ def promote(user_id: int, p: Principal = Depends(require_role("admin"))):
 The most dangerous line of code in a mobile backend is one that reads *who* or *what* from the request. Identity and privilege are properties of the authenticated session, not payload fields.
 
 ```javascript
-// VULNERABLE — trusts the body
+// VULNERABLE - trusts the body
 app.post('/api/transfer', authenticate, (req, res) => {
   const fromUserId = req.body.from_user_id;   // attacker sets this to anyone
   transfer(fromUserId, req.body.amount);
 });
 
-// SECURE — identity comes from the verified principal
+// SECURE - identity comes from the verified principal
 app.post('/api/transfer', authenticate, (req, res) => {
   const fromUserId = req.principal.sub;        // server-derived, unforgeable
   transfer(fromUserId, req.body.amount);       // amount is data; identity is not
@@ -94,13 +94,13 @@ The same applies to `role`, `tenant_id`/`org_id`, `is_premium`, and any entitlem
 A valid token is not permission to touch a specific object. Before reading or mutating any resource addressed by id, confirm the caller is entitled to *that* resource.
 
 ```javascript
-// VULNERABLE — returns any account for any authenticated user (IDOR)
+// VULNERABLE - returns any account for any authenticated user (IDOR)
 app.get('/api/accounts/:id/statements', authenticate, async (req, res) => {
   const acct = await Accounts.findById(req.params.id);
   res.json(await acct.statements());
 });
 
-// SECURE — scope by owner, or verify ownership explicitly
+// SECURE - scope by owner, or verify ownership explicitly
 app.get('/api/accounts/:id/statements', authenticate, async (req, res) => {
   const acct = await Accounts.findOne({
     _id: req.params.id,
@@ -112,14 +112,14 @@ app.get('/api/accounts/:id/statements', authenticate, async (req, res) => {
 ```
 
 ```python
-# Python — explicit ownership assertion before use
+# Python - explicit ownership assertion before use
 acct = repo.get_account(account_id)
 if acct is None or acct.owner_id != principal.id:
     raise HTTPException(404, "Not found")   # 404, not 403, to avoid confirming the id exists
 return acct.statements()
 ```
 
-> Returning `404 Not Found` rather than `403 Forbidden` for objects the caller doesn't own avoids confirming that an id exists—a small but useful reduction in enumeration signal. Pick one convention and apply it consistently.
+> Returning `404 Not Found` rather than `403 Forbidden` for objects the caller doesn't own avoids confirming that an id exists-a small but useful reduction in enumeration signal. Pick one convention and apply it consistently.
 
 ## 4. Deny by Default and Least Privilege
 
@@ -141,7 +141,7 @@ def authorize(principal, action, resource):
 Never bind a whole request body onto a model. Allow-list the fields a user may set, so `role` or `balance` can't ride in on an update.
 
 ```javascript
-// SECURE — explicit allow-list of user-settable fields
+// SECURE - explicit allow-list of user-settable fields
 const ALLOWED = ['displayName', 'avatarUrl', 'locale'];
 const updates = {};
 for (const k of ALLOWED) if (k in req.body) updates[k] = req.body[k];
@@ -150,7 +150,7 @@ await Users.update({ _id: req.principal.sub }, updates);   // role/balance ignor
 
 ## 6. The Mobile Client's (Limited) Role
 
-The client should still hide UI the user can't use—for usability, not security—and it must get the truth about entitlements from the server, never from local storage it can't protect.
+The client should still hide UI the user can't use-for usability, not security-and it must get the truth about entitlements from the server, never from local storage it can't protect.
 
 ```kotlin
 // Android (Kotlin): UI reflects a SERVER decision; it does not make one.
@@ -163,12 +163,12 @@ if (caps.canAccessAdmin) adminButton.isVisible = true   // convenience only
 ```
 
 ```swift
-// iOS (Swift): same principle — capabilities come from the server
+// iOS (Swift): same principle - capabilities come from the server
 let caps = try await api.myCapabilities()
 adminButton.isHidden = !caps.canAccessAdmin   // UX hint, not a control
 ```
 
-Crucially, even with this UI gating, **the server still enforces the check on every admin/privileged request**. If an attacker flips the boolean or removes the UI, the worst outcome is a visible-but-non-functional button—the action still returns `403`.
+Crucially, even with this UI gating, **the server still enforces the check on every admin/privileged request**. If an attacker flips the boolean or removes the UI, the worst outcome is a visible-but-non-functional button-the action still returns `403`.
 
 ## 7. Don't Rely on Obscurity of the Client
 
@@ -211,11 +211,11 @@ Add these classes of test: cross-user object access (horizontal), privileged-rou
 
 ## Key Takeaways
 
-1. **The server decides, every time.** Re-check authorization on every request and every object—never trust that the client already did.
+1. **The server decides, every time.** Re-check authorization on every request and every object-never trust that the client already did.
 2. **Identity is unforgeable or it is worthless.** Derive user, role, and tenant from the verified token; ignore anything the client sends about who it is.
 3. **Ownership checks kill IDOR.** Scope every object lookup by the caller, and fail closed when it doesn't match.
 4. **The client only reflects decisions.** Hide UI for usability, but the app must never be the control that blocks an action.
-5. **Test with two accounts.** Authorization flaws are invisible until you swap ids and roles between users—automate that in CI.
+5. **Test with two accounts.** Authorization flaws are invisible until you swap ids and roles between users-automate that in CI.
 
 ## Next Steps
 

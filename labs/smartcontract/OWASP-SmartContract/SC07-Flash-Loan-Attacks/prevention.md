@@ -5,10 +5,10 @@
 You cannot reliably stop attackers from taking flash loans, and trying to is the wrong target. The durable defence is to **make your protocol indifferent to how much capital any actor holds for one transaction**:
 
 1. Design every mechanism assuming an attacker has effectively unlimited capital for a single transaction.
-2. Never trust a value that can be moved within one block—spot prices, live balances, instantaneous share ratios.
+2. Never trust a value that can be moved within one block-spot prices, live balances, instantaneous share ratios.
 3. Use time-resistant sources: TWAP / robust oracles for prices, past-block snapshots for votes.
 4. Add reentrancy guards, CEI ordering, deviation bounds, and circuit breakers.
-5. Assume attempts are free and constant—so any gap will be found.
+5. Assume attempts are free and constant-so any gap will be found.
 
 ### Core Principles
 
@@ -17,9 +17,9 @@ You cannot reliably stop attackers from taking flash loans, and trying to is the
 - **Prefer manipulation-resistant sources**: averages over time and balances from the past cannot be flash-inflated.
 - **Fail safe on anomalies**: bound deviations and halt on impossible swings rather than transacting through them.
 
-## 1. Never Trust Spot Price — Use TWAP / Robust Oracles
+## 1. Never Trust Spot Price - Use TWAP / Robust Oracles
 
-The single most important defence. A spot price read from one pool's current reserves is trivially skewed by a flash swap. A time-weighted average price (TWAP) forces an attacker to hold the manipulation across many blocks—which a flash loan cannot do—and a robust oracle aggregates multiple independent sources. (See **SC02** for full oracle design.)
+The single most important defence. A spot price read from one pool's current reserves is trivially skewed by a flash swap. A time-weighted average price (TWAP) forces an attacker to hold the manipulation across many blocks-which a flash loan cannot do-and a robust oracle aggregates multiple independent sources. (See **SC02** for full oracle design.)
 
 ```
 // VULNERABLE: instantaneous spot price
@@ -177,11 +177,11 @@ function test_cannotDrainWithFlashCapital() public {
 
 ## Key Takeaways
 
-1. **Don't fight the loan, fix the trust** — make the protocol indifferent to any actor's momentary capital.
-2. **TWAP and robust oracles** — never price off a single-block spot value.
-3. **Snapshot votes from the past + timelock** — a flash-borrowed balance must count for zero.
-4. **Guards, bounds, and breakers** — CEI, reentrancy guards, deviation checks, and per-block caps catch what slips through.
-5. **Test at attacker scale** — assume unlimited one-tx capital in every test, because attackers will.
+1. **Don't fight the loan, fix the trust** - make the protocol indifferent to any actor's momentary capital.
+2. **TWAP and robust oracles** - never price off a single-block spot value.
+3. **Snapshot votes from the past + timelock** - a flash-borrowed balance must count for zero.
+4. **Guards, bounds, and breakers** - CEI, reentrancy guards, deviation checks, and per-block caps catch what slips through.
+5. **Test at attacker scale** - assume unlimited one-tx capital in every test, because attackers will.
 
 ## Next Steps
 

@@ -8,9 +8,9 @@
 
 ## Understanding Credential-Hygiene Attack Vectors
 
-> **⚠ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in systems you own or are authorised to test.
+> **⚠ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in systems you own or are authorised to test.
 
-Exploiting insufficient credential hygiene almost never involves breaking anything. The attacker's core move is **harvest and reuse**: locate a credential that a careless pipeline exposed—in Git history, a build log, an environment dump, or an artifact—and then present it to whatever system trusts it. Because the credential is genuine, the target treats the attacker as a legitimate client. There is no payload to craft and often no anomaly to detect.
+Exploiting insufficient credential hygiene almost never involves breaking anything. The attacker's core move is **harvest and reuse**: locate a credential that a careless pipeline exposed-in Git history, a build log, an environment dump, or an artifact-and then present it to whatever system trusts it. Because the credential is genuine, the target treats the attacker as a legitimate client. There is no payload to craft and often no anomaly to detect.
 
 The attacker's goal in this category is one of:
 
@@ -54,7 +54,7 @@ trufflehog git file://./repo --only-verified
 
 ### 2. Scraping Hardcoded Secrets from Code and Pipeline Files
 
-Secrets in application config, pipeline YAML, and Dockerfiles are read directly—no history digging required.
+Secrets in application config, pipeline YAML, and Dockerfiles are read directly-no history digging required.
 
 ```
 # Public and internal code search finds patterns instantly:
@@ -72,7 +72,7 @@ extension:tf  access_key
 Debug tracing and explicit prints defeat log masking, and logs are widely readable and long-retained.
 
 ```bash
-# In the pipeline (INSECURE) — masking is bypassed:
+# In the pipeline (INSECURE) - masking is bypassed:
 + export DEPLOY_TOKEN=ghp_ab12...            # from set -x tracing
 DEBUG: connecting with token=ghp_ab12...     # from an echo
 
@@ -80,7 +80,7 @@ DEBUG: connecting with token=ghp_ab12...     # from an echo
 grep -Eo 'gh[pousr]_[A-Za-z0-9]{20,}' pipeline-*.log
 ```
 
-**Payoff**: secrets readable by everyone with log access—often a far larger group than those trusted with the secret—and persisted in log storage.
+**Payoff**: secrets readable by everyone with log access-often a far larger group than those trusted with the secret-and persisted in log storage.
 
 ### 4. Pulling Secrets from Environment Dumps
 
@@ -94,7 +94,7 @@ printenv > /tmp/leak    # or write them to an uploaded artifact
 # Everything injected for the job is visible, not just what this step needs.
 ```
 
-**Payoff**: all job-scoped secrets at once—this is why over-broad, job-wide secret injection is dangerous.
+**Payoff**: all job-scoped secrets at once-this is why over-broad, job-wide secret injection is dangerous.
 
 ### 5. Recovering Secrets from Artifacts and Container Images
 
@@ -108,7 +108,7 @@ docker save myapp:latest -o img.tar && tar xf img.tar   # inspect layers
 tar tzf release.tgz | grep -i 'env\|secret\|credential'
 ```
 
-**Payoff**: any secret embedded during the build—pulled from a registry or downloaded artifact with no access to the pipeline at all.
+**Payoff**: any secret embedded during the build-pulled from a registry or downloaded artifact with no access to the pipeline at all.
 
 ### 6. Reusing Long-Lived Static Credentials
 
@@ -119,7 +119,7 @@ Once a static key is in hand, the attacker validates its scope and uses it direc
 aws sts get-caller-identity
 aws iam list-attached-user-policies --user-name ci-deployer
 
-# Reuse against production — the key is genuine, so it "just works":
+# Reuse against production - the key is genuine, so it "just works":
 aws s3 sync s3://prod-data ./exfil
 aws ec2 run-instances --count 50 ...        # cryptomining on the victim's bill
 ```
@@ -150,11 +150,11 @@ aws iam create-access-key --user-name attacker-added
 # Now rotating the leaked key does not evict the attacker.
 ```
 
-**Payoff**: persistence independent of the original leak—why over-privileged CI identities are so dangerous.
+**Payoff**: persistence independent of the original leak-why over-privileged CI identities are so dangerous.
 
 ### 9. Exploiting Missing Leak Detection
 
-Where there is no secret scanning in pre-commit or CI, leaks are discovered by whoever scans first—usually the attacker.
+Where there is no secret scanning in pre-commit or CI, leaks are discovered by whoever scans first-usually the attacker.
 
 ```
 # No gitleaks/trufflehog gate on commits or PRs:
@@ -188,11 +188,11 @@ set -x prints a registry token to the build log
 
 ## Key Takeaways
 
-1. **The attack is harvest-and-reuse, not exploitation**—a valid credential needs no payload, so there is little to detect.
-2. **History, logs, env, and artifacts are all harvest sources**—a secret leaks from far more places than the file it was typed into.
-3. **Long-lived and broadly scoped keys turn a small leak into a big breach**—and enable persistence via newly minted credentials.
-4. **Over-shared tokens spread the blast radius**—one leak reaches every pipeline that trusts the token.
-5. **No scanning means the attacker finds it first**—silent exposure windows are where these breaches happen.
+1. **The attack is harvest-and-reuse, not exploitation**-a valid credential needs no payload, so there is little to detect.
+2. **History, logs, env, and artifacts are all harvest sources**-a secret leaks from far more places than the file it was typed into.
+3. **Long-lived and broadly scoped keys turn a small leak into a big breach**-and enable persistence via newly minted credentials.
+4. **Over-shared tokens spread the blast radius**-one leak reaches every pipeline that trusts the token.
+5. **No scanning means the attacker finds it first**-silent exposure windows are where these breaches happen.
 
 ## Next Steps
 

@@ -15,7 +15,7 @@ Preventing this class is less about one clever control and more about **a discip
 - **Validate at the boundary**: the contract is the trust boundary; the front-end is not. Every external/public function re-checks its own arguments.
 - **Checks-effects-interactions**: put all `require`/custom-error checks first, then state changes, then external calls.
 - **Fail closed and cheap**: revert with a clear custom error the moment an input is invalid, before any gas is spent on state.
-- **Defence in depth**: validation complements access control — answer both *who* may call and *with what values*.
+- **Defence in depth**: validation complements access control - answer both *who* may call and *with what values*.
 
 ## 1. Zero-Address Checks
 
@@ -61,7 +61,7 @@ function transfer(address to, uint256 amount) external nonZero(to) {
 }
 ```
 
-Solidity >= 0.8 reverts on overflow/underflow, but that does not enforce `> 0`, allowance limits, or business-level maximums — you still add those explicitly.
+Solidity >= 0.8 reverts on overflow/underflow, but that does not enforce `> 0`, allowance limits, or business-level maximums - you still add those explicitly.
 
 ## 3. Array Length Equality and Caps
 
@@ -241,11 +241,11 @@ Write explicit negative tests: assert that `transfer(address(0), x)`, `setFeeBps
 
 ## Key Takeaways
 
-1. **Validate at the boundary** — every external/public function re-checks its own arguments; the UI is not a control.
-2. **Checks first** — put every `require`/custom error before state changes and external calls.
-3. **Bound and allow-list** — numbers get maximums, addresses and targets get allow-lists.
-4. **Prefer custom errors** — cheaper than string reverts and self-documenting for callers and tests.
-5. **Test the rejections** — fuzz and invariant tests must prove bad inputs revert, not just that good inputs work.
+1. **Validate at the boundary** - every external/public function re-checks its own arguments; the UI is not a control.
+2. **Checks first** - put every `require`/custom error before state changes and external calls.
+3. **Bound and allow-list** - numbers get maximums, addresses and targets get allow-lists.
+4. **Prefer custom errors** - cheaper than string reverts and self-documenting for callers and tests.
+5. **Test the rejections** - fuzz and invariant tests must prove bad inputs revert, not just that good inputs work.
 
 ## Next Steps
 

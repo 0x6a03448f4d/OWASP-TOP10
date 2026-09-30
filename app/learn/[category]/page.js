@@ -10,7 +10,7 @@ export async function generateMetadata({ params }) {
   const { category } = await params;
   const c = data.categories.find((x) => x.key === category);
   return {
-    title: c ? `${c.label} Top 10 — OWASP Learn` : 'OWASP Top 10 — Learn',
+    title: c ? `${c.label} Top 10 - OWASP Learn` : 'OWASP Top 10 - Learn',
     description: c ? c.blurb : undefined,
   };
 }

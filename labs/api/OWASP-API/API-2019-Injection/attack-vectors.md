@@ -15,9 +15,9 @@
 
 ## Understanding Injection Attack Vectors
 
-> **⚠️ EDUCATIONAL PURPOSE ONLY** — the techniques below are shown so you can find and fix these issues in systems you own or are authorised to test.
+> **⚠️ EDUCATIONAL PURPOSE ONLY** - the techniques below are shown so you can find and fix these issues in systems you own or are authorised to test.
 
-Injection is exploited by **probing the boundary between data and code**. The attacker sends input that *would break out of a value*—a quote, a shell metacharacter, a query operator, a CRLF—and watches how the API responds. A change in behaviour (an error, a different result set, a timing delay, an extra log line) confirms that the input reached an interpreter.
+Injection is exploited by **probing the boundary between data and code**. The attacker sends input that *would break out of a value*-a quote, a shell metacharacter, a query operator, a CRLF-and watches how the API responds. A change in behaviour (an error, a different result set, a timing delay, an extra log line) confirms that the input reached an interpreter.
 
 Because APIs speak JSON and XML, the attacker's toolkit is broader than the classic web form: they can flip a field from a string to an object, nest operators, and target any of the several interpreters a single endpoint touches.
 
@@ -82,7 +82,7 @@ GET /api/items?id=10 AND SLEEP(5)                        (MySQL)
 # A 5-second delay confirms the injection and leaks data one bit at a time.
 ```
 
-**Payoff**: read/modify any data the DB account can reach—even with no error messages and no data echoed back.
+**Payoff**: read/modify any data the DB account can reach-even with no error messages and no data echoed back.
 
 ## NoSQL / Operator Injection
 
@@ -227,7 +227,7 @@ GET /api/users?sort=name; DROP TABLE users--
 
 ## Sort / Filter / Field Injection
 
-APIs love client-driven querying—and each flexible parameter is a sink if mapped to raw query text.
+APIs love client-driven querying-and each flexible parameter is a sink if mapped to raw query text.
 
 ```
 # Field selection spliced into a projection:
@@ -276,7 +276,7 @@ query {
 # reached through a GraphQL argument.
 ```
 
-### XML External Entity (XXE) — an injection cousin
+### XML External Entity (XXE) - an injection cousin
 
 ```
 POST /api/import HTTP/1.1
@@ -317,11 +317,11 @@ Operator injection bypasses login    -> authenticated as any user
 
 ## Key Takeaways
 
-1. **Injection is found by probing the data/code boundary**—a quote, a metacharacter, an operator object, a CRLF.
-2. **Blind is still exploitable**—boolean and time-based techniques extract data with no visible output.
-3. **JSON/XML let attackers inject objects, not just strings**—NoSQL operator injection is unique to structured APIs.
-4. **Every parameter counts**—`sort`, `filter`, `fields`, headers, and GraphQL arguments are frequent, overlooked sinks.
-5. **One injectable parameter chains to full compromise**—data theft, RCE, and lateral movement.
+1. **Injection is found by probing the data/code boundary**-a quote, a metacharacter, an operator object, a CRLF.
+2. **Blind is still exploitable**-boolean and time-based techniques extract data with no visible output.
+3. **JSON/XML let attackers inject objects, not just strings**-NoSQL operator injection is unique to structured APIs.
+4. **Every parameter counts**-`sort`, `filter`, `fields`, headers, and GraphQL arguments are frequent, overlooked sinks.
+5. **One injectable parameter chains to full compromise**-data theft, RCE, and lateral movement.
 
 ## Next Steps
 

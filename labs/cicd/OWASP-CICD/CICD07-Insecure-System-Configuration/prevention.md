@@ -13,7 +13,7 @@ Preventing insecure system configuration is less about one control and more abou
 ### Core Principles
 
 - **The pipeline is production**: apply the same patching, exposure, and identity discipline you apply to production services.
-- **Secure by default**: anonymous access off, debug off, TLS on—opting out of a control should be explicit and rare.
+- **Secure by default**: anonymous access off, debug off, TLS on-opting out of a control should be explicit and rare.
 - **Least functionality**: every plugin, integration, open port, and standing runner is attack surface; remove what you do not need.
 - **Repeatable, not hand-tuned**: codify configuration against a benchmark so it is identical everywhere and reviewable in version control.
 
@@ -33,7 +33,7 @@ curl -s https://ci.internal/pluginManager/api/json?depth=1 \
   | jq '.plugins[] | {shortName, version, hasUpdate}'
 ```
 
-> Prefer a controller you can rebuild from configuration over one you patch in place—an immutable, reproducible controller makes patching a redeploy rather than a risky live upgrade.
+> Prefer a controller you can rebuild from configuration over one you patch in place-an immutable, reproducible controller makes patching a redeploy rather than a risky live upgrade.
 
 ## 2. Minimise the Plugin and Integration Surface
 
@@ -107,7 +107,7 @@ variables:
 
 ## 6. Secure and Isolate Self-Hosted Runners
 
-Treat runners as disposable, least-privilege workers—never durable pets.
+Treat runners as disposable, least-privilege workers-never durable pets.
 
 ```
 # Runner hardening:
@@ -139,7 +139,7 @@ ssl_protocols TLSv1.2 TLSv1.3;
 
 ## 8. Validate and Restrict Webhooks
 
-A webhook endpoint is an untrusted input into your pipeline—authenticate it.
+A webhook endpoint is an untrusted input into your pipeline-authenticate it.
 
 ```
 # Webhook hardening:
@@ -158,7 +158,7 @@ if not constant_time_equal(sig, header_signature): reject(401)
 Adopt a documented baseline (vendor hardening guide / CIS-style benchmark) and apply it as code so it is identical everywhere.
 
 ```yaml
-# cicd-hardening-baseline.yaml (excerpt) — versioned, applied by automation
+# cicd-hardening-baseline.yaml (excerpt) - versioned, applied by automation
 scm:
   public_exposure: false
   sso_required: true
@@ -207,11 +207,11 @@ Hand-tuned systems regress. Automate the check and watch for the signatures of p
 
 ## Key Takeaways
 
-1. **Patch relentlessly** — unpatched cores and outdated plugins are the most common CI-compromise class.
-2. **Hide the management plane** — VPN/allow-list plus SSO+MFA keeps consoles and APIs off the attacker's map.
-3. **Cut the surface** — fewer plugins, fewer integrations, no script console for normal users.
-4. **Isolate runners** — ephemeral, least-privilege, segmented workers stop one build from poisoning the next.
-5. **Codify and watch** — harden to a benchmark as code and detect drift, because hand-tuned systems silently regress.
+1. **Patch relentlessly** - unpatched cores and outdated plugins are the most common CI-compromise class.
+2. **Hide the management plane** - VPN/allow-list plus SSO+MFA keeps consoles and APIs off the attacker's map.
+3. **Cut the surface** - fewer plugins, fewer integrations, no script console for normal users.
+4. **Isolate runners** - ephemeral, least-privilege, segmented workers stop one build from poisoning the next.
+5. **Codify and watch** - harden to a benchmark as code and detect drift, because hand-tuned systems silently regress.
 
 ## Next Steps
 

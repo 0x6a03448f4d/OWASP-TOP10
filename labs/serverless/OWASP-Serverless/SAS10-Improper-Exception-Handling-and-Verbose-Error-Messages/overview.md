@@ -11,9 +11,9 @@
 
 ## What is Improper Exception Handling and Verbose Error Messages?
 
-**Improper Exception Handling and Verbose Error Messages** occurs when a serverless function lets an exception decide its own fate: the error bubbles up unhandled, the platform serialises whatever it can, and the caller receives a response full of internal detail—or the function fails in a way that quietly skips a security check, half-completes a write, or vanishes without leaving an audit record. It is not one broken line; it is the accumulated consequence of thousands of small, quickly-written functions that were never given a deliberate answer to the question *"what should happen when this goes wrong?"*
+**Improper Exception Handling and Verbose Error Messages** occurs when a serverless function lets an exception decide its own fate: the error bubbles up unhandled, the platform serialises whatever it can, and the caller receives a response full of internal detail-or the function fails in a way that quietly skips a security check, half-completes a write, or vanishes without leaving an audit record. It is not one broken line; it is the accumulated consequence of thousands of small, quickly-written functions that were never given a deliberate answer to the question *"what should happen when this goes wrong?"*
 
-Serverless magnifies this class of bug. Functions are small, single-purpose, and written fast—often with the "happy path" as the only path anyone tested. There is no long-lived process to hold a considered global error handler, no operator watching a console, and the platform is *helpful* by default: an unhandled exception is dutifully captured and returned to the caller through API Gateway, a Function URL, or the invoke response. That helpfulness is exactly the problem. The default behaviour of "surface the raw error" is convenient in development and catastrophic in production.
+Serverless magnifies this class of bug. Functions are small, single-purpose, and written fast-often with the "happy path" as the only path anyone tested. There is no long-lived process to hold a considered global error handler, no operator watching a console, and the platform is *helpful* by default: an unhandled exception is dutifully captured and returned to the caller through API Gateway, a Function URL, or the invoke response. That helpfulness is exactly the problem. The default behaviour of "surface the raw error" is convenient in development and catastrophic in production.
 
 ### Core Concept
 
@@ -41,7 +41,7 @@ Serverless concentrates several conditions that turn a sloppy `catch` into a rea
 
 - The platform **returns unhandled errors to the caller by default**. Through API Gateway, a Lambda Function URL, or a direct invoke, an uncaught exception is serialised back over the wire unless you intervene.
 - Functions are **tiny and numerous**. Each is a fresh opportunity to forget a `try/catch`, and there is no shared, always-on error middleware the way a monolith has one global handler.
-- The execution context is **packed with sensitive material**—environment variables hold secrets (ties to **SAS-7**), and the identity carries broad IAM permissions. An error dump that echoes the environment leaks all of it.
+- The execution context is **packed with sensitive material**-environment variables hold secrets (ties to **SAS-7**), and the identity carries broad IAM permissions. An error dump that echoes the environment leaks all of it.
 - Invocations are **retried automatically**. Asynchronous and stream event sources are *at-least-once*: an exception *after* a side effect but before acknowledgement means the platform runs the function again, duplicating the side effect (ties to **SAS-9**).
 - Functions are **ephemeral**. A crash that occurs before the audit line is written means the record of what happened simply never exists.
 
@@ -49,19 +49,19 @@ Serverless concentrates several conditions that turn a sloppy `catch` into a rea
 
 ### Business Impact
 
-- **Reconnaissance Handed to Attackers**: Verbose errors give an adversary a free, precise map—runtime versions, library names, file layout, table and column names, internal hostnames, ARNs, and account IDs—removing the guesswork from the next stage of the attack.
+- **Reconnaissance Handed to Attackers**: Verbose errors give an adversary a free, precise map-runtime versions, library names, file layout, table and column names, internal hostnames, ARNs, and account IDs-removing the guesswork from the next stage of the attack.
 - **Direct Secret Exposure**: When environment variables or connection strings appear in an error dump, credentials leak with no exploit required, and the blast radius is whatever those credentials can reach.
-- **Silent Security Bypass**: Fail-open error handling—where a thrown exception causes an authorization or validation check to be skipped—can grant access or accept bad input without any obvious sign that a control failed.
-- **Duplicated or Corrupted Transactions**: Unhandled errors on non-idempotent write paths, combined with automatic retries, produce double charges, duplicate records, and inconsistent state—a data-integrity and financial problem, not just a bug.
+- **Silent Security Bypass**: Fail-open error handling-where a thrown exception causes an authorization or validation check to be skipped-can grant access or accept bad input without any obvious sign that a control failed.
+- **Duplicated or Corrupted Transactions**: Unhandled errors on non-idempotent write paths, combined with automatic retries, produce double charges, duplicate records, and inconsistent state-a data-integrity and financial problem, not just a bug.
 - **Lost Accountability**: A function that crashes before logging leaves no audit trail, undermining incident response, compliance evidence, and forensics.
 
 ### Technical Impact
 
 - **Information Disclosure**: Stack traces, query text, and infrastructure identifiers reveal the exact internals to target.
-- **Enumeration and Oracles**: Responses that differ by error type turn the function into an oracle—"user not found" vs. "wrong password", or a validation error that only fires on real records, lets an attacker enumerate valid data.
+- **Enumeration and Oracles**: Responses that differ by error type turn the function into an oracle-"user not found" vs. "wrong password", or a validation error that only fires on real records, lets an attacker enumerate valid data.
 - **Inconsistent / Partial State**: An exception between two writes leaves the system half-updated; without cleanup the data model drifts out of integrity.
 - **Duplicate Side Effects**: At-least-once retries re-run everything before the failure point, so non-idempotent effects (emails, charges, inserts) happen twice or more.
-- **Fail-Open Authorization**: A `catch` that logs and continues—or a check wrapped so its failure returns "allow"—converts an error into an access-control bypass.
+- **Fail-Open Authorization**: A `catch` that logs and continues-or a check wrapped so its failure returns "allow"-converts an error into an access-control bypass.
 
 ## Technical Context
 
@@ -107,7 +107,7 @@ exports.handler = async (event) => {
 }
 ```
 
-**Risk**: A handler that echoes its environment or config on failure leaks live credentials, internal hostnames, ARNs, and the account ID—this is where SAS-10 and **SAS-7 (secrets storage)** meet.
+**Risk**: A handler that echoes its environment or config on failure leaks live credentials, internal hostnames, ARNs, and the account ID-this is where SAS-10 and **SAS-7 (secrets storage)** meet.
 
 #### 3. Fail-Open on a Security Check
 
@@ -134,7 +134,7 @@ exports.handler = async (event) => {
 };
 ```
 
-**Risk**: Because the failure happens after a non-idempotent side effect and before acknowledgement, the automatic retry duplicates it—the SAS-10 / **SAS-9 (business-logic / flow)** overlap.
+**Risk**: Because the failure happens after a non-idempotent side effect and before acknowledgement, the automatic retry duplicates it-the SAS-10 / **SAS-9 (business-logic / flow)** overlap.
 
 #### 5. Error-Type Oracle Enabling Enumeration
 
@@ -143,7 +143,7 @@ GET /account?email=alice@example.com   -> 500 "KeyError: 'stripe_customer_id'"
 GET /account?email=nobody@example.com  -> 404 "not found"
 ```
 
-**Risk**: The two error shapes differ only for accounts that exist, so the endpoint confirms which emails are registered—an information-disclosure oracle built entirely out of inconsistent error handling.
+**Risk**: The two error shapes differ only for accounts that exist, so the endpoint confirms which emails are registered-an information-disclosure oracle built entirely out of inconsistent error handling.
 
 ### Where the Detail Leaks Out
 
@@ -164,7 +164,7 @@ The incidents below are described as **classes of failure** that are repeatedly 
 
 **Failure**:
 
-- Functions and web endpoints ship with framework debug behaviour left on, so unhandled exceptions render full stack traces—file paths, library versions, and sometimes fragments of configuration—straight to the client.
+- Functions and web endpoints ship with framework debug behaviour left on, so unhandled exceptions render full stack traces-file paths, library versions, and sometimes fragments of configuration-straight to the client.
 
 **Impact**:
 
@@ -180,7 +180,7 @@ The incidents below are described as **classes of failure** that are repeatedly 
 
 **Impact**:
 
-- Credentials, tokens, and connection strings end up in client responses or in log stores that are more widely readable than the secret store itself—a documented pattern behind many credential-exposure incidents. The leaked credential is then reused directly, with no further exploitation of the function needed.
+- Credentials, tokens, and connection strings end up in client responses or in log stores that are more widely readable than the secret store itself-a documented pattern behind many credential-exposure incidents. The leaked credential is then reused directly, with no further exploitation of the function needed.
 
 **Root Cause**: Treating the execution environment as safe to dump, and conflating "log everything" with observability. Overlaps directly with SAS-7.
 
@@ -192,21 +192,21 @@ The incidents below are described as **classes of failure** that are repeatedly 
 
 **Impact**:
 
-- The platform re-delivers and re-runs the function, repeating the side effect—duplicated charges, duplicate notifications, or double-inserted records. This is a well-understood consequence of at-least-once delivery and is the reason platform guidance repeatedly stresses idempotent function design.
+- The platform re-delivers and re-runs the function, repeating the side effect-duplicated charges, duplicate notifications, or double-inserted records. This is a well-understood consequence of at-least-once delivery and is the reason platform guidance repeatedly stresses idempotent function design.
 
 **Root Cause**: Error paths that neither clean up partial work nor make the operation safe to repeat, combined with automatic retry semantics. Overlaps with SAS-9.
 
 ## Prevalence and Statistics
 
-Improper error handling and information leakage through error messages are among the **most consistently observed weaknesses** in application security work. They map to long-standing CWE entries—such as improper error handling, generation of an error message containing sensitive information, and information exposure through an error message—and appear across the OWASP Top 10 (notably under Security Misconfiguration) and the OWASP Serverless Top 10.
+Improper error handling and information leakage through error messages are among the **most consistently observed weaknesses** in application security work. They map to long-standing CWE entries-such as improper error handling, generation of an error message containing sensitive information, and information exposure through an error message-and appear across the OWASP Top 10 (notably under Security Misconfiguration) and the OWASP Serverless Top 10.
 
 Rather than cite precise counts (which vary by source and year), the defensible picture is:
 
-- Verbose error output is characterised as **highly prevalent and trivially detectable**—a single malformed request often surfaces it.
+- Verbose error output is characterised as **highly prevalent and trivially detectable**-a single malformed request often surfaces it.
 - The most commonly observed sub-issues are **raw stack traces returned to callers, environment/secret leakage in error dumps, fail-open handling of security checks, and duplicate side effects from retried failures**.
-- The impact spans **information disclosure up through credential exposure, security-control bypass, and data-integrity loss**—so severity is best judged by what the specific leak or fail-open enables, not by the error itself.
+- The impact spans **information disclosure up through credential exposure, security-control bypass, and data-integrity loss**-so severity is best judged by what the specific leak or fail-open enables, not by the error itself.
 
-> Note: exact percentages differ between reports. Treat any single figure as illustrative; the durable takeaway is that verbose, unhandled errors are common, easy to trigger, and cheap to exploit—while the fix (generic client errors + detailed server-side logs + fail-closed paths) is well understood.
+> Note: exact percentages differ between reports. Treat any single figure as illustrative; the durable takeaway is that verbose, unhandled errors are common, easy to trigger, and cheap to exploit-while the fix (generic client errors + detailed server-side logs + fail-closed paths) is well understood.
 
 ## Common Misunderstandings
 
@@ -220,7 +220,7 @@ Rather than cite precise counts (which vary by source and year), the defensible 
 
 ### Myth 3: "Catching every exception and continuing makes the function more robust"
 
-**Reality**: A blanket `catch` that swallows the error and proceeds is how fail-open bugs are born. For security-relevant operations, an error must fail *closed*—deny and stop—not fall through to the privileged path.
+**Reality**: A blanket `catch` that swallows the error and proceeds is how fail-open bugs are born. For security-relevant operations, an error must fail *closed*-deny and stop-not fall through to the privileged path.
 
 ### Myth 4: "If the function threw, nothing happened"
 
@@ -245,11 +245,11 @@ Rather than cite precise counts (which vary by source and year), the defensible 
 
 ## Key Takeaways
 
-1. **The default is hostile**—serverless platforms surface raw errors to callers and retry failures automatically; you must override both deliberately.
-2. **Two audiences, two messages**—the caller gets a generic error plus a correlation id; the full detail goes only to server-side structured logs.
-3. **Fail closed on anything security-relevant**—an exception in an authz or validation path must deny, never fall through to "allow".
-4. **Errors can duplicate work**—on at-least-once sources, clean up partial writes and make side effects idempotent so retries are safe.
-5. **Never lose the record**—ensure the error is caught and logged so the audit trail survives the crash, and keep secrets and stack traces out of both the response and the logs.
+1. **The default is hostile**-serverless platforms surface raw errors to callers and retry failures automatically; you must override both deliberately.
+2. **Two audiences, two messages**-the caller gets a generic error plus a correlation id; the full detail goes only to server-side structured logs.
+3. **Fail closed on anything security-relevant**-an exception in an authz or validation path must deny, never fall through to "allow".
+4. **Errors can duplicate work**-on at-least-once sources, clean up partial writes and make side effects idempotent so retries are safe.
+5. **Never lose the record**-ensure the error is caught and logged so the audit trail survives the crash, and keep secrets and stack traces out of both the response and the logs.
 
 ## How to Identify if You're Vulnerable
 

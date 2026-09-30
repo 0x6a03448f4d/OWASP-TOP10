@@ -19,7 +19,7 @@ Preventing credential mishandling is less about one control and more about **shr
 
 ## 1. Keep Secrets Out of Code and Git
 
-Secrets belong in a secrets manager or the CI platform's secret store, injected at runtime—never typed into code, pipeline YAML, or Dockerfiles.
+Secrets belong in a secrets manager or the CI platform's secret store, injected at runtime-never typed into code, pipeline YAML, or Dockerfiles.
 
 ```yaml
 # GitHub Actions: reference a stored secret, never a literal
@@ -48,7 +48,7 @@ steps:
     with:
       role-to-assume: arn:aws:iam::123456789012:role/ci-deployer
       aws-region: us-east-1
-      # No AWS_ACCESS_KEY_ID / SECRET stored — a short-lived token is minted
+      # No AWS_ACCESS_KEY_ID / SECRET stored - a short-lived token is minted
 ```
 
 ```json
@@ -64,7 +64,7 @@ steps:
 }
 ```
 
-A credential that expires in minutes and is bound to a specific repo and branch is nearly worthless if leaked—there is no long-lived key to harvest.
+A credential that expires in minutes and is bound to a specific repo and branch is nearly worthless if leaked-there is no long-lived key to harvest.
 
 ## 3. Scope Secrets Minimally
 
@@ -73,7 +73,7 @@ Give each secret the smallest possible audience and permission set. Never share 
 - **Per environment**: separate credentials for dev, staging, and prod, so a dev leak cannot touch prod.
 - **Per pipeline/repo**: distinct identities so one leak does not compromise unrelated projects.
 - **Per job/step**: inject a secret only into the step that needs it, not the whole job.
-- **Least privilege**: the underlying IAM policy grants only the specific actions the job performs—never `"*":"*"`.
+- **Least privilege**: the underlying IAM policy grants only the specific actions the job performs-never `"*":"*"`.
 
 ```yaml
 # GitLab CI: expose a secret only to the deploy job, not the whole pipeline
@@ -81,7 +81,7 @@ deploy_prod:
   stage: deploy
   environment: production        # scope the variable to this environment only
   script: ./deploy.sh
-  # PROD_TOKEN is a protected, environment-scoped variable — not visible to test jobs
+  # PROD_TOKEN is a protected, environment-scoped variable - not visible to test jobs
 ```
 
 ## 4. Rotate Regularly and on Exposure
@@ -107,14 +107,14 @@ Narrow scoping (section 3) is what makes rotation safe: rotating a per-pipeline 
 Register every secret with the platform's masker, and prohibit shell tracing and explicit prints of secrets.
 
 ```bash
-# Do NOT do this — defeats masking and leaks the value:
+# Do NOT do this - defeats masking and leaks the value:
 set -x                                   # traces expanded secrets
 echo "token=$API_TOKEN"                  # explicit print
 
 # Instead: keep tracing off around secrets, and register masks explicitly.
-# GitHub Actions — add a dynamically derived secret to the masker:
+# GitHub Actions - add a dynamically derived secret to the masker:
 echo "::add-mask::$DERIVED_TOKEN"
-# GitLab — mark variables as "Masked" and "Protected" in project settings.
+# GitLab - mark variables as "Masked" and "Protected" in project settings.
 ```
 
 Treat masking as a backstop, not a guarantee: the real control is never letting a secret reach stdout/stderr in the first place. Restrict who can read pipeline logs, too.
@@ -148,14 +148,14 @@ Run scanning on every pull request and on a schedule, and enable any provider-si
 
 ## 7. Purge Leaked Secrets from History AND Rotate
 
-When a secret is found in history, rotation is the fix and history rewriting is cleanup—do both, rotation first.
+When a secret is found in history, rotation is the fix and history rewriting is cleanup-do both, rotation first.
 
 ```bash
 # 1) ROTATE the credential at the provider first (see section 4).
 # 2) Then remove the value from history so it stops being harvested:
 git filter-repo --replace-text <(echo 'AKIAIOSFODNN7EXAMPLE==>REMOVED')
-#   (or the BFG Repo-Cleaner) — then force-push and have collaborators re-clone.
-# Remember: forks, mirrors, and caches may still hold the old value —
+#   (or the BFG Repo-Cleaner) - then force-push and have collaborators re-clone.
+# Remember: forks, mirrors, and caches may still hold the old value -
 # which is exactly why rotation, not deletion, is the real remediation.
 ```
 
@@ -180,7 +180,7 @@ Audit images (`docker history`) and artifacts as part of CI so a baked-in secret
 
 ## 9. No Standing Human Access to Production Secrets; Ephemeral Runners
 
-- **No standing human access**: production secrets should be reachable only by the automated pipeline identity. Humans get access *just in time*, time-boxed, approved, and audited—not as a permanent grant in the console.
+- **No standing human access**: production secrets should be reachable only by the automated pipeline identity. Humans get access *just in time*, time-boxed, approved, and audited-not as a permanent grant in the console.
 - **Ephemeral runners**: use fresh, single-use build runners so secrets and tokens do not linger in a long-lived worker's memory, disk, or environment between jobs.
 - **Isolate by trust level**: run untrusted workloads (for example fork PRs) on runners that never see production secrets.
 
@@ -218,11 +218,11 @@ Feed provider audit logs (cloud CloudTrail-style logs, registry access logs) and
 
 ## Key Takeaways
 
-1. **Don't store what you can mint** — short-lived OIDC-federated credentials remove the long-lived key attackers harvest.
-2. **Scope narrowly** — per-environment, per-pipeline, per-step secrets contain any leak and make rotation painless.
-3. **Rotate, then clean up** — an exposed secret is compromised until rotated; purging history is cleanup, not the fix.
-4. **Keep secrets out of logs and artifacts** — prevention beats redaction; never bake secrets into images.
-5. **Automate detection** — scan pre-commit and in CI, and monitor provider logs for credential abuse.
+1. **Don't store what you can mint** - short-lived OIDC-federated credentials remove the long-lived key attackers harvest.
+2. **Scope narrowly** - per-environment, per-pipeline, per-step secrets contain any leak and make rotation painless.
+3. **Rotate, then clean up** - an exposed secret is compromised until rotated; purging history is cleanup, not the fix.
+4. **Keep secrets out of logs and artifacts** - prevention beats redaction; never bake secrets into images.
+5. **Automate detection** - scan pre-commit and in CI, and monitor provider logs for credential abuse.
 
 ## Next Steps
 

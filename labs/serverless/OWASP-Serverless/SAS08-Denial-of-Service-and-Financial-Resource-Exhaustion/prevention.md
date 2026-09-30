@@ -2,14 +2,14 @@
 
 ## Prevention Strategy Overview
 
-Preventing this weakness is about one theme applied everywhere: **put a limit on every dimension that can scale**—concurrency, request rate, duration, input size, recursion, retries, downstream load, and cost. Auto-scaling is safe only when it is bounded. The layered strategy:
+Preventing this weakness is about one theme applied everywhere: **put a limit on every dimension that can scale**-concurrency, request rate, duration, input size, recursion, retries, downstream load, and cost. Auto-scaling is safe only when it is bounded. The layered strategy:
 
 1. Cap concurrency per function (and understand your account limit).
 2. Throttle and quota public endpoints at the API layer, with a WAF rate rule in front.
-3. Shrink each unit of work—short timeouts, right-sized memory, input size limits.
-4. Break amplification—guard against recursion, cap retries, use dead-letter queues.
+3. Shrink each unit of work-short timeouts, right-sized memory, input size limits.
+4. Break amplification-guard against recursion, cap retries, use dead-letter queues.
 5. Protect downstream calls with timeouts and circuit breakers.
-6. Bound cost—Budgets, Cost Anomaly Detection, and CloudWatch alarms (ties to SAS-5).
+6. Bound cost-Budgets, Cost Anomaly Detection, and CloudWatch alarms (ties to SAS-5).
 7. Reduce anonymous abuse with authentication (ties to SAS-2) and design for graceful degradation.
 
 ### Core Principles
@@ -21,10 +21,10 @@ Preventing this weakness is about one theme applied everywhere: **put a limit on
 
 ## 1. Cap Per-Function Reserved Concurrency
 
-Reserved concurrency does two jobs at once: it *guarantees* a function some capacity and—more importantly here—it *caps* the maximum concurrent executions, so a flood on one function cannot drain the shared account pool and starve the rest.
+Reserved concurrency does two jobs at once: it *guarantees* a function some capacity and-more importantly here-it *caps* the maximum concurrent executions, so a flood on one function cannot drain the shared account pool and starve the rest.
 
 ```yaml
-# serverless.yml — cap each function; the cap IS the DoS/DoW circuit breaker.
+# serverless.yml - cap each function; the cap IS the DoS/DoW circuit breaker.
 functions:
   render:
     handler: handler.render
@@ -43,7 +43,7 @@ Reserve capacity for critical functions *and* ceiling non-critical ones. A publi
 The API layer is where you convert "unbounded request rate" into "bounded invocations." Use per-stage/per-method throttling and usage-plan quotas with API keys.
 
 ```yaml
-# serverless.yml — API Gateway usage plan: rate + burst + daily quota
+# serverless.yml - API Gateway usage plan: rate + burst + daily quota
 provider:
   apiGateway:
     usagePlan:
@@ -85,11 +85,11 @@ Rule: RateLimitPerIP
 The cheaper and shorter each invocation, the less any flood or loop can cost. Size timeout and memory to the *actual* workload, not "just in case," and reject oversized input early.
 
 ```yaml
-# serverless.yml — tight, right-sized function limits
+# serverless.yml - tight, right-sized function limits
 functions:
   thumbnail:
     handler: handler.thumb
-    timeout: 10                  # seconds — as short as the task truly needs
+    timeout: 10                  # seconds - as short as the task truly needs
     memorySize: 256              # right-sized; billed per GB-second
     events:
       - http:
@@ -128,7 +128,7 @@ Amplification is what turns a small event into a storm. Remove the loops and cap
 ```
 
 ```yaml
-# serverless.yml — cap retries and send failures to a dead-letter queue
+# serverless.yml - cap retries and send failures to a dead-letter queue
 functions:
   worker:
     handler: handler.worker
@@ -144,7 +144,7 @@ functions:
 
 ## 6. Protect Downstream Calls (Circuit Breakers & Pooling)
 
-Function concurrency maps directly onto downstream load. Bound that too, or a flood becomes a database or third-party-API outage—and a bigger bill.
+Function concurrency maps directly onto downstream load. Bound that too, or a flood becomes a database or third-party-API outage-and a bigger bill.
 
 ```javascript
 // Timeout + circuit breaker around a metered downstream call
@@ -163,10 +163,10 @@ async function callDownstream(input) {
 
 ## 7. Bound Cost: Budgets, Anomaly Detection, Alarms
 
-Cost is a security signal in serverless. Wire spend and invocation rate into alarms so a spike pages a human—this is the SAS-5 monitoring layer applied to SAS-8.
+Cost is a security signal in serverless. Wire spend and invocation rate into alarms so a spike pages a human-this is the SAS-5 monitoring layer applied to SAS-8.
 
 ```yaml
-# AWS Budgets — notify BEFORE the month's spend runs away
+# AWS Budgets - notify BEFORE the month's spend runs away
 Budget: MonthlyServerlessCeiling
   Amount: <your ceiling>   TimeUnit: MONTHLY
   Notifications:
@@ -176,7 +176,7 @@ Budget: MonthlyServerlessCeiling
 ```
 
 ```yaml
-# CloudWatch alarms — invocation-rate + estimated charges (early DoW signal)
+# CloudWatch alarms - invocation-rate + estimated charges (early DoW signal)
 InvocationSpikeAlarm:
   Namespace: AWS/Lambda   MetricName: Invocations   Statistic: Sum
   Period: 60   EvaluationPeriods: 2   Threshold: 5000
@@ -195,7 +195,7 @@ BillingSpikeAlarm:
 Every request that must be authenticated is a request an anonymous attacker cannot cheaply flood. Where a function need not be public, require auth (ties to SAS-2). And design so that, when limits *are* hit, the system sheds load cleanly rather than cascading.
 
 - Put authentication/authorization in front of any function that does not need to be anonymous; use API keys + usage plans for partner traffic.
-- Return fast, cheap `429`/`503` responses when throttled—never a long, billable error path.
+- Return fast, cheap `429`/`503` responses when throttled-never a long, billable error path.
 - Prefer queue-based load levelling (SQS in front of the function) so bursts are absorbed and processed at a bounded rate instead of scaling concurrency 1:1.
 - Keep non-critical functions capped low so their failure never consumes the capacity of critical ones.
 
@@ -216,11 +216,11 @@ Every request that must be authenticated is a request an anonymous attacker cann
 
 ## Key Takeaways
 
-1. **Cap concurrency per function** — the reserved-concurrency ceiling is your primary DoS/DoW circuit breaker and blast-radius limiter.
-2. **Throttle at the edge and API layer** — WAF rate rules plus API Gateway throttling and quotas turn an unbounded flood into a bounded rate.
-3. **Make each unit cheap and short** — right-sized memory, short timeouts, and input limits shrink what any abuse can cost.
-4. **Kill amplification** — separate input/output prefixes, recursion guards, capped retries, and DLQs stop self-scaling storms.
-5. **Bound cost and enforce, don't just alert** — Budgets and anomaly detection warn; caps, throttles, and auto-responders actually halt the spend.
+1. **Cap concurrency per function** - the reserved-concurrency ceiling is your primary DoS/DoW circuit breaker and blast-radius limiter.
+2. **Throttle at the edge and API layer** - WAF rate rules plus API Gateway throttling and quotas turn an unbounded flood into a bounded rate.
+3. **Make each unit cheap and short** - right-sized memory, short timeouts, and input limits shrink what any abuse can cost.
+4. **Kill amplification** - separate input/output prefixes, recursion guards, capped retries, and DLQs stop self-scaling storms.
+5. **Bound cost and enforce, don't just alert** - Budgets and anomaly detection warn; caps, throttles, and auto-responders actually halt the spend.
 
 ## Next Steps
 

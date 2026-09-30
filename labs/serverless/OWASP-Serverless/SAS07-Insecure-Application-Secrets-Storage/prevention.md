@@ -7,7 +7,7 @@ Preventing this weakness is a single principle applied everywhere: **secrets are
 1. Store secrets in a managed secret store (Secrets Manager / SSM Parameter Store SecureString), encrypted with KMS.
 2. Fetch at runtime with a least-privilege role, and cache in memory to limit calls and cost.
 3. Keep secrets out of code, environment variables, IaC, and Git entirely.
-4. If you must use environment variables, encrypt them with KMS—and prefer not to.
+4. If you must use environment variables, encrypt them with KMS-and prefer not to.
 5. Rotate secrets automatically, scope them per function, scan repos and artifacts, and redact logs.
 
 ### Core Principles
@@ -36,7 +36,7 @@ $ aws ssm put-parameter \
     --value 'sk_live_51H...redacted'
 ```
 
-Both stores keep the value encrypted at rest and hand out plaintext only to callers whose IAM policy explicitly allows it—so the secret is never in your code, config, or history.
+Both stores keep the value encrypted at rest and hand out plaintext only to callers whose IAM policy explicitly allows it-so the secret is never in your code, config, or history.
 
 ## 2. Fetch at Runtime With a Least-Privilege Role (and Cache)
 
@@ -67,7 +67,7 @@ exports.handler = async (event) => {
 Scope the execution role to exactly the one secret:
 
 ```
-# IAM policy attached to the function's role — least privilege to ONE secret
+# IAM policy attached to the function's role - least privilege to ONE secret
 {
   "Effect": "Allow",
   "Action": "secretsmanager:GetSecretValue",
@@ -76,14 +76,14 @@ Scope the execution role to exactly the one secret:
 # Plus kms:Decrypt on the specific key, if the secret uses a customer-managed key.
 ```
 
-> For lower latency and cost, use the AWS Parameters and Secrets Lambda Extension (or Powertools' `getSecret` with a TTL) instead of hand-rolled caching—it caches fetched secrets in the execution environment for you.
+> For lower latency and cost, use the AWS Parameters and Secrets Lambda Extension (or Powertools' `getSecret` with a TTL) instead of hand-rolled caching-it caches fetched secrets in the execution environment for you.
 
 ## 3. Keep Secrets Out of Code, Env Vars, IaC, and Git
 
-The most reliable defence is that the value simply is not there to leak. Reference secrets by *name/ARN* in configuration—never by value.
+The most reliable defence is that the value simply is not there to leak. Reference secrets by *name/ARN* in configuration-never by value.
 
 ```
-# serverless.yml — reference the secret, never inline it.
+# serverless.yml - reference the secret, never inline it.
 provider:
   name: aws
   environment:
@@ -101,18 +101,18 @@ provider:
           Resource: arn:aws:ssm:*:*:parameter/prod/checkout/stripe_key
 ```
 
-Add a `.gitignore` for `.env` and local secret files, and never bundle them into the deployment package—use the framework's package/exclude rules so the artifact contains code only.
+Add a `.gitignore` for `.env` and local secret files, and never bundle them into the deployment package-use the framework's package/exclude rules so the artifact contains code only.
 
 ## 4. If You Must Use Environment Variables, Encrypt Them With KMS
 
 Sometimes an integration only reads a value from the environment. If you truly cannot avoid an env var, encrypt it with a customer-managed KMS key and decrypt in-process, so the plaintext is never stored in the function configuration.
 
 ```
-# serverless.yml — encrypt env-var values at rest with a CMK
+# serverless.yml - encrypt env-var values at rest with a CMK
 provider:
   kmsKeyArn: arn:aws:kms:us-east-1:123456789012:key/abc-123   # encrypts env vars
 # The stored value is ciphertext; the function decrypts it at cold start with
-# kms:Decrypt. Prefer a managed store over this — it is the fallback, not the goal.
+# kms:Decrypt. Prefer a managed store over this - it is the fallback, not the goal.
 ```
 
 This is strictly a mitigation: it protects the value at rest in the config, but the decrypted secret still lives in `process.env` at runtime, readable by in-process dependencies. A managed store fetched on demand is still preferable.
@@ -128,14 +128,14 @@ $ aws secretsmanager rotate-secret \
     --rotation-lambda-arn arn:aws:lambda:...:function:SecretsManagerRDSRotation \
     --rotation-rules '{"AutomaticallyAfterDays": 30}'
 # The function always fetches the CURRENT value at runtime, so rotation is
-# transparent to the code — no redeploy, no manual key swap.
+# transparent to the code - no redeploy, no manual key swap.
 ```
 
 ## 6. Scope Secrets Per Function
 
 Do not hand one shared secret to every function. Give each function its own least-privilege access to only the secrets it needs, so compromising one function cannot expose credentials for systems it never touched.
 
-- One secret (or namespaced path) per purpose: `/prod/checkout/db`, `/prod/reports/db`—not a single shared `DB_PASSWORD`.
+- One secret (or namespaced path) per purpose: `/prod/checkout/db`, `/prod/reports/db`-not a single shared `DB_PASSWORD`.
 - Grant each function's role `GetSecretValue`/`GetParameter` on *only* its own ARNs.
 - Use distinct downstream credentials per function where practical, so a leaked one is scoped and independently rotatable (ties to SAS-4).
 
@@ -153,7 +153,7 @@ $ gitleaks detect --log-opts="--all" --exit-code 1
 ```
 
 ```
-# .pre-commit-config.yaml — stop secrets before they enter history
+# .pre-commit-config.yaml - stop secrets before they enter history
 repos:
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.18.0
@@ -161,14 +161,14 @@ repos:
       - id: gitleaks
 ```
 
-Also enable your code host's native push protection / secret scanning as a second net. If a scan finds a live secret, **rotate it**—removing the line is not enough.
+Also enable your code host's native push protection / secret scanning as a second net. If a scan finds a live secret, **rotate it**-removing the line is not enough.
 
 ## 8. Redact Secrets From Logs and Errors
 
 Never print the event, the environment, or config objects. Log identifiers and outcomes, not values, and scrub known-sensitive fields before emitting (ties to SAS-5).
 
 ```
-// Redact before logging — never console.log(process.env) or the raw event.
+// Redact before logging - never console.log(process.env) or the raw event.
 const REDACT = new Set(['password','db_password','stripe_secret_key','token','authorization']);
 function safe(obj) {
   return Object.fromEntries(Object.entries(obj)
@@ -180,7 +180,7 @@ console.log('request', safe({ orderId: id, user: userId }));  // no secrets
 
 ## 9. Prefer Short-Lived Credentials Over Static Keys
 
-Where a secret is really just an identity, replace it with an IAM role. Functions already run with an execution role—use it (and cross-account `AssumeRole`, or IAM database authentication) so there is no static key to store, leak, or rotate at all.
+Where a secret is really just an identity, replace it with an IAM role. Functions already run with an execution role-use it (and cross-account `AssumeRole`, or IAM database authentication) so there is no static key to store, leak, or rotate at all.
 
 - Talk to AWS services via the execution role, not stored access keys.
 - Use IAM authentication for RDS/Aurora instead of a static DB password where supported.
@@ -201,11 +201,11 @@ Where a secret is really just an identity, replace it with an IAM role. Function
 
 ## Key Takeaways
 
-1. **Fetch, don't embed** — store secrets in a managed, KMS-encrypted store and retrieve them at runtime with a least-privilege role.
-2. **Cache the fetch** — hold the value in memory across warm invocations to keep latency and cost down.
-3. **Keep secrets out of code, env vars, IaC, and Git** — reference by name/ARN, and if you must use env vars, encrypt them with KMS.
-4. **Rotate and scope** — automatic rotation shrinks the window of a leak; per-function access shrinks its blast radius.
-5. **Scan and redact** — block secrets from repos and artifacts, keep them out of logs, and rotate anything that ever leaked.
+1. **Fetch, don't embed** - store secrets in a managed, KMS-encrypted store and retrieve them at runtime with a least-privilege role.
+2. **Cache the fetch** - hold the value in memory across warm invocations to keep latency and cost down.
+3. **Keep secrets out of code, env vars, IaC, and Git** - reference by name/ARN, and if you must use env vars, encrypt them with KMS.
+4. **Rotate and scope** - automatic rotation shrinks the window of a leak; per-function access shrinks its blast radius.
+5. **Scan and redact** - block secrets from repos and artifacts, keep them out of logs, and rotate anything that ever leaked.
 
 ## Next Steps
 

@@ -7,7 +7,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 
 function decode(s) {
   return s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'").replace(/&mdash;/g, '—').replace(/&ndash;/g, '–')
+    .replace(/&#39;/g, "'").replace(/&mdash;/g, '-').replace(/&ndash;/g, '–')
     .replace(/&larr;/g, '←').replace(/&rarr;/g, '→').replace(/&hellip;/g, '…')
     .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&');
 }

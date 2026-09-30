@@ -15,7 +15,7 @@ These paired examples show how a Denial of Service condition is introduced in So
 
 ## 1. Push-Payment Refund Loop vs. Pull Payments
 
-The classic DoS. A function pushes ETH to every recipient in a single transaction. If one recipient is a contract whose `receive()` reverts (a "poison" recipient), the whole loop reverts and *nobody* gets paid — forever.
+The classic DoS. A function pushes ETH to every recipient in a single transaction. If one recipient is a contract whose `receive()` reverts (a "poison" recipient), the whole loop reverts and *nobody* gets paid - forever.
 
 ### Vulnerable: refund all bidders in one push loop
 
@@ -39,9 +39,9 @@ contract Sale {
 }
 ```
 
-> **Why it breaks:** a buyer can be a contract with `receive() external payable { revert(); }`. Once such an address is in `buyers`, `refundEveryone()` reverts every time it is called — a permanent freeze that any single participant can trigger.
+> **Why it breaks:** a buyer can be a contract with `receive() external payable { revert(); }`. Once such an address is in `buyers`, `refundEveryone()` reverts every time it is called - a permanent freeze that any single participant can trigger.
 
-### Secure: pull pattern — each user withdraws their own funds
+### Secure: pull pattern - each user withdraws their own funds
 
 ```solidity
 // SECURE: per-user accounting; one failure is isolated to that user
@@ -69,7 +69,7 @@ The mechanism no longer depends on any single transfer succeeding. This is the s
 
 ## 2. Unbounded Loop vs. Pagination / Pull
 
-A function that loops over an array users can grow will eventually cost more gas than the block gas limit allows — at which point it can *never* execute again. An attacker can accelerate this by cheaply adding many entries.
+A function that loops over an array users can grow will eventually cost more gas than the block gas limit allows - at which point it can *never* execute again. An attacker can accelerate this by cheaply adding many entries.
 
 ### Vulnerable: iterate a user-growable array
 
@@ -93,7 +93,7 @@ contract Rewards {
 
 > **Why it breaks:** nothing caps `participants.length`. Once the loop's total gas passes the block limit, `distribute()` reverts on out-of-gas for everyone, locking the distribution.
 
-### Secure option A: pull — no loop at all
+### Secure option A: pull - no loop at all
 
 ```solidity
 // SECURE: O(1) per user, no sweep over an unbounded array
@@ -132,7 +132,7 @@ Prefer per-user mappings over arrays you must sweep. When a loop is truly requir
 
 ## 3. Stuck Auction vs. Credit-and-Withdraw
 
-A "refund-on-outbid" auction pushes the previous leader's bid back to them when a new bid arrives. If the current leader is a contract that rejects ETH, the refund reverts, so *no new bid can ever succeed* — the attacker stays the highest bidder forever and the auction is frozen.
+A "refund-on-outbid" auction pushes the previous leader's bid back to them when a new bid arrives. If the current leader is a contract that rejects ETH, the refund reverts, so *no new bid can ever succeed* - the attacker stays the highest bidder forever and the auction is frozen.
 
 ### Vulnerable: push the refund inside `bid()`
 
@@ -186,7 +186,7 @@ contract Auction {
 }
 ```
 
-A poison previous bidder can no longer block new bids — their refund simply waits for them to pull it.
+A poison previous bidder can no longer block new bids - their refund simply waits for them to pull it.
 
 ## 4. Hard External Dependency vs. Failure Isolation
 
@@ -241,7 +241,7 @@ One misbehaving dependency now yields a clean, recoverable error instead of a pe
 
 ## 5. Forced-Balance Griefing vs. Internal Accounting
 
-ETH can be force-sent to any contract via `selfdestruct` (or a pre-computed address), bypassing `receive()`. Logic that trusts `address(this).balance` — especially an exact-equality check — can be permanently jammed by a griefer who nudges the balance off the expected value.
+ETH can be force-sent to any contract via `selfdestruct` (or a pre-computed address), bypassing `receive()`. Logic that trusts `address(this).balance` - especially an exact-equality check - can be permanently jammed by a griefer who nudges the balance off the expected value.
 
 ### Vulnerable: exact-balance check an attacker can break
 
@@ -295,7 +295,7 @@ Internal accounting plus a `>=` comparison removes the attacker's ability to jam
 | 4 | Critical path hard-depends on an external call | `try/catch` isolation + swappable dependency | A paused, reverting, or destroyed dependency yields a recoverable error instead of a permanent lockup |
 | 5 | Exact check on `address(this).balance` | Internal deposit counter with `>=` | Force-sent ETH can't move the tracked total, so the invariant can't be griefed into a permanent revert |
 
-> **One rule ties them together:** never let one participant's failure — or one unbounded cost — become everyone's failure. Isolate failures per user, bound every loop, and never make a critical path depend on an untrusted external outcome.
+> **One rule ties them together:** never let one participant's failure - or one unbounded cost - become everyone's failure. Isolate failures per user, bound every loop, and never make a critical path depend on an untrusted external outcome.
 
 ## Next Steps
 

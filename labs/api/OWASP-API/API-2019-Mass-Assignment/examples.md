@@ -13,7 +13,7 @@ app = Flask(__name__)
 
 @app.route('/api/users', methods=['POST'])
 def create_user():
-    # The whole body is unpacked onto the model — every key becomes a column.
+    # The whole body is unpacked onto the model - every key becomes a column.
     user = User(**request.get_json())     # {"role": "admin"} is bound here
     db.session.add(user)
     db.session.commit()
@@ -145,7 +145,7 @@ app.patch('/api/users/me', async (req, res) => {
 });
 ```
 
-**What changed**: a `zod` `.strict()` schema is the input boundary, so only whitelisted keys survive. The model is constructed field-by-field from validated data—never from `req.body` directly.
+**What changed**: a `zod` `.strict()` schema is the input boundary, so only whitelisted keys survive. The model is constructed field-by-field from validated data-never from `req.body` directly.
 
 ## Spring Boot + JPA (Java)
 
@@ -176,7 +176,7 @@ class UserController {
 
 ### Secure
 ```java
-// Input DTOs — only client-settable fields exist on these records.
+// Input DTOs - only client-settable fields exist on these records.
 public record UserCreateRequest(
         @NotBlank String username,
         @Email String email,

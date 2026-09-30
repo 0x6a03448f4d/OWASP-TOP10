@@ -10,11 +10,11 @@
 
 ## What is this control?
 
-**Stop Server-Side Request Forgery (SSRF)** is the proactive control of making sure that when *your server* fetches a URL, it can only ever reach destinations you intended—never an internal service, a cloud metadata endpoint, or a local file. SSRF happens when an attacker supplies or influences a URL that the application then requests on its behalf, turning your trusted server into a proxy that speaks from *inside* your network. This control is the set of defenses that closes that door.
+**Stop Server-Side Request Forgery (SSRF)** is the proactive control of making sure that when *your server* fetches a URL, it can only ever reach destinations you intended-never an internal service, a cloud metadata endpoint, or a local file. SSRF happens when an attacker supplies or influences a URL that the application then requests on its behalf, turning your trusted server into a proxy that speaks from *inside* your network. This control is the set of defenses that closes that door.
 
 The vulnerability is **Server-Side Request Forgery**; this page is the **defense that stops it**. The distinction matters: the risk is "my server can be tricked into making a request I did not intend"; the control is "every outbound request my server makes is validated against an allow-list, resolved and re-checked at the IP level, and confined by the network so it physically cannot reach anything sensitive."
 
-> **Note on taxonomy**: In the 2021 OWASP Top 10, SSRF was its own category (A10). In the 2025 web Top 10 it has been *folded into Broken Access Control* rather than standing alone. It nonetheless remains a distinct, first-class item in the OWASP Top 10 Proactive Controls (C10, 2024) because stopping it is a specific engineering discipline—how you handle outbound URLs—that developers need to implement deliberately.
+> **Note on taxonomy**: In the 2021 OWASP Top 10, SSRF was its own category (A10). In the 2025 web Top 10 it has been *folded into Broken Access Control* rather than standing alone. It nonetheless remains a distinct, first-class item in the OWASP Top 10 Proactive Controls (C10, 2024) because stopping it is a specific engineering discipline-how you handle outbound URLs-that developers need to implement deliberately.
 
 ### Core Concept
 
@@ -64,7 +64,7 @@ The single most important idea in this control is that **a URL is not safe just 
 Stopping SSRF is a layered discipline; no single check is sufficient. The reinforcing practices are:
 
 - **Allow-list, do not block-list**: permit an explicit set of schemes, hosts, and ports; deny everything else by default.
-- **Validate the resolved IP, not the hostname**: resolve DNS, inspect the returned address(es), and reject private/loopback/link-local/reserved ranges—IPv4 *and* IPv6.
+- **Validate the resolved IP, not the hostname**: resolve DNS, inspect the returned address(es), and reject private/loopback/link-local/reserved ranges-IPv4 *and* IPv6.
 - **Defeat DNS rebinding**: re-resolve at connection time and connect to the exact IP you validated (pin it), so the answer cannot change underneath you.
 - **Disable unused URL schemes**: allow only `http`/`https`; never `file://`, `gopher://`, `dict://`, `ftp://`.
 - **Do not follow redirects** (or re-validate every hop): a `302` to `http://169.254.169.254/` must not be honored.
@@ -94,7 +94,7 @@ These are recurring *classes* of SSRF incident that this control is designed to 
 
 ### Class 1: Cloud metadata credential theft
 
-By far the most damaging SSRF class. A user-influenced fetch is steered to a cloud instance metadata service at the link-local address `169.254.169.254`. On configurations that expose credentials without a session token, the attacker retrieves the instance role's temporary keys and uses them against the cloud account. The industry response—session-token-based metadata services (IMDSv2) and mandatory hop limits—exists precisely because of this incident class. Blocking the metadata IP by network egress policy and requiring IMDSv2 closes it.
+By far the most damaging SSRF class. A user-influenced fetch is steered to a cloud instance metadata service at the link-local address `169.254.169.254`. On configurations that expose credentials without a session token, the attacker retrieves the instance role's temporary keys and uses them against the cloud account. The industry response-session-token-based metadata services (IMDSv2) and mandatory hop limits-exists precisely because of this incident class. Blocking the metadata IP by network egress policy and requiring IMDSv2 closes it.
 
 ### Class 2: Reaching internal-only services
 
@@ -116,11 +116,11 @@ Where the HTTP client honors extra schemes, `file://` reads local files and `gop
 
 ### Myth 2: "A block-list of 127.0.0.1 and localhost is enough"
 
-**Reality**: block-lists are endlessly bypassable—`127.0.0.1` also appears as `127.1`, `2130706433` (decimal), `0x7f000001` (hex), IPv6 `[::1]` and `[::ffff:127.0.0.1]`, and DNS names that resolve to loopback. Allow-list what is permitted instead.
+**Reality**: block-lists are endlessly bypassable-`127.0.0.1` also appears as `127.1`, `2130706433` (decimal), `0x7f000001` (hex), IPv6 `[::1]` and `[::ffff:127.0.0.1]`, and DNS names that resolve to loopback. Allow-list what is permitted instead.
 
 ### Myth 3: "It's an internal request, so there's nothing to steal"
 
-**Reality**: the internal network is exactly where the crown jewels live—metadata endpoints, databases, and admin planes. "Internal" is the target, not a mitigation.
+**Reality**: the internal network is exactly where the crown jewels live-metadata endpoints, databases, and admin planes. "Internal" is the target, not a mitigation.
 
 ### Myth 4: "Following redirects is fine, the first URL was checked"
 
@@ -128,7 +128,7 @@ Where the HTTP client honors extra schemes, `file://` reads local files and `gop
 
 ### Myth 5: "A WAF or URL-string filter will catch it"
 
-**Reality**: string filtering cannot account for every IP encoding, scheme, and DNS trick. The reliable control is IP-level validation after resolution plus network egress filtering—defense in depth, not a regex.
+**Reality**: string filtering cannot account for every IP encoding, scheme, and DNS trick. The reliable control is IP-level validation after resolution plus network egress filtering-defense in depth, not a regex.
 
 ## How This Control Relates to SSRF (the risk)
 
@@ -136,15 +136,15 @@ Where the HTTP client honors extra schemes, `file://` reads local files and `gop
 |--------|----------------------------------------|-------------------------|
 | **Nature** | Server tricked into an unintended request | Every outbound request is validated and confined |
 | **Default posture** | Fetches wherever the URL points | Deny by default; allow-listed destinations only |
-| **Where enforced** | Absent—URL used verbatim | App validation + resolved-IP check + network egress |
+| **Where enforced** | Absent-URL used verbatim | App validation + resolved-IP check + network egress |
 | **Failure mode** | Metadata theft, internal access, file read | Explicit, reviewed exception to the allow-list |
 
 ## Key Takeaways
 
-1. **The control is about outbound requests**—wherever your server fetches a user-influenced URL, it must be constrained.
-2. **Allow-list, never block-list**—permit specific schemes, hosts, and ports; deny everything else.
-3. **Check the resolved IP and pin it**—defeat DNS rebinding by validating and connecting to the same address.
-4. **Defense in depth**—app validation, disabled schemes, no redirects, network egress filtering, and IMDSv2 together.
+1. **The control is about outbound requests**-wherever your server fetches a user-influenced URL, it must be constrained.
+2. **Allow-list, never block-list**-permit specific schemes, hosts, and ports; deny everything else.
+3. **Check the resolved IP and pin it**-defeat DNS rebinding by validating and connecting to the same address.
+4. **Defense in depth**-app validation, disabled schemes, no redirects, network egress filtering, and IMDSv2 together.
 5. **SSRF moved under Broken Access Control in 2025, but the defense is still a distinct discipline** you implement in code and infrastructure.
 
 ## Self-Assessment Checklist

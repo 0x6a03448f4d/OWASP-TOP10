@@ -1098,6 +1098,6 @@ def not_found(error):
 
 **Congratulations!** You've completed the Security Misconfiguration lab. You now understand how configuration mistakes can lead to serious security vulnerabilities and how to prevent them.
 
-**Remember**: Security is not just about writing secure code—it's also about configuring your application securely for the environment it runs in.
+**Remember**: Security is not just about writing secure code-it's also about configuring your application securely for the environment it runs in.
 
 *Part of OWASP Mobile Top 10 - Educational Repository*

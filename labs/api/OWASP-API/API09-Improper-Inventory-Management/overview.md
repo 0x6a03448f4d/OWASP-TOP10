@@ -12,7 +12,7 @@
 
 **Improper Inventory Management** is the API security risk that arises when an organization loses track of *where its APIs are, what versions are running, and what data each one exposes*. It is less about a single flawed line of code and more about an **organizational blind spot**: hosts, endpoints, and versions that exist, answer requests, and touch real data, but that nobody is actively cataloguing, patching, or monitoring.
 
-The OWASP API Security Top 10 (2023) elevated this category precisely because modern API estates grow faster than the teams that own them. Microservices multiply, versions accumulate (`/v1`, `/v2`, `/v3`), non-production copies are stood up and forgotten, and third-party integrations quietly move sensitive data across trust boundaries. Every one of those artifacts is an asset an attacker can find — and defenders can only protect what they know exists.
+The OWASP API Security Top 10 (2023) elevated this category precisely because modern API estates grow faster than the teams that own them. Microservices multiply, versions accumulate (`/v1`, `/v2`, `/v3`), non-production copies are stood up and forgotten, and third-party integrations quietly move sensitive data across trust boundaries. Every one of those artifacts is an asset an attacker can find - and defenders can only protect what they know exists.
 
 ### The Vocabulary of Sprawl
 
@@ -66,10 +66,10 @@ Most API risks (BOLA, broken authentication, SSRF) describe a flaw *inside* a kn
 
 ### How Sprawl Actually Happens
 
-1. **Versioning without a deprecation policy** — `/v1` is kept alive "for a few old clients" and becomes permanent.
-2. **Non-production environments exposed to the internet** — staging with production-like data, weak controls, and verbose errors.
-3. **Framework defaults that expose endpoints** — Actuator, Swagger UI, GraphQL introspection, health/metrics routes enabled by default.
-4. **Third-party integrations** — each is a place where sensitive data crosses a trust boundary; if uninventoried, you cannot say what leaves or to whom.
+1. **Versioning without a deprecation policy** - `/v1` is kept alive "for a few old clients" and becomes permanent.
+2. **Non-production environments exposed to the internet** - staging with production-like data, weak controls, and verbose errors.
+3. **Framework defaults that expose endpoints** - Actuator, Swagger UI, GraphQL introspection, health/metrics routes enabled by default.
+4. **Third-party integrations** - each is a place where sensitive data crosses a trust boundary; if uninventoried, you cannot say what leaves or to whom.
 
 ```
 GET /api/v1/users/123    -> 200 OK  (legacy, no auth check on some fields)
@@ -89,19 +89,19 @@ These are genuine, publicly reported incidents where an old, undocumented, or po
 
 ### Case Study 1: Optus (Australia, 2022)
 
-An internet-facing API endpoint reachable **without authentication** was central to a breach affecting a large share of the telecom's customers (public reporting described figures in the millions, including identity-document data). The exposed interface was widely described as one that should never have been openly reachable — an asset that slipped through inventory and access governance.
+An internet-facing API endpoint reachable **without authentication** was central to a breach affecting a large share of the telecom's customers (public reporting described figures in the millions, including identity-document data). The exposed interface was widely described as one that should never have been openly reachable - an asset that slipped through inventory and access governance.
 
 ### Case Study 2: Peloton (2021)
 
-Researchers (Pen Test Partners) reported that several API endpoints returned user account information to unauthenticated or improperly authorized requests. The endpoints were discovered by direct testing rather than any documented interface — the hallmark of under-governed API surface.
+Researchers (Pen Test Partners) reported that several API endpoints returned user account information to unauthenticated or improperly authorized requests. The endpoints were discovered by direct testing rather than any documented interface - the hallmark of under-governed API surface.
 
 ### Case Study 3: Partner / Lender API Exposing Credit Data (2021)
 
-An independent researcher (Bill Demirkapi), in reporting later covered by Brian Krebs, found a partner-facing API used in a lending workflow that returned consumer credit-score data given only easily obtained identifiers. The sensitive functionality lived on a **third-party integration** the data owner was not closely governing — the classic shadow / partner blind spot.
+An independent researcher (Bill Demirkapi), in reporting later covered by Brian Krebs, found a partner-facing API used in a lending workflow that returned consumer credit-score data given only easily obtained identifiers. The sensitive functionality lived on a **third-party integration** the data owner was not closely governing - the classic shadow / partner blind spot.
 
 ### Case Study 4: T-Mobile API Abuse (disclosed January 2023)
 
-T-Mobile disclosed (in a regulatory filing) that an attacker abused a single API to retrieve data on a large number of accounts over an extended period before detection — an observability and governance gap, exactly what improper inventory management creates.
+T-Mobile disclosed (in a regulatory filing) that an attacker abused a single API to retrieve data on a large number of accounts over an extended period before detection - an observability and governance gap, exactly what improper inventory management creates.
 
 ## Prevalence and Statistics
 
@@ -112,7 +112,7 @@ Rather than cite precise percentages that cannot be independently verified, this
 - **Old versions outlive their replacements.** Running multiple concurrent versions is the norm; formally decommissioning old ones is the exception.
 - **Discovery beats documentation.** External attack-surface scans repeatedly surface hosts and endpoints absent from internal records.
 
-> **Takeaway on numbers**: The precise percentage varies by report and methodology, but the direction is unanimous — the number of APIs an organization *actually runs* is reliably larger than the number it can *account for*.
+> **Takeaway on numbers**: The precise percentage varies by report and methodology, but the direction is unanimous - the number of APIs an organization *actually runs* is reliably larger than the number it can *account for*.
 
 ## Common Misunderstandings
 
@@ -120,7 +120,7 @@ Rather than cite precise percentages that cannot be independently verified, this
 **Reality**: Subdomain enumeration, CT logs, path fuzzing, JS-bundle analysis, and mobile-app inspection reveal undocumented endpoints. Obscurity is not a control.
 
 ### Myth 2: "We deprecated v1, so it's handled"
-**Reality**: Deprecation is an announcement; decommissioning is an action. If `/v1` still returns `200 OK`, it is still your attack surface — verify with a request, not a changelog.
+**Reality**: Deprecation is an announcement; decommissioning is an action. If `/v1` still returns `200 OK`, it is still your attack surface - verify with a request, not a changelog.
 
 ### Myth 3: "Non-production environments don't count"
 **Reality**: Staging is often seeded with real data and weaker controls. If it is internet-reachable, it is production to an attacker.
@@ -147,11 +147,11 @@ Rather than cite precise percentages that cannot be independently verified, this
 
 ## Key Takeaways
 
-1. **You can only protect what you know exists** — inventory is the foundation.
-2. **Deprecated is not decommissioned** — verify old versions are offline.
+1. **You can only protect what you know exists** - inventory is the foundation.
+2. **Deprecated is not decommissioned** - verify old versions are offline.
 3. **Shadow and zombie APIs are the real breach doors.**
 4. **Non-production is production** when internet-reachable with real data.
-5. **Attackers enumerate faster than you document** — automate discovery.
+5. **Attackers enumerate faster than you document** - automate discovery.
 6. **Third-party data flows are part of your surface.**
 7. **Inventory is continuous**, wired into CI/CD.
 

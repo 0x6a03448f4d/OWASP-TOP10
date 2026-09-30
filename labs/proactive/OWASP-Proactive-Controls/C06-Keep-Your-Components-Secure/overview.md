@@ -10,9 +10,9 @@
 
 ## What is this control?
 
-**Keep Your Components Secure** is the proactive control of managing the security of every first- and third-party component your software depends on, across its **entire lifecycle**—from the moment you choose it, through every release you ship, to the day you retire it. A modern application is mostly code you did not write: frameworks, libraries, runtimes, base images, and the long tail of *transitive* dependencies those pull in. This control is the discipline of knowing exactly what those components are, keeping them patched, sourcing them safely, and removing them when they are no longer needed.
+**Keep Your Components Secure** is the proactive control of managing the security of every first- and third-party component your software depends on, across its **entire lifecycle**-from the moment you choose it, through every release you ship, to the day you retire it. A modern application is mostly code you did not write: frameworks, libraries, runtimes, base images, and the long tail of *transitive* dependencies those pull in. This control is the discipline of knowing exactly what those components are, keeping them patched, sourcing them safely, and removing them when they are no longer needed.
 
-This is the defensive counterpart to **Vulnerable and Outdated Components** (OWASP Top 10 A06) and to the broader category of **software supply-chain risk**. That risk category is what happens when a known-vulnerable, unmaintained, or maliciously altered dependency ends up running in production; this control is the set of habits that stop that from happening—inventory, scanning, patching, trusted sourcing, and continuous monitoring. The governing principle is **you cannot secure what you cannot see**: everything starts with a complete, accurate inventory.
+This is the defensive counterpart to **Vulnerable and Outdated Components** (OWASP Top 10 A06) and to the broader category of **software supply-chain risk**. That risk category is what happens when a known-vulnerable, unmaintained, or maliciously altered dependency ends up running in production; this control is the set of habits that stop that from happening-inventory, scanning, patching, trusted sourcing, and continuous monitoring. The governing principle is **you cannot secure what you cannot see**: everything starts with a complete, accurate inventory.
 
 ### Core Concept
 
@@ -63,17 +63,17 @@ The control applies in two directions, and both matter:
 
 Keep Your Components Secure is made of a set of reinforcing habits:
 
-- **Maintain an inventory / SBOM**: produce and keep current a Software Bill of Materials listing every component—*direct and transitive*—with name, version, and origin.
+- **Maintain an inventory / SBOM**: produce and keep current a Software Bill of Materials listing every component-*direct and transitive*-with name, version, and origin.
 - **Run Software Composition Analysis (SCA)**: use tools such as OWASP Dependency-Check, `npm audit`, `pip-audit`, Snyk, and Trivy/Grype in CI *and* continuously against what is already deployed.
 - **Patch and update on a cadence**: schedule regular, tested dependency updates, with a fast emergency path for critical advisories.
-- **Remove unused dependencies**: minimize the footprint—every library you do not need is attack surface you did not have to carry.
+- **Remove unused dependencies**: minimize the footprint-every library you do not need is attack surface you did not have to carry.
 - **Source from trusted, official registries**: obtain components from official sources and verify integrity and signatures; defend against dependency confusion, typosquatting, and malicious packages.
 - **Pin versions with integrity hashes**: commit lockfiles (`package-lock.json`, `poetry.lock`, Maven ranges resolved) so builds are reproducible and tamper-evident.
 - **Monitor CVE and advisory feeds**: watch GHSA and NVD, and automate alerts and update PRs with Dependabot or Renovate.
 - **Secure the build pipeline and provenance**: protect CI/CD, sign artifacts, and generate provenance following a framework like SLSA.
 - **Scan containers and base images**: treat the OS packages in your images as dependencies too, and rebuild on updated bases.
 - **Track end-of-life components**: know which dependencies and runtimes are approaching EOL and replace them before they stop receiving patches.
-- **Use virtual patching as a stopgap**: when an immediate upgrade is impossible, a WAF or runtime rule can buy time—never as the permanent fix.
+- **Use virtual patching as a stopgap**: when an immediate upgrade is impossible, a WAF or runtime rule can buy time-never as the permanent fix.
 
 ## The Component Lifecycle
 
@@ -107,17 +107,17 @@ Attackers publish packages whose names are near-misses of popular ones (a transp
 
 ### Class 4: Compromised build pipeline
 
-Rather than attacking a package, adversaries compromise the build or update infrastructure of a trusted vendor and ship a tainted-but-signed artifact to all of that vendor's customers. This is why securing your own pipeline and generating provenance (SLSA) matters—you are a link in someone else's supply chain.
+Rather than attacking a package, adversaries compromise the build or update infrastructure of a trusted vendor and ship a tainted-but-signed artifact to all of that vendor's customers. This is why securing your own pipeline and generating provenance (SLSA) matters-you are a link in someone else's supply chain.
 
 ## Common Misunderstandings
 
 ### Myth 1: "We only need to track what's in our manifest"
 
-**Reality**: the large majority of components are *transitive*—pulled in by your dependencies' dependencies. Only a resolved lockfile and an SBOM show the real tree, and that is where most vulnerabilities live.
+**Reality**: the large majority of components are *transitive*-pulled in by your dependencies' dependencies. Only a resolved lockfile and an SBOM show the real tree, and that is where most vulnerabilities live.
 
 ### Myth 2: "If it isn't broken, don't update it"
 
-**Reality**: an unchanged dependency is not a stable one—the world's knowledge of its flaws grows over time. A library that was "fine" last year may have three critical advisories today. Staying current on a cadence is cheaper and safer than a forced emergency jump.
+**Reality**: an unchanged dependency is not a stable one-the world's knowledge of its flaws grows over time. A library that was "fine" last year may have three critical advisories today. Staying current on a cadence is cheaper and safer than a forced emergency jump.
 
 ### Myth 3: "Popular packages are safe packages"
 
@@ -142,11 +142,11 @@ Rather than attacking a package, adversaries compromise the build or update infr
 
 ## Key Takeaways
 
-1. **You cannot secure what you cannot see**—an SBOM covering direct and transitive components comes first.
-2. **Scan continuously, not just at release**—SCA belongs in CI and against everything deployed.
-3. **Source and pin deliberately**—trusted registries, integrity hashes, and lockfiles keep malicious and drifting components out.
-4. **Patch on a cadence with an emergency lane**—small frequent updates beat a crisis upgrade.
-5. **Minimize and retire**—remove unused dependencies and replace EOL components before they lose support.
+1. **You cannot secure what you cannot see**-an SBOM covering direct and transitive components comes first.
+2. **Scan continuously, not just at release**-SCA belongs in CI and against everything deployed.
+3. **Source and pin deliberately**-trusted registries, integrity hashes, and lockfiles keep malicious and drifting components out.
+4. **Patch on a cadence with an emergency lane**-small frequent updates beat a crisis upgrade.
+5. **Minimize and retire**-remove unused dependencies and replace EOL components before they lose support.
 
 ## Self-Assessment Checklist
 
